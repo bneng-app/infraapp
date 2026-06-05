@@ -2973,6 +2973,12 @@ const DEMO = {
 };
 
 let dados = JSON.parse(JSON.stringify(DEMO));
+// Ensure all collections exist as arrays
+['obras','empresas','ua','cargos','turnos','equipes','funcionarios','familias','modelos',
+ 'equipamentos','frentes','tiposServico','tiposPerdas','produtos','notasFiscais','tanques',
+ 'movTanques','aponMO','aponEQ','diesel','perdas','servicos'].forEach(k => {
+  if (!dados[k]) dados[k] = [];
+});
 
 function modoDemo() {
   document.getElementById('sync-label').textContent = 'Modo demo';
@@ -3432,7 +3438,7 @@ function popularSelects() {
     const el = document.getElementById(id); if (!el) return;
     const val = el.value;
     el.innerHTML = '<option value="">Selecione…</option>';
-    dados.cargos.forEach(c => el.innerHTML += `<option value="${c.cod}">${c.cod} — ${c.nome}</option>`);
+    (dados.cargos||[]).forEach(c => el.innerHTML += `<option value="${c.cod}">${c.cod} — ${c.nome}</option>`);
     el.value = val;
   });
   // Famílias
@@ -3440,7 +3446,7 @@ function popularSelects() {
     const el = document.getElementById(id); if (!el) return;
     const val = el.value;
     el.innerHTML = '<option value="">Selecione…</option>';
-    dados.familias.forEach(f => el.innerHTML += `<option value="${f.cod}">${f.cod} — ${f.desc}</option>`);
+    (dados.familias||[]).forEach(f => el.innerHTML += `<option value="${f.cod}">${f.cod} — ${f.desc}</option>`);
     el.value = val;
   });
   // Modelos
@@ -3448,20 +3454,20 @@ function popularSelects() {
     const el = document.getElementById(id); if (!el) return;
     const val = el.value;
     el.innerHTML = '<option value="">Selecione…</option>';
-    dados.modelos.forEach(m => el.innerHTML += `<option value="${m.cod}">${m.cod} — ${m.nome}</option>`);
+    (dados.modelos||[]).forEach(m => el.innerHTML += `<option value="${m.cod}">${m.cod} — ${m.nome}</option>`);
     el.value = val;
   });
   // Funcionários
   ['amo-func','aeq-operador','per-func'].forEach(id => {
     const el = document.getElementById(id); if (!el) return;
     el.innerHTML = '<option value="">Selecione…</option>';
-    dados.funcionarios.forEach(f => el.innerHTML += `<option value="${f.mat}">${f.nome} — ${f.codFuncao}</option>`);
+    (dados.funcionarios||[]).forEach(f => el.innerHTML += `<option value="${f.mat}">${f.nome} — ${f.codFuncao}</option>`);
   });
   // Equipamentos (por placa)
   ['aeq-equip','die-equip','per-equip','rel-eq-equip','rel-die-equip'].forEach(id => {
     const el = document.getElementById(id); if (!el) return;
     el.innerHTML = '<option value="">Selecione…</option>';
-    dados.equipamentos.forEach(e => {
+    (dados.equipamentos||[]).forEach(e => {
       const modNome = dados.modelos.find(m=>m.cod===e.codModelo)?.nome || e.codModelo;
       el.innerHTML += `<option value="${e.id}">${e.placa} — ${modNome}</option>`;
     });
@@ -3470,20 +3476,20 @@ function popularSelects() {
   ['amo-frente','aeq-frente','per-frente'].forEach(id => {
     const el = document.getElementById(id); if (!el) return;
     el.innerHTML = '<option value="">Selecione…</option>';
-    dados.servicos.forEach(s => el.innerHTML += `<option value="${s.id}">${s.cod} — ${s.desc}</option>`);
+    (dados.servicos||[]).forEach(s => el.innerHTML += `<option value="${s.id}">${s.cod} — ${s.desc}</option>`);
   });
   // Obras
   ['srv-obra'].forEach(id => {
     const el = document.getElementById(id); if (!el) return;
     el.innerHTML = '<option value="">Selecione…</option>';
-    dados.obras.forEach(o => el.innerHTML += `<option value="${o.id}">${o.nome}</option>`);
+    (dados.obras||[]).forEach(o => el.innerHTML += `<option value="${o.id}">${o.nome}</option>`);
   });
   // Usuários — empresa select
   ['usr-empresa'].forEach(id => {
     const el = document.getElementById(id); if (!el) return;
     const val = el.value;
     el.innerHTML = '<option value="">Selecione…</option>';
-    dados.empresas.forEach(e => el.innerHTML += `<option value="${e.id}">${e.nome}</option>`);
+    (dados.empresas||[]).forEach(e => el.innerHTML += `<option value="${e.id}">${e.nome}</option>`);
     el.value = val;
   });
   // Turnos nos modais
@@ -3492,7 +3498,7 @@ function popularSelects() {
   ['filtro-mo-empresa','rel-mo-emp'].forEach(id => {
     const el = document.getElementById(id); if (!el) return;
     if (el.options.length <= 1) {
-      dados.empresas.forEach(e => el.innerHTML += `<option value="${e.nome}">${e.nome}</option>`);
+      (dados.empresas||[]).forEach(e => el.innerHTML += `<option value="${e.nome}">${e.nome}</option>`);
     }
   });
   // Obras em usuários
@@ -3502,7 +3508,7 @@ function popularSelects() {
     const el = document.getElementById(id); if (!el) return;
     const val = el.value;
     el.innerHTML = '<option value="">Selecione…</option>';
-    dados.obras.forEach(o => el.innerHTML += '<option value="'+o.id+'">'+o.nome+'</option>');
+    (dados.obras||[]).forEach(o => el.innerHTML += '<option value="'+o.id+'">'+o.nome+'</option>');
     if (val) el.value = val;
   });
   popularFrentes();
@@ -3510,21 +3516,21 @@ function popularSelects() {
   ['rel-mo-frente'].forEach(id => {
     const el = document.getElementById(id); if (!el) return;
     if (el.options.length <= 1) {
-      dados.servicos.forEach(s => el.innerHTML += `<option value="${s.cod}">${s.cod} — ${s.desc}</option>`);
+      (dados.servicos||[]).forEach(s => el.innerHTML += `<option value="${s.cod}">${s.cod} — ${s.desc}</option>`);
     }
   });
   // filtros relatório — famílias
   ['rel-eq-familia'].forEach(id => {
     const el = document.getElementById(id); if (!el) return;
     if (el.options.length <= 1) {
-      dados.familias.forEach(f => el.innerHTML += `<option value="${f.cod}">${f.desc}</option>`);
+      (dados.familias||[]).forEach(f => el.innerHTML += `<option value="${f.cod}">${f.desc}</option>`);
     }
   });
   // filtros relatório — equipamentos por TAG
   ['rel-eq-equip','rel-die-equip'].forEach(id => {
     const el = document.getElementById(id); if (!el) return;
     if (el.options.length <= 1) {
-      dados.equipamentos.forEach(e => el.innerHTML += `<option value="${e.tag||e.placa}">${e.tag||e.placa}</option>`);
+      (dados.equipamentos||[]).forEach(e => el.innerHTML += `<option value="${e.tag||e.placa}">${e.tag||e.placa}</option>`);
     }
   });
   // filtros perdas — motivos
