@@ -265,6 +265,7 @@ textarea.form-control{resize:vertical;min-height:72px}
 
 .acoes-cell{display:flex;gap:4px;justify-content:flex-end}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -657,7 +658,7 @@ textarea.form-control{resize:vertical;min-height:72px}
     <div class="search-wrap"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="search-empresas" placeholder="Buscar por código, razão social ou CNPJ…" oninput="filtrarTabela('tabela-empresas','search-empresas',0)"/></div>
     <div class="table-wrap">
       <table id="tabela-empresas">
-        <thead><tr><th>Código</th><th>Razão Social</th><th>CNPJ</th><th>Tipo</th><th>Responsável</th><th></th></tr></thead>
+        <thead><tr><th>Obra</th><th>Código</th><th>Razão Social</th><th>CNPJ</th><th>Tipo</th><th>Responsável</th><th></th></tr></thead>
         <tbody id="tbody-empresas"><tr><td colspan="6" class="empty-row">Carregando…</td></tr></tbody>
       </table>
     </div>
@@ -699,7 +700,7 @@ textarea.form-control{resize:vertical;min-height:72px}
     <div class="search-wrap"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="search-cargos" placeholder="Buscar código ou função…" oninput="filtrarTabela('tabela-cargos','search-cargos',0)"/></div>
     <div class="table-wrap">
       <table id="tabela-cargos">
-        <thead><tr><th>Cód. Função</th><th>Função (Cargo)</th><th>Direto</th><th>Operador</th><th>Cód. Recurso</th><th></th></tr></thead>
+        <thead><tr><th>Obra</th><th>Cód. Função</th><th>Função (Cargo)</th><th>Direto</th><th>Operador</th><th>Cód. Recurso</th><th></th></tr></thead>
         <tbody id="tbody-cargos"><tr><td colspan="6" class="empty-row">Carregando…</td></tr></tbody>
       </table>
     </div>
@@ -858,7 +859,7 @@ textarea.form-control{resize:vertical;min-height:72px}
     <div class="search-wrap"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="search-func" placeholder="Buscar por matrícula, nome ou cargo…" oninput="filtrarTabela('tabela-func','search-func',0)"/></div>
     <div class="table-wrap">
       <table id="tabela-func">
-        <thead><tr><th>Matrícula</th><th>Nome</th><th>Cód. Função</th><th>Direto</th><th>Admissão</th><th>Demissão</th><th>Matr. Líder</th><th>Cód. Equipe</th><th></th></tr></thead>
+        <thead><tr><th>Obra</th><th>Matrícula</th><th>Nome</th><th>Cód. Função</th><th>Direto</th><th>Admissão</th><th>Demissão</th><th>Matr. Líder</th><th>Cód. Equipe</th><th></th></tr></thead>
         <tbody id="tbody-func"><tr><td colspan="9" class="empty-row">Carregando…</td></tr></tbody>
       </table>
     </div>
@@ -879,7 +880,7 @@ textarea.form-control{resize:vertical;min-height:72px}
     <div class="search-wrap"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="search-familias" placeholder="Buscar código ou descrição…" oninput="filtrarTabela('tabela-familias','search-familias',0)"/></div>
     <div class="table-wrap">
       <table id="tabela-familias">
-        <thead><tr><th>Cód. Família</th><th>Desc. Família</th><th></th></tr></thead>
+        <thead><tr><th>Obra</th><th>Cód. Família</th><th>Desc. Família</th><th></th></tr></thead>
         <tbody id="tbody-familias"><tr><td colspan="3" class="empty-row">Carregando…</td></tr></tbody>
       </table>
     </div>
@@ -900,7 +901,7 @@ textarea.form-control{resize:vertical;min-height:72px}
     <div class="search-wrap"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="search-modelos" placeholder="Buscar código ou modelo…" oninput="filtrarTabela('tabela-modelos','search-modelos',0)"/></div>
     <div class="table-wrap">
       <table id="tabela-modelos">
-        <thead><tr><th>Cód. Modelo</th><th>Modelo</th><th></th></tr></thead>
+        <thead><tr><th>Obra</th><th>Cód. Modelo</th><th>Modelo</th><th></th></tr></thead>
         <tbody id="tbody-modelos"><tr><td colspan="3" class="empty-row">Carregando…</td></tr></tbody>
       </table>
     </div>
@@ -2927,6 +2928,217 @@ async function fbLoadAll(colecao) {
   } catch(e) { console.warn('Erro ao carregar '+colecao+':', e.message); return null; }
 }
 
+
+// ═══════════════════════════════════════════════════════════════
+// TEMPLATE EXCEL + IMPORTAÇÃO CSV/XLSX
+// ═══════════════════════════════════════════════════════════════
+
+const _COLUNAS = {'obras': ['Código', 'Nome da Obra', 'Local/Município', 'Status'], 'empresas': ['Código', 'Razão Social', 'CNPJ', 'Tipo', 'Responsável'], 'ua': ['Código UA', 'Descrição', 'Tipo'], 'cargos': ['Cód. Função', 'Nome da Função', 'Cód. Recurso', 'Direto (Sim/Não)', 'Operador (Sim/Não)'], 'funcionarios': ['Matrícula', 'Nome Completo', 'Cód. Função', 'Direto (Sim/Não)', 'Data Admissão (DD/MM/AAAA)', 'Data Demissão', 'Matr. Líder', 'Cód. Equipe'], 'familias': ['Código', 'Descrição'], 'modelos': ['Código', 'Nome do Modelo', 'Família'], 'equipamentos': ['TAG', 'Placa/Série', 'Cód. Modelo', 'Família', 'Proprietário', 'Status', 'Data Mobilização']};
+
+function baixarTemplate(tipo) {
+  if (typeof XLSX === 'undefined') {
+    toast('Aguarde o carregamento do Excel e tente novamente.', 'error');
+    return;
+  }
+  const cols = _COLUNAS[tipo];
+  if (!cols) { toast('Template não disponível para este cadastro.', 'error'); return; }
+  
+  // Add Obra column as first column for all types except obras
+  const headers = tipo === 'obras' ? cols : ['Obra (Nome)', ...cols];
+  
+  // Create workbook with example row
+  const wb = XLSX.utils.book_new();
+  const wsData = [headers];
+  
+  // Add example row
+  const exemplo = tipo === 'obras'
+    ? ['SP-280', 'Rodovia SP-280', 'Sorocaba - SP', 'Ativa']
+    : tipo === 'funcionarios'
+    ? ['Nome da Obra', '0001', 'João da Silva', 'FUN-001', 'Sim', '01/03/2025', '', '', '']
+    : headers.map((h,i) => i===0 ? 'Nome da Obra' : '(exemplo)');
+  
+  wsData.push(exemplo);
+  
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  
+  // Style header row
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for (let c = range.s.c; c <= range.e.c; c++) {
+    const cell = ws[XLSX.utils.encode_cell({r:0, c})];
+    if (cell) cell.s = {font:{bold:true}, fill:{fgColor:{rgb:'1E2A3A'}}};
+  }
+  
+  // Auto column width
+  ws['!cols'] = headers.map(h => ({ wch: Math.max(h.length + 4, 18) }));
+  
+  XLSX.utils.book_append_sheet(wb, ws, 'Template');
+  XLSX.writeFile(wb, 'template_' + tipo + '.xlsx');
+  toast('Template baixado! Preencha e importe.');
+}
+
+function abrirImportacao(tipo) {
+  const modal = document.getElementById('modal-importacao');
+  if (!modal) {
+    // Create modal dynamically
+    const m = document.createElement('div');
+    m.className = 'modal-overlay';
+    m.id = 'modal-importacao';
+    m.innerHTML = `
+      <div class="modal" style="max-width:500px">
+        <div class="modal-header">
+          <span class="modal-title" id="import-titulo">Importar</span>
+          <button class="modal-close" onclick="closeModal('modal-importacao')">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-info" style="margin-bottom:1rem">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <div>Use o <strong>Template Excel</strong> como base. A primeira linha deve ser o cabeçalho.</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Selecione o arquivo (.xlsx ou .csv)</label>
+            <input type="file" id="import-file" class="form-control" accept=".xlsx,.xls,.csv" style="padding:6px"/>
+          </div>
+          <div id="import-preview" style="margin-top:1rem;font-size:12px;color:var(--text-3)"></div>
+          <input type="hidden" id="import-tipo"/>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="closeModal('modal-importacao')">Cancelar</button>
+          <button class="btn btn-primary" onclick="confirmarImportacao()">Importar dados</button>
+        </div>
+      </div>`;
+    document.body.appendChild(m);
+  }
+  
+  document.getElementById('import-titulo').textContent = 'Importar ' + tipo;
+  document.getElementById('import-tipo').value = tipo;
+  const fileInput = document.getElementById('import-file');
+  if (fileInput) fileInput.value = '';
+  document.getElementById('import-preview').textContent = '';
+  
+  // Wire file change to preview
+  setTimeout(() => {
+    const fi = document.getElementById('import-file');
+    if (fi) fi.onchange = function() { previewImport(this); };
+  }, 100);
+  
+  openModal('modal-importacao');
+}
+
+function previewImport(input) {
+  if (!input.files || !input.files[0]) return;
+  if (typeof XLSX === 'undefined') { toast('SheetJS não carregado.','error'); return; }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const wb = XLSX.read(e.target.result, {type:'binary', cellDates:true});
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, {header:1});
+    const preview = document.getElementById('import-preview');
+    if (preview) {
+      preview.innerHTML = '<strong>' + (rows.length-1) + ' linha(s) encontrada(s)</strong><br>'
+        + 'Colunas: ' + (rows[0]||[]).join(' · ');
+    }
+  };
+  reader.readAsBinaryString(input.files[0]);
+}
+
+async function confirmarImportacao() {
+  const tipo  = document.getElementById('import-tipo')?.value;
+  const file  = document.getElementById('import-file')?.files?.[0];
+  if (!tipo || !file) { toast('Selecione um arquivo.','error'); return; }
+  if (typeof XLSX === 'undefined') { toast('SheetJS não carregado.','error'); return; }
+
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    try {
+      const wb   = XLSX.read(e.target.result, {type:'binary', cellDates:true});
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1});
+      if (rows.length < 2) { toast('Arquivo vazio ou sem dados.','error'); return; }
+      
+      const headers = rows[0].map(h => String(h).trim().toLowerCase());
+      const dataRows = rows.slice(1).filter(r => r.some(c => c !== undefined && c !== ''));
+      
+      let importados = 0;
+      const obraAtualId = obraAtiva?.id !== 'todas' ? obraAtiva?.id : '';
+      const obraAtualNome = obraAtiva?.nome || '';
+      
+      for (const row of dataRows) {
+        const get = (keywords) => {
+          for (const kw of keywords) {
+            const idx = headers.findIndex(h => h.includes(kw));
+            if (idx >= 0 && row[idx] !== undefined) return String(row[idx]).trim();
+          }
+          return '';
+        };
+        
+        // Resolve obra
+        let obraId = obraAtualId;
+        const obraNomeImport = get(['obra']);
+        if (obraNomeImport && !obraId) {
+          const obraFound = dados.obras.find(o => o.nome.toLowerCase().includes(obraNomeImport.toLowerCase()) || o.cod.toLowerCase() === obraNomeImport.toLowerCase());
+          if (obraFound) obraId = obraFound.id;
+        }
+        
+        let item = { id: tipo.slice(0,2) + Date.now() + Math.random().toString(36).slice(2,5), obra: obraId };
+        
+        if (tipo === 'obras') {
+          item = { id:'o'+Date.now()+importados, 
+            cod: get(['código','cod','codigo']), nome: get(['nome']),
+            local: get(['local','município']), status: get(['status'])||'Ativa' };
+        } else if (tipo === 'funcionarios') {
+          item.mat      = get(['matrícula','matricula','mat']);
+          item.nome     = get(['nome']);
+          item.codFuncao = get(['função','funcao','cód. função','cod.func']);
+          item.direto   = get(['direto'])||'Sim';
+          item.admissao = get(['admissão','admissao']);
+          item.demissao = get(['demissão','demissao'])||'';
+          item.lider    = get(['líder','lider'])||'';
+          item.equipe   = get(['equipe'])||'';
+        } else if (tipo === 'empresas') {
+          item.cod  = get(['código','cod']); item.nome = get(['razão','nome']);
+          item.cnpj = get(['cnpj']); item.tipo = get(['tipo'])||'Empreiteira';
+          item.resp = get(['responsável','responsavel'])||'';
+        } else if (tipo === 'cargos') {
+          item.cod     = get(['cód. função','cod','código']);
+          item.nome    = get(['nome da função','nome']);
+          item.recurso = get(['recurso'])||'';
+          item.direto  = get(['direto'])||'Sim';
+          item.operador = get(['operador'])||'Não';
+        } else if (tipo === 'ua') {
+          item.cod  = get(['código ua','cod']); item.desc = get(['descrição','desc']);
+          item.tipo = get(['tipo'])||'MO';
+        } else if (tipo === 'familias') {
+          item.cod = get(['código','cod']); item.desc = get(['descrição','desc']);
+        } else if (tipo === 'modelos') {
+          item.cod     = get(['código','cod']); item.nome = get(['nome']);
+          item.familia = get(['família','familia'])||'';
+        } else if (tipo === 'equipamentos') {
+          item.tag    = get(['tag']); item.placa = get(['placa','série']);
+          item.modelo = get(['modelo','cód. modelo']); item.familia = get(['família','familia']);
+          item.prop   = get(['proprietário','proprietario'])||'';
+          item.status = get(['status'])||'Mobilizado'; item.mob = get(['mobilização','mobilizacao'])||'';
+        }
+        
+        if (!dados[tipo]) dados[tipo] = [];
+        dados[tipo].push(item);
+        if (db && _firebaseReady && item.id) {
+          await fbSave(tipo, item.id, item).catch(()=>{});
+        }
+        importados++;
+      }
+      
+      closeModal('modal-importacao');
+      const renders = {obras:renderObras,empresas:renderEmpresas,ua:renderUA,cargos:renderCargos,
+        funcionarios:renderFuncionarios,familias:renderFamilias,modelos:renderModelos,equipamentos:renderEquipamentos};
+      if (renders[tipo]) renders[tipo]();
+      toast(importados + ' registro(s) importado(s) com sucesso!');
+    } catch(err) {
+      toast('Erro ao importar: ' + err.message, 'error');
+    }
+  };
+  reader.readAsBinaryString(file);
+}
+
 async function sincronizarTudo() {
   if (!db || !_firebaseReady) return;
   const colecoes = ['obras','empresas','ua','cargos','turnos','equipes','funcionarios',
@@ -3802,7 +4014,7 @@ function renderEmpresas() {
   const _bbe = document.getElementById('bulk-bar-empresas');
   if (!_bbe) { const _twe = document.getElementById('tbody-empresas')?.closest('.table-wrap'); if(_twe) _twe.insertAdjacentHTML('beforebegin', bulkBar('empresas')); }
   document.getElementById('tbody-empresas').innerHTML = _emps.length
-    ? _emps.map(e=>`<tr>${cbTD('empresas',e.id)}<td class="td-mono">${e.cod}</td>
+    ? _emps.map(e=>`<tr>${cbTD('empresas',e.id)}<td style='font-size:11px;color:var(--text-3)'>${getNomeObra(e.obra)}</td><td class="td-mono">${e.cod}</td>
         <td><strong>${e.nome}</strong></td>
         <td class="td-mono">${e.cnpj||'—'}</td>
         <td>${tag(e.tipo,'blue')}</td>
@@ -3868,7 +4080,7 @@ function salvarUA() {
 function renderCargos() {
   if(!document.getElementById('bulk-bar-cargos')){const _tw=document.getElementById('tbody-cargos')?.closest('.table-wrap');if(_tw)_tw.insertAdjacentHTML('beforebegin',bulkBar('cargos'));}
   document.getElementById('tbody-cargos').innerHTML = dados.cargos.length
-    ? dados.cargos.map(c=>`<tr>${cbTD('cargos',c.id)}<td class="td-mono">${c.cod}</td>
+    ? dados.cargos.map(c=>`<tr>${cbTD('cargos',c.id)}<td style='font-size:11px;color:var(--text-3)'>${getNomeObra(c.obra)}</td><td class="td-mono">${c.cod}</td>
         <td><strong>${c.nome}</strong></td>
         <td>${tag(c.direto,   c.direto==='Sim'?'green':'gray')}</td>
         <td>${tag(c.operador, c.operador==='Sim'?'blue':'gray')}</td>
@@ -3909,7 +4121,7 @@ function renderFuncionarios() {
     ? _funcs.map(f=>{
         const cargo = dados.cargos.find(c=>c.cod===f.codFuncao);
         const nomeFunc = cargo ? cargo.nome : '—';
-        return `<tr>${cbTD('funcionarios',f.id)}
+        return `<tr>${cbTD('funcionarios',f.id)}<td style='font-size:11px;color:var(--text-3)'>${getNomeObra(f.obra)}</td>
         <td class="td-mono"><strong>${f.mat}</strong></td>
         <td>${f.nome}</td>
         <td class="td-mono">${f.codFuncao}</td>
@@ -3953,7 +4165,7 @@ function salvarFuncionario() {
 function renderFamilias() {
   if(!document.getElementById('bulk-bar-familias')){const _tw=document.getElementById('tbody-familias')?.closest('.table-wrap');if(_tw)_tw.insertAdjacentHTML('beforebegin',bulkBar('familias'));}
   document.getElementById('tbody-familias').innerHTML = dados.familias.length
-    ? dados.familias.map(f=>`<tr>${cbTD('familias',f.id)}<td class="td-mono"><strong>${f.cod}</strong></td>
+    ? dados.familias.map(f=>`<tr>${cbTD('familias',f.id)}<td style='font-size:11px;color:var(--text-3)'>${getNomeObra(f.obra)}</td><td class="td-mono"><strong>${f.cod}</strong></td>
         <td>${f.desc}</td>
         <td>${acoesCell(`editarFamilia('${f.id}')`,`deletar('familias','${f.id}')`)}</td>
       </tr>`).join('')
@@ -3981,7 +4193,7 @@ function salvarFamilia() {
 function renderModelos() {
   if(!document.getElementById('bulk-bar-modelos')){const _tw=document.getElementById('tbody-modelos')?.closest('.table-wrap');if(_tw)_tw.insertAdjacentHTML('beforebegin',bulkBar('modelos'));}
   document.getElementById('tbody-modelos').innerHTML = dados.modelos.length
-    ? dados.modelos.map(m=>`<tr>${cbTD('modelos',m.id)}<td class="td-mono"><strong>${m.cod}</strong></td>
+    ? dados.modelos.map(m=>`<tr>${cbTD('modelos',m.id)}<td style='font-size:11px;color:var(--text-3)'>${getNomeObra(m.obra)}</td><td class="td-mono"><strong>${m.cod}</strong></td>
         <td>${m.nome}</td>
         <td>${acoesCell(`editarModelo('${m.id}')`,`deletar('modelos','${m.id}')`)}</td>
       </tr>`).join('')
@@ -4016,7 +4228,7 @@ function renderEquipamentos() {
         const modNome = modelo?.nome || '—';
         const famDesc = dados.familias.find(f=>f.cod===e.familia)?.desc || e.familia;
         const stCls = e.status==='Mobilizado'?'green':e.status==='Manutenção'?'amber':'gray';
-        return `<tr>${cbTD('equipamentos',e.id)}<td class="td-mono"><strong style="color:var(--green-dark)">${e.tag||'—'}</strong></td>
+        return `<tr>${cbTD('equipamentos',e.id)}<td style='font-size:11px;color:var(--text-3)'>${getNomeObra(e.obra)}</td><td class="td-mono"><strong style="color:var(--green-dark)">${e.tag||'—'}</strong></td>
           <td class="td-mono">${e.codModelo}</td>
           <td>${modNome}</td>
           <td class="td-mono">${e.placa}</td>
@@ -6055,6 +6267,13 @@ function cbTD(col,id){return '<td><input type="checkbox" class="cb-row-check cb-
 function bulkBar(col){return '<div class="bulk-bar" id="bulk-bar-'+col+'"><span class="bulk-count" style="font-size:13px;font-weight:500;color:var(--blue)">0 selecionado(s)</span><button class="btn btn-sm" style="background:var(--red-light);color:var(--red);border:1px solid var(--red-light);margin-left:auto" onclick="excluirSelecionados(\'' +col+ '\')">Excluir selecionados</button></div>';}
 
 
+
+function getNomeObra(obraId) {
+  if (!obraId) return '—';
+  const o = (dados.obras||[]).find(x=>x.id===obraId);
+  return o ? o.nome : obraId;
+}
+
 function renderDashMO() {
   let lista = filtrarPorObra([...dados.aponMO], 'frente');
   const ini = document.getElementById('dash-mo-ini')?.value||'';
@@ -6644,6 +6863,5 @@ popularSelects = function() {
 
 </script>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </body>
 </html>
