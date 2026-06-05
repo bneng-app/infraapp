@@ -299,18 +299,7 @@ textarea.form-control{resize:vertical;min-height:72px}
         Entrar no InfraApp
       </button>
       <div style="border-top:1px solid #eee;margin-top:1rem;padding-top:1rem">
-        <div style="font-size:11px;color:#888;text-align:center;margin-bottom:8px">Acesso rápido (demo):</div>
-        <div style="display:flex;flex-direction:column;gap:6px">
-          <button onclick="loginDemo('karine.loch@bnengenharia.com.br','BNeng@2025')" style="width:100%;padding:9px;background:#1D9E75;color:white;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">
-            🔑 Karine Loch — Admin Master
-          </button>
-          <button onclick="loginDemo('carlos@infraapp.com','carlos123')" style="width:100%;padding:8px;background:#E6F1FB;color:#0C447C;border:1px solid #B5D4F4;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer">
-            👷 Carlos — Supervisor
-          </button>
-          <button onclick="loginDemo('ana@infraapp.com','ana123')" style="width:100%;padding:8px;background:#F5F5F0;color:#555;border:1px solid #ddd;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer">
-            👤 Ana — Colaborador
-          </button>
-        </div>
+        
       </div>
     </div>
     <div style="text-align:center;margin-top:1rem;font-size:11px;color:#aaa">InfraApp © 2025 · Gestão de Obras</div>
@@ -2750,13 +2739,14 @@ async function sincronizarTudo() {
 
   if (carregou) {
     console.log('Dados carregados do Firebase!');
-    document.getElementById('sync-label').textContent = 'Firebase sincronizado';
+    const syncEl = document.getElementById('sync-label');
+    if (syncEl) syncEl.textContent = 'Firebase sincronizado';
   } else {
-    // Primeira vez: salvar dados demo no Firebase
-    console.log('Primeiro acesso: salvando dados iniciais no Firebase...');
-    await salvarTudoFirebase();
+    // Primeira vez: banco vazio, não salvar dados demo
+    console.log('Banco de dados vazio — pronto para uso!');
+    const syncEl = document.getElementById('sync-label');
+    if (syncEl) syncEl.textContent = 'Firebase conectado';
   }
-  renderAll();
 }
 
 async function salvarTudoFirebase() {
@@ -2781,133 +2771,31 @@ async function salvarTudoFirebase() {
 
 // ───── MODO DEMO (sem Firebase) ─────
 const DEMO = {
-  obras:     [{ id:'o1', cod:'SP-280', nome:'Rodovia SP-280 Km 34', local:'Sorocaba – SP', status:'Ativa' }],
-  empresas:  [
-    { id:'e1', cod:'EMP-001', nome:'Construtora Alpha Ltda.', cnpj:'12345678000190', tipo:'Empreiteira', resp:'João Alves' },
-    { id:'e2', cod:'EMP-002', nome:'Locadora Beta S.A.',      cnpj:'98765432000111', tipo:'Locadora',    resp:'Maria Costa' },
+  obras:        [],
+  empresas:     [],
+  ua:           [],
+  cargos:       [],
+  turnos:       [],
+  equipes:      [],
+  funcionarios: [],
+  familias:     [],
+  modelos:      [],
+  equipamentos: [],
+  frentes:      [],
+  tiposServico: [],
+  tiposPerdas:  [],
+  produtos: [
+    { id:'pr1', cod:'PROD-001', nome:'Óleo Diesel S-10',  unidade:'Litros', preco:0, categoria:'Combustível', obs:'' },
+    { id:'pr2', cod:'PROD-002', nome:'Óleo Diesel S-500', unidade:'Litros', preco:0, categoria:'Combustível', obs:'' },
+    { id:'pr3', cod:'PROD-003', nome:'Arla 32',           unidade:'Litros', preco:0, categoria:'Fluido',      obs:'' },
   ],
-  ua: [
-    { id:'ua1', cod:'CTR-II-FRD',  desc:'Fresagem Descontínua — Trecho II', tipo:'MO'  },
-    { id:'ua2', cod:'CTR-II-ATR',  desc:'Aterro Compactado — Trecho II',    tipo:'EQ'  },
-    { id:'ua3', cod:'CTR-III-DRN', desc:'Drenagem — Trecho III',            tipo:'Misto'},
-  ],
-  cargos: [
-    { id:'c1', cod:'FUN-001', nome:'Operador de Máquinas',   direto:'Sim', operador:'Sim', recurso:'REC-001' },
-    { id:'c2', cod:'FUN-002', nome:'Servente',               direto:'Sim', operador:'Não', recurso:'REC-002' },
-    { id:'c3', cod:'FUN-003', nome:'Feitor de Obras',        direto:'Sim', operador:'Não', recurso:'REC-003' },
-    { id:'c4', cod:'FUN-004', nome:'Motorista',              direto:'Sim', operador:'Sim', recurso:'REC-004' },
-  ],
-  funcionarios: [
-    { id:'f1', mat:'0042', nome:'José Silva Santos', codFuncao:'FUN-001', direto:'Sim', admissao:'2024-03-01', demissao:'', lider:'', equipe:'' },
-    { id:'f2', mat:'0043', nome:'Maria Oliveira',    codFuncao:'FUN-002', direto:'Sim', admissao:'2024-03-01', demissao:'', lider:'0042', equipe:'EQ-01' },
-    { id:'f3', mat:'0044', nome:'Pedro Lima',        codFuncao:'FUN-003', direto:'Sim', admissao:'2023-11-15', demissao:'', lider:'',     equipe:'' },
-  ],
-  familias: [
-    { id:'fm1', cod:'FAM-001', desc:'Escavadeiras Hidráulicas' },
-    { id:'fm2', cod:'FAM-002', desc:'Rolos Compactadores'      },
-    { id:'fm3', cod:'FAM-003', desc:'Motoniveladoras'          },
-    { id:'fm4', cod:'FAM-004', desc:'Caminhões Basculantes'    },
-  ],
-  modelos: [
-    { id:'md1', cod:'MOD-001', nome:'CAT 320 GC'       },
-    { id:'md2', cod:'MOD-002', nome:'Dynapac CA 250 D'  },
-    { id:'md3', cod:'MOD-003', nome:'CAT 140M'          },
-    { id:'md4', cod:'MOD-004', nome:'Volvo FMX 440'     },
-  ],
-  equipamentos: [
-    { id:'q1', tag:'ESC-001', codModelo:'MOD-001', placa:'CAT-0042',   familia:'FAM-001', prop:'Locado',  status:'Mobilizado',    dataMob:'2025-01-15' },
-    { id:'q2', tag:'ROL-001', codModelo:'MOD-002', placa:'DYN-9871',   familia:'FAM-002', prop:'Próprio', status:'Mobilizado',    dataMob:'2025-01-15' },
-    { id:'q3', tag:'MOT-001', codModelo:'MOD-003', placa:'CAT-0019',   familia:'FAM-003', prop:'Próprio', status:'Manutenção',    dataMob:'2025-01-15' },
-    { id:'q4', tag:'CAM-001', codModelo:'MOD-004', placa:'VLV-ABC1234',familia:'FAM-004', prop:'Locado',  status:'Desmobilizado', dataMob:''           },
-  ],
-  frentes: [
-    { id:'f1', cod:'FS-001', desc:'Trecho Km 34 Norte', obra:'SP-280 Km 34', resp:'Carlos M.', obs:'' },
-    { id:'f2', cod:'FS-002', desc:'Trecho Km 35 Sul',   obra:'SP-280 Km 34', resp:'Ana R.',    obs:'' },
-    { id:'f3', cod:'FS-003', desc:'Trecho Km 36 Leste', obra:'SP-280 Km 34', resp:'',          obs:'' },
-  ],
-  notasFiscais: [
-    { id:'nf1', numero:'000012345', dtEmissao:'2026-06-01', dtRecebimento:'2026-06-01', horaRecebimento:'07:30',
-      fornecedor:'Ipiranga Produtos de Petróleo S.A.', cnpj:'33337260000141', placaVeiculo:'BRA-2E19',
-      produto:'Óleo Diesel S-10', unidade:'Litros', quantidade:5000, unitario:6.89, total:34450,
-      tanqueId:'tq1', obs:'Pedido 98765', lancadoPor:'João P.', status:'confirmada' },
-    { id:'nf2', numero:'000012346', dtEmissao:'2026-06-03', dtRecebimento:'2026-06-04', horaRecebimento:'08:00',
-      fornecedor:'Raízen Combustíveis S.A.', cnpj:'33453598000132', placaVeiculo:'DEF-3F20',
-      produto:'Óleo Diesel S-10', unidade:'Litros', quantidade:3000, unitario:6.92, total:20760,
-      tanqueId:'tq2', obs:'', lancadoPor:'João P.', status:'confirmada' },
-  ],
-  tanques: [
-    { id:'tq1', cod:'TQ-01', nome:'Tanque Principal',   cap:15000, saldo:7430, local:'Canteiro Km 34', obs:'Tanque fixo no canteiro', ativo:true },
-    { id:'tq2', cod:'TQ-02', nome:'Tanque Auxiliar',    cap:5000,  saldo:2820, local:'Frente FS-002',  obs:'Tanque móvel', ativo:true },
-  ],
-  movTanques: [
-    { id:'mv1', dt:'2026-06-01 07:00', tanqueId:'tq1', tipo:'entrada', litros:5000, saldoAntes:3500, saldoDepois:8500, resp:'Karine L.', obs:'NF 000012345 — Ipiranga' },
-    { id:'mv2', dt:'2026-06-02 07:05', tanqueId:'tq1', tipo:'saida',   litros:210,  saldoAntes:8500, saldoDepois:8290, resp:'João P.',   obs:'Abastecimento ROL-001' },
-    { id:'mv3', dt:'2026-06-03 07:10', tanqueId:'tq1', tipo:'saida',   litros:250,  saldoAntes:8290, saldoDepois:8040, resp:'João P.',   obs:'Abastecimento MOT-001' },
-    { id:'mv4', dt:'2026-06-03 07:25', tanqueId:'tq1', tipo:'saida',   litros:290,  saldoAntes:8040, saldoDepois:7750, resp:'João P.',   obs:'Abastecimento ESC-001' },
-    { id:'mv5', dt:'2026-06-04 07:00', tanqueId:'tq2', tipo:'entrada', litros:3000, saldoAntes:0,    saldoDepois:3000, resp:'Karine L.', obs:'NF 000012346 — Raízen' },
-    { id:'mv6', dt:'2026-06-04 07:15', tanqueId:'tq1', tipo:'saida',   litros:320,  saldoAntes:7750, saldoDepois:7430, resp:'João P.',   obs:'Abastecimento ESC-001' },
-    { id:'mv7', dt:'2026-06-04 07:20', tanqueId:'tq2', tipo:'saida',   litros:180,  saldoAntes:3000, saldoDepois:2820, resp:'João P.',   obs:'Abastecimento ROL-001' },
-  ],
-  tiposServico: [
-    { id:'ts1', cod:'SRV-001', nome:'Vala a céu aberto',   unidade:'metro', meta:200 },
-    { id:'ts2', cod:'SRV-002', nome:'Aterro compactado',   unidade:'m³',    meta:150 },
-    { id:'ts3', cod:'SRV-003', nome:'Pavimentação asfáltica', unidade:'m²', meta:300 },
-    { id:'ts4', cod:'SRV-004', nome:'Drenagem superficial', unidade:'metro', meta:100 },
-    { id:'ts5', cod:'SRV-005', nome:'Escavação mecanizada', unidade:'m³',   meta:200 },
-  ],
-  servicos:  [
-    { id:'s1', cod:'FS-001', desc:'Trecho Km 34 Norte', servico:'Vala a céu aberto',  unidade:'metro', meta:200, obra:'SP-280 Km 34' },
-    { id:'s2', cod:'FS-002', desc:'Trecho Km 35 Sul',   servico:'Aterro compactado',  unidade:'m³',    meta:150, obra:'SP-280 Km 34' },
-  ],
-  aponMO:    [
-    { id:'am1', data:'2026-06-04', hora:'07:00', horaFim:'17:00', func:'José Silva Santos', funcao:'Operador de Máquinas', empresa:'Alpha', frente:'FS-001', servico:'Vala a céu aberto',    qtd:120, hn:8, he:2, obs:'', lancadoPor:'Carlos M.', status:'campo' },
-    { id:'am2', data:'2026-06-04', hora:'07:00', horaFim:'17:00', func:'Maria Oliveira',    funcao:'Servente',             empresa:'Alpha', frente:'FS-002', servico:'Aterro compactado',    qtd:80,  hn:8, he:0, obs:'', lancadoPor:'Ana R.',    status:'campo' },
-    { id:'am3', data:'2026-06-03', hora:'07:00', horaFim:'17:00', func:'Pedro Lima',        funcao:'Feitor de Obras',      empresa:'Alpha', frente:'FS-001', servico:'Vala a céu aberto',    qtd:95,  hn:8, he:1, obs:'', lancadoPor:'Carlos M.', status:'corrigido' },
-    { id:'am4', data:'2026-06-03', hora:'07:00', horaFim:'16:00', func:'José Silva Santos', funcao:'Operador de Máquinas', empresa:'Beta',  frente:'FS-003', servico:'Pavimentação asfáltica',qtd:200, hn:8, he:0, obs:'', lancadoPor:'Ana R.',    status:'corrigido' },
-    { id:'am5', data:'2026-06-02', hora:'07:00', horaFim:'17:00', func:'Maria Oliveira',    funcao:'Servente',             empresa:'Alpha', frente:'FS-001', servico:'Drenagem superficial',  qtd:60,  hn:8, he:2, obs:'', lancadoPor:'Carlos M.', status:'corrigido' },
-    { id:'am6', data:'2026-06-02', hora:'07:00', horaFim:'17:00', func:'Pedro Lima',        funcao:'Feitor de Obras',      empresa:'Beta',  frente:'FS-002', servico:'Aterro compactado',    qtd:110, hn:8, he:0, obs:'', lancadoPor:'Ana R.',    status:'corrigido' },
-  ],
-  aponEQ:    [
-    { id:'ae1', data:'2026-06-04', hora:'07:00', horaFim:'17:00', equip:'ESC-001', tipo:'Escavadeira', frente:'FS-001', servico:'Vala a céu aberto',    hp:8.5, hpar:0.5, motivo:'MNP', operador:'José Silva Santos', qtd:120, status:'campo' },
-    { id:'ae2', data:'2026-06-04', hora:'07:00', horaFim:'16:00', equip:'ROL-001', tipo:'Rolo',        frente:'FS-002', servico:'Aterro compactado',    hp:8.0, hpar:1.0, motivo:'CHU', operador:'Pedro Lima',        qtd:80,  status:'campo' },
-    { id:'ae3', data:'2026-06-03', hora:'07:00', horaFim:'17:00', equip:'ESC-001', tipo:'Escavadeira', frente:'FS-001', servico:'Vala a céu aberto',    hp:9.0, hpar:1.0, motivo:'',    operador:'José Silva Santos', qtd:100, status:'corrigido' },
-    { id:'ae4', data:'2026-06-03', hora:'07:00', horaFim:'17:00', equip:'MOT-001', tipo:'Motoniveladora', frente:'FS-003', servico:'Pavimentação',     hp:7.0, hpar:3.0, motivo:'AMA', operador:'Pedro Lima',        qtd:150, status:'corrigido' },
-    { id:'ae5', data:'2026-06-02', hora:'07:00', horaFim:'17:00', equip:'ROL-001', tipo:'Rolo',        frente:'FS-002', servico:'Aterro compactado',    hp:9.5, hpar:0.5, motivo:'',    operador:'Maria Oliveira',    qtd:90,  status:'corrigido' },
-  ],
-  diesel:    [
-    { id:'d1', dt:'2026-06-04 07:15', equip:'ESC-001', litros:320, tipoMedidor:'Horímetro', hor:'1245', lancadoPor:'João P.', obs:'', status:'campo' },
-    { id:'d2', dt:'2026-06-04 07:20', equip:'ROL-001', litros:180, tipoMedidor:'Horímetro', hor:'870',  lancadoPor:'João P.', obs:'', status:'corrigido' },
-    { id:'d3', dt:'2026-06-03 07:10', equip:'MOT-001', litros:250, tipoMedidor:'Horímetro', hor:'3420', lancadoPor:'João P.', obs:'', status:'corrigido' },
-    { id:'d4', dt:'2026-06-03 07:25', equip:'ESC-001', litros:290, tipoMedidor:'Horímetro', hor:'1237', lancadoPor:'João P.', obs:'', status:'corrigido' },
-    { id:'d5', dt:'2026-06-02 07:05', equip:'ROL-001', litros:210, tipoMedidor:'Horímetro', hor:'862',  lancadoPor:'João P.', obs:'', status:'corrigido' },
-  ],
-  perdas:    [
-    { id:'p1', data:'2026-06-04', tipo:'Equipamento', recurso:'MOT-001', horas:3, motivo:'AMA', frente:'FS-003', lancadoPor:'Carlos M.', obs:'Aguardando material de pavimentação' },
-    { id:'p2', data:'2026-06-03', tipo:'Equipamento', recurso:'ROL-001', horas:1, motivo:'MNP', frente:'FS-002', lancadoPor:'Ana R.',    obs:'Manutenção rolo compactador' },
-    { id:'p3', data:'2026-06-02', tipo:'Mão de Obra',  recurso:'José Silva Santos', horas:2, motivo:'CHU', frente:'FS-001', lancadoPor:'Carlos M.', obs:'Chuva pela manhã' },
-  ],
-  equipes: [
-    { id:'eq1', cod:'EQ-01', nome:'Equipe Escavação Norte', lider:'0042', membros:['0043'], obs:'' },
-    { id:'eq2', cod:'EQ-02', nome:'Equipe Compactação Sul',  lider:'0044', membros:[],       obs:'' },
-  ],
-  turnos: [
-    { id:'t1', cod:'DIU', nome:'Diurno',   inicio:'07:00', fim:'17:00', obs:'Seg a Sáb' },
-    { id:'t2', cod:'NOT', nome:'Noturno',  inicio:'17:00', fim:'23:00', obs:'' },
-    { id:'t3', cod:'INT', nome:'Integral', inicio:'07:00', fim:'19:00', obs:'Com 1h almoço' },
-  ],
-  tiposPerdas: [
-    { id:'tp1', cod:'CHU',  nome:'Chuva',                      aplica:'Ambos',      cor:'blue'  },
-    { id:'tp2', cod:'MNP',  nome:'Manutenção não programada',   aplica:'EQ',         cor:'red'   },
-    { id:'tp3', cod:'AMA',  nome:'Aguardando material',         aplica:'Ambos',      cor:'amber' },
-    { id:'tp4', cod:'AFS',  nome:'Aguardando frente de serviço',aplica:'Ambos',      cor:'amber' },
-    { id:'tp5', cod:'MEC',  nome:'Problema mecânico',           aplica:'EQ',         cor:'red'   },
-    { id:'tp6', cod:'PAR',  nome:'Paralisação',                 aplica:'Ambos',      cor:'red'   },
-    { id:'tp7', cod:'ELE',  nome:'Problema elétrico',           aplica:'EQ',         cor:'red'   },
-    { id:'tp8', cod:'OPE',  nome:'Falta de operador',           aplica:'EQ',         cor:'amber' },
-    { id:'tp9', cod:'REF',  nome:'Refeição / Descanso',         aplica:'MO',         cor:'gray'  },
-    { id:'tp10',cod:'AFE',  nome:'Afastamento / Falta',         aplica:'MO',         cor:'gray'  },
-    { id:'tp11',cod:'OUT',  nome:'Outro',                       aplica:'Ambos',      cor:'gray'  },
-  ],
+  notasFiscais: [],
+  tanques:      [],
+  movTanques:   [],
+  aponMO:       [],
+  aponEQ:       [],
+  diesel:       [],
+  perdas:       [],
 };
 
 let dados = JSON.parse(JSON.stringify(DEMO));
@@ -3010,13 +2898,22 @@ function loginDemo(email, senha) {
 }
 
 function logout() {
+  if (auth && _firebaseReady) {
+    auth.signOut().catch(e => console.warn('Signout error:', e));
+  }
   usuarioLogado = null;
-  document.getElementById('app-topbar').style.display  = 'none';
-  document.getElementById('app-layout').style.display  = 'none';
+  dados = JSON.parse(JSON.stringify(DEMO));
+  document.getElementById('app-topbar').style.display   = 'none';
+  document.getElementById('app-layout').style.display   = 'none';
   document.getElementById('login-screen').style.display = '';
-  document.getElementById('login-email').value = '';
-  document.getElementById('login-senha').value = '';
+  const emailEl = document.getElementById('login-email');
+  const senhaEl = document.getElementById('login-senha');
+  if (emailEl) emailEl.value = '';
+  if (senhaEl) senhaEl.value = '';
+  const erroEl = document.getElementById('login-erro');
+  if (erroEl) erroEl.style.display = 'none';
 }
+const fazerLogout = logout;
 
 function toggleSenha(fieldId) {
   const el = document.getElementById(fieldId);
