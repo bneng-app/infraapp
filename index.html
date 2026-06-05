@@ -116,6 +116,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 
 /* TABLE */
 .table-wrap{overflow-x:auto}
+.cb-row-check{width:16px;height:16px;cursor:pointer;accent-color:var(--green)}
+.bulk-bar{display:none;align-items:center;gap:12px;padding:10px 14px;background:var(--blue-light);border:1px solid #B5D4F4;border-radius:8px;margin-bottom:10px}
+.bulk-bar.show{display:flex}
 table{width:100%;border-collapse:collapse;font-size:13px}
 th{text-align:left;font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.08em;padding:10px 12px;border-bottom:1px solid var(--border);white-space:nowrap}
 td{padding:10px 12px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle}
@@ -2928,30 +2931,33 @@ async function sincronizarTudo() {
     'familias','modelos','equipamentos','frentes','tiposServico','tiposPerdas',
     'aponMO','aponEQ','diesel','perdas','tanques','movTanques','notasFiscais','produtos'];
 
-  let carregou = false;
-  for (const col of colecoes) {
-    const items = await fbLoadAll(col);
-    if (items && items.length > 0) {
-      dados[col] = items;
-      carregou = true;
+  // Check if Firebase was ever initialized
+  let fbInicializado = false;
+  try {
+    const s = await db.collection('_sistema').doc('init').get();
+    fbInicializado = s.exists;
+  } catch(e) { fbInicializado = false; }
+
+  if (fbInicializado) {
+    // Always trust Firebase data — even empty collections override local data
+    for (const col of colecoes) {
+      const items = await fbLoadAll(col);
+      dados[col] = items || [];
     }
-  }
-
-  // Carregar usuários
-  const usrs = await fbLoadAll('usuarios');
-  if (usrs && usrs.length > 0) {
-    USUARIOS = usrs;
-  }
-
-  if (carregou) {
-    console.log('Dados carregados do Firebase!');
+    const usrs = await fbLoadAll('usuarios');
+    if (usrs && usrs.length > 0) USUARIOS = usrs;
     const syncEl = document.getElementById('sync-label');
     if (syncEl) syncEl.textContent = 'Firebase sincronizado';
+    console.log('Dados carregados do Firebase!');
   } else {
-    // Primeira vez: banco vazio, não salvar dados demo
-    console.log('Banco de dados vazio — pronto para uso!');
+    // First ever login — initialize sentinel, start with empty data
+    try {
+      await db.collection('_sistema').doc('init').set({ criadoEm: new Date().toISOString(), versao: '1.0' });
+    } catch(e) {}
+    colecoes.forEach(col => dados[col] = []);
     const syncEl = document.getElementById('sync-label');
     if (syncEl) syncEl.textContent = 'Firebase conectado';
+    console.log('Primeiro acesso — banco inicializado vazio!');
   }
 }
 
@@ -3776,6 +3782,11 @@ function salvarObra() {
   if (!cod || !nome) { toast('Preencha código e nome', 'error'); return; }
   const novo = { id:'o'+Date.now(), cod, nome, local:document.getElementById('obra-local').value, status:document.getElementById('obra-status').value };
   dados.obras.push(novo);
+    // Save to Firebase
+  if (db && _firebaseReady) {
+    const _last = (dados.obras||[]).slice(-1)[0];
+    if (_last?.id) fbSave('obras', _last.id, _last).catch(()=>{});
+  }
   closeModal('modal-nova-obra');
   renderObras();
   toast('Obra salva!');
@@ -3787,8 +3798,7 @@ function renderEmpresas() {
   const _obraId = obraAtiva?.id;
   const _emps = (!_obraId||_obraId==='todas') ? (dados.empresas||[]) : (dados.empresas||[]).filter(x=>!x.obra||x.obra===_obraId);
   document.getElementById('tbody-empresas').innerHTML = _emps.length
-    ? _emps.map(e=>`<tr>
-        <td class="td-mono">${e.cod}</td>
+    ? _emps.map(e=>`<tr>${cbTD('empresas',e.id)}<td class="td-mono">${e.cod}</td>
         <td><strong>${e.nome}</strong></td>
         <td class="td-mono">${e.cnpj||'—'}</td>
         <td>${tag(e.tipo,'blue')}</td>
@@ -3808,6 +3818,11 @@ function salvarEmpresa() {
     cnpj:document.getElementById('emp-cnpj').value,
     tipo:document.getElementById('emp-tipo').value,
     resp:document.getElementById('emp-resp').value });
+    // Save to Firebase
+  if (db && _firebaseReady) {
+    const _last = (dados.empresas||[]).slice(-1)[0];
+    if (_last?.id) fbSave('empresas', _last.id, _last).catch(()=>{});
+  }
   closeModal('modal-nova-empresa');
   renderEmpresas(); popularSelects();
   toast('Empresa salva!');
@@ -3817,7 +3832,7 @@ function salvarEmpresa() {
 // ───── UNIDADE DE ACOMPANHAMENTO ─────
 function renderUA() {
   document.getElementById('tbody-ua').innerHTML = dados.ua.length
-    ? dados.ua.map(u=>`<tr>
+    ? dados.ua.map(u=>`<tr>${cbTD('familias',f.id)}
         <td class="td-mono"><strong>${u.cod}</strong></td>
         <td>${u.desc}</td>
         <td>${tag(u.tipo, u.tipo==='MO'?'green':u.tipo==='EQ'?'blue':'amber')}</td>
@@ -3834,6 +3849,11 @@ function salvarUA() {
   if (!cod||!desc) { toast('Preencha UA e Descrição', 'error'); return; }
   if (cod.length > 20) { toast('UA deve ter no máximo 20 caracteres', 'error'); return; }
   dados.ua.push({ id:'ua'+Date.now(), obra, cod, desc, tipo:document.getElementById('ua-tipo').value });
+    // Save to Firebase
+  if (db && _firebaseReady) {
+    const _last = (dados.ua||[]).slice(-1)[0];
+    if (_last?.id) fbSave('ua', _last.id, _last).catch(()=>{});
+  }
   closeModal('modal-nova-ua');
   renderUA();
   toast('UA salva!');
@@ -3843,8 +3863,7 @@ function salvarUA() {
 // ───── CARGOS ─────
 function renderCargos() {
   document.getElementById('tbody-cargos').innerHTML = dados.cargos.length
-    ? dados.cargos.map(c=>`<tr>
-        <td class="td-mono">${c.cod}</td>
+    ? dados.cargos.map(c=>`<tr>${cbTD('cargos',c.id)}<td class="td-mono">${c.cod}</td>
         <td><strong>${c.nome}</strong></td>
         <td>${tag(c.direto,   c.direto==='Sim'?'green':'gray')}</td>
         <td>${tag(c.operador, c.operador==='Sim'?'blue':'gray')}</td>
@@ -3864,6 +3883,11 @@ function salvarCargo() {
     direto:   document.getElementById('cargo-direto').value,
     operador: document.getElementById('cargo-operador').value,
     recurso:  document.getElementById('cargo-recurso').value });
+    // Save to Firebase
+  if (db && _firebaseReady) {
+    const _last = (dados.cargos||[]).slice(-1)[0];
+    if (_last?.id) fbSave('cargos', _last.id, _last).catch(()=>{});
+  }
   closeModal('modal-novo-cargo');
   renderCargos(); popularSelects();
   toast('Cargo salvo!');
@@ -3878,7 +3902,7 @@ function renderFuncionarios() {
     ? _funcs.map(f=>{
         const cargo = dados.cargos.find(c=>c.cod===f.codFuncao);
         const nomeFunc = cargo ? cargo.nome : '—';
-        return `<tr>
+        return `<tr>${cbTD('funcionarios',f.id)}
         <td class="td-mono"><strong>${f.mat}</strong></td>
         <td>${f.nome}</td>
         <td class="td-mono">${f.codFuncao}</td>
@@ -3907,6 +3931,11 @@ function salvarFuncionario() {
     demissao: document.getElementById('func-demissao').value,
     lider:    document.getElementById('func-lider').value,
     equipe:   document.getElementById('func-equipe').value });
+    // Save to Firebase
+  if (db && _firebaseReady) {
+    const _last = (dados.funcionarios||[]).slice(-1)[0];
+    if (_last?.id) fbSave('funcionarios', _last.id, _last).catch(()=>{});
+  }
   closeModal('modal-novo-func');
   renderFuncionarios(); popularSelects();
   toast('Funcionário salvo!');
@@ -3930,6 +3959,11 @@ function salvarFamilia() {
   const desc = document.getElementById('fam-desc').value.trim();
   if (!cod||!desc) { toast('Preencha Cód. Família e Descrição', 'error'); return; }
   dados.familias.push({ id:'fm'+Date.now(), obra, cod, desc });
+    // Save to Firebase
+  if (db && _firebaseReady) {
+    const _last = (dados.familias||[]).slice(-1)[0];
+    if (_last?.id) fbSave('familias', _last.id, _last).catch(()=>{});
+  }
   closeModal('modal-nova-familia');
   renderFamilias(); popularSelects();
   toast('Família salva!');
@@ -3953,6 +3987,11 @@ function salvarModelo() {
   const nome = document.getElementById('mod-nome').value.trim();
   if (!cod||!nome) { toast('Preencha Cód. Modelo e Modelo', 'error'); return; }
   dados.modelos.push({ id:'md'+Date.now(), obra, cod, nome });
+    // Save to Firebase
+  if (db && _firebaseReady) {
+    const _last = (dados.modelos||[]).slice(-1)[0];
+    if (_last?.id) fbSave('modelos', _last.id, _last).catch(()=>{});
+  }
   closeModal('modal-novo-modelo');
   renderModelos(); popularSelects();
   toast('Modelo salvo!');
@@ -4001,6 +4040,11 @@ function salvarEquipamento() {
   dados.equipamentos.push({ id:'q'+Date.now(), obra, tag:tag_eq, codModelo, placa, familia, prop,
     status:   document.getElementById('equip-status').value,
     dataMob:  document.getElementById('equip-datamob').value });
+    // Save to Firebase
+  if (db && _firebaseReady) {
+    const _last = (dados.equipamentos||[]).slice(-1)[0];
+    if (_last?.id) fbSave('equipamentos', _last.id, _last).catch(()=>{});
+  }
   closeModal('modal-novo-equip');
   renderEquipamentos(); popularSelects();
   toast('Equipamento salvo!');
@@ -4609,7 +4653,8 @@ function deletar(col, id) {
     aponMO:renderMO, aponEQ:renderAponEQ, diesel:renderDiesel, perdas:renderPerdas
   };
   if (renders[col]) renders[col]();
-  autoDelete(col, id);
+  // Delete from Firebase
+  if (db && _firebaseReady) fbDelete(col, id).catch(function(e){console.warn(e);});
   toast('Item excluído.');
 }
 
@@ -4983,6 +5028,11 @@ function salvarEquipe() {
     if (eq) { eq.cod=cod; eq.nome=nome; eq.lider=lider; eq.membros=[..._equipeMembrosSelecionados]; eq.obs=obs; }
   } else {
     dados.equipes.push({ id:'eq'+Date.now(), cod, nome, lider, membros:[..._equipeMembrosSelecionados], obs });
+  }
+    // Save to Firebase
+  if (db && _firebaseReady) {
+    const _last = (dados.equipes||[]).slice(-1)[0];
+    if (_last?.id) fbSave('equipes', _last.id, _last).catch(()=>{});
   }
   closeModal('modal-nova-equipe');
   renderEquipes();
@@ -5392,6 +5442,11 @@ function salvarTurno() {
   } else {
     dados.turnos.push({ id:'t'+Date.now(), cod, nome, inicio, fim, obs });
   }
+    // Save to Firebase
+  if (db && _firebaseReady) {
+    const _last = (dados.turnos||[]).slice(-1)[0];
+    if (_last?.id) fbSave('turnos', _last.id, _last).catch(()=>{});
+  }
   closeModal('modal-novo-turno');
   renderTurnos(); popularTurnos();
   toast(id?'Turno atualizado!':'Turno criado!');
@@ -5738,6 +5793,11 @@ function salvarFrente() {
   } else {
     dados.frentes.push({ id:'fr'+Date.now(), cod, desc, obra, resp, obs });
   }
+    // Save to Firebase
+  if (db && _firebaseReady) {
+    const _last = (dados.frentes||[]).slice(-1)[0];
+    if (_last?.id) fbSave('frentes', _last.id, _last).catch(()=>{});
+  }
   closeModal('modal-nova-frente');
   renderFrentes(); popularFrentes();
   toast(id?'Frente atualizada!':'Frente criada!');
@@ -5817,6 +5877,11 @@ function salvarTipoServico() {
     if (s) { s.cod=cod; s.nome=nome; s.unidade=unidade; s.meta=meta; s.obs=obs; }
   } else {
     dados.tiposServico.push({ id:'srv'+Date.now(), cod, nome, unidade, meta, obs });
+  }
+    // Save to Firebase
+  if (db && _firebaseReady) {
+    const _last = (dados.tiposServico||[]).slice(-1)[0];
+    if (_last?.id) fbSave('tiposServico', _last.id, _last).catch(()=>{});
   }
   closeModal('modal-novo-tipo-servico');
   renderTiposServico();
@@ -5925,6 +5990,54 @@ async function setupAdminFirebase() {
   }
 }
 setTimeout(setupAdminFirebase, 2000);
+
+
+// SELECAO EM LOTE
+const _selected = {};
+function toggleSelectAll(col, cb) {
+  if (!_selected[col]) _selected[col] = new Set();
+  document.querySelectorAll('.cb-item-'+col).forEach(function(c) {
+    c.checked = cb.checked;
+    if (cb.checked) _selected[col].add(c.dataset.id);
+    else _selected[col].delete(c.dataset.id);
+  });
+  atualizarBulkBar(col);
+}
+function toggleSelectItem(col, id, cb) {
+  if (!_selected[col]) _selected[col] = new Set();
+  if (cb.checked) _selected[col].add(id); else _selected[col].delete(id);
+  var total=document.querySelectorAll('.cb-item-'+col).length;
+  var sel=_selected[col].size;
+  var m=document.getElementById('cb-master-'+col);
+  if(m){m.checked=sel>0&&sel===total;m.indeterminate=sel>0&&sel<total;}
+  atualizarBulkBar(col);
+}
+function atualizarBulkBar(col) {
+  var bar=document.getElementById('bulk-bar-'+col); if(!bar)return;
+  var n=(_selected[col]||new Set()).size;
+  bar.classList.toggle('show',n>0);
+  var el=bar.querySelector('.bulk-count'); if(el)el.textContent=n+' selecionado(s)';
+}
+async function excluirSelecionados(col) {
+  var ids=[...(_selected[col]||new Set())];
+  if(!ids.length)return;
+  if(!confirm('Excluir '+ids.length+' item(s)? Esta acao nao pode ser desfeita.'))return;
+  dados[col]=(dados[col]||[]).filter(function(x){return !ids.includes(x.id);});
+  if(db&&_firebaseReady){for(var i=0;i<ids.length;i++)await fbDelete(col,ids[i]).catch(function(){});}
+  _selected[col]=new Set();
+  var renders={obras:renderObras,empresas:renderEmpresas,ua:renderUA,cargos:renderCargos,
+    turnos:renderTurnos,equipes:renderEquipes,funcionarios:renderFuncionarios,
+    familias:renderFamilias,modelos:renderModelos,equipamentos:renderEquipamentos,
+    frentes:renderFrentes,tiposServico:renderTiposServico,tiposPerdas:renderTiposPerdas,
+    produtos:renderProdutos,notasFiscais:renderNotasFiscais,tanques:renderTanques,
+    aponMO:renderMO,aponEQ:renderAponEQ,diesel:renderDiesel,perdas:renderPerdas};
+  if(renders[col])renders[col]();
+  toast(ids.length+' item(s) excluido(s)!');
+}
+function cbTH(col){return '<th style="width:36px"><input type="checkbox" class="cb-row-check" id="cb-master-'+col+'" onchange="toggleSelectAll(\'' +col+ '\',this)" title="Selecionar todos"></th>';}
+function cbTD(col,id){return '<td><input type="checkbox" class="cb-row-check cb-item-'+col+'" data-id="'+id+'" onchange="toggleSelectItem(\'' +col+ '\',\'' +id+ '\',this)"></td>';}
+function bulkBar(col){return '<div class="bulk-bar" id="bulk-bar-'+col+'"><span class="bulk-count" style="font-size:13px;font-weight:500;color:var(--blue)">0 selecionado(s)</span><button class="btn btn-sm" style="background:var(--red-light);color:var(--red);border:1px solid var(--red-light);margin-left:auto" onclick="excluirSelecionados(\'' +col+ '\')">Excluir selecionados</button></div>';}
+
 
 function renderDashMO() {
   let lista = filtrarPorObra([...dados.aponMO], 'frente');
@@ -6455,6 +6568,11 @@ function salvarTipoPerda() {
     dados.tiposPerdas.push({ id:'tp'+Date.now(), cod, nome, aplica, cor, obs });
   }
 
+    // Save to Firebase
+  if (db && _firebaseReady) {
+    const _last = (dados.tiposPerdas||[]).slice(-1)[0];
+    if (_last?.id) fbSave('tiposPerdas', _last.id, _last).catch(()=>{});
+  }
   closeModal('modal-novo-tipo-perda');
   renderTiposPerdas();
   toast(id ? 'Tipo atualizado!' : 'Tipo de perda criado!');
