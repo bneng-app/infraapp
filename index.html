@@ -2204,6 +2204,180 @@ textarea.form-control{resize:vertical;min-height:72px}
   </div>
 </div>
 
+
+<!-- ═══ MODAL: NOVA EMPRESA ═══ -->
+<div class="modal-overlay" id="modal-nova-empresa">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header"><span class="modal-title" id="modal-emp-titulo">Nova Empresa</span><button class="modal-close" onclick="closeModal('modal-nova-empresa')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="emp-edit-id"/>
+      <div class="form-grid">
+        <div class="form-group"><label class="form-label">Código *</label><input class="form-control" id="emp-cod" placeholder="EMP-001"/></div>
+        <div class="form-group"><label class="form-label">Tipo *</label>
+          <select class="form-control" id="emp-tipo">
+            <option value="Empreiteira">Empreiteira</option>
+            <option value="Locadora">Locadora</option>
+            <option value="Fornecedora">Fornecedora</option>
+            <option value="Prestadora">Prestadora</option>
+          </select>
+        </div>
+        <div class="form-group form-full"><label class="form-label">Razão Social *</label><input class="form-control" id="emp-nome" placeholder="Nome da empresa"/></div>
+        <div class="form-group"><label class="form-label">CNPJ</label><input class="form-control" id="emp-cnpj" placeholder="00.000.000/0001-00"/></div>
+        <div class="form-group"><label class="form-label">Responsável</label><input class="form-control" id="emp-resp" placeholder="Nome do responsável"/></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-nova-empresa')">Cancelar</button><button class="btn btn-primary" onclick="salvarEmpresa()">Salvar</button></div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: NOVA UA ═══ -->
+<div class="modal-overlay" id="modal-nova-ua">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header"><span class="modal-title" id="modal-ua-titulo">Nova UA</span><button class="modal-close" onclick="closeModal('modal-nova-ua')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="ua-edit-id"/>
+      <div class="form-grid">
+        <div class="form-group"><label class="form-label">Código UA *</label><input class="form-control" id="ua-cod" placeholder="CTR-I" maxlength="20"/></div>
+        <div class="form-group"><label class="form-label">Tipo</label>
+          <select class="form-control" id="ua-tipo">
+            <option value="MO">MO</option><option value="EQ">EQ</option>
+            <option value="Serviço">Serviço</option><option value="Misto">Misto</option>
+          </select>
+        </div>
+        <div class="form-group form-full"><label class="form-label">Descrição *</label><input class="form-control" id="ua-desc" placeholder="Descrição da UA"/></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-nova-ua')">Cancelar</button><button class="btn btn-primary" onclick="salvarUA()">Salvar</button></div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: NOVO CARGO ═══ -->
+<div class="modal-overlay" id="modal-novo-cargo">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header"><span class="modal-title" id="modal-cargo-titulo">Novo Cargo</span><button class="modal-close" onclick="closeModal('modal-novo-cargo')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="cargo-edit-id"/>
+      <div class="form-grid">
+        <div class="form-group"><label class="form-label">Cód. Função *</label><input class="form-control" id="cargo-cod" placeholder="FUN-001"/></div>
+        <div class="form-group"><label class="form-label">Cód. Recurso</label><input class="form-control" id="cargo-recurso" placeholder="REC-001"/></div>
+        <div class="form-group form-full"><label class="form-label">Nome da Função *</label><input class="form-control" id="cargo-nome" placeholder="Ex.: Operador de Máquinas"/></div>
+        <div class="form-group"><label class="form-label">Direto</label>
+          <select class="form-control" id="cargo-direto"><option value="Sim">Sim</option><option value="Não">Não</option></select>
+        </div>
+        <div class="form-group"><label class="form-label">Operador</label>
+          <select class="form-control" id="cargo-operador"><option value="Não">Não</option><option value="Sim">Sim</option></select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-novo-cargo')">Cancelar</button><button class="btn btn-primary" onclick="salvarCargo()">Salvar</button></div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: NOVO FUNCIONÁRIO ═══ -->
+<div class="modal-overlay" id="modal-novo-func">
+  <div class="modal">
+    <div class="modal-header"><span class="modal-title" id="modal-func-titulo">Novo Funcionário</span><button class="modal-close" onclick="closeModal('modal-novo-func')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="func-edit-id"/>
+      <div class="form-grid">
+        <div class="form-group"><label class="form-label">Matrícula *</label><input class="form-control" id="func-mat" placeholder="0001"/></div>
+        <div class="form-group"><label class="form-label">Cód. Função *</label><select class="form-control" id="func-funcao"><option value="">Selecione…</option></select></div>
+        <div class="form-group form-full"><label class="form-label">Nome completo *</label><input class="form-control" id="func-nome" placeholder="Nome do funcionário"/></div>
+        <div class="form-group"><label class="form-label">Direto</label>
+          <select class="form-control" id="func-direto"><option value="Sim">Sim</option><option value="Não">Não</option></select>
+        </div>
+        <div class="form-group"><label class="form-label">Empresa</label><select class="form-control" id="func-empresa"><option value="">Selecione…</option></select></div>
+        <div class="form-group"><label class="form-label">Data admissão</label><input type="date" class="form-control" id="func-admissao"/></div>
+        <div class="form-group"><label class="form-label">Matrícula líder</label><input class="form-control" id="func-lider" placeholder="Matrícula do líder"/></div>
+        <div class="form-group"><label class="form-label">Cód. Equipe</label><input class="form-control" id="func-equipe" placeholder="EQ-01"/></div>
+        <div class="form-group form-full"><label class="form-label">Data demissão</label><input type="date" class="form-control" id="func-demissao"/></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-novo-func')">Cancelar</button><button class="btn btn-primary" onclick="salvarFuncionario()">Salvar</button></div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: NOVA FAMÍLIA EQ ═══ -->
+<div class="modal-overlay" id="modal-nova-familia">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header"><span class="modal-title" id="modal-fam-titulo">Nova Família</span><button class="modal-close" onclick="closeModal('modal-nova-familia')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="fam-edit-id"/>
+      <div class="form-grid">
+        <div class="form-group"><label class="form-label">Código *</label><input class="form-control" id="fam-cod" placeholder="FAM-001"/></div>
+        <div class="form-group form-full"><label class="form-label">Descrição *</label><input class="form-control" id="fam-desc" placeholder="Ex.: Escavadeiras"/></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-nova-familia')">Cancelar</button><button class="btn btn-primary" onclick="salvarFamilia()">Salvar</button></div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: NOVO MODELO EQ ═══ -->
+<div class="modal-overlay" id="modal-novo-modelo">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header"><span class="modal-title" id="modal-mod-titulo">Novo Modelo</span><button class="modal-close" onclick="closeModal('modal-novo-modelo')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="mod-edit-id"/>
+      <div class="form-grid">
+        <div class="form-group"><label class="form-label">Código *</label><input class="form-control" id="mod-cod" placeholder="MOD-001"/></div>
+        <div class="form-group"><label class="form-label">Família</label><select class="form-control" id="mod-familia"><option value="">Selecione…</option></select></div>
+        <div class="form-group form-full"><label class="form-label">Nome do modelo *</label><input class="form-control" id="mod-nome" placeholder="Ex.: Cat 320, Volvo L60H"/></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-novo-modelo')">Cancelar</button><button class="btn btn-primary" onclick="salvarModelo()">Salvar</button></div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: NOVO EQUIPAMENTO ═══ -->
+<div class="modal-overlay" id="modal-novo-equip">
+  <div class="modal">
+    <div class="modal-header"><span class="modal-title" id="modal-equip-titulo">Novo Equipamento</span><button class="modal-close" onclick="closeModal('modal-novo-equip')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="equip-edit-id"/>
+      <div class="form-grid">
+        <div class="form-group"><label class="form-label">TAG * <span style="font-size:10px;color:var(--text-3)">(única)</span></label><input class="form-control" id="equip-tag" placeholder="ESC-001"/></div>
+        <div class="form-group"><label class="form-label">Cód. Modelo</label><select class="form-control" id="equip-modelo"><option value="">Selecione…</option></select></div>
+        <div class="form-group form-full"><label class="form-label">Nome / Placa / Série</label><input class="form-control" id="equip-placa" placeholder="ABC-1234 ou número série"/></div>
+        <div class="form-group"><label class="form-label">Família</label><select class="form-control" id="equip-familia"><option value="">Selecione…</option></select></div>
+        <div class="form-group"><label class="form-label">Proprietário</label><select class="form-control" id="equip-prop"><option value="">Selecione…</option></select></div>
+        <div class="form-group"><label class="form-label">Status</label>
+          <select class="form-control" id="equip-status">
+            <option value="Mobilizado">Mobilizado</option>
+            <option value="Desmobilizado">Desmobilizado</option>
+            <option value="Manutenção">Manutenção</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">Data mobilização</label><input type="date" class="form-control" id="equip-mob"/></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-novo-equip')">Cancelar</button><button class="btn btn-primary" onclick="salvarEquipamento()">Salvar</button></div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: NOVA PERDA ═══ -->
+<div class="modal-overlay" id="modal-nova-perda">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header"><span class="modal-title">Registrar Perda / H. Improdutiva</span><button class="modal-close" onclick="closeModal('modal-nova-perda')">×</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group"><label class="form-label">Data *</label><input type="date" class="form-control" id="per-data"/></div>
+        <div class="form-group"><label class="form-label">Tipo *</label>
+          <select class="form-control" id="per-tipo">
+            <option value="mo">Mão de Obra</option>
+            <option value="equip">Equipamento</option>
+          </select>
+        </div>
+        <div class="form-group form-full"><label class="form-label">Recurso (funcionário ou TAG) *</label><input class="form-control" id="per-recurso" placeholder="Nome ou TAG"/></div>
+        <div class="form-group"><label class="form-label">Horas perdidas *</label><input class="form-control" id="per-horas" type="number" step="0.5" placeholder="2"/></div>
+        <div class="form-group"><label class="form-label">Motivo *</label><select class="form-control" id="per-motivo"><option value="">Selecione…</option></select></div>
+        <div class="form-group form-full"><label class="form-label">Frente</label><select class="form-control" id="per-frente"><option value="">Selecione…</option></select></div>
+        <div class="form-group form-full"><label class="form-label">Observações</label><textarea class="form-control" id="per-obs" placeholder="Opcional…" style="min-height:56px"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-nova-perda')">Cancelar</button><button class="btn btn-primary" onclick="salvarPerda()">Salvar</button></div>
+  </div>
+</div>
+
 </main>
 </div><!-- /layout -->
 
@@ -4302,22 +4476,83 @@ function salvarPerda() {
 
 // ───── DELETAR GENÉRICO ─────
 function deletar(col, id) {
-  if (!confirm('Confirma exclusão?')) return;
-  dados[col] = dados[col].filter(x=>x.id!==id);
-  const renders = { obras:renderObras, empresas:renderEmpresas, ua:renderUA, cargos:renderCargos, turnos:renderTurnos, equipes:renderEquipes, funcionarios:renderFuncionarios, familias:renderFamilias, modelos:renderModelos, equipamentos:renderEquipamentos, produtos:renderProdutos, notasFiscais:renderNotasFiscais, tanques:renderTanques, frentes:renderFrentes, tiposServico:renderTiposServico, servicos:renderServicos, tiposPerdas:renderTiposPerdas, aponMO:renderMO, aponEQ:renderAponEQ, diesel:renderDiesel, perdas:renderPerdas };
+  // Special handling for obras — cascade delete with double confirmation
+  if (col === 'obras') {
+    const obra = (dados.obras||[]).find(o=>o.id===id);
+    const nomObra = obra?.nome || 'esta obra';
+    const resp = prompt(
+      'EXCLUIR "'+nomObra+'"?\n\n'
+      +'⚠️ Serão excluídos permanentemente:\n'
+      +'  • Todos os apontamentos MO e EQ\n'
+      +'  • Registros de Diesel\n'
+      +'  • Perdas e Horas Improdutivas\n'
+      +'  • Notas Fiscais\n'
+      +'  • Frentes de Serviço\n\n'
+      +'Esta ação NÃO pode ser desfeita!\n\n'
+      +'Digite  CONFIRMAR  para prosseguir:'
+    );
+    if (!resp || resp.trim().toUpperCase() !== 'CONFIRMAR') {
+      toast('Exclusão cancelada.'); return;
+    }
+    excluirObraCompleta(id); return;
+  }
+
+  if (!confirm('Excluir este item? Esta ação não pode ser desfeita.')) return;
+  if (dados[col]) dados[col] = dados[col].filter(x=>x.id!==id);
+  const renders = {
+    obras:renderObras, empresas:renderEmpresas, ua:renderUA, cargos:renderCargos,
+    turnos:renderTurnos, equipes:renderEquipes, funcionarios:renderFuncionarios,
+    familias:renderFamilias, modelos:renderModelos, equipamentos:renderEquipamentos,
+    frentes:renderFrentes, tiposServico:renderTiposServico, tiposPerdas:renderTiposPerdas,
+    produtos:renderProdutos, notasFiscais:renderNotasFiscais, tanques:renderTanques,
+    aponMO:renderMO, aponEQ:renderAponEQ, diesel:renderDiesel, perdas:renderPerdas
+  };
   if (renders[col]) renders[col]();
-  toast('Excluído com sucesso!');
+  autoDelete(col, id);
+  toast('Item excluído.');
 }
 
-// ───── EDITAR (futuro) ─────
+async function excluirObraCompleta(obraId) {
+  const obra = (dados.obras||[]).find(o=>o.id===obraId);
+  const nomObra = obra?.nome || obraId;
+  toast('Excluindo obra e todos os dados vinculados...');
 
-// ═══════════════════════════════════════════════════════════════
-// EXPORTAÇÃO EXCEL — RELATÓRIOS COMPLETOS
-// ═══════════════════════════════════════════════════════════════
+  const frentesCods = (dados.frentes||[]).filter(f=>f.obra===obraId).map(f=>f.cod);
+
+  dados.aponMO       = (dados.aponMO||[]).filter(a=>!frentesCods.includes(a.frente));
+  dados.aponEQ       = (dados.aponEQ||[]).filter(a=>!frentesCods.includes(a.frente));
+  dados.diesel       = (dados.diesel||[]).filter(d=>!frentesCods.includes(d.frente));
+  dados.perdas       = (dados.perdas||[]).filter(p=>!frentesCods.includes(p.frente));
+  dados.notasFiscais = (dados.notasFiscais||[]).filter(n=>n.obra!==obraId);
+  dados.frentes      = (dados.frentes||[]).filter(f=>f.obra!==obraId);
+  dados.obras        = (dados.obras||[]).filter(o=>o.id!==obraId);
+
+  if (db && _firebaseReady) {
+    try {
+      const cols = {
+        aponMO: a=>frentesCods.includes(a.frente),
+        aponEQ: a=>frentesCods.includes(a.frente),
+        diesel:  d=>frentesCods.includes(d.frente),
+        perdas:  p=>frentesCods.includes(p.frente),
+        frentes: f=>f.obra===obraId,
+        notasFiscais: n=>n.obra===obraId,
+      };
+      for (const [colName, filterFn] of Object.entries(cols)) {
+        const snap = await db.collection(colName).get().catch(()=>null);
+        if (snap) for (const doc of snap.docs) if (filterFn(doc.data())) await doc.ref.delete().catch(()=>{});
+      }
+      await db.collection('obras').doc(obraId).delete().catch(()=>{});
+    } catch(e) { console.warn('Erro exclusão Firebase:', e); }
+  }
+
+  renderAll();
+  toast('✅ Obra "'+nomObra+'" e todos os dados vinculados excluídos!');
+}
+
 
 function gerarRelatorio(tipo) {
   const XLSX = window.XLSX;
-  if (!XLSX) { toast('Aguarde o carregamento do Excel... tente novamente.','error'); return; }
+  if (!XLSX) { toast('SheetJS não carregado. Verifique sua conexão.','error'); return; }
 
   const g = id => (document.getElementById(id)||{}).value||'';
 
