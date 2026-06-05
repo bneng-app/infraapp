@@ -316,7 +316,7 @@ textarea.form-control{resize:vertical;min-height:72px}
   </div>
   <div class="obra-selector" onclick="openModal('modal-obra')" style="background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.45);color:white;padding:6px 16px;border-radius:20px;display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:700;font-size:13px;letter-spacing:.2px">
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="10" r="3"/><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/></svg>
-    <span id="obra-ativa-label" style="color:white;font-weight:700;font-size:13px">SP-280 Km 34</span>
+    <span id="obra-ativa-label" style="color:white;font-weight:700;font-size:13px">Todas as obras</span>
     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
   </div>
   <div class="topbar-right">
@@ -2874,7 +2874,7 @@ const firebaseConfig = {
 // ───── INIT ─────
 let db   = null;
 let auth = null;
-let obraAtiva = { id: 'demo', nome: 'SP-280 Km 34' };
+let obraAtiva = { id: 'todas', nome: 'Todas as obras' };
 let csvTarget = '';
 let _firebaseReady = false;
 
@@ -3147,15 +3147,17 @@ function entrarNoApp() {
   const roleEl = document.getElementById('topbar-user-role');
   if (roleEl) roleEl.textContent = usuarioLogado.perfil;
 
-  // Atualiza obra label
+  // Set obraAtiva based on user's obra
   const obraLabel = document.getElementById('obra-ativa-label');
-  if (obraLabel) {
-    if (usuarioLogado.obra) {
-      const obraObj = dados.obras.find(o=>o.id===usuarioLogado.obra||o.nome===usuarioLogado.obra);
-      obraLabel.textContent = obraObj?.nome || usuarioLogado.obra;
-    } else {
-      obraLabel.textContent = dados.obras.length > 0 ? dados.obras[0].nome : 'Todas as obras';
+  if (usuarioLogado.obra && usuarioLogado.obra !== '') {
+    const obraObj = dados.obras.find(o=>o.id===usuarioLogado.obra||o.nome===usuarioLogado.obra);
+    if (obraObj) {
+      obraAtiva = { id: obraObj.id, nome: obraObj.nome };
+      if (obraLabel) obraLabel.textContent = obraObj.nome;
     }
+  } else {
+    obraAtiva = { id: 'todas', nome: 'Todas as obras' };
+    if (obraLabel) obraLabel.textContent = 'Todas as obras';
   }
 
   aplicarPermissoes();
@@ -3750,9 +3752,22 @@ function getFrentesDaObra(obraId) {
 }
 
 function filtrarPorObra(lista, campoFrente) {
-  const frentesObra = getFrentesDaObra(obraAtiva?.id);
-  if (!frentesObra) return lista; // no filter
-  return lista.filter(item => frentesObra.includes(item[campoFrente]));
+  const obraId = obraAtiva?.id;
+  // No filter if 'todas' or not set
+  if (!obraId || obraId === 'todas') return lista;
+  const frentesObra = getFrentesDaObra(obraId);
+  // If obra has no frentes yet, filter by obra field directly on the item
+  // OR show empty (correct for a new obra with no data)
+  if (!frentesObra || frentesObra.length === 0) {
+    // Try direct obra field match first
+    const byObraDirect = lista.filter(item => item.obra === obraId);
+    if (byObraDirect.length > 0) return byObraDirect;
+    return []; // New obra, no data yet
+  }
+  // Filter by frente belonging to this obra
+  return lista.filter(item => 
+    frentesObra.includes(item[campoFrente]) || item.obra === obraId
+  );
 }
 
 function salvarObra() {
@@ -3769,8 +3784,10 @@ function salvarObra() {
 
 // ───── EMPRESAS ─────
 function renderEmpresas() {
-  document.getElementById('tbody-empresas').innerHTML = dados.empresas.length
-    ? dados.empresas.map(e=>`<tr>
+  const _obraId = obraAtiva?.id;
+  const _emps = (!_obraId||_obraId==='todas') ? (dados.empresas||[]) : (dados.empresas||[]).filter(x=>!x.obra||x.obra===_obraId);
+  document.getElementById('tbody-empresas').innerHTML = _emps.length
+    ? _emps.map(e=>`<tr>
         <td class="td-mono">${e.cod}</td>
         <td><strong>${e.nome}</strong></td>
         <td class="td-mono">${e.cnpj||'—'}</td>
@@ -3849,8 +3866,10 @@ function salvarCargo() {
 
 // ───── FUNCIONÁRIOS ─────
 function renderFuncionarios() {
-  document.getElementById('tbody-func').innerHTML = dados.funcionarios.length
-    ? dados.funcionarios.map(f=>{
+  const _obraId = obraAtiva?.id;
+  const _funcs = (!_obraId||_obraId==='todas') ? (dados.funcionarios||[]) : (dados.funcionarios||[]).filter(x=>!x.obra||x.obra===_obraId);
+  document.getElementById('tbody-func').innerHTML = _funcs.length
+    ? _funcs.map(f=>{
         const cargo = dados.cargos.find(c=>c.cod===f.codFuncao);
         const nomeFunc = cargo ? cargo.nome : '—';
         return `<tr>
@@ -3930,8 +3949,10 @@ function salvarModelo() {
 
 // ───── EQUIPAMENTOS ─────
 function renderEquipamentos() {
-  document.getElementById('tbody-equip').innerHTML = dados.equipamentos.length
-    ? dados.equipamentos.map(e=>{
+  const _obraId = obraAtiva?.id;
+  const _equips = (!_obraId||_obraId==='todas') ? (dados.equipamentos||[]) : (dados.equipamentos||[]).filter(x=>!x.obra||x.obra===_obraId);
+  document.getElementById('tbody-equip').innerHTML = _equips.length
+    ? _equips.map(e=>{
         const modelo = dados.modelos.find(m=>m.cod===e.codModelo);
         const modNome = modelo?.nome || '—';
         const famDesc = dados.familias.find(f=>f.cod===e.familia)?.desc || e.familia;
