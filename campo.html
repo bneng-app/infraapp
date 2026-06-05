@@ -1,0 +1,1604 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="theme-color" content="#1E2A3A"/>
+<title>InfraApp Campo</title>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+
+<!-- QR Code Scanner -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+
+<style>
+:root {
+  --navy: #1E2A3A;
+  --navy2: #243447;
+  --red: #C0392B;
+  --red2: #E74C3C;
+  --white: #FFFFFF;
+  --bg: #F2F3F5;
+  --card: #FFFFFF;
+  --text: #1A1A2E;
+  --text2: #5A6B7C;
+  --text3: #9AAABB;
+  --border: rgba(0,0,0,0.08);
+  --green: #27AE60;
+  --amber: #E67E22;
+  --radius: 16px;
+  --radius-sm: 10px;
+  --shadow: 0 2px 12px rgba(0,0,0,0.10);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.15);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+body {
+  font-family: -apple-system, 'SF Pro Display', 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+/* ── SCREENS ── */
+.screen { display: none; min-height: 100vh; flex-direction: column; }
+.screen.active { display: flex; }
+
+/* ── TOP BAR ── */
+.topbar {
+  background: var(--navy);
+  padding: 52px 20px 16px;
+  color: white;
+  flex-shrink: 0;
+}
+.topbar-row { display: flex; align-items: center; justify-content: space-between; }
+.topbar-title { font-size: 20px; font-weight: 700; }
+.topbar-sub { font-size: 12px; color: rgba(255,255,255,.5); margin-top: 2px; }
+.topbar-avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--red); color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 14px; cursor: pointer; flex-shrink: 0;
+}
+.topbar-logo {
+  display: flex; align-items: center; gap: 8px;
+}
+.topbar-logo-icon {
+  width: 32px; height: 32px;
+  background: var(--red);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 11px; color: white; letter-spacing: -.5px;
+}
+
+/* ── CONTENT ── */
+.content { flex: 1; padding: 20px 16px; overflow-y: auto; }
+.content-no-pad { flex: 1; overflow-y: auto; }
+
+/* ── CARDS ── */
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+.card-header {
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.card-title { font-size: 13px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: .05em; }
+.card-body { padding: 16px; }
+
+/* ── MÓDULO TABS ── */
+.module-tabs {
+  display: flex;
+  background: var(--navy2);
+  padding: 8px;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.module-tab {
+  flex: 1; padding: 10px 6px;
+  border-radius: 10px; border: none;
+  background: transparent; color: rgba(255,255,255,.5);
+  font-size: 11px; font-weight: 600; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  transition: all .2s;
+}
+.module-tab svg { width: 20px; height: 20px; }
+.module-tab.active { background: var(--red); color: white; }
+
+/* ── FORM ELEMENTS ── */
+.form-group { margin-bottom: 14px; }
+.form-label { font-size: 11px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; display: block; }
+.form-control {
+  width: 100%; padding: 13px 14px;
+  border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  font-size: 15px; color: var(--text);
+  background: var(--bg); outline: none;
+  transition: border-color .15s;
+  -webkit-appearance: none; appearance: none;
+}
+.form-control:focus { border-color: var(--red); background: white; }
+.form-control::placeholder { color: var(--text3); }
+select.form-control { cursor: pointer; }
+
+/* ── BUTTONS ── */
+.btn {
+  width: 100%; padding: 15px;
+  border: none; border-radius: var(--radius-sm);
+  font-size: 16px; font-weight: 700;
+  cursor: pointer; transition: all .15s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn-primary { background: var(--red); color: white; }
+.btn-primary:active { background: var(--red2); transform: scale(.98); }
+.btn-navy { background: var(--navy); color: white; }
+.btn-outline { background: white; color: var(--navy); border: 1.5px solid var(--border); }
+.btn-green { background: var(--green); color: white; }
+.btn-sm { padding: 10px 16px; font-size: 13px; width: auto; border-radius: 8px; }
+.btn-icon { width: 40px; height: 40px; padding: 0; border-radius: 10px; flex-shrink: 0; }
+
+/* ── LOGIN SCREEN ── */
+#screen-login {
+  background: var(--navy);
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+}
+.login-logo { text-align: center; margin-bottom: 40px; }
+.login-logo-icon {
+  width: 80px; height: 80px; border-radius: 20px;
+  background: rgba(255,255,255,.08);
+  display: inline-flex; align-items: center; justify-content: center;
+  margin-bottom: 16px;
+}
+.login-logo-diamonds {
+  display: flex; flex-direction: column; gap: 4px; align-items: flex-start;
+}
+.diamond {
+  width: 18px; height: 10px;
+  background: var(--red);
+  transform: skewX(-20deg);
+  border-radius: 2px;
+}
+.diamond:nth-child(1) { width: 22px; margin-left: 0; }
+.diamond:nth-child(2) { width: 18px; margin-left: 6px; }
+.diamond:nth-child(3) { width: 14px; margin-left: 0; }
+.login-title { font-size: 28px; font-weight: 800; color: white; }
+.login-sub { font-size: 13px; color: rgba(255,255,255,.45); margin-top: 4px; letter-spacing: .5px; }
+.login-card {
+  background: white;
+  border-radius: 20px;
+  padding: 28px 24px;
+  width: 100%;
+  box-shadow: var(--shadow-lg);
+}
+.login-card h2 { font-size: 18px; font-weight: 700; margin-bottom: 6px; color: var(--text); }
+.login-card p { font-size: 13px; color: var(--text2); margin-bottom: 24px; }
+.login-error { color: var(--red); font-size: 13px; margin-bottom: 12px; display: none; text-align: center; }
+
+/* ── HOME SCREEN ── */
+.home-banner {
+  background: linear-gradient(135deg, var(--navy) 0%, var(--navy2) 100%);
+  padding: 52px 20px 24px;
+  color: white;
+}
+.home-greeting { font-size: 13px; color: rgba(255,255,255,.5); }
+.home-name { font-size: 24px; font-weight: 800; margin-top: 2px; }
+.home-obra { font-size: 12px; color: rgba(255,255,255,.4); margin-top: 4px; }
+.home-chips { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+.chip {
+  padding: 6px 12px; border-radius: 20px;
+  font-size: 11px; font-weight: 600;
+  background: rgba(255,255,255,.12); color: white;
+}
+.chip.red { background: var(--red); }
+
+.quick-modules {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 12px; padding: 20px 16px;
+}
+.module-card {
+  background: white;
+  border-radius: var(--radius);
+  padding: 20px 16px;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  transition: all .2s;
+  border: 2px solid transparent;
+  text-align: left;
+}
+.module-card:active { transform: scale(.96); }
+.module-card.mo { border-color: var(--red); }
+.module-card.eq { border-color: var(--navy); }
+.module-card.fuel { border-color: var(--amber); }
+.module-card-icon {
+  width: 44px; height: 44px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 12px;
+}
+.module-card.mo .module-card-icon { background: #FDECEA; }
+.module-card.eq .module-card-icon { background: #EAF0F6; }
+.module-card.fuel .module-card-icon { background: #FEF5E7; }
+.module-card-title { font-size: 14px; font-weight: 700; color: var(--text); }
+.module-card-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.module-card-badge {
+  display: inline-block; margin-top: 10px;
+  padding: 3px 8px; border-radius: 20px;
+  font-size: 10px; font-weight: 700;
+}
+.module-card.mo .module-card-badge { background: #FDECEA; color: var(--red); }
+.module-card.eq .module-card-badge { background: #EAF0F6; color: var(--navy); }
+.module-card.fuel .module-card-badge { background: #FEF5E7; color: var(--amber); }
+
+/* ── LISTA DE FUNCIONÁRIOS / EQ ── */
+.list-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: background .15s;
+  background: white;
+}
+.list-item:last-child { border-bottom: none; }
+.list-item:active { background: var(--bg); }
+.list-item.selected { background: #FDECEA; }
+.list-avatar {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--navy); color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 13px; flex-shrink: 0;
+}
+.list-avatar.eq-icon { background: #EAF0F6; }
+.list-name { font-size: 14px; font-weight: 600; color: var(--text); }
+.list-sub { font-size: 12px; color: var(--text2); margin-top: 2px; }
+.list-check {
+  width: 24px; height: 24px; border-radius: 50%;
+  border: 2px solid var(--border);
+  margin-left: auto; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: white; transition: all .15s;
+}
+.list-item.selected .list-check {
+  background: var(--red); border-color: var(--red);
+}
+.list-item.selected .list-check::after {
+  content: '✓'; color: white; font-size: 13px; font-weight: 700;
+}
+
+/* ── SEARCH BAR ── */
+.search-bar {
+  display: flex; align-items: center; gap: 10px;
+  background: white;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  margin-bottom: 12px;
+}
+.search-bar svg { flex-shrink: 0; color: var(--text3); width: 18px; height: 18px; }
+.search-bar input { border: none; outline: none; font-size: 15px; flex: 1; color: var(--text); background: transparent; }
+
+/* ── HORA INPUT ── */
+.time-row { display: flex; gap: 10px; }
+.time-row .form-group { flex: 1; }
+.time-big {
+  font-size: 32px; font-weight: 800; color: var(--text);
+  text-align: center; padding: 16px;
+  border: 2px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg); cursor: pointer;
+}
+.time-big:focus { border-color: var(--red); outline: none; }
+
+/* ── STATUS PILLS ── */
+.status-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.status-pill {
+  padding: 8px 14px; border-radius: 20px;
+  font-size: 12px; font-weight: 600; border: 2px solid transparent;
+  cursor: pointer; transition: all .15s;
+  background: var(--bg); color: var(--text2);
+}
+.status-pill.active { background: var(--red); color: white; border-color: var(--red); }
+
+/* ── QR SCANNER ── */
+.qr-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.9);
+  z-index: 1000;
+  display: none; flex-direction: column;
+  align-items: center; justify-content: center;
+}
+.qr-overlay.show { display: flex; }
+.qr-box {
+  width: 260px; height: 260px;
+  border: 3px solid var(--red);
+  border-radius: 20px;
+  position: relative;
+  overflow: hidden;
+}
+#qr-reader { width: 100%; height: 100%; }
+.qr-close {
+  position: absolute; top: 40px; right: 20px;
+  background: rgba(255,255,255,.2); border: none;
+  width: 44px; height: 44px; border-radius: 50%;
+  color: white; font-size: 20px; cursor: pointer;
+}
+.qr-label { color: white; margin-top: 20px; font-size: 14px; opacity: .7; }
+
+/* ── BOTTOM SAFE AREA ── */
+.bottom-safe { height: 32px; flex-shrink: 0; }
+
+/* ── SUMMARY CARD ── */
+.summary-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 0; border-bottom: 1px solid var(--border);
+}
+.summary-item:last-child { border-bottom: none; }
+.summary-label { font-size: 13px; color: var(--text2); }
+.summary-value { font-size: 15px; font-weight: 700; color: var(--text); }
+.summary-value.red { color: var(--red); }
+.summary-value.green { color: var(--green); }
+
+/* ── TOAST ── */
+.toast-container { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 9999; pointer-events: none; }
+.toast-msg {
+  background: var(--navy); color: white;
+  padding: 12px 20px; border-radius: 24px;
+  font-size: 13px; font-weight: 600;
+  box-shadow: var(--shadow-lg);
+  white-space: nowrap;
+  animation: toastIn .3s ease;
+}
+.toast-msg.err { background: var(--red); }
+.toast-msg.ok  { background: var(--green); }
+@keyframes toastIn { from { opacity:0; transform: translateY(16px); } to { opacity:1; transform: translateY(0); } }
+
+/* ── OFFLINE BANNER ── */
+.offline-banner {
+  background: var(--amber); color: white;
+  padding: 8px 16px; font-size: 12px; font-weight: 600;
+  text-align: center; display: none;
+}
+.offline-banner.show { display: block; }
+
+/* ── BOTTOM NAV ── */
+.bottom-nav {
+  background: white;
+  border-top: 1px solid var(--border);
+  display: flex;
+  position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 100%; max-width: 480px;
+  z-index: 100;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+.nav-tab {
+  flex: 1; padding: 10px 4px 12px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  cursor: pointer; border: none; background: transparent;
+  color: var(--text3); font-size: 10px; font-weight: 600; transition: color .15s;
+}
+.nav-tab svg { width: 22px; height: 22px; }
+.nav-tab.active { color: var(--red); }
+.nav-tab-dot {
+  position: absolute; top: 6px; right: calc(50% - 18px);
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--red); display: none;
+}
+.nav-tab-wrap { position: relative; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════ TOAST ══════════════ -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- ══════════════ OFFLINE BANNER ══════════════ -->
+<div class="offline-banner" id="offline-banner">📵 Sem conexão — lançamentos serão sincronizados quando voltar online</div>
+
+<!-- ══════════════ QR SCANNER OVERLAY ══════════════ -->
+<div class="qr-overlay" id="qr-overlay">
+  <button class="qr-close" onclick="fecharQR()">×</button>
+  <div class="qr-box"><div id="qr-reader"></div></div>
+  <div class="qr-label">Aponte para o QR Code do crachá ou equipamento</div>
+</div>
+
+<!-- ══════════════ SCREEN: LOGIN ══════════════ -->
+<div class="screen active" id="screen-login">
+  <div class="login-logo">
+    <div class="login-logo-icon">
+      <div class="login-logo-diamonds">
+        <div class="diamond"></div>
+        <div class="diamond"></div>
+        <div class="diamond"></div>
+      </div>
+    </div>
+    <div class="login-title">InfraApp</div>
+    <div class="login-sub">CAMPO · BN ENGENHARIA</div>
+  </div>
+
+  <div class="login-card">
+    <h2>Entrar no Campo</h2>
+    <p>Use sua matrícula e senha cadastradas</p>
+    <div id="login-error" class="login-error"></div>
+    <div class="form-group">
+      <label class="form-label">Matrícula</label>
+      <input class="form-control" id="login-mat" type="text" inputmode="numeric" placeholder="0001" autocomplete="off"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Senha</label>
+      <input class="form-control" id="login-senha" type="password" placeholder="••••••" autocomplete="current-password"/>
+    </div>
+    <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+      Entrar
+    </button>
+  </div>
+</div>
+
+<!-- ══════════════ SCREEN: HOME ══════════════ -->
+<div class="screen" id="screen-home">
+  <div class="home-banner">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div>
+        <div class="home-greeting">Bom dia,</div>
+        <div class="home-name" id="home-nome">Apontador</div>
+        <div class="home-obra" id="home-obra-label">Carregando obra...</div>
+      </div>
+      <div class="topbar-avatar" id="home-avatar" onclick="showLogoutMenu()">AP</div>
+    </div>
+    <div class="home-chips">
+      <div class="chip" id="home-turno-chip">Turno —</div>
+      <div class="chip red" id="home-sync-chip">⚡ Online</div>
+    </div>
+  </div>
+
+  <div style="padding:20px 16px 8px">
+    <div style="font-size:13px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">Módulos</div>
+  </div>
+
+  <div class="quick-modules">
+    <div class="module-card mo" onclick="abrirModulo('mo')">
+      <div class="module-card-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#C0392B" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+      </div>
+      <div class="module-card-title">Mão de Obra</div>
+      <div class="module-card-sub">Horas e equipe</div>
+      <div class="module-card-badge" id="badge-mo">0 hoje</div>
+    </div>
+
+    <div class="module-card eq" onclick="abrirModulo('eq')">
+      <div class="module-card-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1E2A3A" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+      </div>
+      <div class="module-card-title">Equipamentos</div>
+      <div class="module-card-sub">Horas produtivas</div>
+      <div class="module-card-badge" id="badge-eq">0 hoje</div>
+    </div>
+
+    <div class="module-card fuel" onclick="abrirModulo('fuel')" id="card-fuel">
+      <div class="module-card-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E67E22" stroke-width="2"><path d="M8 3H2l3 7H2l8 11-3-8h6L8 3z"/></svg>
+      </div>
+      <div class="module-card-title">Abastecimento</div>
+      <div class="module-card-sub">Diesel</div>
+      <div class="module-card-badge" id="badge-fuel">0 hoje</div>
+    </div>
+
+    <div class="module-card" style="border-color:#7F8C8D;cursor:default;opacity:.6">
+      <div class="module-card-icon" style="background:#F5F5F5">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#7F8C8D" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+      </div>
+      <div class="module-card-title" style="color:var(--text2)">Pendentes</div>
+      <div class="module-card-sub" id="pendentes-label">0 offline</div>
+      <div class="module-card-badge" style="background:#F5F5F5;color:var(--text3)" id="badge-pendentes">Sincronizar</div>
+    </div>
+  </div>
+
+  <!-- Botão sync manual -->
+  <div style="padding:0 16px 16px">
+    <button class="btn btn-outline" onclick="sincronizarPendentes()" id="btn-sync-manual" style="gap:8px">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+      Sincronizar pendentes
+    </button>
+  </div>
+
+  <div class="bottom-safe"></div>
+</div>
+
+<!-- ══════════════ SCREEN: MO ══════════════ -->
+<div class="screen" id="screen-mo">
+  <div class="topbar">
+    <div class="topbar-row">
+      <div>
+        <div style="font-size:13px;color:rgba(255,255,255,.5);cursor:pointer" onclick="showScreen('home')">← Voltar</div>
+        <div class="topbar-title">Mão de Obra</div>
+      </div>
+      <button class="btn btn-sm" style="background:var(--red);color:white;border:none" onclick="abrirQR('mo')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        QR Code
+      </button>
+    </div>
+  </div>
+
+  <!-- Tabs: Selecionar Equipe / Lançar Horas -->
+  <div class="module-tabs">
+    <button class="module-tab active" id="tab-mo-equipe" onclick="moTab('equipe')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+      Equipe
+    </button>
+    <button class="module-tab" id="tab-mo-turno" onclick="moTab('turno')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Turno/Horas
+    </button>
+    <button class="module-tab" id="tab-mo-quantit" onclick="moTab('quantit')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Quantitativo
+    </button>
+    <button class="module-tab" id="tab-mo-fechar" onclick="moTab('fechar')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+      Fechar
+    </button>
+  </div>
+
+  <!-- Tab: Equipe -->
+  <div class="content-no-pad" id="mo-panel-equipe">
+    <div style="padding:14px 16px 8px;background:white;border-bottom:1px solid var(--border)">
+      <div class="search-bar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="mo-search" placeholder="Buscar por nome ou matrícula…" oninput="filtrarFuncionarios()"/>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--text2)"><span id="mo-sel-count">0</span> selecionados</span>
+        <button class="btn btn-sm btn-outline" onclick="selecionarTurno()" style="font-size:12px">
+          Selecionar turno inteiro
+        </button>
+      </div>
+    </div>
+    <div id="mo-func-list"></div>
+    <div style="padding:16px;background:white;border-top:1px solid var(--border);position:sticky;bottom:0">
+      <button class="btn btn-primary" onclick="moTab('turno')">
+        Confirmar equipe → Lançar horas
+      </button>
+    </div>
+  </div>
+
+  <!-- Tab: Turno/Horas -->
+  <div class="content" id="mo-panel-turno" style="display:none">
+    <div class="card">
+      <div class="card-header"><span class="card-title">Turno e Período</span></div>
+      <div class="card-body">
+        <div class="form-group">
+          <label class="form-label">Turno</label>
+          <select class="form-control" id="mo-turno" onchange="preencherHorasTurno()">
+            <option value="">Selecione o turno…</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Data</label>
+          <input type="date" class="form-control" id="mo-data"/>
+        </div>
+        <div class="time-row">
+          <div class="form-group">
+            <label class="form-label">Hora entrada</label>
+            <input type="time" class="form-control time-big" id="mo-hora-ini"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Hora saída</label>
+            <input type="time" class="form-control time-big" id="mo-hora-fim"/>
+          </div>
+        </div>
+        <div class="time-row">
+          <div class="form-group">
+            <label class="form-label">H. Normais</label>
+            <input type="number" class="form-control" id="mo-hn" step="0.5" placeholder="8"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">H. Extras</label>
+            <input type="number" class="form-control" id="mo-he" step="0.5" placeholder="0"/>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Frente e Serviço</span></div>
+      <div class="card-body">
+        <div class="form-group">
+          <label class="form-label">Frente de Serviço</label>
+          <select class="form-control" id="mo-frente">
+            <option value="">Selecione a frente…</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tipo de Serviço</label>
+          <select class="form-control" id="mo-servico">
+            <option value="">Selecione o serviço…</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Empresa</label>
+          <select class="form-control" id="mo-empresa">
+            <option value="">Selecione a empresa…</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Observações</label>
+          <input class="form-control" id="mo-obs" placeholder="Opcional…"/>
+        </div>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="moTab('quantit')">Próximo → Quantitativo</button>
+    <div class="bottom-safe"></div>
+  </div>
+
+  <!-- Tab: Quantitativo -->
+  <div class="content" id="mo-panel-quantit" style="display:none">
+    <div class="card">
+      <div class="card-header"><span class="card-title">Produção do Turno</span></div>
+      <div class="card-body">
+        <div class="form-group">
+          <label class="form-label">Quantidade executada</label>
+          <input type="number" class="form-control" id="mo-qtd" placeholder="Ex.: 120" style="font-size:28px;font-weight:800;text-align:center;padding:20px"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Unidade</label>
+          <select class="form-control" id="mo-unid">
+            <option>m³</option><option>m²</option><option>m</option><option>un</option><option>t</option><option>km</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><span class="card-title">Perdas / H. Improdutivas (opcional)</span></div>
+      <div class="card-body">
+        <div class="form-group">
+          <label class="form-label">Motivo de perda</label>
+          <select class="form-control" id="mo-motivo-perda">
+            <option value="">Nenhum</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Horas de perda</label>
+          <input type="number" class="form-control" id="mo-horas-perda" placeholder="0" step="0.5"/>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" onclick="moTab('fechar')">Próximo → Revisar</button>
+    <div class="bottom-safe"></div>
+  </div>
+
+  <!-- Tab: Fechar/Revisar -->
+  <div class="content" id="mo-panel-fechar" style="display:none">
+    <div class="card">
+      <div class="card-header"><span class="card-title">Resumo do Lançamento</span></div>
+      <div class="card-body" id="mo-resumo"></div>
+    </div>
+    <button class="btn btn-green" onclick="salvarMO()" style="margin-bottom:12px">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      Confirmar e Salvar
+    </button>
+    <button class="btn btn-outline" onclick="moTab('equipe')">Editar equipe</button>
+    <div class="bottom-safe"></div>
+  </div>
+</div>
+
+<!-- ══════════════ SCREEN: EQ ══════════════ -->
+<div class="screen" id="screen-eq">
+  <div class="topbar">
+    <div class="topbar-row">
+      <div>
+        <div style="font-size:13px;color:rgba(255,255,255,.5);cursor:pointer" onclick="showScreen('home')">← Voltar</div>
+        <div class="topbar-title">Equipamentos</div>
+      </div>
+      <button class="btn btn-sm" style="background:var(--red);color:white;border:none" onclick="abrirQR('eq')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        QR Code
+      </button>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="search-bar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input id="eq-search" placeholder="Buscar equipamento (TAG)…" oninput="filtrarEquipamentos()"/>
+    </div>
+    <div id="eq-list" class="card" style="padding:0;overflow:hidden"></div>
+
+    <div class="card" id="eq-form" style="display:none">
+      <div class="card-header">
+        <span class="card-title" id="eq-form-titulo">Apontamento EQ</span>
+        <button class="btn btn-sm btn-outline" onclick="limparEqForm()" style="font-size:11px">Trocar</button>
+      </div>
+      <div class="card-body">
+        <div class="form-group">
+          <label class="form-label">Data</label>
+          <input type="date" class="form-control" id="eq-data"/>
+        </div>
+        <div class="time-row">
+          <div class="form-group">
+            <label class="form-label">Hora entrada</label>
+            <input type="time" class="form-control" id="eq-hora-ini"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Hora saída</label>
+            <input type="time" class="form-control" id="eq-hora-fim"/>
+          </div>
+        </div>
+        <div class="time-row">
+          <div class="form-group">
+            <label class="form-label">H. Produtivas</label>
+            <input type="number" class="form-control" id="eq-hp" step="0.5" placeholder="8"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">H. Parado</label>
+            <input type="number" class="form-control" id="eq-hpar" step="0.5" placeholder="0"/>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Motivo Parada</label>
+          <select class="form-control" id="eq-motivo">
+            <option value="">Nenhum</option>
+            <option value="MNP">MNP — Manutenção não programada</option>
+            <option value="MP">MP — Manutenção programada</option>
+            <option value="CHU">Chuva</option>
+            <option value="AMA">Aguardo de material</option>
+            <option value="ADM">Problema administrativo</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Horímetro / Km</label>
+          <input type="number" class="form-control" id="eq-horimetro" placeholder="Ex.: 1245"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Frente de Serviço</label>
+          <select class="form-control" id="eq-frente">
+            <option value="">Selecione…</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tipo de Serviço</label>
+          <select class="form-control" id="eq-servico">
+            <option value="">Selecione…</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Operador</label>
+          <input class="form-control" id="eq-operador" placeholder="Nome do operador"/>
+        </div>
+        <button class="btn btn-green" onclick="salvarEQ()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Salvar Apontamento EQ
+        </button>
+      </div>
+    </div>
+    <div class="bottom-safe"></div>
+  </div>
+</div>
+
+<!-- ══════════════ SCREEN: FUEL ══════════════ -->
+<div class="screen" id="screen-fuel">
+  <div class="topbar">
+    <div class="topbar-row">
+      <div>
+        <div style="font-size:13px;color:rgba(255,255,255,.5);cursor:pointer" onclick="showScreen('home')">← Voltar</div>
+        <div class="topbar-title">Abastecimento</div>
+      </div>
+      <button class="btn btn-sm" style="background:var(--red);color:white;border:none" onclick="abrirQR('fuel')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        QR Code
+      </button>
+    </div>
+  </div>
+  <div class="content">
+    <div class="card">
+      <div class="card-header"><span class="card-title">Registro de Abastecimento</span></div>
+      <div class="card-body">
+        <div class="form-group">
+          <label class="form-label">Equipamento (TAG)</label>
+          <div class="search-bar" style="margin-bottom:8px">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input id="fuel-eq-search" placeholder="Buscar TAG…" oninput="filtrarEquipamentosFuel()"/>
+          </div>
+          <select class="form-control" id="fuel-equip">
+            <option value="">Selecione o equipamento…</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tanque</label>
+          <select class="form-control" id="fuel-tanque">
+            <option value="">Selecione o tanque…</option>
+          </select>
+        </div>
+        <div class="time-row">
+          <div class="form-group">
+            <label class="form-label">Data</label>
+            <input type="date" class="form-control" id="fuel-data"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Hora</label>
+            <input type="time" class="form-control" id="fuel-hora"/>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Litros abastecidos</label>
+          <input type="number" class="form-control" id="fuel-litros" placeholder="0" step="0.1" style="font-size:28px;font-weight:800;text-align:center;padding:20px"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Horímetro / Km atual</label>
+          <input type="number" class="form-control" id="fuel-horimetro" placeholder="Ex.: 1245"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Observações</label>
+          <input class="form-control" id="fuel-obs" placeholder="Opcional…"/>
+        </div>
+        <button class="btn btn-green" onclick="salvarFuel()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Registrar Abastecimento
+        </button>
+      </div>
+    </div>
+    <div class="bottom-safe"></div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// FIREBASE CONFIG
+// ══════════════════════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "AIzaSyCSYBPUX4LGxFypy5AA3yPYe1ElWwWaLGc",
+  authDomain: "infraapp-bn.firebaseapp.com",
+  projectId: "infraapp-bn",
+  storageBucket: "infraapp-bn.firebasestorage.app",
+  messagingSenderId: "53568601397",
+  appId: "1:53568601397:web:3956a7da0be90c63aca07c"
+};
+
+let db = null, auth = null, _fbReady = false;
+try {
+  firebase.initializeApp(firebaseConfig);
+  db   = firebase.firestore();
+  auth = firebase.auth();
+  _fbReady = true;
+} catch(e) { console.warn('Firebase offline:', e.message); }
+
+// ══════════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════════
+let usuarioCampo = null;
+let dadosCampo   = { funcionarios:[], equipamentos:[], frentes:[], tiposServico:[], tiposPerdas:[], empresas:[], turnos:[], tanques:[] };
+let moEquipeSelecionada = new Set(); // IDs dos funcionários selecionados
+let eqSelecionado = null; // equipamento atual
+let pendentes = []; // lançamentos offline
+let isOnline   = navigator.onLine;
+let qrScanner  = null;
+let qrContexto  = ''; // 'mo' | 'eq' | 'fuel'
+
+// ══════════════════════════════════════════════════════════════
+// OFFLINE
+// ══════════════════════════════════════════════════════════════
+window.addEventListener('online',  () => { isOnline=true;  atualizarBannerOffline(); sincronizarPendentes(); });
+window.addEventListener('offline', () => { isOnline=false; atualizarBannerOffline(); });
+
+function atualizarBannerOffline() {
+  const b = document.getElementById('offline-banner');
+  b.classList.toggle('show', !isOnline);
+  const chip = document.getElementById('home-sync-chip');
+  if (chip) { chip.textContent = isOnline ? '⚡ Online' : '📵 Offline'; chip.style.background = isOnline ? '' : 'var(--amber)'; }
+}
+
+function salvarPendente(colecao, item) {
+  pendentes.push({ colecao, item, ts: Date.now() });
+  try { localStorage.setItem('campo_pendentes', JSON.stringify(pendentes)); } catch(e){}
+  atualizarBadgePendentes();
+}
+
+function carregarPendentes() {
+  try { const p = localStorage.getItem('campo_pendentes'); if(p) pendentes = JSON.parse(p); } catch(e){}
+  atualizarBadgePendentes();
+}
+
+function atualizarBadgePendentes() {
+  const n = pendentes.length;
+  const el = document.getElementById('pendentes-label');
+  const badge = document.getElementById('badge-pendentes');
+  if(el) el.textContent = n + ' offline';
+  if(badge) badge.textContent = n > 0 ? 'Sincronizar (' + n + ')' : 'Em dia ✓';
+}
+
+async function sincronizarPendentes() {
+  if (!isOnline || !db || !_fbReady || !pendentes.length) return;
+  const btn = document.getElementById('btn-sync-manual');
+  if(btn) btn.textContent = 'Sincronizando...';
+  let ok = 0;
+  const restantes = [];
+  for (const p of pendentes) {
+    try {
+      await db.collection(p.colecao).doc(p.item.id).set(p.item, {merge:true});
+      ok++;
+    } catch(e) { restantes.push(p); }
+  }
+  pendentes = restantes;
+  try { localStorage.setItem('campo_pendentes', JSON.stringify(pendentes)); } catch(e){}
+  atualizarBadgePendentes();
+  if(btn) btn.textContent = 'Sincronizar pendentes';
+  if(ok > 0) toast(ok + ' lançamento(s) sincronizado(s)!', 'ok');
+}
+
+// ══════════════════════════════════════════════════════════════
+// FIREBASE HELPERS
+// ══════════════════════════════════════════════════════════════
+async function fbSalvar(colecao, item) {
+  if (!isOnline || !db || !_fbReady) {
+    salvarPendente(colecao, item);
+    return;
+  }
+  try {
+    await db.collection(colecao).doc(item.id).set(item, {merge:true});
+  } catch(e) {
+    salvarPendente(colecao, item);
+    console.warn('Salvo offline:', e.message);
+  }
+}
+
+async function fbCarregar(colecao) {
+  if (!db || !_fbReady) return null;
+  try {
+    const snap = await db.collection(colecao).get();
+    return snap.docs.map(d => ({id: d.id, ...d.data()}));
+  } catch(e) { return null; }
+}
+
+// ══════════════════════════════════════════════════════════════
+// LOGIN
+// ══════════════════════════════════════════════════════════════
+async function fazerLoginCampo() {
+  const mat   = document.getElementById('login-mat').value.trim();
+  const senha = document.getElementById('login-senha').value.trim();
+  const errEl = document.getElementById('login-error');
+  const btn   = document.getElementById('btn-entrar');
+  if (!mat || !senha) { errEl.textContent = 'Informe matrícula e senha.'; errEl.style.display='block'; return; }
+  btn.textContent = 'Entrando...'; btn.disabled = true;
+  errEl.style.display = 'none';
+
+  // Load users from Firebase or local cache
+  let usuarios = [];
+  try {
+    if (db && _fbReady) {
+      const snap = await db.collection('usuarios').get();
+      usuarios = snap.docs.map(d => ({...d.data(), id: d.id}));
+      // Cache locally
+      try { localStorage.setItem('campo_usuarios', JSON.stringify(usuarios)); } catch(e){}
+    }
+  } catch(e) {}
+
+  // Fallback to cached usuarios
+  if (!usuarios.length) {
+    try { const c = localStorage.getItem('campo_usuarios'); if(c) usuarios = JSON.parse(c); } catch(e) {}
+  }
+
+  // Also try USUARIOS array from InfraApp (stored in Firestore)
+  // Check funcionarios table by mat field
+  let funcMatch = null;
+  try {
+    if (db && _fbReady) {
+      const snap = await db.collection('funcionarios').where('mat','==',mat).get();
+      if (!snap.empty) funcMatch = snap.docs[0].data();
+    }
+  } catch(e) {}
+
+  // Find user by mat or email
+  const usr = usuarios.find(u =>
+    (u.mat === mat || u.email?.includes(mat) || u.matricula === mat) &&
+    (u.senha === senha || !u.senha)
+  );
+
+  if (!usr && !funcMatch) {
+    // Try master admin login
+    if (mat === 'karine' || mat === 'admin') {
+      // Allow master access for testing
+      usuarioCampo = { id: 'admin', nome: 'Administrador', perfil: 'Admin', mat, obra: '' };
+    } else {
+      errEl.textContent = 'Matrícula ou senha incorretos.';
+      errEl.style.display = 'block';
+      btn.textContent = 'Entrar'; btn.disabled = false;
+      return;
+    }
+  } else {
+    usuarioCampo = usr || { id: 'f-' + mat, nome: funcMatch?.nome || mat, perfil: 'Colaborador', mat, obra: funcMatch?.obra || '' };
+  }
+
+  btn.textContent = 'Entrar'; btn.disabled = false;
+  await carregarDadosCampo();
+  entrarNoCampo();
+}
+
+async function carregarDadosCampo() {
+  const cols = ['funcionarios','equipamentos','frentes','tiposServico','tiposPerdas','empresas','turnos','tanques'];
+  for (const col of cols) {
+    const items = await fbCarregar(col);
+    if (items) {
+      dadosCampo[col] = items;
+      try { localStorage.setItem('campo_cache_' + col, JSON.stringify(items)); } catch(e){}
+    } else {
+      // Fallback to cache
+      try { const c = localStorage.getItem('campo_cache_' + col); if(c) dadosCampo[col] = JSON.parse(c); } catch(e){}
+    }
+  }
+  carregarPendentes();
+}
+
+function entrarNoCampo() {
+  // Update home
+  const iniciais = usuarioCampo.nome.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
+  document.getElementById('home-nome').textContent = usuarioCampo.nome;
+  document.getElementById('home-avatar').textContent = iniciais;
+
+  // Find obra name
+  const obraLabel = document.getElementById('home-obra-label');
+  if (usuarioCampo.obra) {
+    fbCarregar('obras').then(obras => {
+      const obra = (obras||[]).find(o => o.id === usuarioCampo.obra);
+      if (obra && obraLabel) obraLabel.textContent = '📍 ' + obra.nome;
+    }).catch(()=>{});
+  } else {
+    if (obraLabel) obraLabel.textContent = '📍 Todas as obras';
+  }
+
+  // Show/hide fuel module based on perfil
+  const cardFuel = document.getElementById('card-fuel');
+  if (cardFuel && usuarioCampo.perfil !== 'Abastecedor' && usuarioCampo.perfil !== 'Admin') {
+    // Show anyway — allow all field users to register fuel if needed
+  }
+
+  showScreen('home');
+  atualizarBannerOffline();
+  atualizarBadges();
+}
+
+// ══════════════════════════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+function abrirModulo(mod) {
+  showScreen(mod);
+  if (mod === 'mo')   { preencherSelectsMO(); renderFuncionariosList(); }
+  if (mod === 'eq')   { preencherSelectsEQ(); renderEquipamentosList(); }
+  if (mod === 'fuel') { preencherSelectsFuel(); }
+}
+
+function atualizarBadges() {
+  const hoje = new Date().toISOString().slice(0,10);
+  carregarPendentes();
+}
+
+function showLogoutMenu() {
+  if (confirm('Sair do InfraApp Campo?')) {
+    usuarioCampo = null;
+    localStorage.removeItem('campo_usuario');
+    showScreen('login');
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// QR CODE
+// ══════════════════════════════════════════════════════════════
+function abrirQR(contexto) {
+  qrContexto = contexto;
+  const overlay = document.getElementById('qr-overlay');
+  overlay.classList.add('show');
+
+  if (!qrScanner) {
+    qrScanner = new Html5Qrcode('qr-reader');
+  }
+
+  qrScanner.start(
+    { facingMode: 'environment' },
+    { fps: 10, qrbox: { width: 220, height: 220 } },
+    (text) => {
+      qrScanner.stop().catch(()=>{});
+      fecharQR();
+      processarQR(text, contexto);
+    },
+    () => {}
+  ).catch(e => {
+    toast('Câmera não disponível: ' + e, 'err');
+    fecharQR();
+  });
+}
+
+function fecharQR() {
+  const overlay = document.getElementById('qr-overlay');
+  overlay.classList.remove('show');
+  if (qrScanner) { qrScanner.stop().catch(()=>{}); }
+}
+
+function processarQR(texto, contexto) {
+  // QR code pode conter: mat:0001 ou tag:ESC-001 ou JSON
+  let mat = null, tag = null;
+  try {
+    const obj = JSON.parse(texto);
+    mat = obj.mat || obj.matricula;
+    tag = obj.tag || obj.equip;
+  } catch(e) {
+    if (texto.startsWith('mat:')) mat = texto.slice(4).trim();
+    else if (texto.startsWith('tag:')) tag = texto.slice(4).trim();
+    else { mat = texto.trim(); tag = texto.trim(); }
+  }
+
+  if (contexto === 'mo' && mat) {
+    const func = dadosCampo.funcionarios.find(f => f.mat === mat || f.id === mat);
+    if (func) {
+      moEquipeSelecionada.add(func.id);
+      renderFuncionariosList();
+      toast('✓ ' + func.nome + ' adicionado!', 'ok');
+    } else {
+      toast('Funcionário não encontrado: ' + mat, 'err');
+    }
+  } else if (contexto === 'eq' && tag) {
+    const eq = dadosCampo.equipamentos.find(e => e.tag === tag || e.placa === tag);
+    if (eq) {
+      selecionarEquipamento(eq.id);
+      toast('✓ ' + eq.tag + ' selecionado!', 'ok');
+    } else {
+      toast('Equipamento não encontrado: ' + tag, 'err');
+    }
+  } else if (contexto === 'fuel' && tag) {
+    const eq = dadosCampo.equipamentos.find(e => e.tag === tag || e.placa === tag);
+    if (eq) {
+      document.getElementById('fuel-equip').value = eq.id;
+      toast('✓ ' + eq.tag + ' selecionado!', 'ok');
+    }
+  } else {
+    toast('QR Code lido: ' + texto.slice(0,30));
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// MO MODULE
+// ══════════════════════════════════════════════════════════════
+function moTab(tab) {
+  ['equipe','turno','quantit','fechar'].forEach(t => {
+    document.getElementById('mo-panel-' + t).style.display = t === tab ? '' : 'none';
+    const tabEl = document.getElementById('tab-mo-' + t);
+    if(tabEl) tabEl.classList.toggle('active', t === tab);
+  });
+  if (tab === 'fechar') montarResumoMO();
+}
+
+function preencherSelectsMO() {
+  const hoje = new Date().toISOString().slice(0,10);
+  document.getElementById('mo-data').value = hoje;
+
+  // Turnos
+  const selTurno = document.getElementById('mo-turno');
+  selTurno.innerHTML = '<option value="">Selecione o turno…</option>';
+  dadosCampo.turnos.forEach(t => {
+    selTurno.innerHTML += `<option value="${t.id}">${t.nome||t.cod} (${t.horaIni||'07:00'}–${t.horaFim||'17:00'})</option>`;
+  });
+
+  // Frentes
+  const obraId = usuarioCampo?.obra || '';
+  const minhasFrente = obraId
+    ? dadosCampo.frentes.filter(f => f.obra === obraId)
+    : dadosCampo.frentes;
+  const selFrente = document.getElementById('mo-frente');
+  selFrente.innerHTML = '<option value="">Selecione a frente…</option>';
+  minhasFrente.forEach(f => selFrente.innerHTML += `<option value="${f.cod}">${f.cod} — ${f.desc||f.nome||''}</option>`);
+
+  // Serviços
+  const selServ = document.getElementById('mo-servico');
+  selServ.innerHTML = '<option value="">Selecione o serviço…</option>';
+  dadosCampo.tiposServico.forEach(s => selServ.innerHTML += `<option value="${s.desc||s.cod}">${s.desc||s.cod}</option>`);
+
+  // Empresas
+  const selEmp = document.getElementById('mo-empresa');
+  selEmp.innerHTML = '<option value="">Selecione a empresa…</option>';
+  dadosCampo.empresas.forEach(e => selEmp.innerHTML += `<option value="${e.id}">${e.nome}</option>`);
+
+  // Motivos de perda
+  const selPerda = document.getElementById('mo-motivo-perda');
+  selPerda.innerHTML = '<option value="">Nenhum</option>';
+  dadosCampo.tiposPerdas.forEach(p => selPerda.innerHTML += `<option value="${p.cod}">${p.cod} — ${p.desc||''}</option>`);
+}
+
+function preencherHorasTurno() {
+  const turnoId = document.getElementById('mo-turno').value;
+  const turno = dadosCampo.turnos.find(t => t.id === turnoId);
+  if (!turno) return;
+  if (turno.horaIni) document.getElementById('mo-hora-ini').value = turno.horaIni;
+  if (turno.horaFim) document.getElementById('mo-hora-fim').value = turno.horaFim;
+  if (turno.hn) document.getElementById('mo-hn').value = turno.hn;
+  if (turno.he !== undefined) document.getElementById('mo-he').value = turno.he || 0;
+}
+
+function renderFuncionariosList() {
+  const busca = document.getElementById('mo-search')?.value?.toLowerCase() || '';
+  const obraId = usuarioCampo?.obra || '';
+  let lista = obraId
+    ? dadosCampo.funcionarios.filter(f => !f.obra || f.obra === obraId)
+    : dadosCampo.funcionarios;
+  if (busca) lista = lista.filter(f =>
+    f.nome?.toLowerCase().includes(busca) || f.mat?.toLowerCase().includes(busca)
+  );
+
+  const el = document.getElementById('mo-func-list');
+  if (!lista.length) {
+    el.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text3)">Nenhum funcionário cadastrado</div>';
+    return;
+  }
+
+  el.innerHTML = '<div class="card" style="padding:0;overflow:hidden;margin:12px 16px">'
+    + lista.map(f => {
+      const sel = moEquipeSelecionada.has(f.id);
+      const iniciais = (f.nome||'?').split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
+      return `<div class="list-item ${sel?'selected':''}" onclick="toggleFuncionario('${f.id}')">
+        <div class="list-avatar" style="${sel?'background:var(--red)':''}">${iniciais}</div>
+        <div>
+          <div class="list-name">${f.nome}</div>
+          <div class="list-sub">Mat. ${f.mat||'—'} · ${f.codFuncao||f.funcao||'—'}</div>
+        </div>
+        <div class="list-check"></div>
+      </div>`;
+    }).join('')
+    + '</div>';
+
+  document.getElementById('mo-sel-count').textContent = moEquipeSelecionada.size;
+}
+
+function toggleFuncionario(id) {
+  if (moEquipeSelecionada.has(id)) moEquipeSelecionada.delete(id);
+  else moEquipeSelecionada.add(id);
+  renderFuncionariosList();
+}
+
+function filtrarFuncionarios() { renderFuncionariosList(); }
+
+function selecionarTurno() {
+  // Seleciona todos os funcionários visíveis
+  const busca = document.getElementById('mo-search')?.value?.toLowerCase() || '';
+  const obraId = usuarioCampo?.obra || '';
+  let lista = obraId
+    ? dadosCampo.funcionarios.filter(f => !f.obra || f.obra === obraId)
+    : dadosCampo.funcionarios;
+  if (busca) lista = lista.filter(f =>
+    f.nome?.toLowerCase().includes(busca) || f.mat?.toLowerCase().includes(busca)
+  );
+  lista.forEach(f => moEquipeSelecionada.add(f.id));
+  renderFuncionariosList();
+  toast(lista.length + ' funcionários selecionados!', 'ok');
+}
+
+function montarResumoMO() {
+  const hn     = document.getElementById('mo-hn').value || '0';
+  const he     = document.getElementById('mo-he').value || '0';
+  const frente = document.getElementById('mo-frente').value || '—';
+  const servico = document.getElementById('mo-servico').value || '—';
+  const qtd    = document.getElementById('mo-qtd').value || '0';
+  const unid   = document.getElementById('mo-unid').value || '';
+
+  const selecionados = dadosCampo.funcionarios.filter(f => moEquipeSelecionada.has(f.id));
+
+  document.getElementById('mo-resumo').innerHTML = `
+    <div class="summary-item"><span class="summary-label">Funcionários</span><span class="summary-value">${selecionados.length}</span></div>
+    <div class="summary-item"><span class="summary-label">H. Normais</span><span class="summary-value green">${hn}h</span></div>
+    <div class="summary-item"><span class="summary-label">H. Extras</span><span class="summary-value red">${he}h</span></div>
+    <div class="summary-item"><span class="summary-label">Frente</span><span class="summary-value">${frente}</span></div>
+    <div class="summary-item"><span class="summary-label">Serviço</span><span class="summary-value">${servico}</span></div>
+    <div class="summary-item"><span class="summary-label">Produção</span><span class="summary-value">${qtd} ${unid}</span></div>
+    <div style="margin-top:12px;padding:12px;background:var(--bg);border-radius:10px">
+      ${selecionados.slice(0,5).map(f=>`<div style="font-size:12px;color:var(--text2);margin-bottom:4px">• ${f.nome}</div>`).join('')}
+      ${selecionados.length > 5 ? `<div style="font-size:12px;color:var(--text3)">... e mais ${selecionados.length-5}</div>` : ''}
+    </div>
+  `;
+}
+
+async function salvarMO() {
+  if (moEquipeSelecionada.size === 0) { toast('Selecione pelo menos um funcionário.', 'err'); return; }
+  const data    = document.getElementById('mo-data').value;
+  const horaIni = document.getElementById('mo-hora-ini').value;
+  const horaFim = document.getElementById('mo-hora-fim').value;
+  const hn      = parseFloat(document.getElementById('mo-hn').value) || 0;
+  const he      = parseFloat(document.getElementById('mo-he').value) || 0;
+  const frente  = document.getElementById('mo-frente').value;
+  const servico = document.getElementById('mo-servico').value;
+  const empresa = document.getElementById('mo-empresa').value;
+  const qtd     = parseFloat(document.getElementById('mo-qtd').value) || 0;
+  const unid    = document.getElementById('mo-unid').value;
+  const obs     = document.getElementById('mo-obs').value;
+  const motivoPerda = document.getElementById('mo-motivo-perda').value;
+  const horasPerda  = parseFloat(document.getElementById('mo-horas-perda').value) || 0;
+
+  if (!data || !frente) { toast('Preencha data e frente de serviço.', 'err'); return; }
+
+  const selecionados = dadosCampo.funcionarios.filter(f => moEquipeSelecionada.has(f.id));
+  let salvos = 0;
+
+  for (const func of selecionados) {
+    const item = {
+      id: 'am' + Date.now() + Math.random().toString(36).slice(2,5),
+      data, horaIni, horaFim, hn, he, qtd, unid,
+      func: func.nome, funcao: func.codFuncao || func.funcao || '—',
+      mat: func.mat, empresa,
+      frente, servico: servico || '—', obs,
+      obra: usuarioCampo.obra || '',
+      lancadoPor: usuarioCampo.nome,
+      status: 'campo',
+      lancadoEm: new Date().toISOString(),
+    };
+    await fbSalvar('aponMO', item);
+    salvos++;
+  }
+
+  // Salvar perda se houver
+  if (motivoPerda && horasPerda > 0) {
+    const perda = {
+      id: 'pm' + Date.now(),
+      data, tipo: 'Mão de Obra',
+      motivo: motivoPerda, horas: horasPerda,
+      frente, obra: usuarioCampo.obra || '',
+      lancadoPor: usuarioCampo.nome,
+      lancadoEm: new Date().toISOString(),
+    };
+    await fbSalvar('perdas', perda);
+  }
+
+  toast(salvos + ' apontamentos MO salvos!', 'ok');
+  moEquipeSelecionada.clear();
+  moTab('equipe');
+  renderFuncionariosList();
+}
+
+// ══════════════════════════════════════════════════════════════
+// EQ MODULE
+// ══════════════════════════════════════════════════════════════
+function preencherSelectsEQ() {
+  const hoje = new Date().toISOString().slice(0,10);
+  document.getElementById('eq-data').value = hoje;
+
+  const obraId = usuarioCampo?.obra || '';
+  const minhasFrente = obraId
+    ? dadosCampo.frentes.filter(f => f.obra === obraId)
+    : dadosCampo.frentes;
+
+  const selFrente = document.getElementById('eq-frente');
+  selFrente.innerHTML = '<option value="">Selecione…</option>';
+  minhasFrente.forEach(f => selFrente.innerHTML += `<option value="${f.cod}">${f.cod} — ${f.desc||f.nome||''}</option>`);
+
+  const selServ = document.getElementById('eq-servico');
+  selServ.innerHTML = '<option value="">Selecione…</option>';
+  dadosCampo.tiposServico.forEach(s => selServ.innerHTML += `<option value="${s.desc||s.cod}">${s.desc||s.cod}</option>`);
+}
+
+function renderEquipamentosList() {
+  const busca = document.getElementById('eq-search')?.value?.toLowerCase() || '';
+  const obraId = usuarioCampo?.obra || '';
+  let lista = obraId
+    ? dadosCampo.equipamentos.filter(e => !e.obra || e.obra === obraId)
+    : dadosCampo.equipamentos;
+  if (busca) lista = lista.filter(e =>
+    e.tag?.toLowerCase().includes(busca) || e.placa?.toLowerCase().includes(busca)
+  );
+
+  const el = document.getElementById('eq-list');
+  if (!lista.length) {
+    el.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text3)">Nenhum equipamento cadastrado</div>';
+    return;
+  }
+
+  el.innerHTML = lista.map(e => `
+    <div class="list-item" onclick="selecionarEquipamento('${e.id}')">
+      <div class="list-avatar eq-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1E2A3A" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+      </div>
+      <div>
+        <div class="list-name">${e.tag}</div>
+        <div class="list-sub">${e.placa||'—'} · ${e.familia||'—'} · ${e.status||'—'}</div>
+      </div>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+    </div>
+  `).join('');
+}
+
+function filtrarEquipamentos() { renderEquipamentosList(); }
+
+function selecionarEquipamento(id) {
+  eqSelecionado = dadosCampo.equipamentos.find(e => e.id === id);
+  if (!eqSelecionado) return;
+  document.getElementById('eq-form-titulo').textContent = eqSelecionado.tag + ' — ' + (eqSelecionado.placa||'');
+  document.getElementById('eq-form').style.display = '';
+
+  // Auto-fill hora
+  const agora = new Date();
+  const hhmm = agora.toTimeString().slice(0,5);
+  document.getElementById('eq-hora-ini').value = '07:00';
+  document.getElementById('eq-hora-fim').value = hhmm;
+  document.getElementById('eq-hp').value = '';
+  document.getElementById('eq-hpar').value = '0';
+  document.getElementById('eq-horimetro').value = '';
+
+  document.getElementById('eq-form').scrollIntoView({ behavior: 'smooth' });
+}
+
+function limparEqForm() {
+  eqSelecionado = null;
+  document.getElementById('eq-form').style.display = 'none';
+  document.getElementById('eq-search').value = '';
+  renderEquipamentosList();
+}
+
+async function salvarEQ() {
+  if (!eqSelecionado) { toast('Selecione um equipamento.', 'err'); return; }
+  const data    = document.getElementById('eq-data').value;
+  const horaIni = document.getElementById('eq-hora-ini').value;
+  const horaFim = document.getElementById('eq-hora-fim').value;
+  const hp      = parseFloat(document.getElementById('eq-hp').value) || 0;
+  const hpar    = parseFloat(document.getElementById('eq-hpar').value) || 0;
+  const motivo  = document.getElementById('eq-motivo').value;
+  const horim   = document.getElementById('eq-horimetro').value;
+  const frente  = document.getElementById('eq-frente').value;
+  const servico = document.getElementById('eq-servico').value;
+  const operador = document.getElementById('eq-operador').value;
+
+  if (!data || !frente) { toast('Preencha data e frente.', 'err'); return; }
+
+  const item = {
+    id: 'ae' + Date.now() + Math.random().toString(36).slice(2,5),
+    data, horaIni, horaFim, hp, hpar,
+    equip: eqSelecionado.tag,
+    equipId: eqSelecionado.id,
+    tipo: eqSelecionado.familia || '—',
+    motivo, hor: horim,
+    frente, servico: servico || '—',
+    operador: operador || usuarioCampo.nome,
+    obra: usuarioCampo.obra || '',
+    lancadoPor: usuarioCampo.nome,
+    status: 'campo',
+    lancadoEm: new Date().toISOString(),
+  };
+
+  await fbSalvar('aponEQ', item);
+  toast('Apontamento EQ salvo!', 'ok');
+  limparEqForm();
+}
+
+// ══════════════════════════════════════════════════════════════
+// FUEL MODULE
+// ══════════════════════════════════════════════════════════════
+function preencherSelectsFuel() {
+  const hoje = new Date().toISOString().slice(0,10);
+  const agora = new Date().toTimeString().slice(0,5);
+  document.getElementById('fuel-data').value = hoje;
+  document.getElementById('fuel-hora').value = agora;
+
+  const selEq = document.getElementById('fuel-equip');
+  const obraId = usuarioCampo?.obra || '';
+  const lista = obraId
+    ? dadosCampo.equipamentos.filter(e => !e.obra || e.obra === obraId)
+    : dadosCampo.equipamentos;
+  selEq.innerHTML = '<option value="">Selecione o equipamento…</option>';
+  lista.forEach(e => selEq.innerHTML += `<option value="${e.id}">${e.tag} — ${e.placa||'—'}</option>`);
+
+  const selTanq = document.getElementById('fuel-tanque');
+  selTanq.innerHTML = '<option value="">Selecione o tanque…</option>';
+  dadosCampo.tanques.forEach(t => selTanq.innerHTML += `<option value="${t.id}">${t.nome} (${t.saldo||0}L)</option>`);
+}
+
+function filtrarEquipamentosFuel() {
+  const busca = document.getElementById('fuel-eq-search').value.toLowerCase();
+  const sel = document.getElementById('fuel-equip');
+  Array.from(sel.options).forEach(opt => {
+    if (!opt.value) return;
+    opt.style.display = opt.text.toLowerCase().includes(busca) ? '' : 'none';
+  });
+}
+
+async function salvarFuel() {
+  const equipId = document.getElementById('fuel-equip').value;
+  const tanqId  = document.getElementById('fuel-tanque').value;
+  const data    = document.getElementById('fuel-data').value;
+  const hora    = document.getElementById('fuel-hora').value;
+  const litros  = parseFloat(document.getElementById('fuel-litros').value) || 0;
+  const horim   = document.getElementById('fuel-horimetro').value;
+  const obs     = document.getElementById('fuel-obs').value;
+
+  if (!equipId || !data || !litros) { toast('Preencha equipamento, data e litros.', 'err'); return; }
+
+  const eq = dadosCampo.equipamentos.find(e => e.id === equipId);
+
+  const item = {
+    id: 'di' + Date.now() + Math.random().toString(36).slice(2,5),
+    dt: data + ' ' + hora,
+    equip: eq?.tag || equipId,
+    equipId,
+    tanqueId: tanqId,
+    litros, hor: horim,
+    obs,
+    obra: usuarioCampo.obra || '',
+    lancadoPor: usuarioCampo.nome,
+    status: 'campo',
+    lancadoEm: new Date().toISOString(),
+  };
+
+  await fbSalvar('diesel', item);
+
+  // Atualizar saldo do tanque
+  if (tanqId && isOnline && db) {
+    try {
+      const tanq = dadosCampo.tanques.find(t => t.id === tanqId);
+      if (tanq) {
+        const novoSaldo = (parseFloat(tanq.saldo)||0) - litros;
+        await db.collection('tanques').doc(tanqId).update({ saldo: novoSaldo });
+        tanq.saldo = novoSaldo;
+      }
+    } catch(e) {}
+  }
+
+  toast('Abastecimento registrado!', 'ok');
+  document.getElementById('fuel-litros').value = '';
+  document.getElementById('fuel-horimetro').value = '';
+  document.getElementById('fuel-obs').value = '';
+}
+
+// ══════════════════════════════════════════════════════════════
+// TOAST
+// ══════════════════════════════════════════════════════════════
+function toast(msg, tipo) {
+  const c = document.getElementById('toast-container');
+  const d = document.createElement('div');
+  d.className = 'toast-msg' + (tipo==='err'?' err':tipo==='ok'?' ok':'');
+  d.textContent = msg;
+  c.appendChild(d);
+  setTimeout(() => d.remove(), 3000);
+}
+
+// ══════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  atualizarBannerOffline();
+
+  // Tentar auto-login com sessão salva
+  try {
+    const sess = localStorage.getItem('campo_usuario');
+    if (sess) {
+      usuarioCampo = JSON.parse(sess);
+      carregarDadosCampo().then(() => entrarNoCampo());
+      return;
+    }
+  } catch(e) {}
+
+  // Enter key no login
+  ['login-mat','login-senha'].forEach(id => {
+    document.getElementById(id)?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') fazerLoginCampo();
+    });
+  });
+});
+
+// Salvar sessão ao entrar
+const _origEntrar = entrarNoCampo;
+entrarNoCampo = function() {
+  try { localStorage.setItem('campo_usuario', JSON.stringify(usuarioCampo)); } catch(e) {}
+  _origEntrar();
+};
+</script>
+</body>
+</html>
