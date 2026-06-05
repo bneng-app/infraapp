@@ -856,13 +856,14 @@ textarea.form-control{resize:vertical;min-height:72px}
     </div>
   </div>
   <div class="card"><div class="card-body">
-    <div class="search-wrap"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="search-func" placeholder="Buscar por matrícula, nome ou cargo…" oninput="filtrarTabela('tabela-func','search-func',0)"/></div>
+    <div class="search-wrap"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="busca-func" placeholder="Buscar por matrícula, nome ou cargo…" oninput="renderFuncionarios(0)"/></div>
     <div class="table-wrap">
       <table id="tabela-func">
-        <thead><tr><th>Obra</th><th>Matrícula</th><th>Nome</th><th>Cód. Função</th><th>Direto</th><th>Admissão</th><th>Demissão</th><th>Matr. Líder</th><th>Cód. Equipe</th><th></th></tr></thead>
-        <tbody id="tbody-func"><tr><td colspan="9" class="empty-row">Carregando…</td></tr></tbody>
+        <thead><tr><th>Obra</th><th>Matrícula</th><th>Nome</th><th>Cód. Função</th><th>Função</th><th>Direto</th><th>Admissão</th><th>Demissão</th><th>Matr. Líder</th><th>Cód. Equipe</th><th></th></tr></thead>
+        <tbody id="tbody-func"><tr><td colspan="10" class="empty-row">Carregando…</td></tr></tbody>
       </table>
     </div>
+    <div id="pag-func" style="display:flex;align-items:center;justify-content:center;gap:12px;padding:12px 0;"></div>
   </div></div>
 </div>
 
@@ -3028,11 +3029,11 @@ async function confirmarImportacao() {
             local: get(['local','município']), status: get(['status'])||'Ativa' };
         } else if (tipo === 'funcionarios') {
           item.mat      = get(['matrícula','matricula','mat']);
-          item.nome     = get(['nome']);
-          item.codFuncao = get(['função','funcao','cód. função','cod.func']);
+          item.nome     = get(['nome completo','nome']);
+          item.codFuncao = get(['cód. função','função','funcao','cod.func','cod. função']);
           item.direto   = get(['direto'])||'Sim';
-          item.admissao = get(['admissão','admissao']);
-          item.demissao = get(['demissão','demissao'])||'';
+          item.admissao = excelDataParaISO(get(['data admissão','admissão','admissao']));
+          item.demissao = excelDataParaISO(get(['data demissão','demissão','demissao']))||'';
           item.lider    = get(['líder','lider'])||'';
           item.equipe   = get(['equipe'])||'';
         } else if (tipo === 'empresas') {
@@ -3583,6 +3584,25 @@ function tagStatus(s) {
   return tag(s, m[s] || 'gray');
 }
 function fmtData(d) { if (!d) return '—'; const [y,m,dd]=d.split('-'); return `${dd}/${m}/${y}`; }
+function excelDataParaISO(val) {
+  if (!val) return '';
+  const s = String(val).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(s)) {
+    const [dd,mm,yy] = s.split('/');
+    const ano = yy.length===2 ? '20'+yy : yy;
+    return `${ano}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`;
+  }
+  const n = Number(s);
+  if (!isNaN(n) && n > 1000) {
+    const dt = new Date(Math.round((n - 25569) * 86400 * 1000));
+    const y = dt.getUTCFullYear();
+    const m = String(dt.getUTCMonth()+1).padStart(2,'0');
+    const d = String(dt.getUTCDate()).padStart(2,'0');
+    return `${y}-${m}-${d}`;
+  }
+  return s;
+}
 function hoje() { return new Date().toISOString().slice(0,10); }
 function acoesCell(editFn, delFn) {
   return `<div class="acoes-cell">
@@ -4053,13 +4073,32 @@ function salvarCargo() {
 }
 
 // ───── FUNCIONÁRIOS ─────
-function renderFuncionarios() {
+let _pagFunc = 0;
+const _PG_SIZE = 50;
+function renderFuncionarios(pagina) {
+  if (pagina !== undefined) _pagFunc = pagina;
   const _obraId = obraAtiva?.id;
-  const _funcs = (!_obraId||_obraId==='todas') ? (dados.funcionarios||[]) : (dados.funcionarios||[]).filter(x=>!x.obra||x.obra===_obraId);
+  const _funcsAll = (!_obraId||_obraId==='todas') ? (dados.funcionarios||[]) : (dados.funcionarios||[]).filter(x=>!x.obra||x.obra===_obraId);
+  
+  // Filtro por busca
+  const busca = document.getElementById('busca-func')?.value?.toLowerCase()||'';
+  const _funcs = busca ? _funcsAll.filter(f =>
+    (f.mat||'').toLowerCase().includes(busca) ||
+    (f.nome||'').toLowerCase().includes(busca) ||
+    (f.codFuncao||'').toLowerCase().includes(busca)
+  ) : _funcsAll;
+
+  const total = _funcs.length;
+  const totalPags = Math.ceil(total / _PG_SIZE);
+  if (_pagFunc >= totalPags) _pagFunc = Math.max(0, totalPags-1);
+  const inicio = _pagFunc * _PG_SIZE;
+  const slice  = _funcs.slice(inicio, inicio + _PG_SIZE);
+
   const _bbf = document.getElementById('bulk-bar-funcionarios');
   if (!_bbf) { const _tw = document.getElementById('tbody-func')?.closest('.table-wrap'); if(_tw) _tw.insertAdjacentHTML('beforebegin', bulkBar('funcionarios')); }
-  document.getElementById('tbody-func').innerHTML = _funcs.length
-    ? _funcs.map(f=>{
+
+  document.getElementById('tbody-func').innerHTML = slice.length
+    ? slice.map(f=>{
         const cargo = dados.cargos.find(c=>c.cod===f.codFuncao);
         const nomeFunc = cargo ? cargo.nome : '—';
         return `<tr>${cbTD('funcionarios',f.id)}<td style='font-size:11px;color:var(--text-3)'>${getNomeObra(f.obra)}</td>
@@ -4075,6 +4114,18 @@ function renderFuncionarios() {
         <td>${acoesCell(`editarFuncionario('${f.id}')`,`deletar('funcionarios','${f.id}')`)}</td>
       </tr>`;}).join('')
     : '<tr><td colspan="10" style="text-align:center;color:var(--text-3);padding:2rem">Nenhum funcionário cadastrado</td></tr>';
+
+  // Paginação
+  const pgBar = document.getElementById('pag-func');
+  if (pgBar) {
+    if (totalPags <= 1) { pgBar.style.display='none'; return; }
+    pgBar.style.display='flex';
+    pgBar.innerHTML = `
+      <button onclick="renderFuncionarios(${_pagFunc-1})" ${_pagFunc===0?'disabled':''} style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg-2);cursor:pointer;font-size:13px">‹ Ant</button>
+      <span style="font-size:13px;color:var(--text-3)">Página ${_pagFunc+1} de ${totalPags} &nbsp;·&nbsp; ${total} funcionários</span>
+      <button onclick="renderFuncionarios(${_pagFunc+1})" ${_pagFunc>=totalPags-1?'disabled':''} style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg-2);cursor:pointer;font-size:13px">Próx ›</button>
+    `;
+  }
 }
 
 function salvarFuncionario() {
