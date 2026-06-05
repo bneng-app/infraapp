@@ -2911,10 +2911,12 @@ async function fbSave(colecao, id, dados) {
 }
 
 async function fbDelete(colecao, id) {
-  if (!db || !_firebaseReady) return;
-  try {
-    await db.collection(colecao).doc(id).delete();
-  } catch(e) { console.warn('Erro ao excluir '+colecao+':', e.message); }
+  if (!db) { console.warn('fbDelete: db not initialized'); throw new Error('Firebase não inicializado'); }
+  if (!_firebaseReady) { console.warn('fbDelete: firebase not ready'); throw new Error('Firebase não pronto'); }
+  const user = auth ? auth.currentUser : null;
+  if (!user) { console.warn('fbDelete: user not authenticated'); throw new Error('Usuário não autenticado no Firebase'); }
+  await db.collection(colecao).doc(id).delete();
+  console.log('Deleted from Firebase:', colecao, id);
 }
 
 async function fbLoadAll(colecao) {
@@ -3797,6 +3799,8 @@ function salvarObra() {
 function renderEmpresas() {
   const _obraId = obraAtiva?.id;
   const _emps = (!_obraId||_obraId==='todas') ? (dados.empresas||[]) : (dados.empresas||[]).filter(x=>!x.obra||x.obra===_obraId);
+  const _bbe = document.getElementById('bulk-bar-empresas');
+  if (!_bbe) { const _twe = document.getElementById('tbody-empresas')?.closest('.table-wrap'); if(_twe) _twe.insertAdjacentHTML('beforebegin', bulkBar('empresas')); }
   document.getElementById('tbody-empresas').innerHTML = _emps.length
     ? _emps.map(e=>`<tr>${cbTD('empresas',e.id)}<td class="td-mono">${e.cod}</td>
         <td><strong>${e.nome}</strong></td>
@@ -3862,6 +3866,7 @@ function salvarUA() {
 
 // ───── CARGOS ─────
 function renderCargos() {
+  if(!document.getElementById('bulk-bar-cargos')){const _tw=document.getElementById('tbody-cargos')?.closest('.table-wrap');if(_tw)_tw.insertAdjacentHTML('beforebegin',bulkBar('cargos'));}
   document.getElementById('tbody-cargos').innerHTML = dados.cargos.length
     ? dados.cargos.map(c=>`<tr>${cbTD('cargos',c.id)}<td class="td-mono">${c.cod}</td>
         <td><strong>${c.nome}</strong></td>
@@ -3898,6 +3903,8 @@ function salvarCargo() {
 function renderFuncionarios() {
   const _obraId = obraAtiva?.id;
   const _funcs = (!_obraId||_obraId==='todas') ? (dados.funcionarios||[]) : (dados.funcionarios||[]).filter(x=>!x.obra||x.obra===_obraId);
+  const _bbf = document.getElementById('bulk-bar-funcionarios');
+  if (!_bbf) { const _tw = document.getElementById('tbody-func')?.closest('.table-wrap'); if(_tw) _tw.insertAdjacentHTML('beforebegin', bulkBar('funcionarios')); }
   document.getElementById('tbody-func').innerHTML = _funcs.length
     ? _funcs.map(f=>{
         const cargo = dados.cargos.find(c=>c.cod===f.codFuncao);
@@ -3944,9 +3951,9 @@ function salvarFuncionario() {
 
 // ───── FAMÍLIAS ─────
 function renderFamilias() {
+  if(!document.getElementById('bulk-bar-familias')){const _tw=document.getElementById('tbody-familias')?.closest('.table-wrap');if(_tw)_tw.insertAdjacentHTML('beforebegin',bulkBar('familias'));}
   document.getElementById('tbody-familias').innerHTML = dados.familias.length
-    ? dados.familias.map(f=>`<tr>
-        <td class="td-mono"><strong>${f.cod}</strong></td>
+    ? dados.familias.map(f=>`<tr>${cbTD('familias',f.id)}<td class="td-mono"><strong>${f.cod}</strong></td>
         <td>${f.desc}</td>
         <td>${acoesCell(`editarFamilia('${f.id}')`,`deletar('familias','${f.id}')`)}</td>
       </tr>`).join('')
@@ -3972,9 +3979,9 @@ function salvarFamilia() {
 
 // ───── MODELOS ─────
 function renderModelos() {
+  if(!document.getElementById('bulk-bar-modelos')){const _tw=document.getElementById('tbody-modelos')?.closest('.table-wrap');if(_tw)_tw.insertAdjacentHTML('beforebegin',bulkBar('modelos'));}
   document.getElementById('tbody-modelos').innerHTML = dados.modelos.length
-    ? dados.modelos.map(m=>`<tr>
-        <td class="td-mono"><strong>${m.cod}</strong></td>
+    ? dados.modelos.map(m=>`<tr>${cbTD('modelos',m.id)}<td class="td-mono"><strong>${m.cod}</strong></td>
         <td>${m.nome}</td>
         <td>${acoesCell(`editarModelo('${m.id}')`,`deletar('modelos','${m.id}')`)}</td>
       </tr>`).join('')
@@ -4002,14 +4009,14 @@ function salvarModelo() {
 function renderEquipamentos() {
   const _obraId = obraAtiva?.id;
   const _equips = (!_obraId||_obraId==='todas') ? (dados.equipamentos||[]) : (dados.equipamentos||[]).filter(x=>!x.obra||x.obra===_obraId);
+  if(!document.getElementById('bulk-bar-equipamentos')){const _tw=document.getElementById('tbody-equip')?.closest('.table-wrap');if(_tw)_tw.insertAdjacentHTML('beforebegin',bulkBar('equipamentos'));}
   document.getElementById('tbody-equip').innerHTML = _equips.length
     ? _equips.map(e=>{
         const modelo = dados.modelos.find(m=>m.cod===e.codModelo);
         const modNome = modelo?.nome || '—';
         const famDesc = dados.familias.find(f=>f.cod===e.familia)?.desc || e.familia;
         const stCls = e.status==='Mobilizado'?'green':e.status==='Manutenção'?'amber':'gray';
-        return `<tr>
-          <td class="td-mono"><strong style="color:var(--green-dark)">${e.tag||'—'}</strong></td>
+        return `<tr>${cbTD('equipamentos',e.id)}<td class="td-mono"><strong style="color:var(--green-dark)">${e.tag||'—'}</strong></td>
           <td class="td-mono">${e.codModelo}</td>
           <td>${modNome}</td>
           <td class="td-mono">${e.placa}</td>
@@ -4620,7 +4627,7 @@ function salvarPerda() {
 }
 
 // ───── DELETAR GENÉRICO ─────
-function deletar(col, id) {
+async function deletar(col, id) {
   // Special handling for obras — cascade delete with double confirmation
   if (col === 'obras') {
     const obra = (dados.obras||[]).find(o=>o.id===id);
@@ -4653,9 +4660,18 @@ function deletar(col, id) {
     aponMO:renderMO, aponEQ:renderAponEQ, diesel:renderDiesel, perdas:renderPerdas
   };
   if (renders[col]) renders[col]();
-  // Delete from Firebase
-  if (db && _firebaseReady) fbDelete(col, id).catch(function(e){console.warn(e);});
-  toast('Item excluído.');
+  // Delete from Firebase with feedback
+  if (db && _firebaseReady) {
+    try {
+      await fbDelete(col, id);
+      toast('Item excluído e salvo!');
+    } catch(e) {
+      console.error('Erro Firebase delete:', e);
+      toast('Excluído localmente. Erro Firebase: ' + e.message, 'error');
+    }
+  } else {
+    toast('Item excluído (modo offline).');
+  }
 }
 
 async function excluirObraCompleta(obraId) {
