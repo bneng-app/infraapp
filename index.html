@@ -2666,57 +2666,29 @@ textarea.form-control{resize:vertical;min-height:72px}
 
 <!-- ═══════════════ MODAL IMPORTAÇÃO EM MASSA ═══════════════ -->
 <div class="modal-overlay" id="modal-importacao">
-  <div class="modal" style="max-width:720px">
+  <div class="modal" style="max-width:540px">
     <div class="modal-header">
-      <span class="modal-title" id="imp-titulo">Importar CSV</span>
+      <span class="modal-title" id="import-titulo">Importar</span>
       <button class="modal-close" onclick="closeModal('modal-importacao')">×</button>
     </div>
     <div class="modal-body">
-
-      <!-- PASSO 1: upload -->
-      <div id="imp-step1">
-        <div class="alert alert-info" style="margin-bottom:1rem">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          <div>Use o template (botão "↓ Template" na página) para garantir o formato correto. O separador pode ser <strong>vírgula (,)</strong> ou <strong>ponto-e-vírgula (;)</strong> — detectamos automaticamente.</div>
-        </div>
-
-        <div id="imp-campos-ref" style="margin-bottom:1rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px">
-          <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Colunas esperadas</div>
-          <div id="imp-cols" style="display:flex;flex-wrap:wrap;gap:6px"></div>
-        </div>
-
-        <div id="imp-dropzone" style="border:2px dashed var(--border-2);border-radius:10px;padding:2.5rem;text-align:center;cursor:pointer;transition:all .2s;background:var(--bg)" onclick="document.getElementById('imp-file').click()" ondragover="impDragOver(event)" ondragleave="impDragLeave(event)" ondrop="impDrop(event)">
-          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="1.5" style="margin:0 auto 12px;display:block"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          <div style="font-size:14px;font-weight:500;color:var(--text-2)">Arraste o arquivo CSV aqui</div>
-          <div style="font-size:12px;color:var(--text-3);margin-top:4px">ou clique para selecionar</div>
-          <input type="file" id="imp-file" accept=".csv,.txt" style="display:none" onchange="impArquivoSelecionado(event)"/>
-        </div>
+      <div class="alert alert-info" style="margin-bottom:1rem">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <div>Use o <strong>Template Excel</strong> como base. Preencha a partir da linha 2 (a linha 1 é o cabeçalho). A coluna <strong>Obra (Nome)</strong> deve conter o nome exato da obra cadastrada.</div>
       </div>
-
-      <!-- PASSO 2: preview -->
-      <div id="imp-step2" style="display:none">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-          <div>
-            <div id="imp-resumo" style="font-size:14px;font-weight:600;color:var(--text)"></div>
-            <div id="imp-erros-resumo" style="font-size:12px;color:var(--red);margin-top:2px"></div>
-          </div>
-          <button class="btn btn-outline btn-sm" onclick="impReiniciar()">← Trocar arquivo</button>
-        </div>
-        <div style="max-height:340px;overflow:auto;border:1px solid var(--border);border-radius:8px">
-          <table style="width:100%;border-collapse:collapse;font-size:12px" id="imp-preview-table">
-            <thead id="imp-preview-head"></thead>
-            <tbody id="imp-preview-body"></tbody>
-          </table>
-        </div>
-        <div id="imp-erros-lista" style="margin-top:10px"></div>
+      <div class="form-group">
+        <label class="form-label">Selecione o arquivo (.xlsx ou .csv)</label>
+        <input type="file" id="import-file" class="form-control" accept=".xlsx,.xls,.csv" style="padding:6px"/>
       </div>
-
+      <div id="import-preview" style="margin-top:1rem;font-size:12px;color:var(--text-3);background:var(--bg);padding:10px;border-radius:6px;display:none"></div>
+      <input type="hidden" id="import-tipo"/>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('modal-importacao')">Cancelar</button>
-      <button class="btn btn-primary" id="btn-confirmar-import" style="display:none" onclick="confirmarImportacao()">✓ Confirmar importação</button>
+      <button class="btn btn-primary" onclick="confirmarImportacao()">↑ Importar dados</button>
     </div>
   </div>
+</div>
 </div>
 
 <!-- INPUT CSV oculto (legado) -->
@@ -2977,49 +2949,16 @@ function baixarTemplate(tipo) {
 }
 
 function abrirImportacao(tipo) {
-  const modal = document.getElementById('modal-importacao');
-  if (!modal) {
-    // Create modal dynamically
-    const m = document.createElement('div');
-    m.className = 'modal-overlay';
-    m.id = 'modal-importacao';
-    m.innerHTML = `
-      <div class="modal" style="max-width:500px">
-        <div class="modal-header">
-          <span class="modal-title" id="import-titulo">Importar</span>
-          <button class="modal-close" onclick="closeModal('modal-importacao')">×</button>
-        </div>
-        <div class="modal-body">
-          <div class="alert alert-info" style="margin-bottom:1rem">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            <div>Use o <strong>Template Excel</strong> como base. A primeira linha deve ser o cabeçalho.</div>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Selecione o arquivo (.xlsx ou .csv)</label>
-            <input type="file" id="import-file" class="form-control" accept=".xlsx,.xls,.csv" style="padding:6px"/>
-          </div>
-          <div id="import-preview" style="margin-top:1rem;font-size:12px;color:var(--text-3)"></div>
-          <input type="hidden" id="import-tipo"/>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-outline" onclick="closeModal('modal-importacao')">Cancelar</button>
-          <button class="btn btn-primary" onclick="confirmarImportacao()">Importar dados</button>
-        </div>
-      </div>`;
-    document.body.appendChild(m);
-  }
+  // Set modal fields
+  const titEl = document.getElementById('import-titulo');
+  const tipEl = document.getElementById('import-tipo');
+  const prvEl = document.getElementById('import-preview');
+  const filEl = document.getElementById('import-file');
   
-  document.getElementById('import-titulo').textContent = 'Importar ' + tipo;
-  document.getElementById('import-tipo').value = tipo;
-  const fileInput = document.getElementById('import-file');
-  if (fileInput) fileInput.value = '';
-  document.getElementById('import-preview').textContent = '';
-  
-  // Wire file change to preview
-  setTimeout(() => {
-    const fi = document.getElementById('import-file');
-    if (fi) fi.onchange = function() { previewImport(this); };
-  }, 100);
+  if (titEl) titEl.textContent = 'Importar ' + tipo;
+  if (tipEl) tipEl.value = tipo;
+  if (filEl) { filEl.value = ''; filEl.onchange = function() { previewImport(this); }; }
+  if (prvEl) { prvEl.textContent = ''; prvEl.style.display = 'none'; }
   
   openModal('modal-importacao');
 }
@@ -3032,10 +2971,12 @@ function previewImport(input) {
     const wb = XLSX.read(e.target.result, {type:'binary', cellDates:true});
     const ws = wb.Sheets[wb.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(ws, {header:1});
+    const dataRows = rows.slice(1).filter(r => r.some(c => c !== undefined && c !== ''));
     const preview = document.getElementById('import-preview');
     if (preview) {
-      preview.innerHTML = '<strong>' + (rows.length-1) + ' linha(s) encontrada(s)</strong><br>'
-        + 'Colunas: ' + (rows[0]||[]).join(' · ');
+      preview.style.display = 'block';
+      preview.innerHTML = '<strong style="color:var(--green-dark)">✅ ' + dataRows.length + ' linha(s) encontrada(s)</strong><br>'
+        + '<span style="color:var(--text-3)">Colunas: ' + (rows[0]||[]).join(' · ') + '</span>';
     }
   };
   reader.readAsBinaryString(input.files[0]);
