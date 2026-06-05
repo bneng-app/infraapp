@@ -3799,10 +3799,12 @@ function renderEmpresas() {
 }
 
 function salvarEmpresa() {
+  const obra = document.getElementById('emp-obra')?.value||'';
+  if (!obra) { toast('Selecione a obra antes de continuar','error'); return; }
   const cod  = document.getElementById('emp-cod').value.trim();
   const nome = document.getElementById('emp-nome').value.trim();
   if (!cod||!nome) { toast('Preencha Código e Razão Social', 'error'); return; }
-  dados.empresas.push({ id:'e'+Date.now(), cod, nome,
+  dados.empresas.push({ id:'e'+Date.now(), obra, cod, nome,
     cnpj:document.getElementById('emp-cnpj').value,
     tipo:document.getElementById('emp-tipo').value,
     resp:document.getElementById('emp-resp').value });
@@ -3825,11 +3827,13 @@ function renderUA() {
 }
 
 function salvarUA() {
+  const obra = document.getElementById('ua-obra')?.value||'';
+  if (!obra) { toast('Selecione a obra antes de continuar','error'); return; }
   const cod  = document.getElementById('ua-cod').value.trim();
   const desc = document.getElementById('ua-desc').value.trim();
   if (!cod||!desc) { toast('Preencha UA e Descrição', 'error'); return; }
   if (cod.length > 20) { toast('UA deve ter no máximo 20 caracteres', 'error'); return; }
-  dados.ua.push({ id:'ua'+Date.now(), cod, desc, tipo:document.getElementById('ua-tipo').value });
+  dados.ua.push({ id:'ua'+Date.now(), obra, cod, desc, tipo:document.getElementById('ua-tipo').value });
   closeModal('modal-nova-ua');
   renderUA();
   toast('UA salva!');
@@ -3851,10 +3855,12 @@ function renderCargos() {
 }
 
 function salvarCargo() {
+  const obra = document.getElementById('cargo-obra')?.value||'';
+  if (!obra) { toast('Selecione a obra antes de continuar','error'); return; }
   const cod  = document.getElementById('cargo-cod').value.trim();
   const nome = document.getElementById('cargo-nome').value.trim();
   if (!cod||!nome) { toast('Preencha Cód. Função e Função', 'error'); return; }
-  dados.cargos.push({ id:'c'+Date.now(), cod, nome,
+  dados.cargos.push({ id:'c'+Date.now(), obra, cod, nome,
     direto:   document.getElementById('cargo-direto').value,
     operador: document.getElementById('cargo-operador').value,
     recurso:  document.getElementById('cargo-recurso').value });
@@ -3888,12 +3894,14 @@ function renderFuncionarios() {
 }
 
 function salvarFuncionario() {
+  const obra = document.getElementById('func-obra')?.value||'';
+  if (!obra) { toast('Selecione a obra antes de continuar', 'error'); return; }
   const mat  = document.getElementById('func-mat').value.trim();
   const nome = document.getElementById('func-nome').value.trim();
   const cod  = document.getElementById('func-cargo').value;
   const adm  = document.getElementById('func-admissao').value;
   if (!mat||!nome||!cod||!adm) { toast('Preencha Matrícula, Nome, Cargo e Data Admissão', 'error'); return; }
-  dados.funcionarios.push({ id:'f'+Date.now(), mat, nome, codFuncao:cod,
+  dados.funcionarios.push({ id:'f'+Date.now(), obra, mat, nome, codFuncao:cod,
     direto:   document.getElementById('func-direto').value,
     admissao: adm,
     demissao: document.getElementById('func-demissao').value,
@@ -3916,10 +3924,12 @@ function renderFamilias() {
     : '<tr><td colspan="3" style="text-align:center;color:var(--text-3);padding:2rem">Nenhuma família cadastrada</td></tr>';
 }
 function salvarFamilia() {
+  const obra = document.getElementById('fam-obra')?.value||'';
+  if (!obra) { toast('Selecione a obra antes de continuar','error'); return; }
   const cod  = document.getElementById('fam-cod').value.trim();
   const desc = document.getElementById('fam-desc').value.trim();
   if (!cod||!desc) { toast('Preencha Cód. Família e Descrição', 'error'); return; }
-  dados.familias.push({ id:'fm'+Date.now(), cod, desc });
+  dados.familias.push({ id:'fm'+Date.now(), obra, cod, desc });
   closeModal('modal-nova-familia');
   renderFamilias(); popularSelects();
   toast('Família salva!');
@@ -3937,10 +3947,12 @@ function renderModelos() {
     : '<tr><td colspan="3" style="text-align:center;color:var(--text-3);padding:2rem">Nenhum modelo cadastrado</td></tr>';
 }
 function salvarModelo() {
+  const obra = document.getElementById('mod-obra')?.value||'';
+  if (!obra) { toast('Selecione a obra antes de continuar','error'); return; }
   const cod  = document.getElementById('mod-cod').value.trim();
   const nome = document.getElementById('mod-nome').value.trim();
   if (!cod||!nome) { toast('Preencha Cód. Modelo e Modelo', 'error'); return; }
-  dados.modelos.push({ id:'md'+Date.now(), cod, nome });
+  dados.modelos.push({ id:'md'+Date.now(), obra, cod, nome });
   closeModal('modal-novo-modelo');
   renderModelos(); popularSelects();
   toast('Modelo salvo!');
@@ -3973,6 +3985,8 @@ function renderEquipamentos() {
 }
 
 function salvarEquipamento() {
+  const obra = document.getElementById('equip-obra')?.value||'';
+  if (!obra) { toast('Selecione a obra antes de continuar','error'); return; }
   const tag_eq    = document.getElementById('equip-tag').value.trim();
   const codModelo = document.getElementById('equip-modelo').value;
   const placa     = document.getElementById('equip-placa').value.trim();
@@ -3984,7 +3998,7 @@ function salvarEquipamento() {
   if (dados.equipamentos.some(e=>e.tag&&e.tag.toLowerCase()===tag_eq.toLowerCase())) {
     toast(`TAG "${tag_eq}" já está em uso por outro equipamento`, 'error'); return;
   }
-  dados.equipamentos.push({ id:'q'+Date.now(), tag:tag_eq, codModelo, placa, familia, prop,
+  dados.equipamentos.push({ id:'q'+Date.now(), obra, tag:tag_eq, codModelo, placa, familia, prop,
     status:   document.getElementById('equip-status').value,
     dataMob:  document.getElementById('equip-datamob').value });
   closeModal('modal-novo-equip');
@@ -4606,23 +4620,40 @@ async function excluirObraCompleta(obraId) {
 
   const frentesCods = (dados.frentes||[]).filter(f=>f.obra===obraId).map(f=>f.cod);
 
-  dados.aponMO       = (dados.aponMO||[]).filter(a=>!frentesCods.includes(a.frente));
-  dados.aponEQ       = (dados.aponEQ||[]).filter(a=>!frentesCods.includes(a.frente));
-  dados.diesel       = (dados.diesel||[]).filter(d=>!frentesCods.includes(d.frente));
-  dados.perdas       = (dados.perdas||[]).filter(p=>!frentesCods.includes(p.frente));
+  // Delete all related data (cascade)
+  dados.aponMO       = (dados.aponMO||[]).filter(a=>!frentesCods.includes(a.frente)&&a.obra!==obraId);
+  dados.aponEQ       = (dados.aponEQ||[]).filter(a=>!frentesCods.includes(a.frente)&&a.obra!==obraId);
+  dados.diesel       = (dados.diesel||[]).filter(d=>!frentesCods.includes(d.frente)&&d.obra!==obraId);
+  dados.perdas       = (dados.perdas||[]).filter(p=>!frentesCods.includes(p.frente)&&p.obra!==obraId);
   dados.notasFiscais = (dados.notasFiscais||[]).filter(n=>n.obra!==obraId);
+  dados.tanques      = (dados.tanques||[]).filter(t=>t.obra!==obraId);
+  dados.funcionarios = (dados.funcionarios||[]).filter(f=>f.obra!==obraId);
+  dados.equipamentos = (dados.equipamentos||[]).filter(e=>e.obra!==obraId);
+  dados.empresas     = (dados.empresas||[]).filter(e=>e.obra!==obraId);
+  dados.cargos       = (dados.cargos||[]).filter(c=>c.obra!==obraId);
+  dados.ua           = (dados.ua||[]).filter(u=>u.obra!==obraId);
+  dados.familias     = (dados.familias||[]).filter(f=>f.obra!==obraId);
+  dados.modelos      = (dados.modelos||[]).filter(m=>m.obra!==obraId);
   dados.frentes      = (dados.frentes||[]).filter(f=>f.obra!==obraId);
   dados.obras        = (dados.obras||[]).filter(o=>o.id!==obraId);
 
   if (db && _firebaseReady) {
     try {
       const cols = {
-        aponMO: a=>frentesCods.includes(a.frente),
-        aponEQ: a=>frentesCods.includes(a.frente),
-        diesel:  d=>frentesCods.includes(d.frente),
-        perdas:  p=>frentesCods.includes(p.frente),
-        frentes: f=>f.obra===obraId,
+        aponMO:       a=>frentesCods.includes(a.frente)||a.obra===obraId,
+        aponEQ:       a=>frentesCods.includes(a.frente)||a.obra===obraId,
+        diesel:       d=>frentesCods.includes(d.frente)||d.obra===obraId,
+        perdas:       p=>frentesCods.includes(p.frente)||p.obra===obraId,
+        frentes:      f=>f.obra===obraId,
         notasFiscais: n=>n.obra===obraId,
+        tanques:      t=>t.obra===obraId,
+        funcionarios: f=>f.obra===obraId,
+        equipamentos: e=>e.obra===obraId,
+        empresas:     e=>e.obra===obraId,
+        cargos:       c=>c.obra===obraId,
+        ua:           u=>u.obra===obraId,
+        familias:     f=>f.obra===obraId,
+        modelos:      m=>m.obra===obraId,
       };
       for (const [colName, filterFn] of Object.entries(cols)) {
         const snap = await db.collection(colName).get().catch(()=>null);
@@ -5124,6 +5155,32 @@ function popularSelectObra(selectId, valorAtual) {
   if (!valorAtual && obraAtiva?.id && obraAtiva.id !== 'todas') {
     sel.value = obraAtiva.id;
   }
+}
+
+
+// ═══════════════ TANQUE — Salvar ═══════════════
+function salvarTanque() {
+  const id   = document.getElementById('tanq-edit-id')?.value||'';
+  const obra = document.getElementById('tanq-obra')?.value||'';
+  if (!obra) { toast('Selecione a obra antes de continuar','error'); return; }
+  const cod   = (document.getElementById('tanq-cod')?.value||'').trim();
+  const nome  = (document.getElementById('tanq-nome')?.value||'').trim();
+  const cap   = parseFloat(document.getElementById('tanq-cap')?.value)||0;
+  const saldo = parseFloat(document.getElementById('tanq-saldo')?.value)||0;
+  const local = document.getElementById('tanq-local')?.value||'';
+  if (!cod||!nome) { toast('Preencha código e nome do tanque','error'); return; }
+  if (id) {
+    const t = dados.tanques.find(x=>x.id===id);
+    if (t) { Object.assign(t, {obra,cod,nome,cap,saldo,local}); autoSave('tanques',t); }
+  } else {
+    const novo = { id:'tq'+Date.now(), obra, cod, nome, cap, saldo, local, ativo:true };
+    dados.tanques.push(novo);
+    autoSave('tanques', novo);
+  }
+  closeModal('modal-novo-tanque');
+  renderTanques();
+  toast('Tanque salvo!');
+  ['tanq-edit-id','tanq-cod','tanq-nome','tanq-cap','tanq-saldo','tanq-local'].forEach(i=>{const e=document.getElementById(i);if(e)e.value='';});
 }
 
 function editarEquipe(id) {
