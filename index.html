@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <!-- Chart.js replaced with native SVG rendering -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -2676,19 +2677,106 @@ const firebaseConfig = {
 };
 
 // ───── INIT ─────
-let db = null;
+let db   = null;
+let auth = null;
 let obraAtiva = { id: 'demo', nome: 'SP-280 Km 34' };
 let csvTarget = '';
+let _firebaseReady = false;
 
 try {
   firebase.initializeApp(firebaseConfig);
-  db = firebase.firestore();
+  db   = firebase.firestore();
+  auth = firebase.auth();
+  _firebaseReady = true;
   document.getElementById('sync-label').textContent = 'Firebase conectado';
   document.getElementById('sync-dot').style.background = 'var(--green)';
-  console.log('Firebase infraapp-bn conectado com sucesso!');
+  console.log('Firebase infraapp-bn conectado!');
+
+  // Observe auth state
+  auth.onAuthStateChanged(user => {
+    if (user) {
+      // User is signed in via Firebase Auth
+      console.log('Firebase Auth: usuário logado', user.email);
+    }
+  });
 } catch(e) {
   console.warn('Firebase não conectado, rodando em modo demo:', e.message);
   modoDemo();
+}
+
+// ─── Firebase helpers ────────────────────────────────────────────
+async function fbSave(colecao, id, dados) {
+  if (!db || !_firebaseReady) return;
+  try {
+    await db.collection(colecao).doc(id).set(dados, { merge: true });
+  } catch(e) { console.warn('Erro ao salvar '+colecao+':', e.message); }
+}
+
+async function fbDelete(colecao, id) {
+  if (!db || !_firebaseReady) return;
+  try {
+    await db.collection(colecao).doc(id).delete();
+  } catch(e) { console.warn('Erro ao excluir '+colecao+':', e.message); }
+}
+
+async function fbLoadAll(colecao) {
+  if (!db || !_firebaseReady) return null;
+  try {
+    const snap = await db.collection(colecao).get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch(e) { console.warn('Erro ao carregar '+colecao+':', e.message); return null; }
+}
+
+async function sincronizarTudo() {
+  if (!db || !_firebaseReady) return;
+  const colecoes = ['obras','empresas','ua','cargos','turnos','equipes','funcionarios',
+    'familias','modelos','equipamentos','frentes','tiposServico','tiposPerdas',
+    'aponMO','aponEQ','diesel','perdas','tanques','movTanques','notasFiscais','produtos'];
+
+  let carregou = false;
+  for (const col of colecoes) {
+    const items = await fbLoadAll(col);
+    if (items && items.length > 0) {
+      dados[col] = items;
+      carregou = true;
+    }
+  }
+
+  // Carregar usuários
+  const usrs = await fbLoadAll('usuarios');
+  if (usrs && usrs.length > 0) {
+    USUARIOS = usrs;
+  }
+
+  if (carregou) {
+    console.log('Dados carregados do Firebase!');
+    document.getElementById('sync-label').textContent = 'Firebase sincronizado';
+  } else {
+    // Primeira vez: salvar dados demo no Firebase
+    console.log('Primeiro acesso: salvando dados iniciais no Firebase...');
+    await salvarTudoFirebase();
+  }
+  renderAll();
+}
+
+async function salvarTudoFirebase() {
+  if (!db || !_firebaseReady) return;
+  const colecoes = ['obras','empresas','ua','cargos','turnos','equipes','funcionarios',
+    'familias','modelos','equipamentos','frentes','tiposServico','tiposPerdas',
+    'aponMO','aponEQ','diesel','perdas','tanques','movTanques','notasFiscais','produtos'];
+
+  for (const col of colecoes) {
+    if (!dados[col]) continue;
+    for (const item of dados[col]) {
+      await fbSave(col, item.id, item);
+    }
+  }
+  // Salvar usuários
+  for (const u of USUARIOS) {
+    const { senha, ...semSenha } = u;
+    await fbSave('usuarios', u.id, semSenha);
+  }
+  console.log('Dados iniciais salvos no Firebase!');
 }
 
 // ───── MODO DEMO (sem Firebase) ─────
@@ -2849,16 +2937,63 @@ let USUARIOS = [
     perms:{ cadastros:false, apontamentos:true, relatorios:false, dashboards:true, qrcodes:false, config:false } },
 ];
 
-function saveUsuarios() { /* Firebase sync placeholder */ }
+function saveUsuarios() {
+  if (!db || !_firebaseReady) return;
+  USUARIOS.forEach(u => {
+    const { senha, ...semSenha } = u;
+    fbSave('usuarios', u.id, semSenha);
+  });
+}
 
 let usuarioLogado = null;
 
 function fazerLogin() {
-  const email = (document.getElementById('login-email')?.value||'').trim().toLowerCase();
-  const senha = document.getElementById('login-senha')?.value||'';
+  const email  = (document.getElementById('login-email')?.value||'').trim().toLowerCase();
+  const senha  = document.getElementById('login-senha')?.value||'';
   const erroEl = document.getElementById('login-erro');
+  const btnEl  = document.querySelector('#login-screen button[onclick="fazerLogin()"]');
 
+  if (!email || !senha) {
+    if (erroEl) { erroEl.textContent='Preencha e-mail e senha.'; erroEl.style.display=''; }
+    return;
+  }
+  if (btnEl) btnEl.textContent = 'Entrando...';
+
+  // Try Firebase Auth first
+  if (auth && _firebaseReady) {
+    auth.signInWithEmailAndPassword(email, senha)
+      .then(async cred => {
+        // Firebase Auth OK — load user profile from Firestore
+        const usrs = await fbLoadAll('usuarios');
+        if (usrs && usrs.length > 0) USUARIOS = usrs;
+        const usr = USUARIOS.find(u => u.email.toLowerCase() === email);
+        if (!usr) {
+          // Create profile for first time
+          usuarioLogado = { id: cred.user.uid, nome: email.split('@')[0], email, perfil:'Admin',
+            empresa:'', cargo:'', tel:'', status:'Ativo', obra:'', master:false,
+            perms:{ cadastros:true, apontamentos:true, relatorios:true, dashboards:true, qrcodes:true, config:true }};
+        } else {
+          usuarioLogado = usr;
+        }
+        if (erroEl) erroEl.style.display='none';
+        if (btnEl) btnEl.textContent = 'Entrar no InfraApp';
+        await sincronizarTudo();
+        entrarNoApp();
+      })
+      .catch(async err => {
+        console.warn('Firebase Auth falhou:', err.code);
+        // Fallback: try local USUARIOS (demo mode)
+        _loginLocal(email, senha, erroEl, btnEl);
+      });
+  } else {
+    // No Firebase — local login only
+    _loginLocal(email, senha, erroEl, btnEl);
+  }
+}
+
+function _loginLocal(email, senha, erroEl, btnEl) {
   const usr = USUARIOS.find(u => u.email.toLowerCase()===email && u.senha===senha && u.status!=='Inativo');
+  if (btnEl) btnEl.textContent = 'Entrar no InfraApp';
   if (!usr) {
     if (erroEl) { erroEl.textContent='E-mail ou senha incorretos.'; erroEl.style.display=''; }
     return;
@@ -2915,8 +3050,15 @@ function entrarNoApp() {
   }
 
   aplicarPermissoes();
-  renderAll();
-  applyConfigs();
+  if (_firebaseReady && db) {
+    sincronizarTudo().then(() => {
+      renderAll();
+      applyConfigs();
+    });
+  } else {
+    renderAll();
+    applyConfigs();
+  }
 }
 
 function aplicarPermissoes() {
@@ -5319,6 +5461,29 @@ const CHART_COLORS = [
 // ═══════════════════════════════════════════════════════════════
 // DASHBOARD MO — com Chart.js
 // ═══════════════════════════════════════════════════════════════
+
+// ─── Auto-save to Firebase after any data change ──────────────
+function autoSave(colecao, item) {
+  if (!db || !_firebaseReady || !item?.id) return;
+  fbSave(colecao, item.id, item);
+}
+
+function autoDelete(colecao, id) {
+  if (!db || !_firebaseReady) return;
+  fbDelete(colecao, id);
+}
+
+async function setupAdminFirebase() {
+  if (!auth || !_firebaseReady) return;
+  try {
+    await auth.createUserWithEmailAndPassword('karine.loch@bnengenharia.com.br','BNeng@2025');
+    console.log('Admin criado no Firebase Auth!');
+  } catch(e) {
+    if (e.code !== 'auth/email-already-in-use') console.warn('Erro:', e.message);
+  }
+}
+setTimeout(setupAdminFirebase, 2000);
+
 function renderDashMO() {
   let lista = [...dados.aponMO];
   const ini = document.getElementById('dash-mo-ini')?.value||'';
