@@ -306,7 +306,7 @@ textarea.form-control{resize:vertical;min-height:72px}
         <a href="#" onclick="esqueciSenha();return false" style="font-size:13px;color:#1B2C6E;text-decoration:none">Esqueci minha senha</a>
       </div>
     </div>
-    <div style="text-align:center;margin-top:1rem;font-size:11px;color:#aaa">ObraControl v2.14 · Controle de Mão de Obra e Equipamentos</div>
+    <div style="text-align:center;margin-top:1rem;font-size:11px;color:#aaa">ObraControl v2.15 · Controle de Mão de Obra e Equipamentos</div>
   </div>
 </div>
 
@@ -451,6 +451,11 @@ textarea.form-control{resize:vertical;min-height:72px}
   <div class="nav-group" id="grp-apontamentos">
     <div class="nav-section" onclick="toggleNavGroup('grp-apontamentos')">Apontamentos <span class="nav-chevron">▾</span></div>
     <div class="nav-group-items">
+      <div class="nav-item" id="nav-aprovacao" onclick="showPage('aprovacao',this)" title="Aprovação">
+        <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+        <span>Aprovação</span>
+        <span class="nav-badge" id="badge-aprovacao"></span>
+      </div>
       <div class="nav-item" onclick="showPage('apon-mo',this)" title="Mão de Obra">
         <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
         <span>Mão de Obra</span>
@@ -1101,6 +1106,30 @@ textarea.form-control{resize:vertical;min-height:72px}
 </div>
 
 <!-- ═══════════════ APONTAMENTOS MO ═══════════════ -->
+<!-- ═══════════════ APROVAÇÃO (v2.15) ═══════════════ -->
+<div class="page" id="page-aprovacao">
+  <div class="page-header">
+    <div><div class="page-title">Aprovação de apontamentos</div>
+      <div class="page-sub">O que o campo lança fica aqui até ser aprovado. Só o que é aprovado entra nos painéis e relatórios.</div></div>
+    <div class="btn-group">
+      <button class="btn btn-outline btn-sm" onclick="aprSelecionarTodos()">Selecionar todos</button>
+      <button class="btn btn-primary" onclick="aprAprovarSelecionados()">✓ Aprovar selecionados</button>
+    </div>
+  </div>
+  <div class="card" style="margin-bottom:1rem"><div class="card-body" style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:flex-end">
+    <div class="form-group" style="margin:0;min-width:160px"><label class="form-label">Situação</label>
+      <select class="form-control" id="apr-status" onchange="renderAprovacao()">
+        <option value="campo">Pendentes</option><option value="aprovado">Aprovados</option><option value="rejeitado">Rejeitados</option>
+      </select></div>
+    <div class="form-group" style="margin:0;min-width:180px"><label class="form-label">Apontador</label>
+      <select class="form-control" id="apr-apontador" onchange="renderAprovacao()"><option value="">Todos</option></select></div>
+    <div class="form-group" style="margin:0"><label class="form-label">Data</label>
+      <input type="date" class="form-control" id="apr-data" onchange="renderAprovacao()"/></div>
+    <div style="margin-left:auto;font-size:13px;color:var(--text-2)" id="apr-resumo"></div>
+  </div></div>
+  <div id="apr-lista"></div>
+</div>
+
 <div class="page" id="page-apon-mo">
 
   <!-- cabeçalho -->
@@ -2820,6 +2849,7 @@ textarea.form-control{resize:vertical;min-height:72px}
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="perm-qrcodes"/> QR Codes</label>
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="perm-config"/> Configurações ADM</label>
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="perm-almoxarifado"/> Almoxarifado (diesel e notas)</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="perm-aprovacao"/> Aprovar apontamentos</label>
       </div>
       </div>
     </div>
@@ -3582,6 +3612,7 @@ async function salvarUsuario() {
     qrcodes:      document.getElementById('perm-qrcodes')?.checked||false,
     config:       document.getElementById('perm-config')?.checked||false,
     almoxarifado: document.getElementById('perm-almoxarifado')?.checked||false,
+    aprovacao:    document.getElementById('perm-aprovacao')?.checked||false,
   };
   if (perfil==='Admin') Object.keys(perms).forEach(k=>perms[k]=true);
 
@@ -7207,6 +7238,7 @@ const MODULOS = [
   ['apontamentos', 'Apontamentos',               ['grp-apontamentos']],
   ['almoxarifado', 'Almoxarifado (diesel e notas)', ['grp-almoxarifado']],
   ['relatorios',   'Relatórios',                 ['grp-analise']],
+  ['aprovacao',    'Aprovar apontamentos',       []],
   ['qrcodes',      'QR Codes',                   []],
   ['config',       'Configurações ADM',          []],
 ];
@@ -7214,7 +7246,7 @@ const PERFIS_PADRAO = [
   { id:'pf-admin',       nome:'Admin',       tipo:'painel', cor:'red',   sistema:true, desc:'acesso total',
     perms:{dashboards:true,cadastros:true,apontamentos:true,almoxarifado:true,relatorios:true,qrcodes:true,config:true} },
   { id:'pf-supervisor',  nome:'Supervisor',  tipo:'painel', cor:'blue',  sistema:true, desc:'apontamentos e relatórios',
-    perms:{dashboards:true,cadastros:true,apontamentos:true,almoxarifado:false,relatorios:true,qrcodes:false,config:false} },
+    perms:{dashboards:true,cadastros:true,apontamentos:true,almoxarifado:false,relatorios:true,aprovacao:true,qrcodes:false,config:false} },
   { id:'pf-colaborador', nome:'Colaborador', tipo:'campo',  cor:'green', sistema:true, desc:'lançamentos de campo',
     perms:{apontamentos:true} },
   { id:'pf-abastecedor', nome:'Abastecedor', tipo:'painel', cor:'amber', sistema:true, desc:'somente notas fiscais e diesel',
@@ -7702,6 +7734,203 @@ async function atualizarDados() {
       } catch (e) { console.warn('retomar sessão:', e); }
     });
   }
+})();
+
+
+// ═══════════════════════════════════════════════════════════════
+// v2.15: APROVAÇÃO DE APONTAMENTOS
+// status: campo = pendente · aprovado · rejeitado · corrigido = processado (antigo, conta como aprovado)
+// Painéis, dashboards e relatórios só consideram o que NÃO está pendente nem rejeitado.
+// ═══════════════════════════════════════════════════════════════
+function _ehAprovado(x) { return x && x.status !== 'campo' && x.status !== 'rejeitado'; }
+window.tagStatus = function (st) {
+  const m = { campo:['Pendente','blue'], aprovado:['Aprovado','green'], rejeitado:['Rejeitado','red'], corrigido:['Processado','amber'],
+    Ativo:['Ativo','green'], Operando:['Operando','green'], Ativa:['Ativa','green'], Afastado:['Afastado','amber'], Parado:['Parado','amber'],
+    Desligado:['Desligado','red'], 'Manutenção':['Manutenção','red'], Encerrada:['Encerrada','gray'], Suspensa:['Suspensa','gray'] };
+  const [t, c] = m[st] || [st, 'gray']; return tag(t, c);
+};
+// painéis só com aprovados
+(function () {
+  const soAprovados = fn => function () {
+    const o = { mo: dados.aponMO, eq: dados.aponEQ, pe: dados.perdas };
+    dados.aponMO = (o.mo||[]).filter(_ehAprovado); dados.aponEQ = (o.eq||[]).filter(_ehAprovado); dados.perdas = (o.pe||[]).filter(_ehAprovado);
+    try { return fn.apply(this, arguments); }
+    finally { dados.aponMO = o.mo; dados.aponEQ = o.eq; dados.perdas = o.pe; }
+  };
+  ['atualizarDashboard','renderDashMO','renderDashEQ','gerarRelatorio'].forEach(n => { if (typeof window[n] === 'function') window[n] = soAprovados(window[n]); });
+})();
+
+const _apr = { sel: new Set(), edits: {}, lim: 30 };
+function _aprChave(x) { return x.apropriacao || [x.data, x.frente, x.lancadoPor, x.horaIni || x.hora].join('|'); }
+function _aprGrupos(status) {
+  const g = new Map();
+  const add = (x, tipo) => {
+    if ((x.status || '') !== status) return;
+    if (status !== 'campo' && !x.lancadoEm && !x.apropriacao) return;   // aprovados/rejeitados: só o que veio do campo
+    const k = _aprChave(x);
+    if (!g.has(k)) g.set(k, { chave:k, data:x.data, frente:x.frente, servico:x.servico, apontador:x.lancadoPor || '—', obra:x.obra,
+      horaIni:x.horaIni || x.hora || '', horaFim:x.horaFim || '', lancadoEm:x.lancadoEm || '', mo:[], eq:[], pe:[] });
+    g.get(k)[tipo].push(x);
+  };
+  filtrarPorObra([...(dados.aponMO||[])], 'frente').forEach(x => add(x, 'mo'));
+  filtrarPorObra([...(dados.aponEQ||[])], 'frente').forEach(x => add(x, 'eq'));
+  (dados.perdas||[]).forEach(x => add(x, 'pe'));
+  return [...g.values()].filter(gr => gr.mo.length || gr.eq.length).sort((a, b) => String(b.data + b.horaIni).localeCompare(String(a.data + a.horaIni)));
+}
+function _e(t) { return String(t ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function atualizarBadgeAprovacao() {
+  const n = _aprGrupos('campo').length;
+  const b = document.getElementById('badge-aprovacao'); if (b) b.textContent = n || '';
+}
+function renderAprovacao() {
+  const status = document.getElementById('apr-status').value;
+  const fAp = document.getElementById('apr-apontador'), fData = document.getElementById('apr-data').value;
+  let grupos = _aprGrupos(status);
+  const aps = [...new Set(grupos.map(g => g.apontador))].sort();
+  const vAp = fAp.value; fAp.innerHTML = '<option value="">Todos</option>' + aps.map(a => `<option value="${_e(a)}">${_e(a)}</option>`).join(''); fAp.value = aps.includes(vAp) ? vAp : '';
+  if (fAp.value) grupos = grupos.filter(g => g.apontador === fAp.value);
+  if (fData) grupos = grupos.filter(g => g.data === fData);
+  _apr.sel.forEach(k => { if (!grupos.some(g => g.chave === k)) _apr.sel.delete(k); });
+  document.getElementById('apr-resumo').textContent = grupos.length + ' apontamento(s) · ' + grupos.reduce((s, g) => s + g.mo.length, 0) + ' pessoa(s) · ' + grupos.reduce((s, g) => s + g.eq.length, 0) + ' equipamento(s)';
+  const frentes = (dados.frentes||[]);
+  const servicos = (dados.tiposServico||[]);
+  const motivos = [['','—'],['MNP','Manut. não programada'],['MP','Manut. programada'],['CHU','Chuva'],['AMA','Aguardo material'],['ADM','Administrativo']];
+  const pend = status === 'campo';
+  const inp = (id, campo, v, w) => pend ? `<input type="number" step="0.5" class="form-control" style="width:${w||70}px;padding:5px 6px" value="${_e(v)}" onchange="aprEditar('${_e(id)}','${campo}',this.value)"/>` : _e(v);
+  const lista = grupos.slice(0, _apr.lim);
+  document.getElementById('apr-lista').innerHTML = !grupos.length
+    ? `<div class="card"><div class="card-body" style="text-align:center;padding:2.5rem;color:var(--text-3)">${pend ? '✅ Nenhum apontamento pendente.' : 'Nada por aqui.'}</div></div>`
+    : lista.map(g => {
+      const k = _e(g.chave);
+      const fr = frentes.find(f => f.cod === g.frente);
+      const qtd = g.mo.reduce((s, x) => s + (parseFloat(x.qtd) || 0), 0);
+      const unid = (g.mo.find(x => x.unid) || {}).unid || '';
+      const ref = g.mo[0] || g.eq[0];
+      const aprovInfo = ref && ref.aprovadoPor ? `<div style="font-size:11px;color:var(--green-dark)">Aprovado por ${_e(ref.aprovadoPor)} em ${_e((ref.aprovadoEm||'').slice(0,16).replace('T',' '))}${ref.correcao ? ' · com correção' : ''}</div>` : '';
+      const rejInfo = ref && ref.status === 'rejeitado' ? `<div style="font-size:11px;color:var(--red)">Rejeitado por ${_e(ref.rejeitadoPor||'')}: ${_e(ref.motivoRejeicao||'')}</div>` : '';
+      return `<div class="card" style="margin-bottom:1rem;${_apr.sel.has(g.chave) ? 'outline:2px solid var(--green);' : ''}">
+        <div class="card-body">
+          <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap">
+            ${pend ? `<input type="checkbox" style="margin-top:4px;width:18px;height:18px" ${_apr.sel.has(g.chave) ? 'checked' : ''} onchange="aprToggle('${k}',this.checked)"/>` : ''}
+            <div style="flex:1;min-width:240px">
+              <div style="font-weight:700;font-size:15px">${_e(fmtData(g.data))} · ${_e(g.horaIni)}${g.horaFim ? '–' + _e(g.horaFim) : ''}</div>
+              <div style="font-size:13px;color:var(--text-2);margin-top:2px">Apontador: <strong>${_e(g.apontador)}</strong>${g.lancadoEm ? ' · lançado ' + _e(g.lancadoEm.slice(0,16).replace('T',' ')) : ''}</div>
+              ${aprovInfo}${rejInfo}
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+              <div><div class="form-label" style="margin-bottom:3px">Frente</div>${pend
+                ? `<select class="form-control" style="padding:5px 6px;min-width:200px" onchange="aprEditarGrupo('${k}','frente',this.value)">${frentes.filter(f => !g.obra || !f.obra || f.obra === g.obra).map(f => `<option value="${_e(f.cod)}" ${f.cod === g.frente ? 'selected' : ''}>${_e(f.cod)} — ${_e(f.desc||'')}</option>`).join('')}${fr ? '' : `<option selected>${_e(g.frente)}</option>`}</select>`
+                : `<strong>${_e(g.frente)}</strong> ${_e(fr?.desc||'')}`}</div>
+              <div><div class="form-label" style="margin-bottom:3px">Serviço</div>${pend
+                ? `<select class="form-control" style="padding:5px 6px;min-width:180px" onchange="aprEditarGrupo('${k}','servico',this.value)"><option value="—">—</option>${servicos.map(sv => { const n = sv.nome||sv.desc||sv.cod; return `<option value="${_e(n)}" ${n === g.servico ? 'selected' : ''}>${_e(n)}</option>`; }).join('')}</select>`
+                : _e(g.servico)}</div>
+              <div><div class="form-label" style="margin-bottom:3px">Produção</div>${pend ? `<input type="number" class="form-control" style="width:90px;padding:5px 6px" value="${qtd || ''}" onchange="aprEditarGrupo('${k}','qtd',this.value)"/>` : (qtd || '—')} ${_e(unid)}</div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px;margin-top:12px">
+            <div><div class="form-label">Mão de obra (${g.mo.length})</div>
+              ${g.mo.length ? `<table class="table" style="width:100%;font-size:13px"><thead><tr><th>Funcionário</th><th>Função</th><th>H. norm.</th><th>H. extra</th></tr></thead><tbody>
+                ${g.mo.map(x => `<tr><td>${_e(x.func)}${x.mat ? ' <span style="color:var(--text-3);font-size:11px">' + _e(x.mat) + '</span>' : ''}</td><td>${_e(x.funcao)}</td><td>${inp(x.id,'hn',x.hn)}</td><td>${inp(x.id,'he',x.he)}</td></tr>`).join('')}</tbody></table>` : '<div style="font-size:12px;color:var(--text-3)">—</div>'}
+            </div>
+            <div><div class="form-label">Equipamentos (${g.eq.length})</div>
+              ${g.eq.length ? `<table class="table" style="width:100%;font-size:13px"><thead><tr><th>Equip.</th><th>H. prod.</th><th>H. parado</th><th>Motivo</th><th>Operador</th></tr></thead><tbody>
+                ${g.eq.map(x => `<tr><td><strong>${_e(x.equip)}</strong></td><td>${inp(x.id,'hp',x.hp)}</td><td>${inp(x.id,'hpar',x.hpar)}</td>
+                  <td>${pend ? `<select class="form-control" style="padding:5px 4px;width:120px" onchange="aprEditar('${_e(x.id)}','motivo',this.value)">${motivos.map(([c,t]) => `<option value="${c}" ${(x.motivo||'') === c ? 'selected' : ''}>${t}</option>`).join('')}</select>` : _e(x.motivo || '—')}</td>
+                  <td>${_e(x.operador || '—')}</td></tr>`).join('')}</tbody></table>` : '<div style="font-size:12px;color:var(--text-3)">—</div>'}
+            </div>
+          </div>
+          ${g.pe.length ? `<div style="font-size:12px;color:var(--amber);margin-top:8px">⏱ Perdas: ${g.pe.map(x => _e(x.motivo) + ' ' + _e(x.horas) + 'h').join(', ')}</div>` : ''}
+          ${g.mo.some(x => x.obs) ? `<div style="font-size:12px;color:var(--text-2);margin-top:6px">Obs.: ${_e(g.mo.find(x => x.obs).obs)}</div>` : ''}
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+            ${pend ? `<button class="btn btn-sm" style="background:var(--red-light);color:var(--red);border:1px solid var(--red-light)" onclick="aprRejeitar('${k}')">✕ Rejeitar</button>
+                      <button class="btn btn-primary btn-sm" style="background:var(--green);border-color:var(--green)" onclick="aprAprovar(['${k}'])">✓ Aprovar</button>`
+                   : `<button class="btn btn-outline btn-sm" onclick="aprReabrir('${k}')">↺ Voltar para pendente</button>`}
+          </div>
+        </div></div>`;
+    }).join('') + (grupos.length > _apr.lim ? `<div style="text-align:center;margin:1rem"><button class="btn btn-outline" onclick="_apr.lim+=30;renderAprovacao()">Mostrar mais (${grupos.length - _apr.lim})</button></div>` : '');
+  atualizarBadgeAprovacao();
+}
+function aprToggle(k, on) { on ? _apr.sel.add(k) : _apr.sel.delete(k); renderAprovacao(); }
+function aprSelecionarTodos() { _aprGrupos('campo').forEach(g => _apr.sel.add(g.chave)); renderAprovacao(); }
+function aprEditar(id, campo, valor) { (_apr.edits[id] = _apr.edits[id] || {})[campo] = valor; }
+function aprEditarGrupo(k, campo, valor) { (_apr.edits['@' + k] = _apr.edits['@' + k] || {})[campo] = valor; }
+function _aprItens(k) {
+  const g = _aprGrupos('campo').find(x => x.chave === k) || _aprGrupos('aprovado').find(x => x.chave === k) || _aprGrupos('rejeitado').find(x => x.chave === k);
+  return g ? [...g.mo.map(x => ['aponMO', x]), ...g.eq.map(x => ['aponEQ', x]), ...g.pe.map(x => ['perdas', x])] : [];
+}
+async function _aprGravar(itens) {
+  if (!(db && _firebaseReady)) return 0;
+  const rs = await Promise.allSettled(itens.map(([col, x]) => fbSave(col, x.id, x)));
+  return rs.filter(r => r.status === 'rejected').length;
+}
+async function aprAprovar(chaves) {
+  if (!chaves.length) { toast('Selecione pelo menos um apontamento','error'); return; }
+  const quem = usuarioLogado?.nome || 'Painel', quando = new Date().toISOString();
+  const todos = [];
+  chaves.forEach(k => {
+    const ge = _apr.edits['@' + k] || {};
+    const itens = _aprItens(k);
+    const moDoGrupo = itens.filter(([c]) => c === 'aponMO');
+    itens.forEach(([col, x], idx) => {
+      const mud = { ...(_apr.edits[x.id] || {}) };
+      if (ge.frente && col !== 'perdas') mud.frente = ge.frente;
+      if (ge.servico && col !== 'perdas') mud.servico = ge.servico;
+      if (ge.qtd !== undefined && col === 'aponMO') mud.qtd = moDoGrupo[0] && moDoGrupo[0][1].id === x.id ? (parseFloat(ge.qtd) || 0) : 0;
+      ['hn','he','hp','hpar'].forEach(c => { if (mud[c] !== undefined) mud[c] = parseFloat(String(mud[c]).replace(',','.')) || 0; });
+      const antes = {}; Object.keys(mud).forEach(c => { if (String(x[c] ?? '') !== String(mud[c] ?? '')) antes[c] = x[c] ?? ''; else delete mud[c]; });
+      Object.assign(x, mud, { status:'aprovado', aprovadoPor:quem, aprovadoEm:quando });
+      if (Object.keys(antes).length) x.correcao = { por:quem, em:quando, antes };
+      delete _apr.edits[x.id];
+      todos.push([col, x]);
+    });
+    delete _apr.edits['@' + k]; _apr.sel.delete(k);
+  });
+  const falhas = await _aprGravar(todos);
+  renderAprovacao();
+  toast(falhas ? 'Aprovado aqui, mas ' + falhas + ' registro(s) não foram gravados no servidor. Tente de novo.' : chaves.length + ' apontamento(s) aprovado(s)!', falhas ? 'error' : 'success');
+}
+function aprAprovarSelecionados() { aprAprovar([..._apr.sel]); }
+async function aprRejeitar(k) {
+  const motivo = prompt('Motivo da rejeição (o apontamento não entra nos painéis):');
+  if (motivo === null) return;
+  const quem = usuarioLogado?.nome || 'Painel', quando = new Date().toISOString();
+  const itens = _aprItens(k);
+  itens.forEach(([, x]) => Object.assign(x, { status:'rejeitado', rejeitadoPor:quem, rejeitadoEm:quando, motivoRejeicao:motivo || '—' }));
+  _apr.sel.delete(k);
+  const falhas = await _aprGravar(itens);
+  renderAprovacao();
+  toast(falhas ? 'Não consegui gravar no servidor. Tente de novo.' : 'Apontamento rejeitado.', falhas ? 'error' : 'success');
+}
+async function aprReabrir(k) {
+  if (!confirm('Voltar este apontamento para pendente? Ele sai dos painéis até ser aprovado de novo.')) return;
+  const itens = _aprItens(k);
+  itens.forEach(([, x]) => { x.status = 'campo'; delete x.aprovadoPor; delete x.aprovadoEm; delete x.rejeitadoPor; delete x.rejeitadoEm; delete x.motivoRejeicao; });
+  await _aprGravar(itens);
+  renderAprovacao(); toast('Voltou para pendente.');
+}
+
+(function () {
+  const oInit = window.pageInit;
+  window.pageInit = function (id) { const r = oInit.apply(this, arguments); if (id === 'aprovacao') renderAprovacao(); return r; };
+  const oPode = window.podeVerPagina;
+  window.podeVerPagina = function (pag) {
+    if (pag !== 'aprovacao') return oPode.apply(this, arguments);
+    if (!usuarioLogado || usuarioLogado.perfil === 'Admin') return true;
+    const p = { ...(perfilPorNome(usuarioLogado.perfil)?.perms || {}), ...(usuarioLogado.perms || {}) };
+    return !!p.aprovacao;
+  };
+  const oAplicar = window.aplicarPermissoes;
+  window.aplicarPermissoes = function () {
+    const r = oAplicar.apply(this, arguments);
+    const pode = podeVerPagina('aprovacao');
+    const n = document.getElementById('nav-aprovacao'); if (n) n.style.display = pode ? '' : 'none';
+    // quem aprova mas não tem "Apontamentos" ainda vê o grupo, só com a Aprovação
+    const g = document.getElementById('grp-apontamentos');
+    if (pode && g && g.style.display === 'none') { g.style.display = ''; g.querySelectorAll('.nav-item').forEach(it => { if (it.id !== 'nav-aprovacao') it.style.display = 'none'; }); }
+    atualizarBadgeAprovacao();
+    return r;
+  };
+  setInterval(() => { if (usuarioLogado) atualizarBadgeAprovacao(); }, 5000);
 })();
 
 // Apply configs on load
