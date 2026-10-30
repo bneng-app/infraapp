@@ -350,7 +350,7 @@ textarea.form-control{resize:vertical;min-height:72px}
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraControl</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraControl v2.26 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraControl v2.27 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -1154,6 +1154,7 @@ textarea.form-control{resize:vertical;min-height:72px}
   <div class="page-header">
     <div><div class="page-title">Gerar QR Codes</div><div class="page-sub">Crachás dos funcionários e etiquetas das máquinas — o apontador lê no app de campo</div></div>
     <div class="btn-group">
+      <select class="form-control" id="qr-obra" onchange="renderQRCodes()" style="min-width:200px"></select>
       <input class="form-control" id="qr-busca" placeholder="Buscar nome, matrícula ou TAG…" oninput="renderQRCodes()" style="min-width:220px"/>
       <button class="btn btn-outline btn-sm" onclick="qrMarcarTodos()">Marcar todos</button>
       <button class="btn btn-primary" onclick="imprimirQRs()">🖨 Imprimir <span id="qr-n-sel"></span></button>
@@ -4689,8 +4690,15 @@ function showQRTab(id, el) {
 
 // v2.26: o QR leva "mat:<matrícula>" (crachá) ou "tag:<TAG>" (máquina) — é o que o app de campo lê
 const _qrSel = new Set();
-function _qrDaObra(lista) { const o = obraAtiva?.id; return (!o || o === 'todas') ? lista : lista.filter(x => !x.obra || x.obra === o); }
+function _qrDaObra(lista) { const o = document.getElementById('qr-obra')?.value || ''; return !o ? lista : lista.filter(x => !x.obra || x.obra === o); }
+function _qrObras() {
+  const sel = document.getElementById('qr-obra'); if (!sel) return;
+  const atual = sel.dataset.ok ? sel.value : ((obraAtiva && obraAtiva.id !== 'todas') ? obraAtiva.id : '');
+  sel.innerHTML = '<option value="">Todas as obras</option>' + (dados.obras||[]).map(o => `<option value="${_e(o.id)}">${_e(o.cod ? o.cod + ' — ' : '')}${_e(o.nome||'')}</option>`).join('');
+  sel.value = atual; sel.dataset.ok = '1';
+}
 function renderQRCodes() {
+  _qrObras();
   const b = (document.getElementById('qr-busca')?.value || '').toLowerCase();
   const cargo = c => { const k = (dados.cargos||[]).find(x => x.cod === c); return k ? k.nome : (c || ''); };
   const funcs = _qrDaObra(dados.funcionarios||[]).filter(f => f.mat && f.status !== 'Desligado' && !f.demissao)
