@@ -350,7 +350,7 @@ textarea.form-control{resize:vertical;min-height:72px}
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraControl</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraControl v2.28 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraControl v2.29 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -1156,7 +1156,6 @@ textarea.form-control{resize:vertical;min-height:72px}
     <div class="btn-group">
       <select class="form-control" id="qr-obra" onchange="renderQRCodes()" style="min-width:200px"></select>
       <input class="form-control" id="qr-busca" placeholder="Buscar nome, matrícula ou TAG…" oninput="renderQRCodes()" style="min-width:220px"/>
-      <button class="btn btn-outline btn-sm" onclick="qrMarcarTodos()">Marcar todos</button>
       <button class="btn btn-primary" onclick="gerarQRs()">Gerar QR dos marcados <span id="qr-n-sel"></span></button>
     </div>
   </div>
@@ -1165,8 +1164,8 @@ textarea.form-control{resize:vertical;min-height:72px}
     <button class="tab active" onclick="showQRTab('qr-func',this)">Funcionários</button>
     <button class="tab" onclick="showQRTab('qr-equip',this)">Equipamentos</button>
   </div>
-  <div id="qr-func"><div class="card" style="padding:0"><div class="table-wrap" style="max-height:420px;overflow:auto"><table><tbody id="qr-grid-func"></tbody></table></div></div></div>
-  <div id="qr-equip" style="display:none"><div class="card" style="padding:0"><div class="table-wrap" style="max-height:420px;overflow:auto"><table><tbody id="qr-grid-equip"></tbody></table></div></div></div>
+  <div id="qr-func"><div class="card" style="padding:0"><div class="table-wrap" style="max-height:420px;overflow:auto"><table><thead><tr><th style="width:34px;position:sticky;top:0;background:var(--bg)"><input type="checkbox" id="qr-todos-func" title="Marcar / desmarcar todos" onclick="qrMarcarTodos(this.checked)"/></th><th style="position:sticky;top:0;background:var(--bg)" colspan="2"><label for="qr-todos-func" style="cursor:pointer">Marcar todos <span id="qr-cont-func" style="font-weight:400;color:var(--text-3)"></span></label></th></tr></thead><tbody id="qr-grid-func"></tbody></table></div></div></div>
+  <div id="qr-equip" style="display:none"><div class="card" style="padding:0"><div class="table-wrap" style="max-height:420px;overflow:auto"><table><thead><tr><th style="width:34px;position:sticky;top:0;background:var(--bg)"><input type="checkbox" id="qr-todos-equip" title="Marcar / desmarcar todos" onclick="qrMarcarTodos(this.checked)"/></th><th style="position:sticky;top:0;background:var(--bg)" colspan="2"><label for="qr-todos-equip" style="cursor:pointer">Marcar todos <span id="qr-cont-equip" style="font-weight:400;color:var(--text-3)"></span></label></th></tr></thead><tbody id="qr-grid-equip"></tbody></table></div></div></div>
   <div id="qr-gerados-wrap" style="display:none;margin-top:1rem">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
       <strong id="qr-gerados-tit" style="font-size:14px"></strong>
@@ -4729,11 +4728,19 @@ function renderQRCodes() {
   _qrContador();
 }
 function qrMarcar(id) { _qrSel.has(id) ? _qrSel.delete(id) : _qrSel.add(id); document.querySelectorAll(`#page-qrcodes input[data-qr="${id}"]`).forEach(c => c.checked = _qrSel.has(id)); _qrContador(); }
-function _qrContador() { const n = document.getElementById('qr-n-sel'); if (n) n.textContent = _qrSel.size ? '(' + _qrSel.size + ')' : ''; }
-function qrMarcarTodos() {
+function _qrContador() {
+  const n = document.getElementById('qr-n-sel'); if (n) n.textContent = _qrSel.size ? '(' + _qrSel.size + ')' : '';
+  const it = _qrItens();
+  ['func','equip'].forEach(t => {
+    const ids = it[t].map(x => x.id), marc = ids.filter(id => _qrSel.has(id)).length;
+    const cb = document.getElementById('qr-todos-' + t); if (cb) { cb.checked = !!ids.length && marc === ids.length; cb.indeterminate = marc > 0 && marc < ids.length; }
+    const c = document.getElementById('qr-cont-' + t); if (c) c.textContent = '· ' + marc + ' de ' + ids.length + ' marcados';
+  });
+}
+// marca/desmarca todos da aba aberta (respeita obra e busca)
+function qrMarcarTodos(marcar) {
   const aba = qrTab === 'equip' ? 'equip' : 'func';
-  const ids = _qrItens()[aba].map(x => x.id); const todos = ids.length && ids.every(id => _qrSel.has(id));
-  ids.forEach(id => todos ? _qrSel.delete(id) : _qrSel.add(id)); renderQRCodes();
+  _qrItens()[aba].forEach(x => marcar ? _qrSel.add(x.id) : _qrSel.delete(x.id)); renderQRCodes();
 }
 function gerarQRs() {
   if (!_qrSel.size) { toast('Marque pelo menos um funcionário ou equipamento.', 'error'); return; }
