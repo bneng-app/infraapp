@@ -306,7 +306,7 @@ textarea.form-control{resize:vertical;min-height:72px}
         <a href="#" onclick="esqueciSenha();return false" style="font-size:13px;color:#1B2C6E;text-decoration:none">Esqueci minha senha</a>
       </div>
     </div>
-    <div style="text-align:center;margin-top:1rem;font-size:11px;color:#aaa">ObraControl v2.15 · Controle de Mão de Obra e Equipamentos</div>
+    <div style="text-align:center;margin-top:1rem;font-size:11px;color:#aaa">ObraControl v2.16 · Controle de Mão de Obra e Equipamentos</div>
   </div>
 </div>
 
@@ -1106,6 +1106,13 @@ textarea.form-control{resize:vertical;min-height:72px}
 </div>
 
 <!-- ═══════════════ APONTAMENTOS MO ═══════════════ -->
+<div class="modal-overlay" id="modal-apr-detalhe">
+  <div class="modal" style="max-width:1080px;width:96vw">
+    <div class="modal-header"><span class="modal-title" id="apr-det-titulo">Apontamento</span><button class="modal-close" onclick="closeModal('modal-apr-detalhe')">×</button></div>
+    <div class="modal-body" id="apr-det-corpo"></div>
+    <div class="modal-footer" id="apr-det-rodape"></div>
+  </div>
+</div>
 <!-- ═══════════════ APROVAÇÃO (v2.15) ═══════════════ -->
 <div class="page" id="page-aprovacao">
   <div class="page-header">
@@ -7782,6 +7789,103 @@ function atualizarBadgeAprovacao() {
   const n = _aprGrupos('campo').length;
   const b = document.getElementById('badge-aprovacao'); if (b) b.textContent = n || '';
 }
+// v2.16: lista em cartões resumidos (estilo dos cartões de Mão de Obra); o detalhe para corrigir abre em janela
+function _aprDetalheHTML(g, pend) {
+  const k = _e(g.chave);
+  const frentes = (dados.frentes||[]), servicos = (dados.tiposServico||[]);
+  const motivos = [['','—'],['MNP','Manut. não programada'],['MP','Manut. programada'],['CHU','Chuva'],['AMA','Aguardo material'],['ADM','Administrativo']];
+  const inp = (id, campo, v, w) => pend ? `<input type="number" step="0.5" class="form-control" style="width:${w||70}px;padding:5px 6px" value="${_e(v)}" onchange="aprEditar('${_e(id)}','${campo}',this.value)"/>` : _e(v);
+  const fr = frentes.find(f => f.cod === g.frente);
+  const qtd = g.mo.reduce((s, x) => s + (parseFloat(x.qtd) || 0), 0);
+  const unid = (g.mo.find(x => x.unid) || {}).unid || '';
+  const ref = g.mo[0] || g.eq[0];
+  const aprovInfo = ref && ref.aprovadoPor ? `<div style="font-size:11px;color:var(--green-dark)">Aprovado por ${_e(ref.aprovadoPor)} em ${_e((ref.aprovadoEm||'').slice(0,16).replace('T',' '))}${ref.correcao ? ' · com correção' : ''}</div>` : '';
+  const rejInfo = ref && ref.status === 'rejeitado' ? `<div style="font-size:11px;color:var(--red)">Rejeitado por ${_e(ref.rejeitadoPor||'')}: ${_e(ref.motivoRejeicao||'')}</div>` : '';
+  return `<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap">
+      <div style="flex:1;min-width:240px">
+        <div style="font-weight:700;font-size:15px">${_e(fmtData(g.data))} · ${_e(g.horaIni)}${g.horaFim ? '–' + _e(g.horaFim) : ''}</div>
+        <div style="font-size:13px;color:var(--text-2);margin-top:2px">Apontador: <strong>${_e(g.apontador)}</strong>${g.lancadoEm ? ' · lançado ' + _e(g.lancadoEm.slice(0,16).replace('T',' ')) : ''}</div>
+        ${aprovInfo}${rejInfo}
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+        <div><div class="form-label" style="margin-bottom:3px">Frente</div>${pend
+          ? `<select class="form-control" style="padding:5px 6px;min-width:200px" onchange="aprEditarGrupo('${k}','frente',this.value)">${frentes.filter(f => !g.obra || !f.obra || f.obra === g.obra).map(f => `<option value="${_e(f.cod)}" ${f.cod === g.frente ? 'selected' : ''}>${_e(f.cod)} — ${_e(f.desc||'')}</option>`).join('')}${fr ? '' : `<option selected>${_e(g.frente)}</option>`}</select>`
+          : `<strong>${_e(g.frente)}</strong> ${_e(fr?.desc||'')}`}</div>
+        <div><div class="form-label" style="margin-bottom:3px">Serviço</div>${pend
+          ? `<select class="form-control" style="padding:5px 6px;min-width:180px" onchange="aprEditarGrupo('${k}','servico',this.value)"><option value="—">—</option>${servicos.map(sv => { const n = sv.nome||sv.desc||sv.cod; return `<option value="${_e(n)}" ${n === g.servico ? 'selected' : ''}>${_e(n)}</option>`; }).join('')}</select>`
+          : _e(g.servico)}</div>
+        <div><div class="form-label" style="margin-bottom:3px">Produção</div>${pend ? `<input type="number" class="form-control" style="width:90px;padding:5px 6px" value="${qtd || ''}" onchange="aprEditarGrupo('${k}','qtd',this.value)"/>` : (qtd || '—')} ${_e(unid)}</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px;margin-top:12px">
+      <div><div class="form-label">Mão de obra (${g.mo.length})</div>
+        ${g.mo.length ? `<table class="table" style="width:100%;font-size:13px"><thead><tr><th>Funcionário</th><th>Função</th><th>H. norm.</th><th>H. extra</th></tr></thead><tbody>
+          ${g.mo.map(x => `<tr><td>${_e(x.func)}${x.mat ? ' <span style="color:var(--text-3);font-size:11px">' + _e(x.mat) + '</span>' : ''}</td><td>${_e(x.funcao)}</td><td>${inp(x.id,'hn',x.hn)}</td><td>${inp(x.id,'he',x.he)}</td></tr>`).join('')}</tbody></table>` : '<div style="font-size:12px;color:var(--text-3)">—</div>'}
+      </div>
+      <div><div class="form-label">Equipamentos (${g.eq.length})</div>
+        ${g.eq.length ? `<table class="table" style="width:100%;font-size:13px"><thead><tr><th>Equip.</th><th>H. prod.</th><th>H. parado</th><th>Motivo</th><th>Operador</th></tr></thead><tbody>
+          ${g.eq.map(x => `<tr><td><strong>${_e(x.equip)}</strong></td><td>${inp(x.id,'hp',x.hp)}</td><td>${inp(x.id,'hpar',x.hpar)}</td>
+            <td>${pend ? `<select class="form-control" style="padding:5px 4px;width:120px" onchange="aprEditar('${_e(x.id)}','motivo',this.value)">${motivos.map(([c,t]) => `<option value="${c}" ${(x.motivo||'') === c ? 'selected' : ''}>${t}</option>`).join('')}</select>` : _e(x.motivo || '—')}</td>
+            <td>${_e(x.operador || '—')}</td></tr>`).join('')}</tbody></table>` : '<div style="font-size:12px;color:var(--text-3)">—</div>'}
+      </div>
+    </div>
+    ${g.pe.length ? `<div style="font-size:12px;color:var(--amber);margin-top:8px">⏱ Perdas: ${g.pe.map(x => _e(x.motivo) + ' ' + _e(x.horas) + 'h').join(', ')}</div>` : ''}
+    ${g.mo.some(x => x.obs) ? `<div style="font-size:12px;color:var(--text-2);margin-top:6px">Obs.: ${_e(g.mo.find(x => x.obs).obs)}</div>` : ''}`;
+}
+
+function _aprCardHTML(g, i, status) {
+  const pend = status === 'campo';
+  const fr = (dados.frentes||[]).find(f => f.cod === g.frente);
+  const ini = String(g.apontador||'?').split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase();
+  const hn = g.mo.reduce((s, x) => s + (parseFloat(x.hn)||0), 0), he = g.mo.reduce((s, x) => s + (parseFloat(x.he)||0), 0);
+  const hp = g.eq.reduce((s, x) => s + (parseFloat(x.hp)||0), 0);
+  const qtd = g.mo.reduce((s, x) => s + (parseFloat(x.qtd)||0), 0), unid = (g.mo.find(x => x.unid)||{}).unid || '';
+  const perdas = g.pe.reduce((s, x) => s + (parseFloat(x.horas)||0), 0);
+  const [stTxt, stCor] = status === 'campo' ? ['Pendente','amber'] : status === 'aprovado' ? ['Aprovado','green'] : ['Rejeitado','red'];
+  const borda = status === 'campo' ? 'var(--amber)' : status === 'aprovado' ? 'var(--green)' : 'var(--red)';
+  const sel = _apr.sel.has(g.chave);
+  const svgOlho = '<svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+  const svgLapis = '<svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+  return `<div class="mo-card" style="border-left:3px solid ${borda};${sel ? 'box-shadow:0 0 0 2px var(--green);' : ''}">
+    <div class="mo-card-top">
+      <div class="mo-card-av-row">
+        ${pend ? `<input type="checkbox" title="Selecionar" style="margin-top:10px;width:16px;height:16px" ${sel ? 'checked' : ''} onchange="aprToggleIdx(${i},this.checked)"/>` : ''}
+        <div class="mo-av" style="background:var(--${stCor}-light);color:var(--${stCor === 'green' ? 'green-dark' : stCor})">${_e(ini)}</div>
+        <div style="flex:1;min-width:0">
+          <div class="mo-card-name">${_e(g.apontador)}</div>
+          <div class="mo-card-cargo">${_e(fmtData(g.data))} · ${_e(g.horaIni)}${g.horaFim ? '–' + _e(g.horaFim) : ''}</div>
+          <div class="mo-card-empresa">${g.lancadoEm ? 'lançado ' + _e(g.lancadoEm.slice(11,16)) : ''}</div>
+        </div>
+        <div>${tag(stTxt, stCor)}</div>
+      </div>
+    </div>
+    <div class="mo-card-mid">
+      <div class="mo-frente-lbl">Frente / Serviço</div>
+      <div class="mo-frente-val">📍 ${_e(g.frente)}${fr ? ' — ' + _e(fr.desc||'') : ''}</div>
+      <div class="mo-info-tags">
+        ${g.servico && g.servico !== '—' ? `<span class="mo-info-tag" style="background:var(--blue-light);color:var(--blue)">${_e(g.servico)}</span>` : ''}
+        ${qtd ? `<span class="mo-info-tag" style="background:var(--green-light);color:var(--green-dark)">${qtd} ${_e(unid)}</span>` : ''}
+        ${perdas ? `<span class="mo-info-tag" style="background:var(--amber-light);color:#633806">perda ${perdas}h</span>` : ''}
+      </div>
+    </div>
+    <div class="mo-card-stats">
+      <div class="mo-stat"><div class="mo-stat-num">${g.mo.length}</div><div class="mo-stat-lbl">Colab.</div></div>
+      <div class="mo-stat"><div class="mo-stat-num">${hn}h</div><div class="mo-stat-lbl">Normais</div></div>
+      <div class="mo-stat"><div class="mo-stat-num ${he ? 'warn' : ''}">${he}h</div><div class="mo-stat-lbl">Extras</div></div>
+      <div class="mo-stat"><div class="mo-stat-num">${g.eq.length}</div><div class="mo-stat-lbl">Equip.</div></div>
+      <div class="mo-stat"><div class="mo-stat-num">${hp}h</div><div class="mo-stat-lbl">H. prod.</div></div>
+    </div>
+    <div class="mo-card-foot">
+      <div style="display:flex;gap:4px">
+        <button class="mo-icon-btn" title="${pend ? 'Ver e corrigir' : 'Ver detalhes'}" onclick="aprAbrir(${i})">${pend ? svgLapis : svgOlho}</button>
+      </div>
+      ${pend
+        ? `<div style="display:flex;gap:6px"><button class="mo-process-btn" style="background:var(--red-light);color:var(--red)" onclick="aprRejeitarIdx(${i})">✕ Rejeitar</button><button class="mo-process-btn mo-process-green" onclick="aprAprovarIdx(${i})">✓ Aprovar</button></div>`
+        : `<button class="mo-process-btn mo-process-done" style="cursor:pointer" onclick="aprReabrirIdx(${i})">↺ Reabrir</button>`}
+    </div>
+  </div>`;
+}
+
 function renderAprovacao() {
   const status = document.getElementById('apr-status').value;
   const fAp = document.getElementById('apr-apontador'), fData = document.getElementById('apr-data').value;
@@ -7791,65 +7895,49 @@ function renderAprovacao() {
   if (fAp.value) grupos = grupos.filter(g => g.apontador === fAp.value);
   if (fData) grupos = grupos.filter(g => g.data === fData);
   _apr.sel.forEach(k => { if (!grupos.some(g => g.chave === k)) _apr.sel.delete(k); });
-  document.getElementById('apr-resumo').textContent = grupos.length + ' apontamento(s) · ' + grupos.reduce((s, g) => s + g.mo.length, 0) + ' pessoa(s) · ' + grupos.reduce((s, g) => s + g.eq.length, 0) + ' equipamento(s)';
-  const frentes = (dados.frentes||[]);
-  const servicos = (dados.tiposServico||[]);
-  const motivos = [['','—'],['MNP','Manut. não programada'],['MP','Manut. programada'],['CHU','Chuva'],['AMA','Aguardo material'],['ADM','Administrativo']];
-  const pend = status === 'campo';
-  const inp = (id, campo, v, w) => pend ? `<input type="number" step="0.5" class="form-control" style="width:${w||70}px;padding:5px 6px" value="${_e(v)}" onchange="aprEditar('${_e(id)}','${campo}',this.value)"/>` : _e(v);
+  _apr.vis = grupos; _apr.status = status;
+  document.getElementById('apr-resumo').textContent = grupos.length + ' apontamento(s) · ' + grupos.reduce((s, g) => s + g.mo.length, 0) + ' pessoa(s) · ' + grupos.reduce((s, g) => s + g.eq.length, 0) + ' equipamento(s)' + (_apr.sel.size ? ' · ' + _apr.sel.size + ' selecionado(s)' : '');
   const lista = grupos.slice(0, _apr.lim);
   document.getElementById('apr-lista').innerHTML = !grupos.length
-    ? `<div class="card"><div class="card-body" style="text-align:center;padding:2.5rem;color:var(--text-3)">${pend ? '✅ Nenhum apontamento pendente.' : 'Nada por aqui.'}</div></div>`
-    : lista.map(g => {
-      const k = _e(g.chave);
-      const fr = frentes.find(f => f.cod === g.frente);
-      const qtd = g.mo.reduce((s, x) => s + (parseFloat(x.qtd) || 0), 0);
-      const unid = (g.mo.find(x => x.unid) || {}).unid || '';
-      const ref = g.mo[0] || g.eq[0];
-      const aprovInfo = ref && ref.aprovadoPor ? `<div style="font-size:11px;color:var(--green-dark)">Aprovado por ${_e(ref.aprovadoPor)} em ${_e((ref.aprovadoEm||'').slice(0,16).replace('T',' '))}${ref.correcao ? ' · com correção' : ''}</div>` : '';
-      const rejInfo = ref && ref.status === 'rejeitado' ? `<div style="font-size:11px;color:var(--red)">Rejeitado por ${_e(ref.rejeitadoPor||'')}: ${_e(ref.motivoRejeicao||'')}</div>` : '';
-      return `<div class="card" style="margin-bottom:1rem;${_apr.sel.has(g.chave) ? 'outline:2px solid var(--green);' : ''}">
-        <div class="card-body">
-          <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap">
-            ${pend ? `<input type="checkbox" style="margin-top:4px;width:18px;height:18px" ${_apr.sel.has(g.chave) ? 'checked' : ''} onchange="aprToggle('${k}',this.checked)"/>` : ''}
-            <div style="flex:1;min-width:240px">
-              <div style="font-weight:700;font-size:15px">${_e(fmtData(g.data))} · ${_e(g.horaIni)}${g.horaFim ? '–' + _e(g.horaFim) : ''}</div>
-              <div style="font-size:13px;color:var(--text-2);margin-top:2px">Apontador: <strong>${_e(g.apontador)}</strong>${g.lancadoEm ? ' · lançado ' + _e(g.lancadoEm.slice(0,16).replace('T',' ')) : ''}</div>
-              ${aprovInfo}${rejInfo}
-            </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
-              <div><div class="form-label" style="margin-bottom:3px">Frente</div>${pend
-                ? `<select class="form-control" style="padding:5px 6px;min-width:200px" onchange="aprEditarGrupo('${k}','frente',this.value)">${frentes.filter(f => !g.obra || !f.obra || f.obra === g.obra).map(f => `<option value="${_e(f.cod)}" ${f.cod === g.frente ? 'selected' : ''}>${_e(f.cod)} — ${_e(f.desc||'')}</option>`).join('')}${fr ? '' : `<option selected>${_e(g.frente)}</option>`}</select>`
-                : `<strong>${_e(g.frente)}</strong> ${_e(fr?.desc||'')}`}</div>
-              <div><div class="form-label" style="margin-bottom:3px">Serviço</div>${pend
-                ? `<select class="form-control" style="padding:5px 6px;min-width:180px" onchange="aprEditarGrupo('${k}','servico',this.value)"><option value="—">—</option>${servicos.map(sv => { const n = sv.nome||sv.desc||sv.cod; return `<option value="${_e(n)}" ${n === g.servico ? 'selected' : ''}>${_e(n)}</option>`; }).join('')}</select>`
-                : _e(g.servico)}</div>
-              <div><div class="form-label" style="margin-bottom:3px">Produção</div>${pend ? `<input type="number" class="form-control" style="width:90px;padding:5px 6px" value="${qtd || ''}" onchange="aprEditarGrupo('${k}','qtd',this.value)"/>` : (qtd || '—')} ${_e(unid)}</div>
-            </div>
-          </div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px;margin-top:12px">
-            <div><div class="form-label">Mão de obra (${g.mo.length})</div>
-              ${g.mo.length ? `<table class="table" style="width:100%;font-size:13px"><thead><tr><th>Funcionário</th><th>Função</th><th>H. norm.</th><th>H. extra</th></tr></thead><tbody>
-                ${g.mo.map(x => `<tr><td>${_e(x.func)}${x.mat ? ' <span style="color:var(--text-3);font-size:11px">' + _e(x.mat) + '</span>' : ''}</td><td>${_e(x.funcao)}</td><td>${inp(x.id,'hn',x.hn)}</td><td>${inp(x.id,'he',x.he)}</td></tr>`).join('')}</tbody></table>` : '<div style="font-size:12px;color:var(--text-3)">—</div>'}
-            </div>
-            <div><div class="form-label">Equipamentos (${g.eq.length})</div>
-              ${g.eq.length ? `<table class="table" style="width:100%;font-size:13px"><thead><tr><th>Equip.</th><th>H. prod.</th><th>H. parado</th><th>Motivo</th><th>Operador</th></tr></thead><tbody>
-                ${g.eq.map(x => `<tr><td><strong>${_e(x.equip)}</strong></td><td>${inp(x.id,'hp',x.hp)}</td><td>${inp(x.id,'hpar',x.hpar)}</td>
-                  <td>${pend ? `<select class="form-control" style="padding:5px 4px;width:120px" onchange="aprEditar('${_e(x.id)}','motivo',this.value)">${motivos.map(([c,t]) => `<option value="${c}" ${(x.motivo||'') === c ? 'selected' : ''}>${t}</option>`).join('')}</select>` : _e(x.motivo || '—')}</td>
-                  <td>${_e(x.operador || '—')}</td></tr>`).join('')}</tbody></table>` : '<div style="font-size:12px;color:var(--text-3)">—</div>'}
-            </div>
-          </div>
-          ${g.pe.length ? `<div style="font-size:12px;color:var(--amber);margin-top:8px">⏱ Perdas: ${g.pe.map(x => _e(x.motivo) + ' ' + _e(x.horas) + 'h').join(', ')}</div>` : ''}
-          ${g.mo.some(x => x.obs) ? `<div style="font-size:12px;color:var(--text-2);margin-top:6px">Obs.: ${_e(g.mo.find(x => x.obs).obs)}</div>` : ''}
-          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
-            ${pend ? `<button class="btn btn-sm" style="background:var(--red-light);color:var(--red);border:1px solid var(--red-light)" onclick="aprRejeitar('${k}')">✕ Rejeitar</button>
-                      <button class="btn btn-primary btn-sm" style="background:var(--green);border-color:var(--green)" onclick="aprAprovar(['${k}'])">✓ Aprovar</button>`
-                   : `<button class="btn btn-outline btn-sm" onclick="aprReabrir('${k}')">↺ Voltar para pendente</button>`}
-          </div>
-        </div></div>`;
-    }).join('') + (grupos.length > _apr.lim ? `<div style="text-align:center;margin:1rem"><button class="btn btn-outline" onclick="_apr.lim+=30;renderAprovacao()">Mostrar mais (${grupos.length - _apr.lim})</button></div>` : '');
+    ? `<div class="card"><div class="card-body" style="text-align:center;padding:2.5rem;color:var(--text-3)">${status === 'campo' ? '✅ Nenhum apontamento pendente.' : 'Nada por aqui.'}</div></div>`
+    : '<div class="mo-cards-grid" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr))">' + lista.map((g, i) => _aprCardHTML(g, i, status)).join('') + '</div>'
+      + (grupos.length > _apr.lim ? `<div style="text-align:center;margin:1rem"><button class="btn btn-outline" onclick="_apr.lim+=30;renderAprovacao()">Mostrar mais (${grupos.length - _apr.lim})</button></div>` : '');
   atualizarBadgeAprovacao();
 }
+function _aprK(i) { return (_apr.vis || [])[i]?.chave; }
+function aprToggleIdx(i, on) { const k = _aprK(i); if (k) aprToggle(k, on); }
+function aprAprovarIdx(i) { const k = _aprK(i); if (k) aprAprovar([k]); }
+function aprRejeitarIdx(i) { const k = _aprK(i); if (k) aprRejeitar(k); }
+function aprReabrirIdx(i) { const k = _aprK(i); if (k) aprReabrir(k); }
+function aprAbrir(i) {
+  const g = (_apr.vis || [])[i]; if (!g) return;
+  const pend = _apr.status === 'campo';
+  _apr.aberto = g.chave;
+  document.getElementById('apr-det-titulo').textContent = (pend ? 'Corrigir e aprovar' : 'Detalhes do apontamento');
+  document.getElementById('apr-det-corpo').innerHTML = _aprDetalheHTML(g, pend);
+  document.getElementById('apr-det-rodape').innerHTML = pend
+    ? `<button class="btn btn-outline" onclick="closeModal('modal-apr-detalhe')">Fechar</button>
+       <button class="btn btn-sm" style="background:var(--red-light);color:var(--red);border:1px solid var(--red-light)" onclick="aprRejeitar(_apr.aberto)">✕ Rejeitar</button>
+       <button class="btn btn-primary" style="background:var(--green);border-color:var(--green)" onclick="aprAprovar([_apr.aberto])">✓ Salvar correções e aprovar</button>`
+    : `<button class="btn btn-outline" onclick="closeModal('modal-apr-detalhe')">Fechar</button>
+       <button class="btn btn-outline" onclick="aprReabrir(_apr.aberto)">↺ Voltar para pendente</button>`;
+  document.getElementById('modal-apr-detalhe').classList.add('open');
+}
+(function () {
+  // fecha a janela de detalhe depois de aprovar / rejeitar / reabrir
+  ['aprAprovar','aprRejeitar','aprReabrir'].forEach(n => {
+    const o = window[n];
+    window[n] = async function () {
+      const r = await o.apply(this, arguments);
+      const m = document.getElementById('modal-apr-detalhe');
+      if (m && m.classList.contains('open')) {
+        const aindaExiste = _aprGrupos(_apr.status || 'campo').some(g => g.chave === _apr.aberto);
+        if (!aindaExiste) m.classList.remove('open');
+      }
+      return r;
+    };
+  });
+})();
 function aprToggle(k, on) { on ? _apr.sel.add(k) : _apr.sel.delete(k); renderAprovacao(); }
 function aprSelecionarTodos() { _aprGrupos('campo').forEach(g => _apr.sel.add(g.chave)); renderAprovacao(); }
 function aprEditar(id, campo, valor) { (_apr.edits[id] = _apr.edits[id] || {})[campo] = valor; }
