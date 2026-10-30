@@ -8038,7 +8038,7 @@ async function aprReabrir(k) {
 // - produção: o campo grava a quantidade da equipe UMA vez (no 1º funcionário), para não somar em dobro
 //   nos painéis e relatórios. Aqui ela é exibida em todas as linhas da equipe, só para leitura.
 // ═══════════════════════════════════════════════════════════════
-const _ml = { sort: { col: 'data', dir: -1 }, f: {} };
+const _ml = { sort: { col: 'data', dir: -1 }, f: {}, prod: new Map() };
 const _ML_COLS = [
   { k:'data',    t:'Data',        tipo:'texto', v:a => a.data || '',              fmt:a => fmtData(a.data) },
   { k:'ini',     t:'Entrada',     tipo:'texto', v:a => a.horaIni || a.hora || '' },
@@ -8050,7 +8050,8 @@ const _ML_COLS = [
   { k:'servico', t:'Serviço',     tipo:'lista', v:a => a.servico || '' },
   { k:'hn',      t:'H. normais',  tipo:'num',   v:a => parseFloat(a.hn) || 0,     fmt:a => (parseFloat(a.hn)||0) + 'h' },
   { k:'he',      t:'H. extras',   tipo:'num',   v:a => parseFloat(a.he) || 0,     fmt:a => a.he ? a.he + 'h' : '—' },
-  { k:'prod',    t:'Produção (equipe)', tipo:'num', v:a => a._prodEquipe || 0,    fmt:a => a._prodEquipe ? a._prodEquipe + ' ' + _e(a._unidEquipe||'') + (a._prodNaLinha ? '' : ' <span style="font-size:10px;color:var(--text-3)">equipe</span>') : '—' },
+  { k:'prod',    t:'Produção (equipe)', tipo:'num', v:a => (_ml.prod.get(a.apropriacao || a.id) || {}).q || 0,
+    fmt:a => { const g = _ml.prod.get(a.apropriacao || a.id) || {}; return g.q ? g.q + ' ' + _e(g.u || a.unid || '') + (parseFloat(a.qtd) ? '' : ' <span style="font-size:10px;color:var(--text-3)">equipe</span>') : '—'; } },
   { k:'apont',   t:'Apontador',   tipo:'lista', v:a => a.lancadoPor || 'Escritório' },
   { k:'status',  t:'Status',      tipo:'lista', v:a => ({campo:'Pendente',aprovado:'Aprovado',rejeitado:'Rejeitado',corrigido:'Processado'})[a.status] || a.status || '', fmt:a => tagStatus(a.status) },
 ];
@@ -8063,9 +8064,10 @@ function _mlBase() {
   if (g('filtro-mo-status'))    lista = lista.filter(a => a.status === g('filtro-mo-status'));
   if (g('filtro-mo-apontador')) lista = lista.filter(a => (a.lancadoPor || 'Escritório') === g('filtro-mo-apontador'));
   // produção da equipe em cada linha (só exibição)
-  const porGrupo = {};
-  lista.forEach(a => { const k = a.apropriacao || a.id; (porGrupo[k] = porGrupo[k] || { q:0, u:'' }); porGrupo[k].q += parseFloat(a.qtd) || 0; if (a.unid) porGrupo[k].u = a.unid; });
-  return lista.map(a => { const gr = porGrupo[a.apropriacao || a.id]; return Object.assign(Object.create(a), a, { _prodEquipe: gr.q, _unidEquipe: gr.u || a.unid || '', _prodNaLinha: !!parseFloat(a.qtd) }); });
+  const m = new Map();
+  lista.forEach(a => { const k = a.apropriacao || a.id; let g = m.get(k); if (!g) m.set(k, g = { q:0, u:'' }); g.q += parseFloat(a.qtd) || 0; if (a.unid) g.u = a.unid; });
+  _ml.prod = m;
+  return lista;
 }
 function renderListaMO(soCorpo) {
   const thead = document.getElementById('thead-apon-mo'), tbody = document.getElementById('tbody-apon-mo');
@@ -8091,11 +8093,9 @@ function renderListaMO(soCorpo) {
     return alvo.toLowerCase().includes(String(f).toLowerCase());
   }));
   const col = _ML_COLS.find(c => c.k === _ml.sort.col) || _ML_COLS[0], d = _ml.sort.dir;
-  lista.sort((a, b) => {
-    let x = col.v(a), y = col.v(b);
-    if (col.k === 'data') { x = x + ' ' + (a.horaIni||a.hora||''); y = y + ' ' + (b.horaIni||b.hora||''); }
-    return (typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y), 'pt-BR', { numeric:true })) * d;
-  });
+  const chave = new Map(lista.map(a => [a, col.k === 'data' ? (a.data||'') + ' ' + (a.horaIni||a.hora||'') : col.v(a)]));
+  const num = col.tipo === 'num';
+  lista.sort((a, b) => { const x = chave.get(a), y = chave.get(b); return (num ? x - y : (x < y ? -1 : x > y ? 1 : 0)) * d; });
   const tot = lista.reduce((s, a) => { s.hn += parseFloat(a.hn)||0; s.he += parseFloat(a.he)||0; return s; }, { hn:0, he:0 });
   tbody.innerHTML = lista.length
     ? _linhasLimitadas('tbody-apon-mo', lista, a => '<tr>' + _ML_COLS.map(c => `<td class="${c.tipo === 'num' || c.k === 'ini' || c.k === 'fim' || c.k === 'data' ? 'td-mono' : ''}">${c.fmt ? c.fmt(a) : _e(c.v(a)) || '—'}</td>`).join('')
@@ -8122,9 +8122,13 @@ function mlLimpar() { _ml.f = {}; renderListaMO(); }
     if (ap) document.querySelectorAll('#mo-cards-grid .mo-card').forEach(c => {
       const b = c.querySelector('[data-mo-nome]'); c.style.display = (b && b.getAttribute('data-mo-nome') === ap) ? '' : 'none';
     });
-    renderListaMO();
+    // a lista só é montada quando está aberta (com muitos registros pesa)
+    const lv = document.getElementById('mo-lista-view');
+    if (lv && lv.style.display !== 'none') renderListaMO();
     return r;
   };
+  const oTab = window.switchMOTab;
+  window.switchMOTab = function (tab) { const r = oTab.apply(this, arguments); if (tab === 'lista') renderListaMO(); return r; };
   const oLimpar = window.limparFiltrosMO;
   window.limparFiltrosMO = function () { const s = document.getElementById('filtro-mo-apontador'); if (s) s.value = ''; _ml.f = {}; return typeof oLimpar === 'function' ? oLimpar.apply(this, arguments) : renderMO(); };
 })();
