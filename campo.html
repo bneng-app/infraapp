@@ -312,6 +312,18 @@ select.form-control { cursor: pointer; }
 .ap-eq-campos .form-group { margin-bottom: 10px; }
 .ap-eq-campos .form-control { padding: 10px 12px; font-size: 14px; }
 .ap-sticky { padding:12px 16px; background:white; border-top:1px solid var(--border); position:sticky; bottom:0; z-index:2; }
+/* v2.11: o celular rola só a lista; frente + botão Próximo ficam fixos no topo */
+#screen-ap.active { height:100vh; height:100dvh; min-height:0; overflow:hidden; }
+#screen-ap > .content, #screen-ap > .content-no-pad { flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+.ap-topo { position:sticky; top:0; z-index:3; background:white; border-bottom:1px solid var(--border); box-shadow:0 2px 6px rgba(0,0,0,.05); }
+.ap-topo .ap-frente-resumo { border-bottom:none; padding-bottom:6px; }
+.ap-topo .ap-proximo { padding:0 16px 10px; }
+.ap-topo .ap-proximo .btn { padding:11px; font-size:14px; }
+.ap-aberto { display:flex; align-items:center; gap:12px; padding:14px 16px; background:white; border-bottom:1px solid var(--border); cursor:pointer; }
+.ap-aberto:active { background:var(--bg); }
+.ap-aberto-titulo { font-weight:700; font-size:14px; color:var(--text); }
+.ap-aberto-sub { font-size:12px; color:var(--text2); margin-top:2px; }
+.ap-tambem { display:inline-block; font-size:10px; font-weight:700; color:#B45309; background:#FEF3C7; border-radius:6px; padding:1px 6px; margin-left:4px; }
 .ap-hora-wrap { position: relative; }
 .ap-hora-wrap { display:flex; gap:8px; align-items:stretch; }
 .ap-hora-wrap .form-control { flex:1; min-width:0; }
@@ -469,7 +481,7 @@ select.form-control { cursor: pointer; }
     </button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">v2.10</div>
+  <div class="login-versao">v2.11</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -543,6 +555,7 @@ select.form-control { cursor: pointer; }
         <div style="font-size:13px;color:rgba(255,255,255,.5);cursor:pointer" onclick="showScreen('home')">← Voltar</div>
         <div class="topbar-title">Apropriação</div>
       </div>
+      <button class="btn btn-sm" id="ap-btn-abertos" style="background:rgba(255,255,255,.14);color:white;border:1px solid rgba(255,255,255,.25);display:none;margin-left:auto;margin-right:8px" onclick="apMostrarLista()">Abertos <span id="ap-n-abertos">0</span></button>
       <button class="btn btn-sm" id="ap-btn-qr" style="background:var(--red);color:white;border:none;display:none" onclick="abrirQR('ap')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
         QR Code
@@ -567,6 +580,14 @@ select.form-control { cursor: pointer; }
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
       Revisar
     </button>
+  </div>
+
+  <!-- 0) APONTAMENTOS EM ANDAMENTO (v2.11) -->
+  <div class="content-no-pad" id="ap-panel-lista" style="display:none">
+    <div style="padding:14px 16px 6px;font-size:13px;color:var(--text2)">Apontamentos em andamento. Toque em um para continuar ou encerrar.</div>
+    <div class="card" style="padding:0;overflow:hidden;margin:6px 16px 12px" id="ap-lista-abertos"></div>
+    <div style="padding:0 16px 20px"><button class="btn btn-primary" onclick="apNovo()">+ Novo apontamento</button>
+      <div style="font-size:11px;color:var(--text3);margin-top:8px">Pode abrir vários ao mesmo tempo — outra frente ou outra atividade na mesma frente.</div></div>
   </div>
 
   <!-- 1) FRENTE -->
@@ -601,7 +622,8 @@ select.form-control { cursor: pointer; }
 
   <!-- 2) MÃO DE OBRA -->
   <div class="content-no-pad" id="ap-panel-mo" style="display:none">
-    <div class="ap-frente-resumo" id="ap-resumo-mo"></div>
+    <div class="ap-topo"><div class="ap-frente-resumo" id="ap-resumo-mo"></div>
+      <div class="ap-proximo"><button class="btn btn-primary" onclick="apTab('eq')">Próximo → Equipamentos</button></div></div>
     <div style="padding:12px 16px;background:white;border-bottom:1px solid var(--border)">
       <div class="time-row">
         <div class="form-group" style="margin-bottom:10px"><label class="form-label">H. normais</label><input type="number" class="form-control" id="ap-hn" step="0.5" placeholder="8" oninput="ap.hnManual=true;apGuardar()"/></div>
@@ -617,12 +639,13 @@ select.form-control { cursor: pointer; }
       </div>
     </div>
     <div id="ap-mo-lista"></div>
-    <div class="ap-sticky"><button class="btn btn-primary" onclick="apTab('eq')">Próximo → Equipamentos</button></div>
+    <div class="bottom-safe"></div>
   </div>
 
   <!-- 3) EQUIPAMENTOS -->
   <div class="content-no-pad" id="ap-panel-eq" style="display:none">
-    <div class="ap-frente-resumo" id="ap-resumo-eq"></div>
+    <div class="ap-topo"><div class="ap-frente-resumo" id="ap-resumo-eq"></div>
+      <div class="ap-proximo"><button class="btn btn-primary" onclick="apTab('rev')">Próximo → Revisar</button></div></div>
     <div style="padding:12px 16px;background:white;border-bottom:1px solid var(--border)">
       <div class="search-bar">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -632,7 +655,7 @@ select.form-control { cursor: pointer; }
     </div>
     <div id="ap-eq-lista"></div>
     <datalist id="ap-operadores"></datalist>
-    <div class="ap-sticky"><button class="btn btn-primary" onclick="apTab('rev')">Próximo → Revisar</button></div>
+    <div class="bottom-safe"></div>
   </div>
 
   <!-- 4) REVISAR -->
@@ -671,6 +694,7 @@ select.form-control { cursor: pointer; }
       Encerrar turno e salvar
     </button>
     <button class="btn btn-outline" onclick="apContinuarDepois()" style="margin-bottom:12px">Continuar depois (fica em andamento)</button>
+    <button class="btn btn-outline" onclick="apContinuarDepois(true)" style="margin-bottom:12px">Guardar e abrir outro apontamento</button>
     <button class="btn btn-outline" onclick="apDescartar()" style="color:var(--red);font-size:13px">Descartar este apontamento</button>
     <div class="bottom-safe"></div>
   </div>
@@ -1657,7 +1681,7 @@ async function salvarEQ() {
 // APROPRIAÇÃO (v2.4) — frente primeiro, depois mão de obra e equipamentos
 // Grava nos mesmos formatos de sempre (aponMO / aponEQ), então o portal lê igual.
 // ══════════════════════════════════════════════════════════════
-const ap = { mo: new Set(), eq: new Map(), aba: 'frente', hnManual: false };
+const ap = { mo: new Set(), eq: new Map(), aba: 'frente', hnManual: false, uid: '' };
 
 // v2.5: o apontamento fica "em andamento" no celular até ser encerrado no fim do dia
 const _AP_CAMPOS = ['ap-frente','ap-servico','ap-data','ap-turno','ap-hora-ini','ap-hora-fim','ap-hn','ap-he','ap-qtd','ap-unid','ap-obs','ap-motivo-perda','ap-horas-perda'];
@@ -1692,38 +1716,95 @@ function apHoraValida(el) {
   if (el.id === 'ap-data') el.value = _hojeISO(); else el.value = el.id === 'ap-hora-ini' ? _hhmm(new Date()) : '';
   return false;
 }
+// v2.11: vários apontamentos em andamento ao mesmo tempo (lista no celular)
+function _apNovoUid() { return 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2,5); }
+function apRascunhos() {
+  let r = null; try { r = JSON.parse(localStorage.getItem(_apChave()) || 'null'); } catch (e) {}
+  if (!r) return [];
+  if (!Array.isArray(r)) r = r.campos ? [{ ...r, uid: r.uid || 'r0' }] : [];   // formato antigo (um só)
+  return r.filter(x => x && x.campos && x.campos['ap-frente']);
+}
+function _apGravarLista(l) { try { if (l.length) localStorage.setItem(_apChave(), JSON.stringify(l)); else localStorage.removeItem(_apChave()); } catch (e) {} }
 function apGuardar() {
+  const lista = apRascunhos().filter(x => x.uid !== ap.uid);
   // só existe "em andamento" depois de escolher a frente
-  if (!document.getElementById('ap-frente')?.value) { try { localStorage.removeItem(_apChave()); } catch (e) {} apAtualizarHome(); return; }
-  try {
+  if (document.getElementById('ap-frente')?.value) {
+    if (!ap.uid) ap.uid = _apNovoUid();
     const campos = {}; _AP_CAMPOS.forEach(id => { const el = document.getElementById(id); if (el) campos[id] = el.value; });
-    localStorage.setItem(_apChave(), JSON.stringify({ campos, mo: [...ap.mo], eq: [...ap.eq.entries()], hnManual: ap.hnManual, aba: ap.aba }));
-  } catch (e) {}
+    lista.push({ uid: ap.uid, campos, mo: [...ap.mo], eq: [...ap.eq.entries()], hnManual: ap.hnManual, aba: ap.aba, servicoTxt: document.getElementById('ap-servico')?.value || '' });
+  }
+  _apGravarLista(lista);
   apAtualizarHome();
 }
-function apRecuperar() {
-  try {
-    const r = JSON.parse(localStorage.getItem(_apChave()) || 'null'); if (!r || !r.campos || !r.campos['ap-frente']) return false;
-    Object.entries(r.campos || {}).forEach(([id, v]) => { const el = document.getElementById(id); if (el && v !== undefined) el.value = v; });
-    ap.mo = new Set(r.mo || []); ap.eq = new Map(r.eq || []); ap.hnManual = !!r.hnManual; ap.aba = r.aba || 'frente';
-    return !!(r.campos && r.campos['ap-frente']);
-  } catch (e) { return false; }
+function _apLimparForm() {
+  ap.mo = new Set(); ap.eq = new Map(); ap.hnManual = false; ap.uid = ''; ap.aba = 'frente';
+  _AP_CAMPOS.forEach(id => { const el = document.getElementById(id); if (el && id !== 'ap-unid') el.value = ''; });
+  ['ap-mo-busca','ap-eq-busca'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
 }
-function apLimparRascunho() { try { localStorage.removeItem(_apChave()); } catch (e) {} apAtualizarHome(); }
+function apAbrir(uid) {
+  const r = apRascunhos().find(x => x.uid === uid); if (!r) return false;
+  _apLimparForm();
+  Object.entries(r.campos || {}).forEach(([id, v]) => { const el = document.getElementById(id); if (el && v !== undefined) el.value = v; });
+  ap.mo = new Set(r.mo || []); ap.eq = new Map(r.eq || []); ap.hnManual = !!r.hnManual; ap.aba = r.aba || 'frente'; ap.uid = r.uid;
+  apAtualizarContadores();
+  apTab(ap.aba === 'frente' || ap.aba === 'lista' ? 'frente' : ap.aba);
+  return true;
+}
+function apNovo() {
+  _apLimparForm();
+  document.getElementById('ap-data').value = _hojeISO();
+  apAgora('ap-hora-ini');
+  apAtualizarContadores(); apTab('frente');
+}
+// compatibilidade: abre o mais recente
+function apRecuperar() { const l = apRascunhos(); return l.length ? apAbrir(l[l.length - 1].uid) : false; }
+function apLimparRascunho() { _apGravarLista(apRascunhos().filter(x => x.uid !== ap.uid)); _apLimparForm(); apAtualizarHome(); }
+function _apNomeFrente(cod) { const f = dadosCampo.frentes.find(x => x.cod === cod); return f ? (f.desc || f.nome || '') : ''; }
+function apMostrarLista() {
+  if (document.getElementById('ap-frente')?.value) apGuardar();
+  const l = apRascunhos();
+  if (!l.length) { apNovo(); return; }
+  document.getElementById('ap-lista-abertos').innerHTML = l.map(r => {
+    const c = r.campos, d = (c['ap-data'] || '').split('-').reverse().join('/');
+    const atual = r.uid === ap.uid;
+    return `<div class="ap-aberto" onclick="apAbrir('${_esc(r.uid)}')">
+      <div class="list-avatar" style="background:var(--red)">${_esc(String(c['ap-frente']).slice(-2))}</div>
+      <div style="flex:1;min-width:0"><div class="ap-aberto-titulo">${_esc(c['ap-frente'])} — ${_esc(_apNomeFrente(c['ap-frente']))}</div>
+        <div class="ap-aberto-sub">${_esc(c['ap-servico'] || 'sem serviço')}</div>
+        <div class="ap-aberto-sub">${d} · entrada ${_esc(c['ap-hora-ini'] || '—')} · ${(r.mo||[]).length} pessoa(s) · ${(r.eq||[]).length} equip.${atual ? ' · <strong>aberto agora</strong>' : ''}</div></div>
+      <div style="color:var(--text3);font-size:20px">›</div></div>`;
+  }).join('');
+  ap.aba = 'lista';
+  ['frente','mo','eq','rev','lista'].forEach(t => document.getElementById('ap-panel-' + t).style.display = t === 'lista' ? '' : 'none');
+  ['frente','mo','eq','rev'].forEach(t => document.getElementById('ap-tab-' + t).classList.remove('active'));
+  document.getElementById('ap-btn-qr').style.display = 'none';
+  _apBotaoAbertos();
+}
+function _apBotaoAbertos() {
+  const n = apRascunhos().length, b = document.getElementById('ap-btn-abertos');
+  if (b) { b.style.display = n ? '' : 'none'; document.getElementById('ap-n-abertos').textContent = n; }
+}
 function apAtualizarHome() {
+  _apBotaoAbertos();
   const b = document.getElementById('badge-ap'); if (!b) return;
-  let r = null; try { r = JSON.parse(localStorage.getItem(_apChave()) || 'null'); } catch (e) {}
-  if (r && r.campos && r.campos['ap-frente']) {
-    b.style.display = ''; b.textContent = 'Em andamento · ' + r.campos['ap-frente'] + (r.campos['ap-hora-ini'] ? ' · entrada ' + r.campos['ap-hora-ini'] : '');
-  } else b.style.display = 'none';
+  const l = apRascunhos();
+  if (l.length === 1) { const c = l[0].campos; b.style.display = ''; b.textContent = 'Em andamento · ' + c['ap-frente'] + (c['ap-hora-ini'] ? ' · entrada ' + c['ap-hora-ini'] : ''); }
+  else if (l.length > 1) { b.style.display = ''; b.textContent = l.length + ' em andamento · ' + [...new Set(l.map(r => r.campos['ap-frente']))].join(', '); }
+  else b.style.display = 'none';
 }
-function apContinuarDepois() { apGuardar(); toast('Apontamento guardado. Volte no fim do dia para encerrar.', 'ok'); showScreen('home'); }
+function apContinuarDepois(abrirOutro) {
+  apGuardar();
+  if (abrirOutro) { toast('Guardado. Abrindo um novo apontamento.', 'ok'); apNovo(); return; }
+  toast('Apontamento guardado. Volte no fim do dia para encerrar.', 'ok'); showScreen('home');
+}
 function apDescartar() {
   if (!confirm('Descartar este apontamento? Nada foi enviado ainda.')) return;
-  ap.mo.clear(); ap.eq.clear(); ap.hnManual = false;
-  _AP_CAMPOS.forEach(id => { const el = document.getElementById(id); if (el && id !== 'ap-unid') el.value = ''; });
-  document.getElementById('ap-data').value = _hojeISO();
-  apLimparRascunho(); apAgora('ap-hora-ini'); apAtualizarContadores(); apTab('frente');
+  apLimparRascunho();
+  if (apRascunhos().length) apMostrarLista(); else apNovo();
+}
+// pessoas/equipamentos que já estão em outro apontamento aberto
+function _apOutros(tipo, id) {
+  return apRascunhos().filter(r => r.uid !== ap.uid && (tipo === 'mo' ? (r.mo||[]).includes(id) : (r.eq||[]).some(e => e[0] === id))).map(r => r.campos['ap-frente']);
 }
 
 function _esc(t) { return String(t ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -1751,14 +1832,9 @@ function iniciarApropriacao() {
   sel('ap-servico', 'Selecione o serviço…', dadosCampo.tiposServico.map(t => `<option value="${_esc(t.nome||t.desc||t.cod)}">${_esc(t.nome||t.desc||t.cod)}${t.unidade?' ('+_esc(t.unidade)+')':''}</option>`));
   sel('ap-turno', 'Selecione o turno…', dadosCampo.turnos.map(t => { const h=_apHorasTurno(t); return `<option value="${_esc(t.id||t.cod)}">${_esc(t.nome||t.cod)}${h.ini?' ('+h.ini+'–'+h.fim+')':''}</option>`; }));
   sel('ap-motivo-perda', 'Nenhuma', dadosCampo.tiposPerdas.map(t => `<option value="${_esc(t.cod)}">${_esc(t.cod)} — ${_esc(t.nome||t.desc||'')}</option>`));
-  // v2.5: retoma o apontamento em andamento, se houver; senão abre um novo com a hora do celular
-  const emAndamento = apRecuperar();
-  if (!document.getElementById('ap-data').value) document.getElementById('ap-data').value = hoje;
-  // apontamento novo: a entrada é sempre a hora do celular agora
-  if (!emAndamento && !document.getElementById('ap-frente').value) { document.getElementById('ap-hora-fim').value = ''; apAgora('ap-hora-ini'); }
-  if (emAndamento) toast('Apontamento em andamento retomado (entrada ' + document.getElementById('ap-hora-ini').value + ').', 'ok');
-  apAtualizarContadores();
-  apTab(ap.aba === 'frente' || !document.getElementById('ap-frente').value ? 'frente' : ap.aba);
+  // v2.11: com apontamentos em andamento, mostra a lista (continuar um ou abrir outro); senão abre um novo
+  if (apRascunhos().length) { apMostrarLista(); return; }
+  apNovo();
 }
 
 function _hhmm(d) { return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); }
@@ -1806,6 +1882,7 @@ function apTab(aba) {
   const temFrente = !!document.getElementById('ap-frente').value;
   if (aba !== 'frente' && !temFrente) { toast('Escolha a frente de serviço primeiro.', 'err'); aba = 'frente'; }
   ap.aba = aba;
+  document.getElementById('ap-panel-lista').style.display = 'none';
   ['frente','mo','eq','rev'].forEach(t => {
     document.getElementById('ap-panel-' + t).style.display = t === aba ? '' : 'none';
     const b = document.getElementById('ap-tab-' + t);
@@ -1819,7 +1896,8 @@ function apTab(aba) {
   if (aba === 'eq') apRenderEQ();
   if (aba === 'rev') { document.getElementById('ap-rev-ini').value = document.getElementById('ap-hora-ini').value; apMontarResumo(); }
   if (document.getElementById('ap-frente').value) apGuardar();
-  window.scrollTo(0,0);
+  _apBotaoAbertos();
+  window.scrollTo(0,0); const pn = document.getElementById('ap-panel-' + aba); if (pn) pn.scrollTop = 0;
 }
 
 function apResumoFrente() {
@@ -1851,7 +1929,7 @@ function apRenderMO() {
     return `<div class="list-item ${sel?'selected':''}" onclick="apToggleMO('${_esc(f.id)}')">
       <div class="list-avatar" style="${sel?'background:var(--red)':''}">${_esc(ini)}</div>
       <div style="flex:1;min-width:0"><div class="list-name">${_esc(f.nome)}</div>
-      <div class="list-sub">Mat. ${_esc(f.mat||'—')} · ${_esc(f.codFuncao||f.funcao||'—')}</div></div>
+      <div class="list-sub">Mat. ${_esc(f.mat||'—')} · ${_esc(f.codFuncao||f.funcao||'—')}${_apOutros('mo', f.id).map(fr => '<span class="ap-tambem">também em ' + _esc(fr) + '</span>').join('')}</div></div>
       <div class="list-check"></div></div>`;
   }).join('') + '</div>' : '<div class="ap-vazio">Nenhum funcionário encontrado</div>';
   apAtualizarContadores();
@@ -1881,7 +1959,7 @@ function apRenderEQ() {
       <div class="list-item ${sel?'selected':''}" onclick="apToggleEQ('${id}')" style="border-bottom:none">
         <div class="list-avatar eq-icon" style="${sel?'background:var(--red)':''}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${sel?'white':'#1E2A3A'}" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></div>
         <div style="flex:1;min-width:0"><div class="list-name">${_esc(e.tag||e.placa)}</div>
-        <div class="list-sub">${_esc(e.placa||'—')} · ${_esc(e.familia||e.codFamilia||'—')}</div></div>
+        <div class="list-sub">${_esc(e.placa||'—')} · ${_esc(e.familia||e.codFamilia||'—')}${_apOutros('eq', e.id).map(fr => '<span class="ap-tambem">também em ' + _esc(fr) + '</span>').join('')}</div></div>
         <div class="list-check"></div>
       </div>
       ${sel ? `<div class="ap-eq-campos" onclick="event.stopPropagation()">
@@ -1966,13 +2044,8 @@ async function salvarApropriacao() {
   } finally { btn.disabled = false; }
   toast(`Turno encerrado (${horaIni}–${horaFim}): ${nMO} pessoa(s) e ${nEQ} equipamento(s)` + (isOnline ? '' : ' — offline, sincroniza depois'), 'ok');
   // limpa para a próxima frente (mantém data e turno)
-  ap.mo.clear(); ap.eq.clear(); ap.hnManual = false;
   apLimparRascunho();
-  ['ap-frente','ap-servico','ap-qtd','ap-obs','ap-horas-perda','ap-mo-busca','ap-eq-busca','ap-hora-ini','ap-hora-fim'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-  document.getElementById('ap-motivo-perda').value = '';
-  apAtualizarContadores();
-  apAgora('ap-hora-ini');
-  apTab('frente');
+  if (apRascunhos().length) apMostrarLista(); else apNovo();
 }
 
 // ══════════════════════════════════════════════════════════════
