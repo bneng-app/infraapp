@@ -310,7 +310,7 @@ textarea.form-control{resize:vertical;min-height:72px}
         <a href="#" onclick="esqueciSenha();return false" style="font-size:13px;color:#1B2C6E;text-decoration:none">Esqueci minha senha</a>
       </div>
     </div>
-    <div style="text-align:center;margin-top:1rem;font-size:11px;color:#aaa">ObraControl v2.19 · Controle de Mão de Obra e Equipamentos</div>
+    <div style="text-align:center;margin-top:1rem;font-size:11px;color:#aaa">ObraControl v2.20 · Controle de Mão de Obra e Equipamentos</div>
   </div>
 </div>
 
@@ -2753,6 +2753,10 @@ textarea.form-control{resize:vertical;min-height:72px}
         <label class="form-label">Selecione o arquivo (.xlsx ou .csv)</label>
         <input type="file" id="import-file" class="form-control" accept=".xlsx,.xls,.csv" style="padding:6px"/>
       </div>
+      <label id="import-custo-wrap" style="display:flex;gap:8px;align-items:flex-start;font-size:13px;cursor:pointer;margin-top:4px">
+        <input type="checkbox" id="import-atualizar-custo" style="margin-top:3px"/>
+        <span><strong>Atualizar custos dos cadastros que já existem</strong><br><span style="font-size:11px;color:var(--text-3)">Cargos: custo/hora, adicional HE e adicional domingo/feriado. Equipamentos: custo/hora. Nada mais é alterado, e célula de custo em branco não apaga o valor atual.</span></span>
+      </label>
       <div id="import-preview" style="margin-top:1rem;font-size:12px;color:var(--text-3);background:var(--bg);padding:10px;border-radius:6px;display:none"></div>
       <input type="hidden" id="import-tipo"/>
     </div>
@@ -7619,7 +7623,20 @@ function _importarLinhas(tipo, rows, resumo) {
     const chave = String(item[def.chave]).toLowerCase();
     const chaveDe = x => def.chave === '_chave' ? (x._chave || (x.data + '|' + (tipo === 'aponMO' ? x.mat : x.equip) + '|' + x.frente + '|' + (x.horaIni || x.hora))) : x[def.chave];
     const existe = lista.concat(novos).some(x => String(chaveDe(x)||'').toLowerCase() === chave && (!def.porObra || (x.obra||'') === obraId));
-    if (existe) { r.dup++; return; }
+    if (existe) {
+      // v2.20: atualizar só os custos de quem já existe
+      if (document.getElementById('import-atualizar-custo')?.checked && (tipo === 'cargos' || tipo === 'equipamentos')) {
+        const x = lista.find(y => String(chaveDe(y)||'').toLowerCase() === chave && (!def.porObra || (y.obra||'') === obraId));
+        const temCol = kws => headers.some((h, j) => j !== idxObra && kws.some(k => h.includes(k)) && row[j] !== undefined && row[j] !== null && String(row[j]).trim() !== '');
+        const mud = {};
+        if (temCol(['custo'])) mud.custoHora = item.custoHora;
+        if (tipo === 'cargos' && temCol(['adicional he','% he','hora extra'])) mud.adicHE = item.adicHE;
+        if (tipo === 'cargos' && temCol(['domingo','feriado'])) mud.adicDF = item.adicDF;
+        const mudou = x && Object.keys(mud).some(k => Number(x[k]) !== Number(mud[k]));
+        if (mudou) { Object.assign(x, mud); (window.__impAtualizados = window.__impAtualizados || []).push([tipo, x]); r.atual = (r.atual||0) + 1; return; }
+      }
+      r.dup++; return;
+    }
     item.id = tipo.slice(0,3) + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
     novos.push(item); r.ok++;
   });
@@ -7658,6 +7675,7 @@ window.abrirImportacao = function (tipo) {
   const $ = k => document.getElementById(k);
   if ($('import-titulo')) $('import-titulo').textContent = tipo === 'pacote' ? 'Importar pacote completo' : 'Importar ' + (IMPORT_DEF[tipo]?.rotulo || tipo);
   if ($('import-tipo')) $('import-tipo').value = tipo;
+  if ($('import-custo-wrap')) { $('import-custo-wrap').style.display = ['pacote','cargos','equipamentos'].includes(tipo) ? 'flex' : 'none'; $('import-atualizar-custo').checked = false; }
   const f = $('import-file'); if (f) { f.value = ''; f.onchange = function () { previewImport(this); }; }
   const pv = $('import-preview'); if (pv) { pv.innerHTML = tipo === 'pacote'
     ? 'Um arquivo Excel com <strong>uma aba por cadastro</strong> (Obras, Empresas, UA, Cargos, Famílias, Modelos, Frentes, Tipos de serviço, Turnos, Tipos de perda, Funcionários, Equipamentos e, opcional, Apontamentos MO / Apontamentos EQ). A importação segue essa ordem. Registros com código que já existe são ignorados.'
@@ -7697,17 +7715,22 @@ window.confirmarImportacao = async function () {
       const abas = {};
       if (tipo === 'pacote') wb.SheetNames.forEach(n => { const t = _ABA_TIPO[_normAba(n)]; if (t && !abas[t]) abas[t] = n; });
       else abas[tipo] = wb.SheetNames[0];
+      window.__impAtualizados = [];
       for (const t of IMPORT_ORDEM) {
         if (!abas[t]) continue;
         const rows = XLSX.utils.sheet_to_json(wb.Sheets[abas[t]], { header:1, defval:'' });
         const novos = _importarLinhas(t, rows, resumo);
         falhas += await _gravarImportados(t, novos);
       }
+      if (db && _firebaseReady && window.__impAtualizados.length) {
+        const rs = await Promise.allSettled(window.__impAtualizados.map(([t, x]) => fbSave(t, x.id, x)));
+        falhas += rs.filter(x => x.status === 'rejected').length;
+      }
       try { _rerenderTelaAtual(); } catch (x) {}
       ['renderObras','renderEmpresas','renderUA','renderCargos','renderTurnos','renderFuncionarios','renderFamilias','renderModelos','renderEquipamentos','renderFrentes','renderTiposServico','renderServicos','renderTiposPerdas']
         .forEach(fn => { try { if (typeof window[fn] === 'function') window[fn](); } catch (x) {} });
       try { popularSelects(); } catch (x) {}
-      const linhas = Object.entries(resumo).map(([t, r]) => '<strong>' + IMPORT_DEF[t].rotulo + ':</strong> ' + r.ok + ' importado(s)' + (r.dup ? ', ' + r.dup + ' já existiam' : '') + (r.erro ? ', <span style="color:var(--red)">' + r.erro + ' com erro</span> (' + r.avisos.join('; ') + ')' : ''));
+      const linhas = Object.entries(resumo).map(([t, r]) => '<strong>' + IMPORT_DEF[t].rotulo + ':</strong> ' + r.ok + ' importado(s)' + (r.atual ? ', <strong>' + r.atual + ' com custo atualizado</strong>' : '') + (r.dup ? ', ' + r.dup + ' já existiam' : '') + (r.erro ? ', <span style="color:var(--red)">' + r.erro + ' com erro</span> (' + r.avisos.join('; ') + ')' : ''));
       const total = Object.values(resumo).reduce((a, r) => a + r.ok, 0);
       const pv = document.getElementById('import-preview');
       pv.style.display = 'block';
