@@ -306,7 +306,7 @@ textarea.form-control{resize:vertical;min-height:72px}
         <a href="#" onclick="esqueciSenha();return false" style="font-size:13px;color:#1B2C6E;text-decoration:none">Esqueci minha senha</a>
       </div>
     </div>
-    <div style="text-align:center;margin-top:1rem;font-size:11px;color:#aaa">ObraControl v2.9 · Controle de Mão de Obra e Equipamentos</div>
+    <div style="text-align:center;margin-top:1rem;font-size:11px;color:#aaa">ObraControl v2.10 · Controle de Mão de Obra e Equipamentos</div>
   </div>
 </div>
 
@@ -3516,6 +3516,12 @@ async function salvarUsuario() {
   };
   if (perfil==='Admin') Object.keys(perms).forEach(k=>perms[k]=true);
 
+  // v2.10: trocar o login (e-mail ou matrícula) exige definir a senha do novo acesso
+  if (existente && (existente.email||'').toLowerCase() !== email && !senha) {
+    toast('Você mudou o login deste usuário. Defina uma senha (mínimo 6 caracteres) para criar o novo acesso.', 'error');
+    document.getElementById('usr-senha')?.focus();
+    return;
+  }
   // v2.2: a senha vira um acesso de verdade no Firebase (antes ficava só na memória e ninguém conseguia entrar)
   // v2.6: na edição, preencher a senha REDEFINE a senha:
   //   - você mesma: troca na hora
