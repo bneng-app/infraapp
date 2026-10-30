@@ -364,13 +364,14 @@ select.form-control { cursor: pointer; }
 }
 .qr-overlay.show { display: flex; }
 .qr-box {
-  width: 260px; height: 260px;
+  width: min(88vw, 420px); height: auto; min-height: min(88vw, 420px);
   border: 3px solid var(--red);
   border-radius: 20px;
   position: relative;
   overflow: hidden;
 }
-#qr-reader { width: 100%; height: 100%; }
+#qr-reader { width: 100%; }
+#qr-reader video { width: 100% !important; height: auto !important; object-fit: cover; }
 .qr-close {
   position: absolute; top: 40px; right: 20px;
   background: rgba(255,255,255,.2); border: none;
@@ -453,7 +454,7 @@ select.form-control { cursor: pointer; }
 <div class="qr-overlay" id="qr-overlay">
   <button class="qr-close" onclick="fecharQR()">×</button>
   <div class="qr-box"><div id="qr-reader"></div></div>
-  <div class="qr-label">Aponte para o QR Code do crachá ou equipamento</div>
+  <div class="qr-label">Aponte para <strong>um</strong> QR Code por vez, a uns 15–20 cm</div>
 </div>
 
 <!-- ══════════════ SCREEN: LOGIN ══════════════ -->
@@ -481,7 +482,7 @@ select.form-control { cursor: pointer; }
     </button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">v2.13</div>
+  <div class="login-versao">v2.14</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -1289,17 +1290,23 @@ function abrirQR(contexto) {
   const overlay = document.getElementById('qr-overlay');
   overlay.classList.add('show');
 
+  // v2.14: leitor mais sensível — só QR, usa o leitor nativo do celular quando existe,
+  // lê numa área maior (80% da imagem) e pede imagem em resolução melhor
   if (!qrScanner) {
-    qrScanner = new Html5Qrcode('qr-reader');
+    const cfg = { verbose: false, experimentalFeatures: { useBarCodeDetectorIfSupported: true } };
+    try { cfg.formatsToSupport = [Html5QrcodeSupportedFormats.QR_CODE]; } catch (e) {}
+    qrScanner = new Html5Qrcode('qr-reader', cfg);
   }
 
   qrScanner.start(
     { facingMode: 'environment' },
-    { fps: 10, qrbox: { width: 220, height: 220 } },
+    { fps: 15, qrbox: (w, h) => { const m = Math.max(150, Math.floor(Math.min(w, h) * 0.8)); return { width: m, height: m }; },
+      aspectRatio: 1, disableFlip: false, videoConstraints: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 1280 } } },
     (text) => {
-      qrScanner.stop().catch(()=>{});
+      // v2.14: antes a câmera era desligada duas vezes e o erro impedia de marcar a pessoa
+      if (qrLendo) return; qrLendo = true;
       fecharQR();
-      processarQR(text, contexto);
+      try { processarQR(text, contexto); } finally { setTimeout(() => qrLendo = false, 800); }
     },
     () => {}
   ).catch(e => {
@@ -1308,10 +1315,15 @@ function abrirQR(contexto) {
   });
 }
 
+let qrLendo = false;
 function fecharQR() {
   const overlay = document.getElementById('qr-overlay');
   overlay.classList.remove('show');
-  if (qrScanner) { qrScanner.stop().catch(()=>{}); }
+  if (!qrScanner) return;
+  try {
+    const st = qrScanner.getState ? qrScanner.getState() : 2;
+    if (st === 2 || st === 3) qrScanner.stop().catch(() => {});   // 2 = lendo, 3 = pausado
+  } catch (e) { /* já está desligando */ }
 }
 
 function processarQR(texto, contexto) {
