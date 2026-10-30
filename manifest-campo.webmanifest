@@ -1,0 +1,18 @@
+{
+  "name": "ObraControl Campo — Tenco",
+  "short_name": "ObraControl",
+  "description": "Apropriação de mão de obra e equipamentos nas obras",
+  "id": "./campo.html",
+  "start_url": "./campo.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1E2A3A",
+  "theme_color": "#1E2A3A",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

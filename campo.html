@@ -8,6 +8,10 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#1E2A3A"/>
 <title>ObraControl Campo</title>
+<link rel="manifest" href="manifest-campo.webmanifest"/>
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png"/>
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png"/>
+<meta name="apple-mobile-web-app-title" content="ObraControl"/>
 
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -312,6 +316,12 @@ select.form-control { cursor: pointer; }
 .ap-hora-wrap { display:flex; gap:8px; align-items:stretch; }
 .ap-hora-wrap .form-control { flex:1; min-width:0; }
 .ap-agora { flex:0 0 auto; border:none; border-radius:8px; background:var(--navy); color:white; font-size:13px; font-weight:700; padding:0 16px; cursor:pointer; border-radius:var(--radius-sm); }
+.instalar-box { margin: 14px auto 0; max-width: 420px; width: 100%; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.15); border-radius: 14px; padding: 12px 14px; color: rgba(255,255,255,.85); font-size: 13px; display: none; }
+.instalar-box.show { display: block; }
+.instalar-box button { margin-top: 10px; }
+.instalar-box b { color: white; }
+.home-instalar { margin: 0 16px 16px; display: none; }
+.home-instalar.show { display: block; }
 .ap-vazio { padding:40px 20px; text-align:center; color:var(--text3); font-size:14px; }
 .time-row .form-group { flex: 1; }
 .time-big {
@@ -458,7 +468,8 @@ select.form-control { cursor: pointer; }
       Entrar
     </button>
   </div>
-  <div class="login-versao">v2.5</div>
+  <div class="instalar-box" id="instalar-login"></div>
+  <div class="login-versao">v2.6</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -510,6 +521,8 @@ select.form-control { cursor: pointer; }
       <div class="module-card-badge" style="background:#F5F5F5;color:var(--text3)" id="badge-pendentes">Sincronizar</div>
     </div>
   </div>
+
+  <div class="home-instalar" id="instalar-home"></div>
 
   <!-- Botão sync manual -->
   <div style="padding:0 16px 16px">
@@ -1999,6 +2012,39 @@ function toast(msg, tipo) {
   c.appendChild(d);
   setTimeout(() => d.remove(), 3000);
 }
+
+
+// ══════════════════════════════════════════════════════════════
+// APP INSTALÁVEL (v2.6) — ícone na tela inicial e abre sem internet
+// ══════════════════════════════════════════════════════════════
+let _promptInstalar = null;
+function _jaInstalado() { return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true; }
+function _ehIOS() { return /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); }
+function atualizarAvisoInstalar() {
+  const alvos = [['instalar-login', true], ['instalar-home', false]];
+  alvos.forEach(([id, escuro]) => {
+    const el = document.getElementById(id); if (!el) return;
+    let html = '';
+    if (_jaInstalado()) html = '';
+    else if (_promptInstalar) html = (escuro ? '<b>Instale o app no celular</b><br>Fica com ícone na tela inicial e abre mesmo sem internet.' : '')
+      + '<button class="btn ' + (escuro ? 'btn-primary' : 'btn-outline') + '" onclick="instalarApp()">📲 Instalar o app ObraControl</button>';
+    else if (_ehIOS()) html = '<b>Instalar no iPhone:</b> toque em <b>Compartilhar</b> <span style="font-size:15px">⬆️</span> na barra do Safari e depois em <b>Adicionar à Tela de Início</b>.';
+    el.innerHTML = html;
+    el.classList.toggle('show', !!html && (escuro || !!_promptInstalar));
+  });
+}
+async function instalarApp() {
+  if (!_promptInstalar) return;
+  _promptInstalar.prompt();
+  try { const r = await _promptInstalar.userChoice; if (r.outcome === 'accepted') toast('App instalado! Procure o ícone ObraControl.', 'ok'); } catch (e) {}
+  _promptInstalar = null; atualizarAvisoInstalar();
+}
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); _promptInstalar = e; atualizarAvisoInstalar(); });
+window.addEventListener('appinstalled', () => { _promptInstalar = null; atualizarAvisoInstalar(); });
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW:', e)); });
+}
+document.addEventListener('DOMContentLoaded', atualizarAvisoInstalar);
 
 // ══════════════════════════════════════════════════════════════
 // INIT
