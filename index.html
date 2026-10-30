@@ -306,7 +306,7 @@ textarea.form-control{resize:vertical;min-height:72px}
         <a href="#" onclick="esqueciSenha();return false" style="font-size:13px;color:#1B2C6E;text-decoration:none">Esqueci minha senha</a>
       </div>
     </div>
-    <div style="text-align:center;margin-top:1rem;font-size:11px;color:#aaa">ObraControl v2.10 · Controle de Mão de Obra e Equipamentos</div>
+    <div style="text-align:center;margin-top:1rem;font-size:11px;color:#aaa">ObraControl v2.11 · Controle de Mão de Obra e Equipamentos</div>
   </div>
 </div>
 
@@ -2700,13 +2700,25 @@ textarea.form-control{resize:vertical;min-height:72px}
     <div class="modal-header"><span class="modal-title" id="modal-usr-titulo">Novo Usuário</span><button class="modal-close" onclick="closeModal('modal-novo-usuario')">×</button></div>
     <div class="modal-body">
       <input type="hidden" id="usr-edit-id"/>
+      <div id="usr-aviso-campo" style="display:none;background:var(--blue-light);border:1px solid #B5D4F4;border-radius:8px;padding:10px 12px;font-size:12px;color:var(--blue);margin-bottom:1rem">
+        📱 <strong>Apontador de campo:</strong> entra no app com <strong>matrícula e senha</strong>, sem e-mail. Link do app: <strong>bneng-app.github.io/infraapp/campo.html</strong>
+      </div>
       <div class="form-grid">
+        <div class="form-group form-full"><label class="form-label">Perfil *</label>
+          <select class="form-control" id="usr-perfil" onchange="usrPerfilMudou()">
+            <option value="Colaborador">Colaborador — apontador de campo</option>
+            <option value="Supervisor">Supervisor</option>
+            <option value="Abastecedor">Abastecedor</option>
+            <option value="Admin">Admin</option>
+          </select>
+          <div class="form-hint" id="hint-abastecedor" style="display:none;color:var(--blue)">⛽ Acesso somente ao módulo de Diesel e Notas Fiscais</div>
+        </div>
         <div class="form-group"><label class="form-label">Nome completo *</label><input class="form-control" id="usr-nome" placeholder="José da Silva"/></div>
-        <div class="form-group"><label class="form-label">E-mail</label><input class="form-control" id="usr-email" type="email" placeholder="jose@email.com" oninput="(function(el){const l=document.getElementById('usr-login'); if(l && l.dataset.manual!=='1') l.value=gerarLogin(el.value);})(this)"/>
+        <div class="form-group usr-so-portal"><label class="form-label">E-mail</label><input class="form-control" id="usr-email" type="email" placeholder="jose@email.com" oninput="(function(el){const l=document.getElementById('usr-login'); if(l && l.dataset.manual!=='1') l.value=gerarLogin(el.value);})(this)"/>
           <div style="font-size:11px;color:var(--text-3);margin-top:3px">Obrigatório para quem usa o portal. Pessoal de campo pode deixar em branco.</div></div>
-        <div class="form-group"><label class="form-label">Login do portal</label><input class="form-control" id="usr-login" placeholder="gerado a partir do e-mail" autocapitalize="off" spellcheck="false" oninput="this.dataset.manual='1'"/>
+        <div class="form-group usr-so-portal"><label class="form-label">Login do portal</label><input class="form-control" id="usr-login" placeholder="gerado a partir do e-mail" autocapitalize="off" spellcheck="false" oninput="this.dataset.manual='1'"/>
           <div style="font-size:11px;color:var(--text-3);margin-top:3px">É o que a pessoa digita para entrar no painel. Pode ajustar se quiser.</div></div>
-        <div class="form-group"><label class="form-label">Matrícula (login no app de campo)</label><input class="form-control" id="usr-mat" placeholder="Ex.: 001234" inputmode="numeric"/></div>
+        <div class="form-group"><label class="form-label" id="usr-mat-lbl">Matrícula (login no app de campo)</label><input class="form-control" id="usr-mat" placeholder="Ex.: 001234" inputmode="numeric"/></div>
         <div class="form-group"><label class="form-label">Senha *</label>
           <div style="position:relative">
             <input class="form-control" id="usr-senha" type="password" placeholder="mínimo 6 caracteres" style="padding-right:36px" autocomplete="new-password"/>
@@ -2714,28 +2726,19 @@ textarea.form-control{resize:vertical;min-height:72px}
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
           </div>
-          <div style="font-size:11px;color:var(--text-3);margin-top:3px">Na edição, preencha só para redefinir. Outros usuários do portal recebem um link por e-mail.</div>
+          <div style="font-size:11px;color:var(--text-3);margin-top:3px" id="usr-senha-dica">Na edição, preencha só para redefinir. Outros usuários do portal recebem um link por e-mail.</div>
         </div>
-        <div class="form-group"><label class="form-label">Perfil *</label>
-          <select class="form-control" id="usr-perfil" onchange="togglePermAbastecedor()">
-            <option value="Colaborador">Colaborador</option>
-            <option value="Supervisor">Supervisor</option>
-            <option value="Abastecedor">Abastecedor</option>
-            <option value="Admin">Admin</option>
-          </select>
-          <div class="form-hint" id="hint-abastecedor" style="display:none;color:var(--blue)">⛽ Acesso somente ao módulo de Diesel e Notas Fiscais</div>
-        </div>
-        <div class="form-group"><label class="form-label">Empresa</label>
+        <div class="form-group usr-so-portal"><label class="form-label">Empresa</label>
           <select class="form-control" id="usr-empresa"><option value="">Selecione…</option></select>
         </div>
-        <div class="form-group"><label class="form-label">Obra vinculada</label>
+        <div class="form-group"><label class="form-label" id="usr-obra-lbl">Obra vinculada</label>
           <select class="form-control" id="usr-obra"><option value="">Todas as obras (Admin)</option></select>
           <div class="form-hint">Supervisores e Colaboradores são vinculados a uma obra específica</div>
         </div>
-        <div class="form-group"><label class="form-label">Cargo / Função</label>
+        <div class="form-group usr-so-portal"><label class="form-label">Cargo / Função</label>
           <input class="form-control" id="usr-cargo" placeholder="Ex.: Apontador, Engenheiro, Gerente"/>
         </div>
-        <div class="form-group"><label class="form-label">Telefone</label>
+        <div class="form-group usr-so-portal"><label class="form-label">Telefone</label>
           <input class="form-control" id="usr-tel" placeholder="(11) 99999-9999"/>
         </div>
         <div class="form-group"><label class="form-label">Status</label>
@@ -2745,6 +2748,7 @@ textarea.form-control{resize:vertical;min-height:72px}
           </select>
         </div>
       </div>
+      <div id="usr-perms-bloco">
       <div class="divider" style="margin:.75rem 0"></div>
       <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.75rem">Permissões por módulo</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
@@ -2754,6 +2758,7 @@ textarea.form-control{resize:vertical;min-height:72px}
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="perm-dashboards" checked/> Dashboards</label>
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="perm-qrcodes"/> QR Codes</label>
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="perm-config"/> Configurações ADM</label>
+      </div>
       </div>
     </div>
     <div class="modal-footer">
@@ -7085,6 +7090,46 @@ if (typeof drawGauge !== 'function') window.drawGauge = function(id, valor, meta
       const t = $(c.modal)?.querySelector('.modal-title'); if (t) t.textContent = c.novo;
     }
     return r;
+  };
+})();
+
+
+// ═══════════════════════════════════════════════════════════════
+// v2.11: PERFIL PRIMEIRO — Colaborador (apontador de campo) tem cadastro simples
+// ═══════════════════════════════════════════════════════════════
+function usrPerfilMudou() {
+  const perfil = document.getElementById('usr-perfil')?.value;
+  const campo = perfil === 'Colaborador';
+  document.querySelectorAll('#modal-novo-usuario .usr-so-portal').forEach(el => el.style.display = campo ? 'none' : '');
+  const pb = document.getElementById('usr-perms-bloco'); if (pb) pb.style.display = campo ? 'none' : '';
+  const av = document.getElementById('usr-aviso-campo'); if (av) av.style.display = campo ? '' : 'none';
+  const ml = document.getElementById('usr-mat-lbl'); if (ml) ml.textContent = campo ? 'Matrícula *' : 'Matrícula (login no app de campo)';
+  const ol = document.getElementById('usr-obra-lbl'); if (ol) ol.textContent = campo ? 'Obra *' : 'Obra vinculada';
+  const os = document.getElementById('usr-obra'); if (os && os.options[0]) os.options[0].textContent = campo ? 'Selecione a obra…' : 'Todas as obras (Admin)';
+  const sd = document.getElementById('usr-senha-dica'); if (sd) sd.textContent = campo ? 'Passe a matrícula e esta senha para a pessoa. Na edição, preencha só para trocar.' : 'Na edição, preencha só para redefinir. Outros usuários do portal recebem um link por e-mail.';
+  const hint = document.getElementById('hint-abastecedor'); if (hint) hint.style.display = perfil === 'Abastecedor' ? '' : 'none';
+}
+window.togglePermAbastecedor = usrPerfilMudou;
+(function () {
+  const oOpen = window.openModal;
+  window.openModal = function (id) { const r = oOpen.apply(this, arguments); if (id === 'modal-novo-usuario') usrPerfilMudou(); return r; };
+  const oEdit = window.editarUsuario;
+  window.editarUsuario = function (id) { const r = oEdit.apply(this, arguments); usrPerfilMudou(); return r; };
+  const oSave = window.salvarUsuario;
+  window.salvarUsuario = async function () {
+    const $ = k => document.getElementById(k);
+    if ($('usr-perfil')?.value === 'Colaborador') {
+      if (!($('usr-mat')?.value || '').trim()) { toast('Informe a matrícula do apontador', 'error'); $('usr-mat')?.focus(); return; }
+      if (!$('usr-obra')?.value) { toast('Selecione a obra do apontador', 'error'); $('usr-obra')?.focus(); return; }
+      // campo não usa e-mail nem acessa o painel: só apontamentos
+      const id = $('usr-edit-id')?.value;
+      const u = id ? USUARIOS.find(x => x.id === id) : null;
+      if (!u || (u.email||'').endsWith('@' + _DOMINIO_CAMPO)) $('usr-email').value = '';
+      if ($('usr-login')) { $('usr-login').value = ''; $('usr-login').dataset.manual = '1'; }
+      ['cadastros','apontamentos','relatorios','dashboards','qrcodes','config'].forEach(k => { const c = $('perm-' + k); if (c) c.checked = (k === 'apontamentos'); });
+      if ($('usr-cargo') && !$('usr-cargo').value) $('usr-cargo').value = 'Apontador de campo';
+    }
+    return oSave.apply(this, arguments);
   };
 })();
 
