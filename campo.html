@@ -469,7 +469,7 @@ select.form-control { cursor: pointer; }
     </button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">v2.6</div>
+  <div class="login-versao">v2.7</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -1127,37 +1127,53 @@ async function fbCarregar(colecao) {
 // v2.2: login de verdade — matrícula + senha conferidas no Firebase.
 // A senha é definida pelo escritório ao cadastrar o usuário no portal (Usuários → Matrícula + Senha).
 async function fazerLoginCampo() {
-  const mat   = document.getElementById('login-mat').value.trim();
+  // v2.7: entra primeiro (o banco só libera leitura depois do login) e depois busca o cadastro.
+  // O acesso do pessoal de campo é matrícula@campo.obracontrol.app (ou .2, .3… depois de redefinir a senha).
+  const digitado = document.getElementById('login-mat').value.trim();
   const senha = document.getElementById('login-senha').value;
   const errEl = document.getElementById('login-error');
   const btn   = document.getElementById('btn-entrar');
   const erro  = (msg) => { errEl.textContent = msg; errEl.style.display = 'block'; btn.textContent = 'Entrar'; btn.disabled = false; };
-  if (!mat || !senha) { erro('Informe matrícula e senha.'); return; }
-  if (!db || !auth || !_fbReady || !navigator.onLine) { erro('Sem internet. O login precisa de conexão; depois de entrar, o app funciona sem sinal.'); return; }
+  if (!digitado || !senha) { erro('Informe matrícula e senha.'); return; }
+  if (!db || !auth || !_fbReady || !navigator.onLine) { erro('Sem internet. O primeiro login precisa de conexão; depois o app abre sem sinal.'); return; }
   btn.textContent = 'Entrando...'; btn.disabled = true;
   errEl.style.display = 'none';
 
-  let usr = null;
-  try {
-    let snap = await db.collection('usuarios').where('mat','==',mat).limit(1).get();
-    if (snap.empty) snap = await db.collection('usuarios').where('matricula','==',mat).limit(1).get();
-    if (!snap.empty) usr = { ...snap.docs[0].data(), id: snap.docs[0].id };
-  } catch (e) { erro('Sem conexão com o servidor. Tente de novo.'); return; }
-
-  if (!usr || !usr.email) { erro('Matrícula sem acesso ao app. Peça o cadastro ao escritório.'); return; }
-  if (usr.status === 'Inativo') { erro('Acesso desativado. Fale com o escritório.'); return; }
-
-  try {
-    await auth.signInWithEmailAndPassword(usr.email, senha);
-  } catch (e) {
-    const c = e && e.code;
+  const DOM = 'campo.obracontrol.app';
+  let mapa = {}; try { mapa = JSON.parse(localStorage.getItem('campo_login_map') || '{}'); } catch (e) {}
+  let candidatos;
+  if (digitado.includes('@')) candidatos = [digitado.toLowerCase()];
+  else {
+    const m = digitado.replace(/\s+/g, '');
+    candidatos = [mapa[m], m + '@' + DOM, ...[2,3,4,5,6].map(n => m + '.' + n + '@' + DOM)].filter(Boolean);
+    candidatos = [...new Set(candidatos)];
+  }
+  let cred = null, ultimo = null;
+  for (const em of candidatos) {
+    try { cred = await auth.signInWithEmailAndPassword(em, senha); break; }
+    catch (e) { ultimo = e; if (['auth/too-many-requests','auth/network-request-failed','auth/user-disabled'].includes(e.code)) break; }
+  }
+  if (!cred) {
+    const c = ultimo && ultimo.code;
     if (c === 'auth/too-many-requests') erro('Muitas tentativas. Aguarde alguns minutos.');
     else if (c === 'auth/network-request-failed') erro('Sem internet. Tente de novo.');
     else erro('Matrícula ou senha incorretos.');
     return;
   }
 
-  usuarioCampo = { id: usr.id, nome: usr.nome || mat, perfil: usr.perfil || 'Colaborador', mat, obra: usr.obra || '', empresa: usr.empresa || '' };
+  const emailAuth = (cred.user.email || '').toLowerCase();
+  let usr = null;
+  try {
+    let snap = await db.collection('usuarios').where('email', '==', emailAuth).limit(1).get();
+    if (snap.empty && !digitado.includes('@')) snap = await db.collection('usuarios').where('mat', '==', digitado).limit(1).get();
+    if (!snap.empty) usr = { ...snap.docs[0].data(), id: snap.docs[0].id };
+  } catch (e) { try { await auth.signOut(); } catch (_) {} erro('Não consegui ler o cadastro (' + (e.code || 'erro') + '). Tente de novo.'); return; }
+
+  if (!usr) { try { await auth.signOut(); } catch (_) {} erro('Acesso sem cadastro no ObraControl. Fale com o escritório.'); return; }
+  if (usr.status === 'Inativo') { try { await auth.signOut(); } catch (_) {} erro('Acesso desativado. Fale com o escritório.'); return; }
+
+  if (!digitado.includes('@')) { mapa[digitado.replace(/\s+/g, '')] = emailAuth; try { localStorage.setItem('campo_login_map', JSON.stringify(mapa)); } catch (e) {} }
+  usuarioCampo = { id: usr.id, nome: usr.nome || digitado, perfil: usr.perfil || 'Colaborador', mat: usr.mat || digitado, obra: usr.obra || '', empresa: usr.empresa || '' };
   btn.textContent = 'Entrar'; btn.disabled = false;
   document.getElementById('login-senha').value = '';
   await carregarDadosCampo();

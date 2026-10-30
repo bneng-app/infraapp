@@ -306,7 +306,7 @@ textarea.form-control{resize:vertical;min-height:72px}
         <a href="#" onclick="esqueciSenha();return false" style="font-size:13px;color:#1B2C6E;text-decoration:none">Esqueci minha senha</a>
       </div>
     </div>
-    <div style="text-align:center;margin-top:1rem;font-size:11px;color:#aaa">ObraControl v2.8 · Controle de Mão de Obra e Equipamentos</div>
+    <div style="text-align:center;margin-top:1rem;font-size:11px;color:#aaa">ObraControl v2.9 · Controle de Mão de Obra e Equipamentos</div>
   </div>
 </div>
 
@@ -3237,14 +3237,35 @@ function loginDoUsuario(u) {
   return gerarLogin(u.email);
 }
 // Converte o que foi digitado (usuário ou e-mail) no e-mail usado pelo Firebase
-async function resolverEmailLogin(digitado) {
+// v2.9: o banco só libera leitura depois do login, então o login curto vira uma lista de
+// e-mails prováveis, testados em ordem (o último que funcionou neste aparelho vem primeiro).
+function _mapaLogin() { try { return JSON.parse(localStorage.getItem('oc_login_map') || '{}'); } catch (e) { return {}; } }
+function _lembrarLogin(login, email) { try { const m = _mapaLogin(); m[login] = email; localStorage.setItem('oc_login_map', JSON.stringify(m)); } catch (e) {} }
+function candidatosLogin(digitado) {
   const t = String(digitado||'').trim().toLowerCase();
-  if (!t || t.includes('@')) return t;
-  const usrs = (await fbLoadAll('usuarios')) || USUARIOS;
-  const achados = usrs.filter(u => loginDoUsuario(u) === t);
-  if (achados.length === 1) return (achados[0].email||'').toLowerCase();
-  if (achados.length > 1) throw { code: 'login-duplicado' };
-  throw { code: 'login-nao-encontrado' };
+  if (!t) return [];
+  if (t.includes('@')) return [t];
+  const lista = [];
+  const m = _mapaLogin(); if (m[t]) lista.push(m[t]);
+  (USUARIOS||[]).filter(u => loginDoUsuario(u) === t && u.email).forEach(u => lista.push(u.email.toLowerCase()));
+  lista.push(t + '@tencoengenharia.com.br', t + '@bnengenharia.com.br', t + '@bnconstrucoes.com.br');
+  return [...new Set(lista)];
+}
+async function entrarComCandidatos(digitado, senha) {
+  let ultimoErro = { code: 'login-nao-encontrado' };
+  for (const email of candidatosLogin(digitado)) {
+    try { return await auth.signInWithEmailAndPassword(email, senha); }
+    catch (e) {
+      ultimoErro = e;
+      if (e.code === 'auth/too-many-requests' || e.code === 'auth/network-request-failed' || e.code === 'auth/user-disabled') break;
+    }
+  }
+  throw ultimoErro;
+}
+async function resolverEmailLogin(digitado) {
+  const c = candidatosLogin(digitado);
+  if (!c.length) throw { code: 'login-nao-encontrado' };
+  return c[0];
 }
 
 function fazerLogin() {
@@ -3260,9 +3281,9 @@ function fazerLogin() {
   if (btnEl) btnEl.textContent = 'Entrando...';
 
   let email = digitado;
-  resolverEmailLogin(digitado)
-    .then(e => { email = e; return auth.signInWithEmailAndPassword(email, senha); })
+  entrarComCandidatos(digitado, senha)
     .then(async cred => {
+      email = ((cred.user && cred.user.email) || digitado).toLowerCase();
       const usrs = await fbLoadAll('usuarios');
       if (usrs && usrs.length > 0) USUARIOS = usrs;
       const emailAuth = ((cred.user && cred.user.email) || email).toLowerCase();
@@ -3277,13 +3298,19 @@ function fazerLogin() {
         USUARIOS.push(usr);
       }
       if (usr.status === 'Inativo') { auth.signOut(); erro('Usuário desativado. Fale com o administrador.'); return; }
+      if (!digitado.includes('@')) _lembrarLogin(digitado, emailAuth);
       usuarioLogado = usr;
       if (erroEl) erroEl.style.display='none';
       if (btnEl) btnEl.textContent = 'Entrar no ObraControl';
       await sincronizarTudo();
       entrarNoApp();
     })
-    .catch(err => { console.warn('Login falhou:', err.code); erro(_msgErroAuth(err.code)); });
+    .catch(err => {
+      console.warn('Login falhou:', err.code);
+      erro(!digitado.includes('@') && /invalid|wrong|not-found|login-nao/.test(err.code||'')
+        ? 'Usuário ou senha incorretos. Se for o primeiro acesso neste aparelho, tente com o e-mail completo.'
+        : _msgErroAuth(err.code));
+    });
 }
 
 function esqueciSenha() {
@@ -3515,9 +3542,17 @@ async function salvarUsuario() {
         if (!existente) {
           avisoAcesso = ' Este login já existia, então a senha antiga dele continua valendo.';
         } else if (email.endsWith('@' + _DOMINIO_CAMPO)) {
-          const novo = (mat || 'campo').replace(/\s+/g,'') + '.' + Date.now().toString(36) + '@' + _DOMINIO_CAMPO;
-          try { await criarAcessoFirebase(novo, senha); email = novo; avisoAcesso = ' Senha redefinida.'; }
-          catch (e2) { toast(_msgErroAuth(e2.code),'error'); return; }
+          // v2.9: o app de campo testa matrícula, matrícula.2, ... matrícula.6 — por isso a sequência
+          const baseMat = (mat || 'campo').replace(/\s+/g,'');
+          const atual = (email.match(/\.(\d+)@/) || [0, 1])[1] * 1;
+          let ok = false;
+          for (let n = Math.max(2, atual + 1); n <= 6 && !ok; n++) {
+            const novo = baseMat + '.' + n + '@' + _DOMINIO_CAMPO;
+            try { await criarAcessoFirebase(novo, senha); email = novo; ok = true; }
+            catch (e2) { if (e2.code !== 'auth/email-already-in-use') { toast(_msgErroAuth(e2.code),'error'); return; } }
+          }
+          if (!ok) { toast('Limite de redefinições desta matrícula atingido. Exclua os acessos antigos dela no Firebase (Authentication) e salve de novo.','error'); return; }
+          avisoAcesso = ' Senha redefinida.';
         } else {
           try { await auth.sendPasswordResetEmail(email); }
           catch (e3) { toast(_msgErroAuth(e3.code),'error'); return; }
