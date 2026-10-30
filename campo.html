@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#1E2A3A"/>
-<title>InfraApp Campo</title>
+<title>ObraControl Campo</title>
 
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -153,6 +153,7 @@ select.form-control { cursor: pointer; }
 
 /* ── LOGIN SCREEN ── */
 #screen-login {
+  position: relative;
   background: var(--navy);
   align-items: center;
   justify-content: center;
@@ -178,6 +179,8 @@ select.form-control { cursor: pointer; }
 .diamond:nth-child(2) { width: 18px; margin-left: 6px; }
 .diamond:nth-child(3) { width: 14px; margin-left: 0; }
 .login-title { font-size: 28px; font-weight: 800; color: white; }
+.login-tenco { display:block; width: 200px; max-width: 70vw; height: auto; margin: 0 auto 14px; }
+.login-versao { position: absolute; left: 0; right: 0; bottom: 14px; text-align: center; font-size: 11px; color: rgba(255,255,255,.35); letter-spacing: .5px; }
 .login-sub { font-size: 13px; color: rgba(255,255,255,.45); margin-top: 4px; letter-spacing: .5px; }
 .login-card {
   background: white;
@@ -292,6 +295,24 @@ select.form-control { cursor: pointer; }
 
 /* ── HORA INPUT ── */
 .time-row { display: flex; gap: 10px; }
+/* v2.4: Apropriação (MO + EQ juntos) */
+.ap-frente-card { margin: 12px 16px 0; }
+.ap-frente-resumo { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 16px; background:white; border-bottom:1px solid var(--border); font-size:13px; color:var(--text2); }
+.ap-frente-resumo strong { color: var(--text); }
+.ap-tab-count { display:inline-block; min-width:18px; padding:1px 6px; border-radius:9px; background:rgba(255,255,255,.18); font-size:10px; }
+.module-tab.active .ap-tab-count { background: rgba(255,255,255,.3); }
+.module-tab:disabled { opacity:.35; cursor:not-allowed; }
+.ap-eq-item { background:white; border-bottom:1px solid var(--border); }
+.ap-eq-campos { padding: 4px 16px 14px 68px; display:none; }
+.ap-eq-item.selected .ap-eq-campos { display:block; }
+.ap-eq-campos .form-group { margin-bottom: 10px; }
+.ap-eq-campos .form-control { padding: 10px 12px; font-size: 14px; }
+.ap-sticky { padding:12px 16px; background:white; border-top:1px solid var(--border); position:sticky; bottom:0; z-index:2; }
+.ap-hora-wrap { position: relative; }
+.ap-hora-wrap { display:flex; gap:8px; align-items:stretch; }
+.ap-hora-wrap .form-control { flex:1; min-width:0; }
+.ap-agora { flex:0 0 auto; border:none; border-radius:8px; background:var(--navy); color:white; font-size:13px; font-weight:700; padding:0 16px; cursor:pointer; border-radius:var(--radius-sm); }
+.ap-vazio { padding:40px 20px; text-align:center; color:var(--text3); font-size:14px; }
 .time-row .form-group { flex: 1; }
 .time-big {
   font-size: 32px; font-weight: 800; color: var(--text);
@@ -416,15 +437,8 @@ select.form-control { cursor: pointer; }
 <!-- ══════════════ SCREEN: LOGIN ══════════════ -->
 <div class="screen active" id="screen-login">
   <div class="login-logo">
-    <div class="login-logo-icon">
-      <div class="login-logo-diamonds">
-        <div class="diamond"></div>
-        <div class="diamond"></div>
-        <div class="diamond"></div>
-      </div>
-    </div>
-    <div class="login-title">InfraApp</div>
-    <div class="login-sub">CAMPO · BN ENGENHARIA</div>
+    <svg class="login-tenco" viewBox="0 0 312 60" role="img" aria-label="TENCO"><g fill="#E30613"><rect x="0" y="0" width="48" height="12"/><rect x="18" y="0" width="12" height="60"/><rect x="62" y="0" width="44" height="12"/><rect x="62" y="24" width="44" height="12"/><rect x="62" y="48" width="44" height="12"/><rect x="120" y="0" width="12" height="60"/><rect x="168" y="0" width="12" height="60"/><polygon points="120,0 133,0 180,60 167,60"/></g><g fill="none" stroke="#E30613" stroke-width="12"><path d="M240.4 14.6 A24 24 0 1 0 240.4 45.4"/><circle cx="282" cy="30" r="24"/></g></svg>
+    <div class="login-sub">ObraControl · Campo</div>
   </div>
 
   <div class="login-card">
@@ -444,6 +458,7 @@ select.form-control { cursor: pointer; }
       Entrar
     </button>
   </div>
+  <div class="login-versao">v2.5</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -468,22 +483,13 @@ select.form-control { cursor: pointer; }
   </div>
 
   <div class="quick-modules">
-    <div class="module-card mo" onclick="abrirModulo('mo')">
+    <div class="module-card mo" onclick="abrirModulo('ap')" style="grid-column:1/-1">
       <div class="module-card-icon">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#C0392B" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#C0392B" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><rect x="15" y="9" width="8" height="6" rx="1"/></svg>
       </div>
-      <div class="module-card-title">Mão de Obra</div>
-      <div class="module-card-sub">Horas e equipe</div>
-      <div class="module-card-badge" id="badge-mo">0 hoje</div>
-    </div>
-
-    <div class="module-card eq" onclick="abrirModulo('eq')">
-      <div class="module-card-icon">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1E2A3A" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
-      </div>
-      <div class="module-card-title">Equipamentos</div>
-      <div class="module-card-sub">Horas produtivas</div>
-      <div class="module-card-badge" id="badge-eq">0 hoje</div>
+      <div class="module-card-title">Apropriação</div>
+      <div class="module-card-sub">Frente de serviço · Mão de obra e Equipamentos</div>
+      <div class="module-card-badge" id="badge-ap" style="display:none"></div>
     </div>
 
     <div class="module-card fuel" onclick="abrirModulo('fuel')" id="card-fuel">
@@ -514,6 +520,147 @@ select.form-control { cursor: pointer; }
   </div>
 
   <div class="bottom-safe"></div>
+</div>
+
+<!-- ══════════════ SCREEN: APROPRIAÇÃO (v2.4: MO + EQ juntos) ══════════════ -->
+<div class="screen" id="screen-ap">
+  <div class="topbar">
+    <div class="topbar-row">
+      <div>
+        <div style="font-size:13px;color:rgba(255,255,255,.5);cursor:pointer" onclick="showScreen('home')">← Voltar</div>
+        <div class="topbar-title">Apropriação</div>
+      </div>
+      <button class="btn btn-sm" id="ap-btn-qr" style="background:var(--red);color:white;border:none;display:none" onclick="abrirQR('ap')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        QR Code
+      </button>
+    </div>
+  </div>
+
+  <div class="module-tabs">
+    <button class="module-tab active" id="ap-tab-frente" onclick="apTab('frente')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+      Frente
+    </button>
+    <button class="module-tab" id="ap-tab-mo" onclick="apTab('mo')" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+      <span>Mão de obra <span class="ap-tab-count" id="ap-cnt-mo">0</span></span>
+    </button>
+    <button class="module-tab" id="ap-tab-eq" onclick="apTab('eq')" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+      <span>Equip. <span class="ap-tab-count" id="ap-cnt-eq">0</span></span>
+    </button>
+    <button class="module-tab" id="ap-tab-rev" onclick="apTab('rev')" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+      Revisar
+    </button>
+  </div>
+
+  <!-- 1) FRENTE -->
+  <div class="content" id="ap-panel-frente">
+    <div class="card">
+      <div class="card-header"><span class="card-title">1 · Frente de serviço</span></div>
+      <div class="card-body">
+        <div class="form-group">
+          <label class="form-label">Frente de serviço *</label>
+          <select class="form-control" id="ap-frente" onchange="apGuardar()"><option value="">Selecione a frente…</option></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tipo de serviço</label>
+          <select class="form-control" id="ap-servico" onchange="apServicoMudou();apGuardar()"><option value="">Selecione o serviço…</option></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Data *</label>
+          <input type="date" class="form-control" id="ap-data" onchange="apGuardar()"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Turno</label>
+          <select class="form-control" id="ap-turno" onchange="apTurnoMudou();apGuardar()"><option value="">Selecione o turno…</option></select>
+        </div>
+        <div class="form-group"><label class="form-label">Entrada</label>
+          <div class="ap-hora-wrap"><input type="time" class="form-control" id="ap-hora-ini" onchange="apHorasMudaram();apGuardar()"/><button type="button" class="ap-agora" onclick="apAgora('ap-hora-ini')">Agora</button></div></div>
+        <div style="font-size:11px;color:var(--text3);margin-top:-6px">A entrada é a hora do celular ao abrir o apontamento. A saída é marcada no fim do dia, ao encerrar.</div>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="apConfirmarFrente()">Próximo → Mão de obra</button>
+    <div class="bottom-safe"></div>
+  </div>
+
+  <!-- 2) MÃO DE OBRA -->
+  <div class="content-no-pad" id="ap-panel-mo" style="display:none">
+    <div class="ap-frente-resumo" id="ap-resumo-mo"></div>
+    <div style="padding:12px 16px;background:white;border-bottom:1px solid var(--border)">
+      <div class="time-row">
+        <div class="form-group" style="margin-bottom:10px"><label class="form-label">H. normais</label><input type="number" class="form-control" id="ap-hn" step="0.5" placeholder="8" oninput="ap.hnManual=true;apGuardar()"/></div>
+        <div class="form-group" style="margin-bottom:10px"><label class="form-label">H. extras</label><input type="number" class="form-control" id="ap-he" step="0.5" placeholder="0" oninput="apGuardar()"/></div>
+      </div>
+      <div class="search-bar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="ap-mo-busca" placeholder="Buscar por nome ou matrícula…" oninput="apRenderMO()"/>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--text2)"><span id="ap-mo-sel">0</span> selecionados</span>
+        <button class="btn btn-sm btn-outline" onclick="apSelecionarTodosMO()" style="font-size:12px">Selecionar todos</button>
+      </div>
+    </div>
+    <div id="ap-mo-lista"></div>
+    <div class="ap-sticky"><button class="btn btn-primary" onclick="apTab('eq')">Próximo → Equipamentos</button></div>
+  </div>
+
+  <!-- 3) EQUIPAMENTOS -->
+  <div class="content-no-pad" id="ap-panel-eq" style="display:none">
+    <div class="ap-frente-resumo" id="ap-resumo-eq"></div>
+    <div style="padding:12px 16px;background:white;border-bottom:1px solid var(--border)">
+      <div class="search-bar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="ap-eq-busca" placeholder="Buscar equipamento (TAG ou placa)…" oninput="apRenderEQ()"/>
+      </div>
+      <span style="font-size:12px;color:var(--text2)"><span id="ap-eq-sel">0</span> selecionados · toque para marcar e preencher as horas</span>
+    </div>
+    <div id="ap-eq-lista"></div>
+    <datalist id="ap-operadores"></datalist>
+    <div class="ap-sticky"><button class="btn btn-primary" onclick="apTab('rev')">Próximo → Revisar</button></div>
+  </div>
+
+  <!-- 4) REVISAR -->
+  <div class="content" id="ap-panel-rev" style="display:none">
+    <div class="card">
+      <div class="card-header"><span class="card-title">Encerramento do dia</span></div>
+      <div class="card-body">
+        <div class="time-row">
+          <div class="form-group"><label class="form-label">Entrada</label><input type="time" class="form-control" id="ap-rev-ini" disabled/></div>
+          <div class="form-group"><label class="form-label">Saída</label><input type="time" class="form-control" id="ap-hora-fim" onchange="apHorasMudaram();apGuardar()"/></div>
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-top:-6px">Deixe a saída em branco: ao encerrar, ela é marcada com a hora do celular e as horas são recalculadas.</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Produção (opcional)</span></div>
+      <div class="card-body">
+        <div class="time-row">
+          <div class="form-group"><label class="form-label">Quantidade</label><input type="number" class="form-control" id="ap-qtd" placeholder="Ex.: 120"/></div>
+          <div class="form-group"><label class="form-label">Unidade</label>
+            <select class="form-control" id="ap-unid"><option>m³</option><option>m²</option><option>m</option><option>un</option><option>t</option><option>km</option></select></div>
+        </div>
+        <div class="time-row">
+          <div class="form-group"><label class="form-label">Perda (MO)</label><select class="form-control" id="ap-motivo-perda"><option value="">Nenhuma</option></select></div>
+          <div class="form-group"><label class="form-label">Horas perdidas</label><input type="number" class="form-control" id="ap-horas-perda" step="0.5" placeholder="0"/></div>
+        </div>
+        <div class="form-group"><label class="form-label">Observações</label><input class="form-control" id="ap-obs" placeholder="Opcional…"/></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Resumo</span></div>
+      <div class="card-body" id="ap-resumo"></div>
+    </div>
+    <button class="btn btn-green" onclick="salvarApropriacao()" id="ap-btn-salvar" style="margin-bottom:12px">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      Encerrar turno e salvar
+    </button>
+    <button class="btn btn-outline" onclick="apContinuarDepois()" style="margin-bottom:12px">Continuar depois (fica em andamento)</button>
+    <button class="btn btn-outline" onclick="apDescartar()" style="color:var(--red);font-size:13px">Descartar este apontamento</button>
+    <div class="bottom-safe"></div>
+  </div>
 </div>
 
 <!-- ══════════════ SCREEN: MO ══════════════ -->
@@ -964,63 +1111,42 @@ async function fbCarregar(colecao) {
 // ══════════════════════════════════════════════════════════════
 // LOGIN
 // ══════════════════════════════════════════════════════════════
+// v2.2: login de verdade — matrícula + senha conferidas no Firebase.
+// A senha é definida pelo escritório ao cadastrar o usuário no portal (Usuários → Matrícula + Senha).
 async function fazerLoginCampo() {
   const mat   = document.getElementById('login-mat').value.trim();
-  const senha = document.getElementById('login-senha').value.trim();
+  const senha = document.getElementById('login-senha').value;
   const errEl = document.getElementById('login-error');
   const btn   = document.getElementById('btn-entrar');
-  if (!mat || !senha) { errEl.textContent = 'Informe matrícula e senha.'; errEl.style.display='block'; return; }
+  const erro  = (msg) => { errEl.textContent = msg; errEl.style.display = 'block'; btn.textContent = 'Entrar'; btn.disabled = false; };
+  if (!mat || !senha) { erro('Informe matrícula e senha.'); return; }
+  if (!db || !auth || !_fbReady || !navigator.onLine) { erro('Sem internet. O login precisa de conexão; depois de entrar, o app funciona sem sinal.'); return; }
   btn.textContent = 'Entrando...'; btn.disabled = true;
   errEl.style.display = 'none';
 
-  // Load users from Firebase or local cache
-  let usuarios = [];
+  let usr = null;
   try {
-    if (db && _fbReady) {
-      const snap = await db.collection('usuarios').get();
-      usuarios = snap.docs.map(d => ({...d.data(), id: d.id}));
-      // Cache locally
-      try { localStorage.setItem('campo_usuarios', JSON.stringify(usuarios)); } catch(e){}
-    }
-  } catch(e) {}
+    let snap = await db.collection('usuarios').where('mat','==',mat).limit(1).get();
+    if (snap.empty) snap = await db.collection('usuarios').where('matricula','==',mat).limit(1).get();
+    if (!snap.empty) usr = { ...snap.docs[0].data(), id: snap.docs[0].id };
+  } catch (e) { erro('Sem conexão com o servidor. Tente de novo.'); return; }
 
-  // Fallback to cached usuarios
-  if (!usuarios.length) {
-    try { const c = localStorage.getItem('campo_usuarios'); if(c) usuarios = JSON.parse(c); } catch(e) {}
+  if (!usr || !usr.email) { erro('Matrícula sem acesso ao app. Peça o cadastro ao escritório.'); return; }
+  if (usr.status === 'Inativo') { erro('Acesso desativado. Fale com o escritório.'); return; }
+
+  try {
+    await auth.signInWithEmailAndPassword(usr.email, senha);
+  } catch (e) {
+    const c = e && e.code;
+    if (c === 'auth/too-many-requests') erro('Muitas tentativas. Aguarde alguns minutos.');
+    else if (c === 'auth/network-request-failed') erro('Sem internet. Tente de novo.');
+    else erro('Matrícula ou senha incorretos.');
+    return;
   }
 
-  // Also try USUARIOS array from InfraApp (stored in Firestore)
-  // Check funcionarios table by mat field
-  let funcMatch = null;
-  try {
-    if (db && _fbReady) {
-      const snap = await db.collection('funcionarios').where('mat','==',mat).get();
-      if (!snap.empty) funcMatch = snap.docs[0].data();
-    }
-  } catch(e) {}
-
-  // Find user by mat or email
-  const usr = usuarios.find(u =>
-    (u.mat === mat || u.email?.includes(mat) || u.matricula === mat) &&
-    (u.senha === senha || !u.senha)
-  );
-
-  if (!usr && !funcMatch) {
-    // Try master admin login
-    if (mat === 'karine' || mat === 'admin') {
-      // Allow master access for testing
-      usuarioCampo = { id: 'admin', nome: 'Administrador', perfil: 'Admin', mat, obra: '' };
-    } else {
-      errEl.textContent = 'Matrícula ou senha incorretos.';
-      errEl.style.display = 'block';
-      btn.textContent = 'Entrar'; btn.disabled = false;
-      return;
-    }
-  } else {
-    usuarioCampo = usr || { id: 'f-' + mat, nome: funcMatch?.nome || mat, perfil: 'Colaborador', mat, obra: funcMatch?.obra || '' };
-  }
-
+  usuarioCampo = { id: usr.id, nome: usr.nome || mat, perfil: usr.perfil || 'Colaborador', mat, obra: usr.obra || '', empresa: usr.empresa || '' };
   btn.textContent = 'Entrar'; btn.disabled = false;
+  document.getElementById('login-senha').value = '';
   await carregarDadosCampo();
   entrarNoCampo();
 }
@@ -1066,6 +1192,7 @@ function entrarNoCampo() {
   showScreen('home');
   atualizarBannerOffline();
   atualizarBadges();
+  apAtualizarHome();
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -1082,6 +1209,7 @@ function abrirModulo(mod) {
   if (mod === 'mo')   { preencherSelectsMO(); renderFuncionariosList(); }
   if (mod === 'eq')   { preencherSelectsEQ(); renderEquipamentosList(); }
   if (mod === 'fuel') { preencherSelectsFuel(); }
+  if (mod === 'ap')   { iniciarApropriacao(); }
 }
 
 function atualizarBadges() {
@@ -1090,9 +1218,10 @@ function atualizarBadges() {
 }
 
 function showLogoutMenu() {
-  if (confirm('Sair do InfraApp Campo?')) {
+  if (confirm('Sair do ObraControl Campo?')) {
     usuarioCampo = null;
     localStorage.removeItem('campo_usuario');
+    try { if (auth) auth.signOut(); } catch(e) {}
     showScreen('login');
   }
 }
@@ -1143,6 +1272,18 @@ function processarQR(texto, contexto) {
     else { mat = texto.trim(); tag = texto.trim(); }
   }
 
+  if (contexto === 'ap') {
+    if (ap.aba === 'mo') {
+      const f = dadosCampo.funcionarios.find(x => x.mat === (mat||'') || x.id === (mat||''));
+      if (f) { ap.mo.add(f.id); apRenderMO(); toast('✓ ' + f.nome + ' adicionado!', 'ok'); }
+      else toast('Funcionário não encontrado: ' + (mat||texto), 'err');
+    } else {
+      const e = dadosCampo.equipamentos.find(x => x.tag === (tag||'') || x.placa === (tag||''));
+      if (e) { if (!ap.eq.has(e.id)) apToggleEQ(e.id); else apRenderEQ(); toast('✓ ' + (e.tag||e.placa) + ' selecionado!', 'ok'); }
+      else toast('Equipamento não encontrado: ' + (tag||texto), 'err');
+    }
+    return;
+  }
   if (contexto === 'mo' && mat) {
     const func = dadosCampo.funcionarios.find(f => f.mat === mat || f.id === mat);
     if (func) {
@@ -1477,6 +1618,296 @@ async function salvarEQ() {
   await fbSalvar('aponEQ', item);
   toast('Apontamento EQ salvo!', 'ok');
   limparEqForm();
+}
+
+// ══════════════════════════════════════════════════════════════
+// APROPRIAÇÃO (v2.4) — frente primeiro, depois mão de obra e equipamentos
+// Grava nos mesmos formatos de sempre (aponMO / aponEQ), então o portal lê igual.
+// ══════════════════════════════════════════════════════════════
+const ap = { mo: new Set(), eq: new Map(), aba: 'frente', hnManual: false };
+
+// v2.5: o apontamento fica "em andamento" no celular até ser encerrado no fim do dia
+const _AP_CAMPOS = ['ap-frente','ap-servico','ap-data','ap-turno','ap-hora-ini','ap-hora-fim','ap-hn','ap-he','ap-qtd','ap-unid','ap-obs','ap-motivo-perda','ap-horas-perda'];
+function _apChave() { return 'campo_ap_andamento_' + (usuarioCampo?.id || usuarioCampo?.mat || 'x'); }
+function apGuardar() {
+  // só existe "em andamento" depois de escolher a frente
+  if (!document.getElementById('ap-frente')?.value) { try { localStorage.removeItem(_apChave()); } catch (e) {} apAtualizarHome(); return; }
+  try {
+    const campos = {}; _AP_CAMPOS.forEach(id => { const el = document.getElementById(id); if (el) campos[id] = el.value; });
+    localStorage.setItem(_apChave(), JSON.stringify({ campos, mo: [...ap.mo], eq: [...ap.eq.entries()], hnManual: ap.hnManual, aba: ap.aba }));
+  } catch (e) {}
+  apAtualizarHome();
+}
+function apRecuperar() {
+  try {
+    const r = JSON.parse(localStorage.getItem(_apChave()) || 'null'); if (!r || !r.campos || !r.campos['ap-frente']) return false;
+    Object.entries(r.campos || {}).forEach(([id, v]) => { const el = document.getElementById(id); if (el && v !== undefined) el.value = v; });
+    ap.mo = new Set(r.mo || []); ap.eq = new Map(r.eq || []); ap.hnManual = !!r.hnManual; ap.aba = r.aba || 'frente';
+    return !!(r.campos && r.campos['ap-frente']);
+  } catch (e) { return false; }
+}
+function apLimparRascunho() { try { localStorage.removeItem(_apChave()); } catch (e) {} apAtualizarHome(); }
+function apAtualizarHome() {
+  const b = document.getElementById('badge-ap'); if (!b) return;
+  let r = null; try { r = JSON.parse(localStorage.getItem(_apChave()) || 'null'); } catch (e) {}
+  if (r && r.campos && r.campos['ap-frente']) {
+    b.style.display = ''; b.textContent = 'Em andamento · ' + r.campos['ap-frente'] + (r.campos['ap-hora-ini'] ? ' · entrada ' + r.campos['ap-hora-ini'] : '');
+  } else b.style.display = 'none';
+}
+function apContinuarDepois() { apGuardar(); toast('Apontamento guardado. Volte no fim do dia para encerrar.', 'ok'); showScreen('home'); }
+function apDescartar() {
+  if (!confirm('Descartar este apontamento? Nada foi enviado ainda.')) return;
+  ap.mo.clear(); ap.eq.clear(); ap.hnManual = false;
+  _AP_CAMPOS.forEach(id => { const el = document.getElementById(id); if (el && id !== 'ap-unid') el.value = ''; });
+  document.getElementById('ap-data').value = new Date().toISOString().slice(0,10);
+  apLimparRascunho(); apAgora('ap-hora-ini'); apAtualizarContadores(); apTab('frente');
+}
+
+function _esc(t) { return String(t ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function _apObra() { return usuarioCampo?.obra || ''; }
+function _apFuncs() { const o = _apObra(); return dadosCampo.funcionarios.filter(f => (!o || !f.obra || f.obra === o) && f.status !== 'Desligado'); }
+function _apEquips() { const o = _apObra(); return dadosCampo.equipamentos.filter(e => !o || !e.obra || e.obra === o); }
+function _apTurno() { const id = document.getElementById('ap-turno').value; return dadosCampo.turnos.find(t => (t.id || t.cod) === id); }
+function _apHorasTurno(t) {
+  if (!t) return null;
+  const ini = t.horaIni || t.inicio || '', fim = t.horaFim || t.fim || '';
+  let hn = parseFloat(t.hn);
+  if (isNaN(hn) && ini && fim) {
+    const [h1,m1] = ini.split(':').map(Number), [h2,m2] = fim.split(':').map(Number);
+    hn = Math.max(0, ((h2*60+m2) - (h1*60+m1)) / 60 - 1); // desconta 1h de almoço
+  }
+  return { ini, fim, hn: isNaN(hn) ? '' : Math.round(hn*2)/2, he: parseFloat(t.he) || 0 };
+}
+
+function iniciarApropriacao() {
+  const hoje = new Date().toISOString().slice(0,10);
+  const o = _apObra();
+  const frentes = o ? dadosCampo.frentes.filter(f => !f.obra || f.obra === o) : dadosCampo.frentes;
+  const sel = (id, ph, itens) => { const el = document.getElementById(id); const v = el.value; el.innerHTML = '<option value="">'+ph+'</option>' + itens.join(''); if (v) el.value = v; };
+  sel('ap-frente', 'Selecione a frente…', frentes.map(f => `<option value="${_esc(f.cod)}">${_esc(f.cod)} — ${_esc(f.desc||f.nome||'')}</option>`));
+  sel('ap-servico', 'Selecione o serviço…', dadosCampo.tiposServico.map(t => `<option value="${_esc(t.nome||t.desc||t.cod)}">${_esc(t.nome||t.desc||t.cod)}${t.unidade?' ('+_esc(t.unidade)+')':''}</option>`));
+  sel('ap-turno', 'Selecione o turno…', dadosCampo.turnos.map(t => { const h=_apHorasTurno(t); return `<option value="${_esc(t.id||t.cod)}">${_esc(t.nome||t.cod)}${h.ini?' ('+h.ini+'–'+h.fim+')':''}</option>`; }));
+  sel('ap-motivo-perda', 'Nenhuma', dadosCampo.tiposPerdas.map(t => `<option value="${_esc(t.cod)}">${_esc(t.cod)} — ${_esc(t.nome||t.desc||'')}</option>`));
+  // v2.5: retoma o apontamento em andamento, se houver; senão abre um novo com a hora do celular
+  const emAndamento = apRecuperar();
+  if (!document.getElementById('ap-data').value) document.getElementById('ap-data').value = hoje;
+  // apontamento novo: a entrada é sempre a hora do celular agora
+  if (!emAndamento && !document.getElementById('ap-frente').value) { document.getElementById('ap-hora-fim').value = ''; apAgora('ap-hora-ini'); }
+  if (emAndamento) toast('Apontamento em andamento retomado (entrada ' + document.getElementById('ap-hora-ini').value + ').', 'ok');
+  apAtualizarContadores();
+  apTab(ap.aba === 'frente' || !document.getElementById('ap-frente').value ? 'frente' : ap.aba);
+}
+
+function _hhmm(d) { return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); }
+function apAgora(id) {
+  document.getElementById(id).value = _hhmm(new Date());
+  apHorasMudaram();
+  apGuardar();
+}
+// recalcula as horas normais quando entrada e saída estão preenchidas (desconta 1h de almoço se passar de 6h)
+function apHorasMudaram() {
+  const ini = document.getElementById('ap-hora-ini').value, fim = document.getElementById('ap-hora-fim').value;
+  if (!ini || !fim) return;
+  const [h1,m1] = ini.split(':').map(Number), [h2,m2] = fim.split(':').map(Number);
+  let min = (h2*60+m2) - (h1*60+m1); if (min < 0) min += 24*60;
+  let h = min / 60; if (h > 6) h -= 1;
+  const novo = Math.round(h*2)/2;
+  if (!ap.hnManual) document.getElementById('ap-hn').value = novo;
+  // equipamentos com horas automáticas acompanham
+  ap.eq.forEach(v => { if (v.hpAuto) v.hp = novo; });
+}
+
+function apTurnoMudou() {
+  const h = _apHorasTurno(_apTurno()); if (!h) return;
+  // v2.5: o turno não mexe na entrada (hora do celular) nem na saída (marcada ao encerrar);
+  // só sugere as horas normais até o encerramento
+  if (h.hn !== '' && !ap.hnManual) document.getElementById('ap-hn').value = h.hn;
+  document.getElementById('ap-he').value = h.he || 0;
+  // equipamentos já marcados herdam as horas do turno
+  ap.eq.forEach(v => { if (v.hpAuto && h.hn !== '') v.hp = h.hn; });
+}
+
+function apServicoMudou() {
+  const nome = document.getElementById('ap-servico').value;
+  const t = dadosCampo.tiposServico.find(x => (x.nome||x.desc||x.cod) === nome);
+  if (t && t.unidade) { const u = document.getElementById('ap-unid'); if (![...u.options].some(o => o.value === t.unidade)) u.add(new Option(t.unidade, t.unidade)); u.value = t.unidade; }
+}
+
+function apConfirmarFrente() {
+  if (!document.getElementById('ap-frente').value) { toast('Escolha a frente de serviço.', 'err'); return; }
+  if (!document.getElementById('ap-data').value) { toast('Informe a data.', 'err'); return; }
+  apTab('mo');
+}
+
+function apTab(aba) {
+  const temFrente = !!document.getElementById('ap-frente').value;
+  if (aba !== 'frente' && !temFrente) { toast('Escolha a frente de serviço primeiro.', 'err'); aba = 'frente'; }
+  ap.aba = aba;
+  ['frente','mo','eq','rev'].forEach(t => {
+    document.getElementById('ap-panel-' + t).style.display = t === aba ? '' : 'none';
+    const b = document.getElementById('ap-tab-' + t);
+    b.classList.toggle('active', t === aba);
+    if (t !== 'frente') b.disabled = !temFrente;
+  });
+  document.getElementById('ap-btn-qr').style.display = (aba === 'mo' || aba === 'eq') ? '' : 'none';
+  const resumo = apResumoFrente();
+  ['ap-resumo-mo','ap-resumo-eq'].forEach(id => document.getElementById(id).innerHTML = resumo);
+  if (aba === 'mo') apRenderMO();
+  if (aba === 'eq') apRenderEQ();
+  if (aba === 'rev') { document.getElementById('ap-rev-ini').value = document.getElementById('ap-hora-ini').value; apMontarResumo(); }
+  if (document.getElementById('ap-frente').value) apGuardar();
+  window.scrollTo(0,0);
+}
+
+function apResumoFrente() {
+  const fr = document.getElementById('ap-frente');
+  const txt = fr.options[fr.selectedIndex]?.text || '—';
+  const data = document.getElementById('ap-data').value;
+  const d = data ? data.split('-').reverse().join('/') : '';
+  return `<span>📍 <strong>${_esc(txt)}</strong>${d ? ' · ' + d : ''}</span><button class="btn btn-sm btn-outline" style="font-size:11px;padding:6px 10px" onclick="apTab('frente')">Trocar</button>`;
+}
+
+function apAtualizarContadores() {
+  document.getElementById('ap-cnt-mo').textContent = ap.mo.size;
+  document.getElementById('ap-cnt-eq').textContent = ap.eq.size;
+  const a = document.getElementById('ap-mo-sel'); if (a) a.textContent = ap.mo.size;
+  const b = document.getElementById('ap-eq-sel'); if (b) b.textContent = ap.eq.size;
+}
+
+// ── Mão de obra ──
+function apRenderMO() {
+  const busca = (document.getElementById('ap-mo-busca').value || '').toLowerCase();
+  let lista = _apFuncs();
+  if (busca) lista = lista.filter(f => (f.nome||'').toLowerCase().includes(busca) || String(f.mat||'').toLowerCase().includes(busca));
+  // selecionados primeiro
+  lista = [...lista].sort((a,b) => (ap.mo.has(b.id) - ap.mo.has(a.id)) || String(a.nome||'').localeCompare(String(b.nome||'')));
+  const el = document.getElementById('ap-mo-lista');
+  el.innerHTML = lista.length ? '<div class="card" style="padding:0;overflow:hidden;margin:12px 16px">' + lista.map(f => {
+    const sel = ap.mo.has(f.id);
+    const ini = (f.nome||'?').split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
+    return `<div class="list-item ${sel?'selected':''}" onclick="apToggleMO('${_esc(f.id)}')">
+      <div class="list-avatar" style="${sel?'background:var(--red)':''}">${_esc(ini)}</div>
+      <div style="flex:1;min-width:0"><div class="list-name">${_esc(f.nome)}</div>
+      <div class="list-sub">Mat. ${_esc(f.mat||'—')} · ${_esc(f.codFuncao||f.funcao||'—')}</div></div>
+      <div class="list-check"></div></div>`;
+  }).join('') + '</div>' : '<div class="ap-vazio">Nenhum funcionário encontrado</div>';
+  apAtualizarContadores();
+}
+function apToggleMO(id) { ap.mo.has(id) ? ap.mo.delete(id) : ap.mo.add(id); apRenderMO(); apGuardar(); }
+function apSelecionarTodosMO() {
+  const busca = (document.getElementById('ap-mo-busca').value || '').toLowerCase();
+  let lista = _apFuncs();
+  if (busca) lista = lista.filter(f => (f.nome||'').toLowerCase().includes(busca) || String(f.mat||'').toLowerCase().includes(busca));
+  lista.forEach(f => ap.mo.add(f.id)); apRenderMO(); apGuardar();
+  toast(lista.length + ' selecionados', 'ok');
+}
+
+// ── Equipamentos ──
+function apRenderEQ() {
+  const busca = (document.getElementById('ap-eq-busca').value || '').toLowerCase();
+  let lista = _apEquips();
+  if (busca) lista = lista.filter(e => String(e.tag||'').toLowerCase().includes(busca) || String(e.placa||'').toLowerCase().includes(busca));
+  lista = [...lista].sort((a,b) => (ap.eq.has(b.id) - ap.eq.has(a.id)) || String(a.tag||a.placa||'').localeCompare(String(b.tag||b.placa||'')));
+  // operadores sugeridos = equipe marcada
+  document.getElementById('ap-operadores').innerHTML = dadosCampo.funcionarios.filter(f => ap.mo.has(f.id)).map(f => `<option value="${_esc(f.nome)}">`).join('');
+  const motivos = [['','Nenhum'],['MNP','MNP — Manutenção não programada'],['MP','MP — Manutenção programada'],['CHU','Chuva'],['AMA','Aguardo de material'],['ADM','Problema administrativo']];
+  const el = document.getElementById('ap-eq-lista');
+  el.innerHTML = lista.length ? '<div class="card" style="padding:0;overflow:hidden;margin:12px 16px">' + lista.map(e => {
+    const v = ap.eq.get(e.id); const sel = !!v; const id = _esc(e.id);
+    return `<div class="ap-eq-item ${sel?'selected':''}">
+      <div class="list-item ${sel?'selected':''}" onclick="apToggleEQ('${id}')" style="border-bottom:none">
+        <div class="list-avatar eq-icon" style="${sel?'background:var(--red)':''}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${sel?'white':'#1E2A3A'}" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></div>
+        <div style="flex:1;min-width:0"><div class="list-name">${_esc(e.tag||e.placa)}</div>
+        <div class="list-sub">${_esc(e.placa||'—')} · ${_esc(e.familia||e.codFamilia||'—')}</div></div>
+        <div class="list-check"></div>
+      </div>
+      ${sel ? `<div class="ap-eq-campos" onclick="event.stopPropagation()">
+        <div class="time-row">
+          <div class="form-group"><label class="form-label">H. produtivas</label><input type="number" step="0.5" class="form-control" value="${_esc(v.hp)}" oninput="apEQCampo('${id}','hp',this.value)"/></div>
+          <div class="form-group"><label class="form-label">H. parado</label><input type="number" step="0.5" class="form-control" value="${_esc(v.hpar)}" oninput="apEQCampo('${id}','hpar',this.value)"/></div>
+        </div>
+        <div class="form-group"><label class="form-label">Motivo parada</label><select class="form-control" onchange="apEQCampo('${id}','motivo',this.value)">${motivos.map(([c,t]) => `<option value="${c}" ${v.motivo===c?'selected':''}>${t}</option>`).join('')}</select></div>
+        <div class="time-row">
+          <div class="form-group"><label class="form-label">Horímetro / km</label><input type="number" class="form-control" value="${_esc(v.hor)}" oninput="apEQCampo('${id}','hor',this.value)"/></div>
+          <div class="form-group"><label class="form-label">Operador</label><input class="form-control" list="ap-operadores" value="${_esc(v.operador)}" placeholder="Nome" oninput="apEQCampo('${id}','operador',this.value)"/></div>
+        </div>
+      </div>` : ''}
+    </div>`;
+  }).join('') + '</div>' : '<div class="ap-vazio">Nenhum equipamento encontrado</div>';
+  apAtualizarContadores();
+}
+function apToggleEQ(id) {
+  if (ap.eq.has(id)) ap.eq.delete(id);
+  else ap.eq.set(id, { hp: document.getElementById('ap-hn').value || '', hpAuto: true, hpar: 0, motivo: '', hor: '', operador: '' });
+  apRenderEQ(); apGuardar();
+}
+function apEQCampo(id, campo, valor) { const v = ap.eq.get(id); if (v) { v[campo] = valor; if (campo === 'hp') v.hpAuto = false; apGuardar(); } }
+
+// ── Revisar e salvar ──
+function apMontarResumo() {
+  const funcs = dadosCampo.funcionarios.filter(f => ap.mo.has(f.id));
+  const eqs = dadosCampo.equipamentos.filter(e => ap.eq.has(e.id));
+  const hn = document.getElementById('ap-hn').value || '0', he = document.getElementById('ap-he').value || '0';
+  const fr = document.getElementById('ap-frente'); const frTxt = fr.options[fr.selectedIndex]?.text || '—';
+  const sv = document.getElementById('ap-servico').value || '—';
+  const totHP = eqs.reduce((s,e) => s + (parseFloat(ap.eq.get(e.id).hp)||0), 0);
+  document.getElementById('ap-resumo').innerHTML = `
+    <div class="summary-item"><span class="summary-label">Frente</span><span class="summary-value" style="text-align:right">${_esc(frTxt)}</span></div>
+    <div class="summary-item"><span class="summary-label">Serviço</span><span class="summary-value">${_esc(sv)}</span></div>
+    <div class="summary-item"><span class="summary-label">Mão de obra</span><span class="summary-value">${funcs.length} pessoa(s) · ${_esc(hn)}h + ${_esc(he)}h extra</span></div>
+    <div class="summary-item"><span class="summary-label">Equipamentos</span><span class="summary-value">${eqs.length} · ${totHP}h produtivas</span></div>
+    ${funcs.length ? `<div style="margin-top:10px;font-size:12px;color:var(--text2)">${funcs.slice(0,6).map(f=>'• '+_esc(f.nome)).join('<br>')}${funcs.length>6?'<br>… e mais '+(funcs.length-6):''}</div>` : ''}
+    ${eqs.length ? `<div style="margin-top:10px;font-size:12px;color:var(--text2)">${eqs.slice(0,6).map(e=>'• '+_esc(e.tag||e.placa)+' — '+(parseFloat(ap.eq.get(e.id).hp)||0)+'h').join('<br>')}${eqs.length>6?'<br>… e mais '+(eqs.length-6):''}</div>` : ''}
+    ${!funcs.length && !eqs.length ? '<div style="margin-top:10px;color:var(--red);font-size:13px">Marque pelo menos uma pessoa ou um equipamento.</div>' : ''}`;
+}
+
+async function salvarApropriacao() {
+  if (!ap.mo.size && !ap.eq.size) { toast('Marque pelo menos uma pessoa ou um equipamento.', 'err'); return; }
+  const frente = document.getElementById('ap-frente').value;
+  const data = document.getElementById('ap-data').value;
+  if (!frente || !data) { toast('Preencha frente e data.', 'err'); apTab('frente'); return; }
+  // v2.5: saída = hora do celular no encerramento (se não foi preenchida)
+  if (!document.getElementById('ap-hora-fim').value) apAgora('ap-hora-fim'); else apHorasMudaram();
+  const btn = document.getElementById('ap-btn-salvar'); btn.disabled = true;
+  const horaIni = document.getElementById('ap-hora-ini').value, horaFim = document.getElementById('ap-hora-fim').value;
+  const servico = document.getElementById('ap-servico').value || '—';
+  const hn = parseFloat(document.getElementById('ap-hn').value) || 0, he = parseFloat(document.getElementById('ap-he').value) || 0;
+  const qtd = parseFloat(document.getElementById('ap-qtd').value) || 0, unid = document.getElementById('ap-unid').value;
+  const obs = document.getElementById('ap-obs').value;
+  const motivoPerda = document.getElementById('ap-motivo-perda').value, horasPerda = parseFloat(document.getElementById('ap-horas-perda').value) || 0;
+  const apropriacao = 'ap' + Date.now() + Math.random().toString(36).slice(2,5);
+  const base = { data, frente, servico, obs, obra: _apObra(), lancadoPor: usuarioCampo.nome, status: 'campo', lancadoEm: new Date().toISOString(), apropriacao };
+  const sufixo = () => Date.now() + Math.random().toString(36).slice(2,6);
+  let nMO = 0, nEQ = 0;
+  try {
+    const funcs = dadosCampo.funcionarios.filter(f => ap.mo.has(f.id));
+    for (const f of funcs) {
+      // a produção fica só no 1º registro, para não somar a mesma quantidade várias vezes
+      await fbSalvar('aponMO', { ...base, id: 'am' + sufixo(), hora: horaIni, horaIni, horaFim, hn, he,
+        qtd: nMO === 0 ? qtd : 0, unid, func: f.nome, funcao: f.codFuncao || f.funcao || '—', mat: f.mat, empresa: f.empresa || '' });
+      nMO++;
+    }
+    const eqs = dadosCampo.equipamentos.filter(e => ap.eq.has(e.id));
+    for (const e of eqs) {
+      const v = ap.eq.get(e.id);
+      await fbSalvar('aponEQ', { ...base, id: 'ae' + sufixo(), hora: horaIni, horaIni, horaFim,
+        hp: parseFloat(v.hp) || 0, hpar: parseFloat(v.hpar) || 0, motivo: v.motivo || '', hor: v.hor || '',
+        equip: e.tag || e.placa, equipId: e.id, tipo: e.familia || e.codFamilia || '—', operador: v.operador || '' });
+      nEQ++;
+    }
+    if (motivoPerda && horasPerda > 0) {
+      await fbSalvar('perdas', { ...base, id: 'pm' + sufixo(), tipo: 'Mão de Obra', motivo: motivoPerda, horas: horasPerda });
+    }
+  } finally { btn.disabled = false; }
+  toast(`Turno encerrado (${horaIni}–${horaFim}): ${nMO} pessoa(s) e ${nEQ} equipamento(s)` + (isOnline ? '' : ' — offline, sincroniza depois'), 'ok');
+  // limpa para a próxima frente (mantém data e turno)
+  ap.mo.clear(); ap.eq.clear(); ap.hnManual = false;
+  apLimparRascunho();
+  ['ap-frente','ap-servico','ap-qtd','ap-obs','ap-horas-perda','ap-mo-busca','ap-eq-busca','ap-hora-ini','ap-hora-fim'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  document.getElementById('ap-motivo-perda').value = '';
+  apAtualizarContadores();
+  apAgora('ap-hora-ini');
+  apTab('frente');
 }
 
 // ══════════════════════════════════════════════════════════════
