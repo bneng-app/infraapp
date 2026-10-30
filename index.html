@@ -310,7 +310,7 @@ textarea.form-control{resize:vertical;min-height:72px}
         <a href="#" onclick="esqueciSenha();return false" style="font-size:13px;color:#1B2C6E;text-decoration:none">Esqueci minha senha</a>
       </div>
     </div>
-    <div style="text-align:center;margin-top:1rem;font-size:11px;color:#aaa">ObraControl v2.20 · Controle de Mão de Obra e Equipamentos</div>
+    <div style="text-align:center;margin-top:1rem;font-size:11px;color:#aaa">ObraControl v2.21 · Controle de Mão de Obra e Equipamentos</div>
   </div>
 </div>
 
@@ -1516,11 +1516,11 @@ textarea.form-control{resize:vertical;min-height:72px}
 
   <!-- Row 3: Tabela Detalhada -->
   <div class="card">
-    <div class="card-header"><span class="card-title">Resumo por colaborador</span></div>
+    <div class="card-header"><span class="card-title">Produção mensal por frente e serviço</span></div>
     <div class="card-body" style="padding:0">
       <div class="table-wrap">
-        <table>
-          <thead><tr><th>Funcionário</th><th>Função</th><th>Empresa</th><th>Frente</th><th>Serviço</th><th>H. Normais</th><th>H. Extras</th><th>Produção</th></tr></thead>
+        <table style="font-size:12px">
+          <thead><tr><th>Mês</th><th>Frente</th><th>Serviço</th><th>Executado</th><th>Homem-hora</th><th>Horas equip.</th><th>Custo (MO + equip.)</th><th>Custo unitário</th></tr></thead>
           <tbody id="dash-mo-tabela"></tbody>
         </table>
       </div>
@@ -8298,15 +8298,17 @@ function renderCustoMO() {
   const lista = _periodoMO();
   const eqs = filtrarPorObra([...(dados.aponEQ||[])], 'frente').filter(a => { const ini = document.getElementById('dash-mo-ini')?.value || '', fim = document.getElementById('dash-mo-fim')?.value || ''; return (!ini || a.data >= ini) && (!fim || a.data <= fim); });
   const dias = {}, semCustoF = new Set(), semCustoE = new Set();
-  const dia = d => (dias[d] = dias[d] || { mo:0, he:0, df:0, td:'', eq:0, par:0, hn:0, hhe:0, prod:0, unid:new Set(), pessoas:new Set() });
-  lista.forEach(a => { const c = custoMO(a), d = dia(a.data); d.mo += c.normal; d.he += c.extra; d.df += c.domFer; if (c.tipoDia) d.td = c.tipoDia; d.hn += parseFloat(a.hn)||0; d.hhe += parseFloat(a.he)||0; d.prod += parseFloat(a.qtd)||0; if (a.unid) d.unid.add(a.unid); d.pessoas.add(a.func); if (c.semCusto) semCustoF.add(a.funcao || '?'); });
-  eqs.forEach(a => { const c = custoEQ(a), d = dia(a.data); d.eq += c.prod; d.par += c.parado; if (c.semCusto) semCustoE.add(a.equip || '?'); });
+  const dia = d => (dias[d] = dias[d] || { mo:0, he:0, df:0, td:new Set(), eq:0, par:0, hn:0, hhe:0, prod:0, prodU:{}, unid:new Set(), pessoas:new Set() });
+  const mes = a => String(a.data || '').slice(0, 7);
+  lista.forEach(a => { const c = custoMO(a), d = dia(mes(a)); d.mo += c.normal; d.he += c.extra; d.df += c.domFer; if (c.tipoDia) d.td.add(a.data); d.hn += parseFloat(a.hn)||0; d.hhe += parseFloat(a.he)||0;
+    const q = parseFloat(a.qtd)||0; d.prod += q; if (q) { const u = a.unid || ''; d.prodU[u] = (d.prodU[u]||0) + q; d.unid.add(u); } d.pessoas.add(a.func); if (c.semCusto) semCustoF.add(a.funcao || '?'); });
+  eqs.forEach(a => { const c = custoEQ(a), d = dia(mes(a)); d.eq += c.prod; d.par += c.parado; if (c.semCusto) semCustoE.add(a.equip || '?'); });
   const linhas = Object.entries(dias).sort((a, b) => b[0].localeCompare(a[0]));
   const tot = linhas.reduce((t, [, d]) => { t.mo += d.mo; t.he += d.he; t.df += d.df; t.eq += d.eq; t.par += d.par; return t; }, { mo:0, he:0, df:0, eq:0, par:0 });
   const total = tot.mo + tot.he + tot.df + tot.eq + tot.par;
   const aviso = (semCustoF.size || semCustoE.size)
     ? `<div style="font-size:12px;color:var(--amber);margin-top:8px">⚠ Sem custo cadastrado: ${semCustoF.size ? 'funções ' + [...semCustoF].slice(0,8).map(_e).join(', ') : ''}${semCustoF.size && semCustoE.size ? ' · ' : ''}${semCustoE.size ? 'equipamentos ' + [...semCustoE].slice(0,8).map(_e).join(', ') : ''}. Cadastre em Cargos / Equipamentos.</div>` : '';
-  el.innerHTML = `<div class="card-header" style="display:flex;justify-content:space-between;align-items:center"><span class="card-title">Custo da equipe por dia</span>
+  el.innerHTML = `<div class="card-header" style="display:flex;justify-content:space-between;align-items:center"><span class="card-title">Custo da equipe por mês</span>
       <span style="font-size:13px">Total no período: <strong>${_moeda(total)}</strong></span></div>
     <div class="card-body">
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px">
@@ -8316,17 +8318,52 @@ function renderCustoMO() {
         <div class="stat-card"><div class="stat-label">Equip. produtivo</div><div class="stat-value" style="font-size:20px">${_moeda(tot.eq)}</div></div>
         <div class="stat-card"><div class="stat-label">Equip. parado</div><div class="stat-value" style="font-size:20px;color:var(--red)">${_moeda(tot.par)}</div></div>
       </div>
-      <div class="table-wrap"><table style="font-size:12px"><thead><tr><th>Data</th><th>Pessoas</th><th>H. normais</th><th>H. extras</th><th>MO normal</th><th>MO extra</th><th>MO dom./feriado</th><th>Equip. produtivo</th><th>Equip. parado</th><th>Total do dia</th><th>Produção</th><th>Custo unitário</th></tr></thead><tbody>
-      ${linhas.length ? linhas.map(([data, d]) => { const t = d.mo + d.he + d.df + d.eq + d.par; const u = [...d.unid][0] || '';
-        return `<tr${d.td ? ' style="background:rgba(245,158,11,.08)"' : ''}><td class="td-mono">${fmtData(data)}${d.td ? ' <span class="tag tag-amber" style="font-size:10px">' + _e(d.td) + '</span>' : ''}</td><td class="td-mono">${d.pessoas.size}</td><td class="td-mono">${d.hn}h</td><td class="td-mono">${d.hhe}h</td>
+      <div class="table-wrap"><table style="font-size:12px"><thead><tr><th>Mês</th><th>Pessoas</th><th>H. normais</th><th>H. extras</th><th>MO normal</th><th>MO extra</th><th>MO dom./feriado</th><th>Equip. produtivo</th><th>Equip. parado</th><th>Total do mês</th><th>Produção</th><th>Custo unitário</th></tr></thead><tbody>
+      ${linhas.length ? linhas.map(([data, d]) => { const t = d.mo + d.he + d.df + d.eq + d.par; const us = Object.keys(d.prodU); const u = us.length === 1 ? us[0] : '';
+        return `<tr><td class="td-mono"><strong>${_mesTxt(data)}</strong>${d.td.size ? ' <span class="tag tag-amber" style="font-size:10px">' + d.td.size + ' dom./fer.</span>' : ''}</td><td class="td-mono">${d.pessoas.size}</td><td class="td-mono">${_n1(d.hn)}h</td><td class="td-mono">${_n1(d.hhe)}h</td>
           <td class="td-mono">${_moeda(d.mo)}</td><td class="td-mono">${_moeda(d.he)}</td><td class="td-mono">${d.df ? _moeda(d.df) : '—'}</td><td class="td-mono">${_moeda(d.eq)}</td><td class="td-mono" style="color:${d.par ? 'var(--red)' : 'inherit'}">${_moeda(d.par)}</td>
-          <td class="td-mono"><strong>${_moeda(t)}</strong></td><td class="td-mono">${d.prod ? d.prod + ' ' + _e(u) : '—'}</td>
-          <td class="td-mono">${d.prod ? _moeda(t / d.prod) + (u ? '/' + _e(u) : '') : '—'}</td></tr>`; }).join('')
+          <td class="td-mono"><strong>${_moeda(t)}</strong></td><td class="td-mono">${us.length ? us.map(k => _n1(d.prodU[k]) + ' ' + _e(k)).join('<br>') : '—'}</td>
+          <td class="td-mono">${us.length === 1 ? _moeda(t / d.prod) + (u ? '/' + _e(u) : '') : (us.length ? '<span style="color:var(--text-3)" title="Unidades diferentes no mês: veja o custo unitário por serviço na tabela abaixo">ver por serviço ↓</span>' : '—')}</td></tr>`; }).join('')
         : '<tr><td colspan="12" style="text-align:center;color:var(--text-3);padding:1.5rem">Nenhum apontamento aprovado no período</td></tr>'}
       </tbody></table></div>
-      <div style="font-size:11px;color:var(--text-3);margin-top:6px">Hora extra = custo/h da função × (1 + adicional HE). Domingo/feriado = custo/h × (1 + adicional dom./feriado) × todas as horas do dia (padrão 100%). Equipamento = custo/h × (produtivas + paradas). Custo unitário = total do dia ÷ produção do dia${linhas.some(([, d]) => d.unid.size > 1) ? ' (atenção: dias com serviços de unidades diferentes)' : ''}.</div>
+      <div style="font-size:11px;color:var(--text-3);margin-top:6px">Hora extra = custo/h da função × (1 + adicional HE). Domingo/feriado = custo/h × (1 + adicional dom./feriado) × todas as horas do dia (padrão 100%). Equipamento = custo/h × (produtivas + paradas). Custo unitário = total do mês ÷ produção do mês (quando o mês tem serviços com unidades diferentes, veja o custo unitário por serviço na tabela de produção).</div>
       ${aviso}
     </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// v2.21: PRODUÇÃO MENSAL POR FRENTE E SERVIÇO (substitui o resumo por colaborador)
+// ═══════════════════════════════════════════════════════════════
+const _MESES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+function _mesTxt(ym) { const [y, m] = String(ym).split('-'); return (_MESES[(+m||1)-1] || m) + '/' + y; }
+function _n1(v) { return (Math.round((Number(v)||0) * 10) / 10).toLocaleString('pt-BR'); }
+function _nomeFrente(cod) { const f = (dados.frentes||[]).find(x => x.cod === cod || x.id === cod); return f ? (f.desc || f.nome || '') : ''; }
+function renderProdMensal() {
+  const tb = document.getElementById('dash-mo-tabela'); if (!tb) return;
+  const ini = document.getElementById('dash-mo-ini')?.value || '', fim = document.getElementById('dash-mo-fim')?.value || '';
+  const noPeriodo = a => (!ini || a.data >= ini) && (!fim || a.data <= fim);
+  const mo = filtrarPorObra([...(dados.aponMO||[])], 'frente').filter(noPeriodo);
+  const eq = filtrarPorObra([...(dados.aponEQ||[])], 'frente').filter(noPeriodo);
+  const g = {};
+  const chave = a => String(a.data||'').slice(0,7) + '|' + (a.frente||'—') + '|' + (a.tipoServico || a.servico || '—');
+  const item = a => { const k = chave(a); return g[k] = g[k] || { mes:k.split('|')[0], frente:k.split('|')[1], serv:k.split('|')[2], prod:0, unid:{}, hh:0, heq:0, custo:0 }; };
+  mo.forEach(a => { const x = item(a), c = custoMO(a); const q = parseFloat(a.qtd)||0;
+    x.prod += q; if (q) x.unid[a.unid || ''] = 1; x.hh += (parseFloat(a.hn)||0) + (parseFloat(a.he)||0); x.custo += c.normal + c.extra + c.domFer; });
+  eq.forEach(a => { const x = item(a), c = custoEQ(a); x.heq += (parseFloat(a.hp)||0) + (parseFloat(a.hpar)||0); x.custo += c.prod + c.parado; });
+  const linhas = Object.values(g).sort((a, b) => b.mes.localeCompare(a.mes) || a.frente.localeCompare(b.frente) || a.serv.localeCompare(b.serv));
+  if (!linhas.length) { tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-3);padding:2rem">Nenhum apontamento aprovado no período</td></tr>'; return; }
+  const unidServ = nome => { const t = (dados.tiposServico||[]).find(s => s.nome === nome || s.desc === nome || s.cod === nome); return t ? (t.unidade || '') : ''; };
+  let html = '', mesAtual = '';
+  const subtotal = m => { const ls = linhas.filter(l => l.mes === m); const c = ls.reduce((s, l) => s + l.custo, 0), hh = ls.reduce((s, l) => s + l.hh, 0), he = ls.reduce((s, l) => s + l.heq, 0);
+    return `<tr style="background:var(--bg);font-weight:700"><td colspan="4">${_mesTxt(m)} · ${ls.length} serviço(s)</td><td class="td-mono">${_n1(hh)} Hh</td><td class="td-mono">${_n1(he)}h</td><td class="td-mono">${_moeda(c)}</td><td></td></tr>`; };
+  linhas.forEach(l => {
+    if (l.mes !== mesAtual) { mesAtual = l.mes; html += subtotal(l.mes); }
+    const us = Object.keys(l.unid); const u = us.length === 1 ? us[0] : (us.length ? '' : unidServ(l.serv));
+    html += `<tr><td class="td-mono" style="color:var(--text-3)">${_mesTxt(l.mes)}</td><td><span class="td-mono"><strong>${_e(l.frente)}</strong></span> <span style="color:var(--text-3)">${_e(_nomeFrente(l.frente))}</span></td><td>${_e(l.serv)}</td>
+      <td class="td-mono"><strong>${l.prod ? _n1(l.prod) + ' ' + _e(u) : '—'}</strong></td><td class="td-mono">${_n1(l.hh)}</td><td class="td-mono">${l.heq ? _n1(l.heq) + 'h' : '—'}</td>
+      <td class="td-mono">${_moeda(l.custo)}</td><td class="td-mono"><strong>${l.prod && l.custo ? _moeda(l.custo / l.prod) + (u ? '/' + _e(u) : '') : '—'}</strong></td></tr>`;
+  });
+  tb.innerHTML = html;
 }
 (function () {
   // Dashboard MO ganha o bloco de custo; os dados já chegam só com aprovados
@@ -8334,7 +8371,7 @@ function renderCustoMO() {
   window.renderDashMO = function () { const r = oMO.apply(this, arguments);
     const o = { mo: dados.aponMO, eq: dados.aponEQ };
     dados.aponMO = (o.mo||[]).filter(_ehAprovado); dados.aponEQ = (o.eq||[]).filter(_ehAprovado);
-    try { renderCustoMO(); } finally { dados.aponMO = o.mo; dados.aponEQ = o.eq; }
+    try { renderCustoMO(); renderProdMensal(); } finally { dados.aponMO = o.mo; dados.aponEQ = o.eq; }
     return r; };
 })();
 
