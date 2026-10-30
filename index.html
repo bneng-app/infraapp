@@ -181,7 +181,7 @@ textarea.form-control{resize:vertical;min-height:72px}
   #page-qrcodes .qr-grid{grid-template-columns:repeat(4,1fr);gap:8px}
   #page-qrcodes .qr-card{break-inside:avoid;border:1px dashed #999;box-shadow:none}
   #page-qrcodes .qr-check{display:none}
-  body.qr-imprime-sel #page-qrcodes .qr-card:not(.qr-sel){display:none}
+  body.qr-imprime #page-qrcodes #qr-func, body.qr-imprime #page-qrcodes #qr-equip, body.qr-imprime #page-qrcodes #qr-gerados-wrap > div:first-child {display:none!important}
 }
 
 /* TABS */
@@ -350,7 +350,7 @@ textarea.form-control{resize:vertical;min-height:72px}
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraControl</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraControl v2.27 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraControl v2.28 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -1157,16 +1157,23 @@ textarea.form-control{resize:vertical;min-height:72px}
       <select class="form-control" id="qr-obra" onchange="renderQRCodes()" style="min-width:200px"></select>
       <input class="form-control" id="qr-busca" placeholder="Buscar nome, matrícula ou TAG…" oninput="renderQRCodes()" style="min-width:220px"/>
       <button class="btn btn-outline btn-sm" onclick="qrMarcarTodos()">Marcar todos</button>
-      <button class="btn btn-primary" onclick="imprimirQRs()">🖨 Imprimir <span id="qr-n-sel"></span></button>
+      <button class="btn btn-primary" onclick="gerarQRs()">Gerar QR dos marcados <span id="qr-n-sel"></span></button>
     </div>
   </div>
-  <div style="font-size:12px;color:var(--text-3);margin:-4px 0 10px">Clique nos cartões para escolher quais imprimir. Sem nenhum marcado, imprime todos da aba aberta.</div>
+  <div style="font-size:12px;color:var(--text-3);margin:-4px 0 10px">Marque quem precisa de crachá ou etiqueta e clique em <strong>Gerar QR dos marcados</strong>. Os QR aparecem embaixo, prontos para imprimir.</div>
   <div class="tab-bar">
     <button class="tab active" onclick="showQRTab('qr-func',this)">Funcionários</button>
     <button class="tab" onclick="showQRTab('qr-equip',this)">Equipamentos</button>
   </div>
-  <div id="qr-func"><div class="qr-grid" id="qr-grid-func"></div></div>
-  <div id="qr-equip" style="display:none"><div class="qr-grid" id="qr-grid-equip"></div></div>
+  <div id="qr-func"><div class="card" style="padding:0"><div class="table-wrap" style="max-height:420px;overflow:auto"><table><tbody id="qr-grid-func"></tbody></table></div></div></div>
+  <div id="qr-equip" style="display:none"><div class="card" style="padding:0"><div class="table-wrap" style="max-height:420px;overflow:auto"><table><tbody id="qr-grid-equip"></tbody></table></div></div></div>
+  <div id="qr-gerados-wrap" style="display:none;margin-top:1rem">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <strong id="qr-gerados-tit" style="font-size:14px"></strong>
+      <div style="display:flex;gap:8px"><button class="btn btn-outline btn-sm" onclick="qrLimparGerados()">Limpar</button><button class="btn btn-primary btn-sm" onclick="imprimirQRs()">🖨 Imprimir</button></div>
+    </div>
+    <div class="qr-grid" id="qr-gerados"></div>
+  </div>
   <div id="qr-frentes" style="display:none"><div class="qr-grid" id="qr-grid-frentes"></div></div>
 </div>
 
@@ -4697,45 +4704,62 @@ function _qrObras() {
   sel.innerHTML = '<option value="">Todas as obras</option>' + (dados.obras||[]).map(o => `<option value="${_e(o.id)}">${_e(o.cod ? o.cod + ' — ' : '')}${_e(o.nome||'')}</option>`).join('');
   sel.value = atual; sel.dataset.ok = '1';
 }
+function _qrItens() {
+  const b = (document.getElementById('qr-busca')?.value || '').toLowerCase();
+  const cargo = c => { const x = (dados.cargos||[]).find(y => y.cod === c); return x ? x.nome : (c || ''); };
+  const func = _qrDaObra(dados.funcionarios||[]).filter(f => f.mat && f.status !== 'Desligado' && !f.demissao)
+    .filter(f => !b || (f.nome||'').toLowerCase().includes(b) || String(f.mat).toLowerCase().includes(b))
+    .sort((a, c) => String(a.nome||'').localeCompare(String(c.nome||'')))
+    .map(f => ({ id:'MO-' + f.id, texto:'mat:' + f.mat, label:f.nome, sub:['Mat. ' + f.mat, cargo(f.codFuncao || f.funcao)].filter(Boolean).join(' · ') }));
+  const equip = _qrDaObra(dados.equipamentos||[]).filter(e => e.tag || e.placa)
+    .filter(e => !b || String(e.tag||'').toLowerCase().includes(b) || String(e.placa||'').toLowerCase().includes(b))
+    .sort((a, c) => String(a.tag||a.placa).localeCompare(String(c.tag||c.placa)))
+    .map(e => ({ id:'EQ-' + e.id, texto:'tag:' + (e.tag || e.placa), label:e.tag || e.placa, sub:[e.codModelo || e.modelo, e.placa].filter(Boolean).join(' · ') }));
+  return { func, equip };
+}
+// v2.28: a tela só lista (rápido); o QR é gerado só para quem for marcado
 function renderQRCodes() {
   _qrObras();
-  const b = (document.getElementById('qr-busca')?.value || '').toLowerCase();
-  const cargo = c => { const k = (dados.cargos||[]).find(x => x.cod === c); return k ? k.nome : (c || ''); };
-  const funcs = _qrDaObra(dados.funcionarios||[]).filter(f => f.mat && f.status !== 'Desligado' && !f.demissao)
-    .filter(f => !b || (f.nome||'').toLowerCase().includes(b) || String(f.mat).toLowerCase().includes(b));
-  const eqs = _qrDaObra(dados.equipamentos||[]).filter(e => e.tag || e.placa)
-    .filter(e => !b || String(e.tag||'').toLowerCase().includes(b) || String(e.placa||'').toLowerCase().includes(b));
-  renderQRGrid('func',  funcs, f => ({ id:'MO-' + f.id, texto:'mat:' + f.mat, label:f.nome, sub:'Mat. ' + f.mat + ' · ' + cargo(f.codFuncao || f.funcao) }));
-  renderQRGrid('equip', eqs,   e => ({ id:'EQ-' + e.id, texto:'tag:' + (e.tag || e.placa), label:e.tag || e.placa, sub:[e.codModelo || e.modelo, e.placa].filter(Boolean).join(' · ') }));
-  _qrContador();
-}
-function renderQRGrid(tipo, lista, mapper) {
-  const grid = document.getElementById(`qr-grid-${tipo}`); if (!grid) return;
-  grid.innerHTML = '';
-  lista.forEach(item => {
-    const { id, texto, label, sub } = mapper(item);
-    const div = document.createElement('div');
-    div.className = 'qr-card' + (_qrSel.has(id) ? ' qr-sel' : '');
-    div.dataset.qr = id;
-    div.onclick = () => { _qrSel.has(id) ? _qrSel.delete(id) : _qrSel.add(id); div.classList.toggle('qr-sel'); _qrContador(); };
-    div.innerHTML = `<div class="qr-check">✓</div><div class="qr-canvas" id="qrc-${id}"></div><div class="qr-label">${_e(label||'')}</div><div class="qr-sub">${_e(sub||'')}</div><div class="qr-rodape">TENCO · ObraControl</div>`;
-    grid.appendChild(div);
-    try { new QRCode(div.querySelector('.qr-canvas'), { text: texto, width:120, height:120, colorDark:'#111111', colorLight:'#ffffff', correctLevel:QRCode.CorrectLevel.M }); } catch (e) {}
+  const it = _qrItens();
+  ['func','equip'].forEach(t => {
+    const tb = document.getElementById('qr-grid-' + t); if (!tb) return;
+    tb.innerHTML = it[t].length ? it[t].map(x => `<tr style="cursor:pointer" onclick="qrMarcar('${x.id}')"><td style="width:34px"><input type="checkbox" data-qr="${x.id}" ${_qrSel.has(x.id) ? 'checked' : ''} onclick="event.stopPropagation();qrMarcar('${x.id}')"/></td><td><strong>${_e(x.label)}</strong></td><td class="td-mono" style="color:var(--text-3)">${_e(x.sub)}</td></tr>`).join('')
+      : '<tr><td style="color:var(--text-3);padding:2rem;text-align:center">Nenhum cadastro encontrado</td></tr>';
   });
-  if (!lista.length) grid.innerHTML = '<p style="color:var(--text-3);padding:2rem">Nenhum cadastro encontrado</p>';
-}
-function _qrContador() { const n = document.getElementById('qr-n-sel'); if (n) n.textContent = _qrSel.size ? '(' + _qrSel.size + ')' : 'todos'; }
-function qrMarcarTodos() {
-  const aba = document.querySelector('#page-qrcodes > div[id^="qr-"]:not([style*="none"])');
-  const cards = aba ? aba.querySelectorAll('.qr-card') : [];
-  const todos = [...cards].every(c => _qrSel.has(c.dataset.qr));
-  cards.forEach(c => { if (todos) { _qrSel.delete(c.dataset.qr); c.classList.remove('qr-sel'); } else { _qrSel.add(c.dataset.qr); c.classList.add('qr-sel'); } });
   _qrContador();
 }
+function qrMarcar(id) { _qrSel.has(id) ? _qrSel.delete(id) : _qrSel.add(id); document.querySelectorAll(`#page-qrcodes input[data-qr="${id}"]`).forEach(c => c.checked = _qrSel.has(id)); _qrContador(); }
+function _qrContador() { const n = document.getElementById('qr-n-sel'); if (n) n.textContent = _qrSel.size ? '(' + _qrSel.size + ')' : ''; }
+function qrMarcarTodos() {
+  const aba = qrTab === 'equip' ? 'equip' : 'func';
+  const ids = _qrItens()[aba].map(x => x.id); const todos = ids.length && ids.every(id => _qrSel.has(id));
+  ids.forEach(id => todos ? _qrSel.delete(id) : _qrSel.add(id)); renderQRCodes();
+}
+function gerarQRs() {
+  if (!_qrSel.size) { toast('Marque pelo menos um funcionário ou equipamento.', 'error'); return; }
+  if (typeof QRCode === 'undefined') { toast('Gerador de QR ainda carregando — tente de novo em instantes.', 'error'); return; }
+  const it = _qrItens(); const todos = [...it.func, ...it.equip];
+  // inclui marcados que a busca escondeu
+  const mapa = new Map(todos.map(x => [x.id, x]));
+  const salvaBusca = document.getElementById('qr-busca'); const b = salvaBusca ? salvaBusca.value : ''; if (salvaBusca && b) { salvaBusca.value = ''; const t2 = _qrItens(); [...t2.func, ...t2.equip].forEach(x => mapa.set(x.id, x)); salvaBusca.value = b; }
+  const lista = [..._qrSel].map(id => mapa.get(id)).filter(Boolean);
+  const grid = document.getElementById('qr-gerados'); grid.innerHTML = '';
+  lista.forEach(x => {
+    const div = document.createElement('div'); div.className = 'qr-card';
+    div.innerHTML = `<div class="qr-canvas"></div><div class="qr-label">${_e(x.label||'')}</div><div class="qr-sub">${_e(x.sub||'')}</div><div class="qr-rodape">TENCO · ObraControl</div>`;
+    grid.appendChild(div);
+    try { new QRCode(div.querySelector('.qr-canvas'), { text:x.texto, width:120, height:120, colorDark:'#111111', colorLight:'#ffffff', correctLevel:QRCode.CorrectLevel.M }); } catch (e) {}
+  });
+  document.getElementById('qr-gerados-tit').textContent = lista.length + ' QR Code(s) gerado(s)';
+  document.getElementById('qr-gerados-wrap').style.display = '';
+  document.getElementById('qr-gerados-wrap').scrollIntoView({ behavior:'smooth' });
+}
+function qrLimparGerados() { document.getElementById('qr-gerados').innerHTML = ''; document.getElementById('qr-gerados-wrap').style.display = 'none'; _qrSel.clear(); renderQRCodes(); }
 function imprimirQRs() {
-  document.body.classList.toggle('qr-imprime-sel', _qrSel.size > 0);
+  if (!document.getElementById('qr-gerados')?.children.length) { gerarQRs(); if (!_qrSel.size) return; }
+  document.body.classList.add('qr-imprime');
   window.print();
-  setTimeout(() => document.body.classList.remove('qr-imprime-sel'), 500);
+  setTimeout(() => document.body.classList.remove('qr-imprime'), 500);
 }
 
 // ───── APONTAMENTOS MO — CARDS ─────
