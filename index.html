@@ -310,7 +310,7 @@ textarea.form-control{resize:vertical;min-height:72px}
         <a href="#" onclick="esqueciSenha();return false" style="font-size:13px;color:#1B2C6E;text-decoration:none">Esqueci minha senha</a>
       </div>
     </div>
-    <div style="text-align:center;margin-top:1rem;font-size:11px;color:#aaa">ObraControl v2.17 · Controle de Mão de Obra e Equipamentos</div>
+    <div style="text-align:center;margin-top:1rem;font-size:11px;color:#aaa">ObraControl v2.18 · Controle de Mão de Obra e Equipamentos</div>
   </div>
 </div>
 
@@ -671,7 +671,7 @@ textarea.form-control{resize:vertical;min-height:72px}
     <div class="search-wrap"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="search-empresas" placeholder="Buscar por código, razão social ou CNPJ…" oninput="filtrarTabela('tabela-empresas','search-empresas',0)"/></div>
     <div class="table-wrap">
       <table id="tabela-empresas">
-        <thead><tr><th>Obra</th><th>Código</th><th>Razão Social</th><th>CNPJ</th><th>Tipo</th><th>Responsável</th><th></th></tr></thead>
+        <thead><tr><th style="width:36px"><input type="checkbox" class="cb-row-check" id="cb-master-empresas" onchange="toggleSelectAll('empresas',this)" title="Selecionar todos"></th><th>Obra</th><th>Código</th><th>Razão Social</th><th>CNPJ</th><th>Tipo</th><th>Responsável</th><th></th></tr></thead>
         <tbody id="tbody-empresas"><tr><td colspan="6" class="empty-row">Carregando…</td></tr></tbody>
       </table>
     </div>
@@ -692,7 +692,7 @@ textarea.form-control{resize:vertical;min-height:72px}
     <div class="search-wrap"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="search-ua" placeholder="Buscar UA ou descrição…" oninput="filtrarTabela('tabela-ua','search-ua',0)"/></div>
     <div class="table-wrap">
       <table id="tabela-ua">
-        <thead><tr><th>UA</th><th>Descrição</th><th>Tipo</th><th></th></tr></thead>
+        <thead><tr><th style="width:36px"><input type="checkbox" class="cb-row-check" id="cb-master-ua" onchange="toggleSelectAll('ua',this)" title="Selecionar todos"></th><th>UA</th><th>Descrição</th><th>Tipo</th><th></th></tr></thead>
         <tbody id="tbody-ua"><tr><td colspan="4" class="empty-row">Carregando…</td></tr></tbody>
       </table>
     </div>
@@ -713,7 +713,7 @@ textarea.form-control{resize:vertical;min-height:72px}
     <div class="search-wrap"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="search-cargos" placeholder="Buscar código ou função…" oninput="filtrarTabela('tabela-cargos','search-cargos',0)"/></div>
     <div class="table-wrap">
       <table id="tabela-cargos">
-        <thead><tr><th>Obra</th><th>Cód. Função</th><th>Função (Cargo)</th><th>Direto</th><th>Operador</th><th>Cód. Recurso</th><th></th></tr></thead>
+        <thead><tr><th style="width:36px"><input type="checkbox" class="cb-row-check" id="cb-master-cargos" onchange="toggleSelectAll('cargos',this)" title="Selecionar todos"></th><th>Obra</th><th>Cód. Função</th><th>Função (Cargo)</th><th>Direto</th><th>Operador</th><th>Cód. Recurso</th><th>Custo/h</th><th>Adic. HE</th><th></th></tr></thead>
         <tbody id="tbody-cargos"><tr><td colspan="6" class="empty-row">Carregando…</td></tr></tbody>
       </table>
     </div>
@@ -876,7 +876,7 @@ textarea.form-control{resize:vertical;min-height:72px}
     <div class="search-wrap"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="busca-func" placeholder="Buscar por matrícula, nome ou cargo…" oninput="renderFuncionarios(0)"/></div>
     <div class="table-wrap">
       <table id="tabela-func">
-        <thead><tr><th>Obra</th><th>Matrícula</th><th>Nome</th><th>Cód. Função</th><th>Função</th><th>Direto</th><th>Admissão</th><th>Demissão</th><th>Matr. Líder</th><th>Cód. Equipe</th><th></th></tr></thead>
+        <thead><tr><th style="width:36px"><input type="checkbox" class="cb-row-check" id="cb-master-funcionarios" onchange="toggleSelectAll('funcionarios',this)" title="Selecionar todos"></th><th>Obra</th><th>Matrícula</th><th>Nome</th><th>Cód. Função</th><th>Função</th><th>Direto</th><th>Admissão</th><th>Demissão</th><th>Matr. Líder</th><th>Cód. Equipe</th><th></th></tr></thead>
         <tbody id="tbody-func"><tr><td colspan="10" class="empty-row">Carregando…</td></tr></tbody>
       </table>
     </div>
@@ -898,7 +898,7 @@ textarea.form-control{resize:vertical;min-height:72px}
     <div class="search-wrap"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="search-familias" placeholder="Buscar código ou descrição…" oninput="filtrarTabela('tabela-familias','search-familias',0)"/></div>
     <div class="table-wrap">
       <table id="tabela-familias">
-        <thead><tr><th>Obra</th><th>Cód. Família</th><th>Desc. Família</th><th></th></tr></thead>
+        <thead><tr><th style="width:36px"><input type="checkbox" class="cb-row-check" id="cb-master-familias" onchange="toggleSelectAll('familias',this)" title="Selecionar todos"></th><th>Obra</th><th>Cód. Família</th><th>Desc. Família</th><th></th></tr></thead>
         <tbody id="tbody-familias"><tr><td colspan="3" class="empty-row">Carregando…</td></tr></tbody>
       </table>
     </div>
@@ -919,7 +919,7 @@ textarea.form-control{resize:vertical;min-height:72px}
     <div class="search-wrap"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="search-modelos" placeholder="Buscar código ou modelo…" oninput="filtrarTabela('tabela-modelos','search-modelos',0)"/></div>
     <div class="table-wrap">
       <table id="tabela-modelos">
-        <thead><tr><th>Obra</th><th>Cód. Modelo</th><th>Modelo</th><th></th></tr></thead>
+        <thead><tr><th style="width:36px"><input type="checkbox" class="cb-row-check" id="cb-master-modelos" onchange="toggleSelectAll('modelos',this)" title="Selecionar todos"></th><th>Obra</th><th>Cód. Modelo</th><th>Modelo</th><th></th></tr></thead>
         <tbody id="tbody-modelos"><tr><td colspan="3" class="empty-row">Carregando…</td></tr></tbody>
       </table>
     </div>
@@ -940,7 +940,7 @@ textarea.form-control{resize:vertical;min-height:72px}
     <div class="search-wrap"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="search-equip" placeholder="Buscar por placa, série ou modelo…" oninput="filtrarTabela('tabela-equip','search-equip',0)"/></div>
     <div class="table-wrap">
       <table id="tabela-equip">
-        <thead><tr><th>TAG</th><th>Cód. Modelo</th><th>Modelo</th><th>Placa / Série</th><th>Família</th><th>Proprietário</th><th>Status</th><th>Data Mob.</th><th></th></tr></thead>
+        <thead><tr><th style="width:36px"><input type="checkbox" class="cb-row-check" id="cb-master-equipamentos" onchange="toggleSelectAll('equipamentos',this)" title="Selecionar todos"></th><th>Obra</th><th>TAG</th><th>Cód. Modelo</th><th>Modelo</th><th>Placa / Série</th><th>Família</th><th>Proprietário</th><th>Status</th><th>Data Mob.</th><th>Custo/h</th><th></th></tr></thead>
         <tbody id="tbody-equip"><tr><td colspan="7" class="empty-row">Carregando…</td></tr></tbody>
       </table>
     </div>
@@ -2351,6 +2351,9 @@ textarea.form-control{resize:vertical;min-height:72px}
         <div class="form-group"><label class="form-label">Operador</label>
           <select class="form-control" id="cargo-operador"><option value="Não">Não</option><option value="Sim">Sim</option></select>
         </div>
+        <div class="form-group"><label class="form-label">Custo por hora (R$)</label><input class="form-control" id="cargo-custo" type="number" step="0.01" min="0" placeholder="Ex.: 35,00"/></div>
+        <div class="form-group"><label class="form-label">Adicional hora extra (%)</label><input class="form-control" id="cargo-adhe" type="number" step="1" min="0" placeholder="50"/>
+          <div style="font-size:11px;color:var(--text-3);margin-top:3px">Em branco = 50%. Hora extra = custo/h × (1 + adicional).</div></div>
       </div>
     </div>
     <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-novo-cargo')">Cancelar</button><button class="btn btn-primary" onclick="salvarCargo()">Salvar</button></div>
@@ -2448,6 +2451,8 @@ textarea.form-control{resize:vertical;min-height:72px}
           </select>
         </div>
         <div class="form-group"><label class="form-label">Data mobilização</label><input type="date" class="form-control" id="equip-mob"/></div>
+        <div class="form-group"><label class="form-label">Custo por hora (R$)</label><input class="form-control" id="equip-custo" type="number" step="0.01" min="0" placeholder="Ex.: 180,00"/>
+          <div style="font-size:11px;color:var(--text-3);margin-top:3px">Vale para horas produtivas e paradas.</div></div>
       </div>
     </div>
     <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-novo-equip')">Cancelar</button><button class="btn btn-primary" onclick="salvarEquipamento()">Salvar</button></div>
@@ -4350,6 +4355,8 @@ function renderCargos() {
         <td>${tag(c.direto,   c.direto==='Sim'?'green':'gray')}</td>
         <td>${tag(c.operador, c.operador==='Sim'?'blue':'gray')}</td>
         <td class="td-mono">${c.recurso||'—'}</td>
+        <td class="td-mono">${c.custoHora ? _moeda(c.custoHora) : '<span style="color:var(--amber)">—</span>'}</td>
+        <td class="td-mono">${(c.adicHE ?? 50)}%</td>
         <td>${acoesCell(`editarCargo('${c.id}')`,`deletar('cargos','${c.id}')`)}</td>
       </tr>`).join('')
     : '<tr><td colspan="6" style="text-align:center;color:var(--text-3);padding:2rem">Nenhum cargo cadastrado</td></tr>';
@@ -4362,6 +4369,8 @@ function salvarCargo() {
   const nome = document.getElementById('cargo-nome').value.trim();
   if (!cod||!nome) { toast('Preencha Cód. Função e Função', 'error'); return; }
   dados.cargos.push({ id:'c'+Date.now(), obra, cod, nome,
+    custoHora: parseFloat(document.getElementById('cargo-custo')?.value) || 0,
+    adicHE: document.getElementById('cargo-adhe')?.value === '' ? 50 : (parseFloat(document.getElementById('cargo-adhe')?.value) || 0),
     direto:   document.getElementById('cargo-direto').value,
     operador: document.getElementById('cargo-operador').value,
     recurso:  document.getElementById('cargo-recurso').value });
@@ -4534,6 +4543,7 @@ function renderEquipamentos() {
           <td>${e.prop}</td>
           <td>${tag(e.status, stCls)}</td>
           <td class="td-mono">${e.dataMob?fmtData(e.dataMob):'—'}</td>
+          <td class="td-mono">${e.custoHora ? _moeda(e.custoHora) : '<span style="color:var(--amber)">—</span>'}</td>
           <td>${acoesCell(`editarEquipamento('${e.id}')`,`deletar('equipamentos','${e.id}')`)}</td>
         </tr>`;
       }).join('')
@@ -4555,6 +4565,7 @@ function salvarEquipamento() {
     toast(`TAG "${tag_eq}" já está em uso por outro equipamento`, 'error'); return;
   }
   dados.equipamentos.push({ id:'q'+Date.now(), obra, tag:tag_eq, codModelo, placa, familia, prop,
+    custoHora: parseFloat(document.getElementById('equip-custo')?.value) || 0,
     status:   document.getElementById('equip-status').value,
     dataMob:  (document.getElementById('equip-mob')||{}).value||'' });
     // Save to Firebase
@@ -7131,6 +7142,8 @@ if (typeof drawGauge !== 'function') window.drawGauge = function(id, valor, meta
         if (titulo()) titulo().textContent = c.editar;
         if (!item) return;
         if (c.col === 'funcionarios' && $('func-funcao')) $('func-funcao').value = item.codFuncao || item.funcao || '';
+        if (c.col === 'cargos') { if ($('cargo-custo')) $('cargo-custo').value = item.custoHora || ''; if ($('cargo-adhe')) $('cargo-adhe').value = item.adicHE ?? ''; }
+        if (c.col === 'equipamentos' && $('equip-custo')) $('equip-custo').value = item.custoHora || '';
         if (c.col === 'equipamentos') {
           if ($('equip-modelo')) $('equip-modelo').value = item.codModelo || item.modelo || '';
           if ($('equip-mob')) $('equip-mob').value = item.dataMob || item.mob || '';
@@ -7505,8 +7518,9 @@ const IMPORT_DEF = {
                   map:g=>({ cod:g(['código','codigo','cod']), nome:g(['razão','razao','nome']), cnpj:g(['cnpj']), tipo:g(['tipo'])||'Empreiteira', resp:g(['responsável','responsavel']) }), ok:x=>x.cod&&x.nome },
   ua:           { rotulo:'UA', porObra:true, chave:'cod', col:['Código UA','Descrição','Tipo (MO/EQ)'],
                   map:g=>({ cod:g(['código ua','codigo ua','código','cod']), desc:g(['descrição','descricao','desc']), tipo:(g(['tipo'])||'MO').toUpperCase() }), ok:x=>x.cod&&x.desc },
-  cargos:       { rotulo:'Cargos', porObra:true, chave:'cod', col:['Cód. Função','Nome da Função','Cód. Recurso (UA)','Direto (Sim/Não)','Operador (Sim/Não)'],
-                  map:g=>({ cod:g(['cód. função','cod. função','cód','cod']), nome:g(['nome da função','nome da funcao','nome']), recurso:g(['recurso']), direto:g(['direto'])||'Sim', operador:g(['operador'])||'Não' }), ok:x=>x.cod&&x.nome },
+  cargos:       { rotulo:'Cargos', porObra:true, chave:'cod', col:['Cód. Função','Nome da Função','Cód. Recurso (UA)','Direto (Sim/Não)','Operador (Sim/Não)','Custo/hora (R$)','Adicional HE (%)'],
+                  map:g=>({ cod:g(['cód. função','cod. função','cód','cod']), nome:g(['nome da função','nome da funcao','nome']), recurso:g(['recurso']), direto:g(['direto'])||'Sim', operador:g(['operador'])||'Não',
+                            custoHora:_numImport(g(['custo'])), adicHE:(v => v === '' ? 50 : _numImport(v))(g(['adicional','% he','hora extra'])) }), ok:x=>x.cod&&x.nome },
   familias:     { rotulo:'Famílias', porObra:true, chave:'cod', col:['Código','Descrição'],
                   map:g=>({ cod:g(['código','codigo','cod']), desc:g(['descrição','descricao','desc']) }), ok:x=>x.cod&&x.desc },
   modelos:      { rotulo:'Modelos', porObra:true, chave:'cod', col:['Código','Nome do Modelo','Família'],
@@ -7522,11 +7536,18 @@ const IMPORT_DEF = {
   funcionarios: { rotulo:'Funcionários', porObra:true, chave:'mat', col:['Matrícula','Nome Completo','Cód. Função','Empresa (código)','Direto (Sim/Não)','Data Admissão (DD/MM/AAAA)','Matr. Líder','Cód. Equipe'],
                   map:g=>({ mat:g(['matrícula','matricula','mat']), nome:g(['nome completo','nome']), codFuncao:g(['cód. função','cod. função','função','funcao']), _emp:g(['empresa']),
                             direto:g(['direto'])||'Sim', admissao:excelDataParaISO(g(['admissão','admissao'])), demissao:excelDataParaISO(g(['demissão','demissao']))||'', lider:g(['líder','lider']), equipe:g(['equipe']) }), ok:x=>x.mat&&x.nome },
-  equipamentos: { rotulo:'Equipamentos', porObra:true, chave:'tag', col:['TAG','Placa/Série','Cód. Modelo','Família','Proprietário (empresa)','Status','Data Mobilização (DD/MM/AAAA)'],
+  equipamentos: { rotulo:'Equipamentos', porObra:true, chave:'tag', col:['TAG','Placa/Série','Cód. Modelo','Família','Proprietário (empresa)','Status','Data Mobilização (DD/MM/AAAA)','Custo/hora (R$)'],
                   map:g=>({ tag:g(['tag']), placa:g(['placa','série','serie']), codModelo:g(['cód. modelo','cod. modelo','modelo']), familia:g(['família','familia']), prop:g(['proprietário','proprietario']),
-                            status:g(['status'])||'Mobilizado', dataMob:excelDataParaISO(g(['mobiliza'])) }), ok:x=>x.tag },
+                            status:g(['status'])||'Mobilizado', dataMob:excelDataParaISO(g(['mobiliza'])), custoHora:_numImport(g(['custo'])) }), ok:x=>x.tag },
 };
 const IMPORT_ORDEM = ['obras','empresas','ua','cargos','familias','modelos','frentes','tiposServico','turnos','tiposPerdas','funcionarios','equipamentos'];
+function _numImport(v) {
+  if (v === undefined || v === null || v === '') return 0;
+  if (typeof v === 'number') return v;
+  let t = String(v).replace(/[R$\s%]/g, '');
+  if (t.includes(',')) t = t.replace(/\./g, '').replace(',', '.');
+  return parseFloat(t) || 0;
+}
 function _horaImport(v) {
   if (v === undefined || v === null || v === '') return '';
   if (v instanceof Date) return String(v.getHours()).padStart(2,'0') + ':' + String(v.getMinutes()).padStart(2,'0');
@@ -8131,6 +8152,93 @@ function mlLimpar() { _ml.f = {}; renderListaMO(); }
   window.switchMOTab = function (tab) { const r = oTab.apply(this, arguments); if (tab === 'lista') renderListaMO(); return r; };
   const oLimpar = window.limparFiltrosMO;
   window.limparFiltrosMO = function () { const s = document.getElementById('filtro-mo-apontador'); if (s) s.value = ''; _ml.f = {}; return typeof oLimpar === 'function' ? oLimpar.apply(this, arguments) : renderMO(); };
+})();
+
+
+// ═══════════════════════════════════════════════════════════════
+// v2.18: CUSTO DA EQUIPE
+// MO: custo/h da função (Cargo) × horas normais + custo/h × (1 + adicional HE%) × horas extras
+// EQ: custo/h do equipamento × (horas produtivas + horas paradas)
+// Só considera apontamentos aprovados (os dashboards já recebem só os aprovados).
+// ═══════════════════════════════════════════════════════════════
+function _moeda(v) { return (Number(v) || 0).toLocaleString('pt-BR', { style:'currency', currency:'BRL' }); }
+function _cargoDe(a) {
+  const cods = [a.funcao, a.codFuncao].filter(Boolean);
+  const lista = dados.cargos || [];
+  return lista.find(c => cods.includes(c.cod) && (!a.obra || !c.obra || c.obra === a.obra)) || lista.find(c => cods.includes(c.cod) || cods.includes(c.nome));
+}
+function _equipDe(a) {
+  const lista = dados.equipamentos || [];
+  return lista.find(e => e.id === a.equipId) || lista.find(e => (e.tag && e.tag === a.equip) || (e.placa && e.placa === a.equip));
+}
+function custoMO(a) {
+  const c = _cargoDe(a); const ch = parseFloat(c?.custoHora) || 0;
+  const ad = c && c.adicHE !== undefined && c.adicHE !== '' ? parseFloat(c.adicHE) : 50;
+  const hn = parseFloat(a.hn) || 0, he = parseFloat(a.he) || 0;
+  return { normal: ch * hn, extra: ch * (1 + ad / 100) * he, semCusto: !ch };
+}
+function custoEQ(a) {
+  const e = _equipDe(a); const ch = parseFloat(e?.custoHora) || 0;
+  return { prod: ch * (parseFloat(a.hp) || 0), parado: ch * (parseFloat(a.hpar) || 0), semCusto: !ch };
+}
+function _blocoCusto(id, depoisDe) {
+  let el = document.getElementById(id);
+  if (!el) {
+    const ref = document.getElementById(depoisDe); if (!ref) return null;
+    const card = ref.closest('.card') || ref.parentElement;
+    el = document.createElement('div'); el.id = id; el.className = 'card'; el.style.marginBottom = '1rem';
+    card.parentElement.insertBefore(el, card);
+  }
+  return el;
+}
+function _periodoMO() {
+  let lista = filtrarPorObra([...(dados.aponMO||[])], 'frente');
+  const ini = document.getElementById('dash-mo-ini')?.value || '', fim = document.getElementById('dash-mo-fim')?.value || '';
+  if (ini) lista = lista.filter(a => a.data >= ini); if (fim) lista = lista.filter(a => a.data <= fim);
+  return lista;
+}
+function renderCustoMO() {
+  const el = _blocoCusto('dash-mo-custo', 'dash-mo-tabela'); if (!el) return;
+  const lista = _periodoMO();
+  const eqs = filtrarPorObra([...(dados.aponEQ||[])], 'frente').filter(a => { const ini = document.getElementById('dash-mo-ini')?.value || '', fim = document.getElementById('dash-mo-fim')?.value || ''; return (!ini || a.data >= ini) && (!fim || a.data <= fim); });
+  const dias = {}, semCustoF = new Set(), semCustoE = new Set();
+  const dia = d => (dias[d] = dias[d] || { mo:0, he:0, eq:0, par:0, hn:0, hhe:0, prod:0, unid:new Set(), pessoas:new Set() });
+  lista.forEach(a => { const c = custoMO(a), d = dia(a.data); d.mo += c.normal; d.he += c.extra; d.hn += parseFloat(a.hn)||0; d.hhe += parseFloat(a.he)||0; d.prod += parseFloat(a.qtd)||0; if (a.unid) d.unid.add(a.unid); d.pessoas.add(a.func); if (c.semCusto) semCustoF.add(a.funcao || '?'); });
+  eqs.forEach(a => { const c = custoEQ(a), d = dia(a.data); d.eq += c.prod; d.par += c.parado; if (c.semCusto) semCustoE.add(a.equip || '?'); });
+  const linhas = Object.entries(dias).sort((a, b) => b[0].localeCompare(a[0]));
+  const tot = linhas.reduce((t, [, d]) => { t.mo += d.mo; t.he += d.he; t.eq += d.eq; t.par += d.par; return t; }, { mo:0, he:0, eq:0, par:0 });
+  const total = tot.mo + tot.he + tot.eq + tot.par;
+  const aviso = (semCustoF.size || semCustoE.size)
+    ? `<div style="font-size:12px;color:var(--amber);margin-top:8px">⚠ Sem custo cadastrado: ${semCustoF.size ? 'funções ' + [...semCustoF].slice(0,8).map(_e).join(', ') : ''}${semCustoF.size && semCustoE.size ? ' · ' : ''}${semCustoE.size ? 'equipamentos ' + [...semCustoE].slice(0,8).map(_e).join(', ') : ''}. Cadastre em Cargos / Equipamentos.</div>` : '';
+  el.innerHTML = `<div class="card-header" style="display:flex;justify-content:space-between;align-items:center"><span class="card-title">Custo da equipe por dia</span>
+      <span style="font-size:13px">Total no período: <strong>${_moeda(total)}</strong></span></div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px">
+        <div class="stat-card"><div class="stat-label">MO normal</div><div class="stat-value" style="font-size:20px">${_moeda(tot.mo)}</div></div>
+        <div class="stat-card"><div class="stat-label">MO hora extra</div><div class="stat-value" style="font-size:20px;color:var(--amber)">${_moeda(tot.he)}</div></div>
+        <div class="stat-card"><div class="stat-label">Equip. produtivo</div><div class="stat-value" style="font-size:20px">${_moeda(tot.eq)}</div></div>
+        <div class="stat-card"><div class="stat-label">Equip. parado</div><div class="stat-value" style="font-size:20px;color:var(--red)">${_moeda(tot.par)}</div></div>
+      </div>
+      <div class="table-wrap"><table style="font-size:12px"><thead><tr><th>Data</th><th>Pessoas</th><th>H. normais</th><th>H. extras</th><th>MO normal</th><th>MO extra</th><th>Equip. produtivo</th><th>Equip. parado</th><th>Total do dia</th><th>Produção</th><th>Custo unitário</th></tr></thead><tbody>
+      ${linhas.length ? linhas.map(([data, d]) => { const t = d.mo + d.he + d.eq + d.par; const u = [...d.unid][0] || '';
+        return `<tr><td class="td-mono">${fmtData(data)}</td><td class="td-mono">${d.pessoas.size}</td><td class="td-mono">${d.hn}h</td><td class="td-mono">${d.hhe}h</td>
+          <td class="td-mono">${_moeda(d.mo)}</td><td class="td-mono">${_moeda(d.he)}</td><td class="td-mono">${_moeda(d.eq)}</td><td class="td-mono" style="color:${d.par ? 'var(--red)' : 'inherit'}">${_moeda(d.par)}</td>
+          <td class="td-mono"><strong>${_moeda(t)}</strong></td><td class="td-mono">${d.prod ? d.prod + ' ' + _e(u) : '—'}</td>
+          <td class="td-mono">${d.prod ? _moeda(t / d.prod) + (u ? '/' + _e(u) : '') : '—'}</td></tr>`; }).join('')
+        : '<tr><td colspan="11" style="text-align:center;color:var(--text-3);padding:1.5rem">Nenhum apontamento aprovado no período</td></tr>'}
+      </tbody></table></div>
+      <div style="font-size:11px;color:var(--text-3);margin-top:6px">Hora extra = custo/h da função × (1 + adicional). Equipamento = custo/h × (produtivas + paradas). Custo unitário = total do dia ÷ produção do dia${linhas.some(([, d]) => d.unid.size > 1) ? ' (atenção: dias com serviços de unidades diferentes)' : ''}.</div>
+      ${aviso}
+    </div>`;
+}
+(function () {
+  // Dashboard MO ganha o bloco de custo; os dados já chegam só com aprovados
+  const oMO = window.renderDashMO;
+  window.renderDashMO = function () { const r = oMO.apply(this, arguments);
+    const o = { mo: dados.aponMO, eq: dados.aponEQ };
+    dados.aponMO = (o.mo||[]).filter(_ehAprovado); dados.aponEQ = (o.eq||[]).filter(_ehAprovado);
+    try { renderCustoMO(); } finally { dados.aponMO = o.mo; dados.aponEQ = o.eq; }
+    return r; };
 })();
 
 // Apply configs on load
