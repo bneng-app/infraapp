@@ -306,7 +306,7 @@ textarea.form-control{resize:vertical;min-height:72px}
         <a href="#" onclick="esqueciSenha();return false" style="font-size:13px;color:#1B2C6E;text-decoration:none">Esqueci minha senha</a>
       </div>
     </div>
-    <div style="text-align:center;margin-top:1rem;font-size:11px;color:#aaa">ObraControl v2.13 · Controle de Mão de Obra e Equipamentos</div>
+    <div style="text-align:center;margin-top:1rem;font-size:11px;color:#aaa">ObraControl v2.14 · Controle de Mão de Obra e Equipamentos</div>
   </div>
 </div>
 
@@ -328,6 +328,8 @@ textarea.form-control{resize:vertical;min-height:72px}
       <div class="sync-dot" id="sync-dot"></div>
       <span id="sync-label">Conectando…</span>
     </div>
+    <button type="button" id="btn-atualizar" onclick="atualizarDados()" title="Buscar dados novos do servidor"
+      style="background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:white;border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer">↻ Atualizar</button>
     <div style="display:flex;align-items:center;gap:8px">
       <div style="font-size:12px;color:var(--text-2)" id="topbar-user-name"></div>
       <div style="font-size:10px;padding:2px 8px;border-radius:20px;background:var(--green-light);color:var(--green-dark);font-weight:500" id="topbar-user-role"></div>
@@ -7614,6 +7616,93 @@ window.confirmarImportacao = async function () {
   };
   reader.readAsBinaryString(file);
 };
+
+
+// ═══════════════════════════════════════════════════════════════
+// v2.14: DADOS AO VIVO
+// - lançamentos do app de campo aparecem sozinhos (escuta o servidor)
+// - botão ↻ Atualizar busca tudo de novo
+// - F5 não desloga mais (retoma a sessão)
+// ═══════════════════════════════════════════════════════════════
+const _COLS_AO_VIVO = ['aponMO','aponEQ','diesel','perdas'];
+let _escutas = [];
+let _avisoNovos = 0;
+function _rerenderTelaAtual() {
+  const ativa = document.querySelector('.page.active')?.id?.replace('page-', '');
+  if (ativa) { try { pageInit(ativa); } catch (e) {} }
+  try { atualizarDashboard(); } catch (e) {}
+}
+function iniciarAoVivo() {
+  pararAoVivo();
+  if (!db || !_firebaseReady || !usuarioLogado) return;
+  _COLS_AO_VIVO.forEach(col => { try {
+    let primeira = true;
+    const off = db.collection(col).onSnapshot(snap => {
+      if (primeira) { primeira = false; return; }       // a carga inicial já veio do login
+      let novos = 0;
+      snap.docChanges().forEach(ch => {
+        const item = { id: ch.doc.id, ...ch.doc.data() };
+        const lista = dados[col] || (dados[col] = []);
+        const i = lista.findIndex(x => x.id === item.id);
+        if (ch.type === 'removed') { if (i >= 0) lista.splice(i, 1); }
+        else if (i >= 0) lista[i] = item;
+        else { lista.push(item); novos++; }
+      });
+      if (novos) {
+        _avisoNovos += novos;
+        clearTimeout(window.__tAviso);
+        window.__tAviso = setTimeout(() => { toast(_avisoNovos + ' lançamento(s) novo(s) do campo'); _avisoNovos = 0; }, 800);
+      }
+      _rerenderTelaAtual();
+      const lbl = document.getElementById('sync-label'); if (lbl) lbl.textContent = 'Ao vivo · ' + new Date().toTimeString().slice(0,5);
+    }, err => console.warn('ao vivo ' + col + ':', err.code || err.message));
+    _escutas.push(off);
+  } catch (e) { console.warn('ao vivo indisponível para ' + col + ':', e.message); } });
+  const lbl = document.getElementById('sync-label'); if (lbl) lbl.textContent = 'Ao vivo';
+}
+function pararAoVivo() { _escutas.forEach(off => { try { off(); } catch (e) {} }); _escutas = []; }
+
+async function atualizarDados() {
+  const b = document.getElementById('btn-atualizar');
+  if (!db || !_firebaseReady) { toast('Sem conexão com o servidor','error'); return; }
+  if (b) { b.disabled = true; b.textContent = '↻ Atualizando…'; }
+  try {
+    await sincronizarTudo();
+    const usrs = await fbLoadAll('usuarios'); if (usrs && usrs.length) USUARIOS = usrs;
+    renderAll(); _rerenderTelaAtual();
+    toast('Dados atualizados');
+  } catch (e) { toast('Não consegui atualizar: ' + (e.message || e), 'error'); }
+  finally { if (b) { b.disabled = false; b.textContent = '↻ Atualizar'; } }
+}
+
+(function () {
+  const oEntrar = window.entrarNoApp;
+  window.entrarNoApp = function () { const r = oEntrar.apply(this, arguments); setTimeout(iniciarAoVivo, 1500); return r; };
+  const oLogin = window.fazerLogin;
+  window.fazerLogin = function () { window.__logando = true; setTimeout(() => window.__logando = false, 20000); return oLogin.apply(this, arguments); };
+  const oSair = window.logout;
+  window.logout = function () { pararAoVivo(); return oSair.apply(this, arguments); };
+  // F5: retoma a sessão do Firebase em vez de pedir login de novo
+  if (typeof auth !== 'undefined' && auth && _firebaseReady) {
+    let primeiroEvento = true;
+    auth.onAuthStateChanged(async user => {
+      const ehPrimeiro = primeiroEvento; primeiroEvento = false;
+      // só retoma no carregamento da página (não durante um login normal)
+      if (!ehPrimeiro || !user || usuarioLogado || window.__logando) return;
+      const lbl = document.getElementById('sync-label'); if (lbl) lbl.textContent = 'Retomando sessão…';
+      try {
+        const usrs = await fbLoadAll('usuarios'); if (usrs && usrs.length) USUARIOS = usrs;
+        const em = (user.email || '').toLowerCase();
+        const usr = USUARIOS.find(u => (u.email||'').toLowerCase() === em) || USUARIOS.find(u => u.id === user.uid);
+        // apontador de campo no mesmo aparelho: não mexe na sessão dele, só pede o login do painel
+        if (!usr || usr.status === 'Inativo' || _perfilEhCampo(usr.perfil)) { if (lbl) lbl.textContent = ''; return; }
+        usuarioLogado = usr;
+        await sincronizarTudo();
+        entrarNoApp();
+      } catch (e) { console.warn('retomar sessão:', e); }
+    });
+  }
+})();
 
 // Apply configs on load
 setTimeout(applyConfigs, 200);
