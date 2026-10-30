@@ -170,6 +170,19 @@ textarea.form-control{resize:vertical;min-height:72px}
 .qr-canvas{display:flex;justify-content:center;margin-bottom:8px}
 .qr-label{font-size:12px;font-weight:500;color:var(--text);word-break:break-word}
 .qr-sub{font-size:10px;color:var(--text-3);margin-top:2px;font-family:var(--mono)}
+.qr-card{position:relative}
+.qr-card .qr-canvas{display:flex;justify-content:center;margin-bottom:8px}
+.qr-card .qr-check{position:absolute;top:8px;right:8px;width:20px;height:20px;border-radius:50%;border:1.5px solid var(--border);color:transparent;font-size:12px;display:flex;align-items:center;justify-content:center}
+.qr-card.qr-sel{border-color:#E30613;box-shadow:0 0 0 2px rgba(227,6,19,.18)}
+.qr-card.qr-sel .qr-check{background:#E30613;border-color:#E30613;color:white}
+.qr-rodape{font-size:8px;color:#E30613;font-weight:700;letter-spacing:.8px;text-transform:uppercase;margin-top:6px}
+@media print{
+  #page-qrcodes .tab-bar, #page-qrcodes .page-header, #page-qrcodes > div[style*="font-size:12px"] {display:none!important}
+  #page-qrcodes .qr-grid{grid-template-columns:repeat(4,1fr);gap:8px}
+  #page-qrcodes .qr-card{break-inside:avoid;border:1px dashed #999;box-shadow:none}
+  #page-qrcodes .qr-check{display:none}
+  body.qr-imprime-sel #page-qrcodes .qr-card:not(.qr-sel){display:none}
+}
 
 /* TABS */
 .tab-bar{display:flex;gap:2px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:3px;margin-bottom:1.25rem;width:fit-content}
@@ -337,7 +350,7 @@ textarea.form-control{resize:vertical;min-height:72px}
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraControl</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraControl v2.25 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraControl v2.26 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -417,6 +430,10 @@ textarea.form-control{resize:vertical;min-height:72px}
   <div class="nav-group" id="grp-cadastros">
     <div class="nav-section" onclick="toggleNavGroup('grp-cadastros')">Cadastros <span class="nav-chevron">▾</span></div>
     <div class="nav-group-items">
+      <div class="nav-item" id="nav-qrcodes" onclick="showPage('qrcodes',this)" title="QR Codes">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM20 14v3M14 20h3M20 20h1"/></svg>
+        <span>QR Codes</span>
+      </div>
       <div class="nav-item" onclick="showPage('obras',this)" title="Obras">
         <svg viewBox="0 0 24 24"><polygon points="3 9 12 2 21 9 21 20 3 20"/></svg>
         <span>Obras</span>
@@ -1135,13 +1152,17 @@ textarea.form-control{resize:vertical;min-height:72px}
 <!-- ═══════════════ QR CODES ═══════════════ -->
 <div class="page" id="page-qrcodes">
   <div class="page-header">
-    <div><div class="page-title">Gerar QR Codes</div><div class="page-sub">Imprima e cole nas frentes, máquinas e crachás</div></div>
-    <button class="btn btn-primary" onclick="imprimirQRs()">🖨 Imprimir selecionados</button>
+    <div><div class="page-title">Gerar QR Codes</div><div class="page-sub">Crachás dos funcionários e etiquetas das máquinas — o apontador lê no app de campo</div></div>
+    <div class="btn-group">
+      <input class="form-control" id="qr-busca" placeholder="Buscar nome, matrícula ou TAG…" oninput="renderQRCodes()" style="min-width:220px"/>
+      <button class="btn btn-outline btn-sm" onclick="qrMarcarTodos()">Marcar todos</button>
+      <button class="btn btn-primary" onclick="imprimirQRs()">🖨 Imprimir <span id="qr-n-sel"></span></button>
+    </div>
   </div>
+  <div style="font-size:12px;color:var(--text-3);margin:-4px 0 10px">Clique nos cartões para escolher quais imprimir. Sem nenhum marcado, imprime todos da aba aberta.</div>
   <div class="tab-bar">
     <button class="tab active" onclick="showQRTab('qr-func',this)">Funcionários</button>
     <button class="tab" onclick="showQRTab('qr-equip',this)">Equipamentos</button>
-    <button class="tab" onclick="showQRTab('qr-frentes',this)">Frentes de Serviço</button>
   </div>
   <div id="qr-func"><div class="qr-grid" id="qr-grid-func"></div></div>
   <div id="qr-equip" style="display:none"><div class="qr-grid" id="qr-grid-equip"></div></div>
@@ -4666,31 +4687,48 @@ function showQRTab(id, el) {
   qrTab = id.replace('qr-','');
 }
 
+// v2.26: o QR leva "mat:<matrícula>" (crachá) ou "tag:<TAG>" (máquina) — é o que o app de campo lê
+const _qrSel = new Set();
+function _qrDaObra(lista) { const o = obraAtiva?.id; return (!o || o === 'todas') ? lista : lista.filter(x => !x.obra || x.obra === o); }
 function renderQRCodes() {
-  renderQRGrid('func',  dados.funcionarios, f=>({ id:`MO-${f.id}`, label:f.nome, sub:f.funcao }));
-  renderQRGrid('equip', dados.equipamentos, e=>({ id:`EQ-${e.id}`, label:e.nome, sub:e.placa }));
-  renderQRGrid('frentes',dados.servicos,    s=>({ id:`FS-${s.id}`, label:s.desc, sub:s.cod+' · '+s.servico }));
+  const b = (document.getElementById('qr-busca')?.value || '').toLowerCase();
+  const cargo = c => { const k = (dados.cargos||[]).find(x => x.cod === c); return k ? k.nome : (c || ''); };
+  const funcs = _qrDaObra(dados.funcionarios||[]).filter(f => f.mat && f.status !== 'Desligado' && !f.demissao)
+    .filter(f => !b || (f.nome||'').toLowerCase().includes(b) || String(f.mat).toLowerCase().includes(b));
+  const eqs = _qrDaObra(dados.equipamentos||[]).filter(e => e.tag || e.placa)
+    .filter(e => !b || String(e.tag||'').toLowerCase().includes(b) || String(e.placa||'').toLowerCase().includes(b));
+  renderQRGrid('func',  funcs, f => ({ id:'MO-' + f.id, texto:'mat:' + f.mat, label:f.nome, sub:'Mat. ' + f.mat + ' · ' + cargo(f.codFuncao || f.funcao) }));
+  renderQRGrid('equip', eqs,   e => ({ id:'EQ-' + e.id, texto:'tag:' + (e.tag || e.placa), label:e.tag || e.placa, sub:[e.codModelo || e.modelo, e.placa].filter(Boolean).join(' · ') }));
+  _qrContador();
 }
-
 function renderQRGrid(tipo, lista, mapper) {
-  const grid = document.getElementById(`qr-grid-${tipo}`);
+  const grid = document.getElementById(`qr-grid-${tipo}`); if (!grid) return;
   grid.innerHTML = '';
   lista.forEach(item => {
-    const { id, label, sub } = mapper(item);
+    const { id, texto, label, sub } = mapper(item);
     const div = document.createElement('div');
-    div.className = 'qr-card';
-    div.innerHTML = `<div class="qr-canvas" id="qrc-${id}"></div><div class="qr-label">${label}</div><div class="qr-sub">${sub}</div>`;
+    div.className = 'qr-card' + (_qrSel.has(id) ? ' qr-sel' : '');
+    div.dataset.qr = id;
+    div.onclick = () => { _qrSel.has(id) ? _qrSel.delete(id) : _qrSel.add(id); div.classList.toggle('qr-sel'); _qrContador(); };
+    div.innerHTML = `<div class="qr-check">✓</div><div class="qr-canvas" id="qrc-${id}"></div><div class="qr-label">${_e(label||'')}</div><div class="qr-sub">${_e(sub||'')}</div><div class="qr-rodape">TENCO · ObraControl</div>`;
     grid.appendChild(div);
-    setTimeout(() => {
-      try {
-        new QRCode(document.getElementById('qrc-'+id), { text: JSON.stringify({ tipo, id, label }), width:120, height:120, colorDark:'#1A1A1A', colorLight:'#ffffff', correctLevel:QRCode.CorrectLevel.M });
-      } catch(e) {}
-    }, 50);
+    try { new QRCode(div.querySelector('.qr-canvas'), { text: texto, width:120, height:120, colorDark:'#111111', colorLight:'#ffffff', correctLevel:QRCode.CorrectLevel.M }); } catch (e) {}
   });
   if (!lista.length) grid.innerHTML = '<p style="color:var(--text-3);padding:2rem">Nenhum cadastro encontrado</p>';
 }
-
-function imprimirQRs() { window.print(); }
+function _qrContador() { const n = document.getElementById('qr-n-sel'); if (n) n.textContent = _qrSel.size ? '(' + _qrSel.size + ')' : 'todos'; }
+function qrMarcarTodos() {
+  const aba = document.querySelector('#page-qrcodes > div[id^="qr-"]:not([style*="none"])');
+  const cards = aba ? aba.querySelectorAll('.qr-card') : [];
+  const todos = [...cards].every(c => _qrSel.has(c.dataset.qr));
+  cards.forEach(c => { if (todos) { _qrSel.delete(c.dataset.qr); c.classList.remove('qr-sel'); } else { _qrSel.add(c.dataset.qr); c.classList.add('qr-sel'); } });
+  _qrContador();
+}
+function imprimirQRs() {
+  document.body.classList.toggle('qr-imprime-sel', _qrSel.size > 0);
+  window.print();
+  setTimeout(() => document.body.classList.remove('qr-imprime-sel'), 500);
+}
 
 // ───── APONTAMENTOS MO — CARDS ─────
 function switchMOTab(tab, el) {
@@ -8140,6 +8178,7 @@ async function aprReabrir(k) {
     const r = oAplicar.apply(this, arguments);
     const pode = podeVerPagina('aprovacao');
     const n = document.getElementById('nav-aprovacao'); if (n) n.style.display = pode ? '' : 'none';
+    const nq = document.getElementById('nav-qrcodes'); if (nq) nq.style.display = podeVerPagina('qrcodes') ? '' : 'none';
     // quem aprova mas não tem "Apontamentos" ainda vê o grupo, só com a Aprovação
     const g = document.getElementById('grp-apontamentos');
     if (pode && g && g.style.display === 'none') { g.style.display = ''; g.querySelectorAll('.nav-item').forEach(it => { if (it.id !== 'nav-aprovacao') it.style.display = 'none'; }); }

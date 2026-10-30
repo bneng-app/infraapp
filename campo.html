@@ -481,7 +481,7 @@ select.form-control { cursor: pointer; }
     </button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">v2.12</div>
+  <div class="login-versao">v2.13</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -1321,6 +1321,8 @@ function processarQR(texto, contexto) {
     const obj = JSON.parse(texto);
     mat = obj.mat || obj.matricula;
     tag = obj.tag || obj.equip;
+    // formato antigo do painel: {"tipo":"func","id":"MO-<id>"} / {"tipo":"equip","id":"EQ-<id>"}
+    if (!mat && !tag && obj.id) { const id = String(obj.id); if (/^MO-/.test(id)) mat = id.slice(3); else if (/^EQ-/.test(id)) tag = id.slice(3); }
   } catch(e) {
     if (texto.startsWith('mat:')) mat = texto.slice(4).trim();
     else if (texto.startsWith('tag:')) tag = texto.slice(4).trim();
@@ -1329,11 +1331,11 @@ function processarQR(texto, contexto) {
 
   if (contexto === 'ap') {
     if (ap.aba === 'mo') {
-      const f = dadosCampo.funcionarios.find(x => x.mat === (mat||'') || x.id === (mat||''));
-      if (f) { ap.mo.add(f.id); apRenderMO(); toast('✓ ' + f.nome + ' adicionado!', 'ok'); }
+      const f = dadosCampo.funcionarios.find(x => String(x.mat) === String(mat||'') || x.id === (mat||''));
+      if (f) { ap.mo.add(f.id); apRenderMO(); apGuardar(); toast('✓ ' + f.nome + ' adicionado!', 'ok'); }
       else toast('Funcionário não encontrado: ' + (mat||texto), 'err');
     } else {
-      const e = dadosCampo.equipamentos.find(x => x.tag === (tag||'') || x.placa === (tag||''));
+      const e = dadosCampo.equipamentos.find(x => x.tag === (tag||'') || x.placa === (tag||'') || x.id === (tag||''));
       if (e) { if (!ap.eq.has(e.id)) apToggleEQ(e.id); else apRenderEQ(); toast('✓ ' + (e.tag||e.placa) + ' selecionado!', 'ok'); }
       else toast('Equipamento não encontrado: ' + (tag||texto), 'err');
     }
