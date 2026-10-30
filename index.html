@@ -350,7 +350,7 @@ textarea.form-control{resize:vertical;min-height:72px}
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraControl</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraControl v2.30 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraControl v2.31 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -8043,9 +8043,10 @@ function _aprDetalheHTML(g, pend) {
           ${g.mo.map(x => `<tr><td>${_e(x.func)}${x.mat ? ' <span style="color:var(--text-3);font-size:11px">' + _e(x.mat) + '</span>' : ''}</td><td>${_e(x.funcao)}</td><td>${inp(x.id,'hn',x.hn)}</td><td>${inp(x.id,'he',x.he)}</td></tr>`).join('')}</tbody></table>` : '<div style="font-size:12px;color:var(--text-3)">—</div>'}
       </div>
       <div><div class="form-label">Equipamentos (${g.eq.length})</div>
-        ${g.eq.length ? `<table class="table" style="width:100%;font-size:13px"><thead><tr><th>Equip.</th><th>H. prod.</th><th>H. parado</th><th>Motivo</th><th>Operador</th></tr></thead><tbody>
+        ${g.eq.length ? `<table class="table" style="width:100%;font-size:13px"><thead><tr><th>Equip.</th><th>H. prod.</th><th>H. parado</th><th>Motivo</th><th>Horímetro</th><th>Operador</th></tr></thead><tbody>
           ${g.eq.map(x => `<tr><td><strong>${_e(x.equip)}</strong></td><td>${inp(x.id,'hp',x.hp)}</td><td>${inp(x.id,'hpar',x.hpar)}</td>
             <td>${pend ? `<select class="form-control" style="padding:5px 4px;width:120px" onchange="aprEditar('${_e(x.id)}','motivo',this.value)">${motivos.map(([c,t]) => `<option value="${c}" ${(x.motivo||'') === c ? 'selected' : ''}>${t}</option>`).join('')}</select>` : _e(x.motivo || '—')}</td>
+            <td style="white-space:nowrap">${x.hor !== undefined && x.hor !== '' ? '<span class="td-mono">' + _e(Number(x.hor).toLocaleString('pt-BR')) + '</span>' : '—'}${x.fotoHor ? ` <button class="btn btn-outline btn-sm" style="padding:3px 8px;font-size:12px" onclick="verFotoHorimetro('${_e(x.fotoHor)}','${_e(x.equip)}')" title="Ver foto do horímetro">📷</button>` : ''}</td>
             <td>${_e(x.operador || '—')}</td></tr>`).join('')}</tbody></table>` : '<div style="font-size:12px;color:var(--text-3)">—</div>'}
       </div>
     </div>
@@ -8160,6 +8161,23 @@ function aprAbrir(i) {
 })();
 function aprToggle(k, on) { on ? _apr.sel.add(k) : _apr.sel.delete(k); renderAprovacao(); }
 function aprSelecionarTodos() { _aprGrupos('campo').forEach(g => _apr.sel.add(g.chave)); renderAprovacao(); }
+// v2.31: foto do horímetro tirada no encerramento (fica na coleção "fotos", carrega só quando abre)
+async function verFotoHorimetro(id, equip) {
+  let ov = document.getElementById('foto-hor'); if (ov) ov.remove();
+  ov = document.createElement('div'); ov.id = 'foto-hor';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.onclick = e => { if (e.target === ov) ov.remove(); };
+  ov.innerHTML = '<div style="color:white;font-size:14px">Carregando foto…</div>'; document.body.appendChild(ov);
+  try {
+    const d = await db.collection('fotos').doc(id).get(); const f = d.exists ? d.data() : null;
+    if (!f || !f.img) { ov.innerHTML = '<div style="color:white;font-size:14px">Foto ainda não chegou ao servidor (o celular pode estar sem internet).</div>'; return; }
+    ov.innerHTML = `<div style="background:#fff;border-radius:14px;padding:14px;max-width:92vw;max-height:92vh;display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:16px"><strong>${_e(equip || f.equip || '')} · horímetro ${_e(Number(f.hor).toLocaleString('pt-BR'))}</strong>
+      <button class="btn btn-outline btn-sm" onclick="document.getElementById('foto-hor').remove()">Fechar</button></div>
+      <img src="${f.img}" style="max-width:88vw;max-height:76vh;object-fit:contain;border-radius:8px"/>
+      <div style="font-size:12px;color:var(--text-3)">${_e(f.lancadoPor || '')}${f.tiradaEm ? ' · foto de ' + _e(new Date(f.tiradaEm).toLocaleString('pt-BR')) : ''}</div></div>`;
+  } catch (e) { ov.innerHTML = '<div style="color:white;font-size:14px">Não consegui abrir a foto: ' + _e(e.message || e) + '</div>'; }
+}
 function aprEditar(id, campo, valor) { (_apr.edits[id] = _apr.edits[id] || {})[campo] = valor; }
 function aprEditarGrupo(k, campo, valor) { (_apr.edits['@' + k] = _apr.edits['@' + k] || {})[campo] = valor; }
 function _aprItens(k) {

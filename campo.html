@@ -371,6 +371,17 @@ select.form-control { cursor: pointer; }
   overflow: hidden;
 }
 #qr-reader { width: 100%; }
+.qr-feedback { margin-top: 14px; min-height: 22px; font-size: 15px; font-weight: 700; color: #4ADE80; text-align: center; }
+.qr-feedback.err { color: #F87171; }
+.qr-concluir { margin-top: 14px; background: var(--red); color: white; border: none; border-radius: 12px; padding: 14px 28px; font-size: 16px; font-weight: 700; cursor: pointer; }
+.hor-item { padding: 12px 0; border-bottom: 1px solid var(--border); }
+.hor-item:last-child { border-bottom: none; }
+.hor-linha { display: flex; gap: 10px; align-items: stretch; }
+.hor-foto-btn { flex: 0 0 auto; border: 1.5px dashed var(--red); background: #FFF5F5; color: var(--red); border-radius: var(--radius-sm); padding: 0 14px; font-weight: 700; font-size: 13px; cursor: pointer; }
+.hor-foto-btn.ok { border-style: solid; background: #F0FDF4; border-color: #16A34A; color: #16A34A; }
+.hor-thumb { width: 54px; height: 54px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); flex: 0 0 54px; }
+.hor-ult { font-size: 12px; color: var(--text2); margin: 2px 0 8px; }
+.hor-erro { font-size: 12px; color: var(--red); margin-top: 6px; font-weight: 600; }
 #qr-reader video { width: 100% !important; height: auto !important; object-fit: cover; }
 .qr-close {
   position: absolute; top: 40px; right: 20px;
@@ -455,6 +466,8 @@ select.form-control { cursor: pointer; }
   <button class="qr-close" onclick="fecharQR()">×</button>
   <div class="qr-box"><div id="qr-reader"></div></div>
   <div class="qr-label">Aponte para <strong>um</strong> QR Code por vez, a uns 15–20 cm</div>
+  <div class="qr-feedback" id="qr-feedback"></div>
+  <button class="qr-concluir" id="qr-concluir" style="display:none" onclick="fecharQR()">Concluir</button>
 </div>
 
 <!-- ══════════════ SCREEN: LOGIN ══════════════ -->
@@ -482,7 +495,7 @@ select.form-control { cursor: pointer; }
     </button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">v2.14</div>
+  <div class="login-versao">v2.15</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -661,6 +674,10 @@ select.form-control { cursor: pointer; }
 
   <!-- 4) REVISAR -->
   <div class="content" id="ap-panel-rev" style="display:none">
+    <div class="card" id="ap-hor-card" style="display:none">
+      <div class="card-header"><span class="card-title">Horímetro dos equipamentos</span></div>
+      <div class="card-body" id="ap-hor-lista"></div>
+    </div>
     <div class="card">
       <div class="card-header"><span class="card-title">Encerramento do dia</span></div>
       <div class="card-body">
@@ -1285,10 +1302,14 @@ function showLogoutMenu() {
 // ══════════════════════════════════════════════════════════════
 // QR CODE
 // ══════════════════════════════════════════════════════════════
+let qrUltimo = { t: '', ts: 0 }, qrLidosSessao = 0;
 function abrirQR(contexto) {
   qrContexto = contexto;
   const overlay = document.getElementById('qr-overlay');
   overlay.classList.add('show');
+  qrUltimo = { t: '', ts: 0 }; qrLidosSessao = 0;
+  const fb = document.getElementById('qr-feedback'); if (fb) { fb.className = 'qr-feedback'; fb.textContent = ''; }
+  const bc = document.getElementById('qr-concluir'); if (bc) bc.style.display = contexto === 'ap' ? '' : 'none';
 
   // v2.14: leitor mais sensível — só QR, usa o leitor nativo do celular quando existe,
   // lê numa área maior (80% da imagem) e pede imagem em resolução melhor
@@ -1303,6 +1324,17 @@ function abrirQR(contexto) {
     { fps: 15, qrbox: (w, h) => { const m = Math.max(150, Math.floor(Math.min(w, h) * 0.8)); return { width: m, height: m }; },
       aspectRatio: 1, disableFlip: false, videoConstraints: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 1280 } } },
     (text) => {
+      // v2.15: na apropriação a câmera fica aberta — lê todo mundo e fecha no "Concluir"
+      if (contexto === 'ap') {
+        const agora = Date.now();
+        if (text === qrUltimo.t && agora - qrUltimo.ts < 2500) return;   // mesmo crachá ainda na frente da câmera
+        qrUltimo = { t: text, ts: agora };
+        const r = processarQR(text, contexto) || {};
+        const fb = document.getElementById('qr-feedback');
+        if (fb) { fb.className = 'qr-feedback' + (r.ok ? '' : ' err'); fb.textContent = r.msg || ''; }
+        if (r.ok && navigator.vibrate) { try { navigator.vibrate(80); } catch (e) {} }
+        return;
+      }
       // v2.14: antes a câmera era desligada duas vezes e o erro impedia de marcar a pessoa
       if (qrLendo) return; qrLendo = true;
       fecharQR();
@@ -1318,7 +1350,10 @@ function abrirQR(contexto) {
 let qrLendo = false;
 function fecharQR() {
   const overlay = document.getElementById('qr-overlay');
+  const eraAp = qrContexto === 'ap' && overlay.classList.contains('show');
   overlay.classList.remove('show');
+  if (eraAp && qrLidosSessao) toast(qrLidosSessao + ' lido(s) pelo QR Code', 'ok');
+  qrLidosSessao = 0;
   if (!qrScanner) return;
   try {
     const st = qrScanner.getState ? qrScanner.getState() : 2;
@@ -1344,14 +1379,15 @@ function processarQR(texto, contexto) {
   if (contexto === 'ap') {
     if (ap.aba === 'mo') {
       const f = dadosCampo.funcionarios.find(x => String(x.mat) === String(mat||'') || x.id === (mat||''));
-      if (f) { ap.mo.add(f.id); apRenderMO(); apGuardar(); toast('✓ ' + f.nome + ' adicionado!', 'ok'); }
-      else toast('Funcionário não encontrado: ' + (mat||texto), 'err');
+      if (!f) return { ok:false, msg:'✗ Funcionário não encontrado: ' + (mat||texto) };
+      const ja = ap.mo.has(f.id); ap.mo.add(f.id); apRenderMO(); apGuardar(); if (!ja) qrLidosSessao++;
+      return { ok:true, msg:(ja ? '• ' + f.nome + ' já estava marcado' : '✓ ' + f.nome) + ' — ' + ap.mo.size + ' na equipe' };
     } else {
       const e = dadosCampo.equipamentos.find(x => x.tag === (tag||'') || x.placa === (tag||'') || x.id === (tag||''));
-      if (e) { if (!ap.eq.has(e.id)) apToggleEQ(e.id); else apRenderEQ(); toast('✓ ' + (e.tag||e.placa) + ' selecionado!', 'ok'); }
-      else toast('Equipamento não encontrado: ' + (tag||texto), 'err');
+      if (!e) return { ok:false, msg:'✗ Equipamento não encontrado: ' + (tag||texto) };
+      const ja = ap.eq.has(e.id); if (!ja) apToggleEQ(e.id); else apRenderEQ(); if (!ja) qrLidosSessao++;
+      return { ok:true, msg:(ja ? '• ' + (e.tag||e.placa) + ' já estava marcado' : '✓ ' + (e.tag||e.placa)) + ' — ' + ap.eq.size + ' equipamento(s)' };
     }
-    return;
   }
   if (contexto === 'mo' && mat) {
     const func = dadosCampo.funcionarios.find(f => f.mat === mat || f.id === mat);
@@ -1925,7 +1961,7 @@ function apTab(aba) {
   ['ap-resumo-mo','ap-resumo-eq'].forEach(id => document.getElementById(id).innerHTML = resumo);
   if (aba === 'mo') apRenderMO();
   if (aba === 'eq') apRenderEQ();
-  if (aba === 'rev') { document.getElementById('ap-rev-ini').value = document.getElementById('ap-hora-ini').value; apMontarResumo(); }
+  if (aba === 'rev') { document.getElementById('ap-rev-ini').value = document.getElementById('ap-hora-ini').value; apMontarResumo(); apRenderHorimetros(); }
   if (document.getElementById('ap-frente').value) apGuardar();
   _apBotaoAbertos();
   window.scrollTo(0,0); const pn = document.getElementById('ap-panel-' + aba); if (pn) pn.scrollTop = 0;
@@ -1999,10 +2035,8 @@ function apRenderEQ() {
           <div class="form-group"><label class="form-label">H. parado</label><input type="number" step="0.5" class="form-control" value="${_esc(v.hpar)}" oninput="apEQCampo('${id}','hpar',this.value)"/></div>
         </div>
         <div class="form-group"><label class="form-label">Motivo parada</label><select class="form-control" onchange="apEQCampo('${id}','motivo',this.value)">${motivos.map(([c,t]) => `<option value="${c}" ${v.motivo===c?'selected':''}>${t}</option>`).join('')}</select></div>
-        <div class="time-row">
-          <div class="form-group"><label class="form-label">Horímetro / km</label><input type="number" class="form-control" value="${_esc(v.hor)}" oninput="apEQCampo('${id}','hor',this.value)"/></div>
-          <div class="form-group"><label class="form-label">Operador</label><input class="form-control" list="ap-operadores" value="${_esc(v.operador)}" placeholder="Nome" oninput="apEQCampo('${id}','operador',this.value)"/></div>
-        </div>
+        <div class="form-group"><label class="form-label">Operador</label><input class="form-control" list="ap-operadores" value="${_esc(v.operador)}" placeholder="Nome" oninput="apEQCampo('${id}','operador',this.value)"/></div>
+        <div style="font-size:11px;color:var(--text3);margin-top:-4px">O horímetro é informado no encerramento, com foto.</div>
       </div>` : ''}
     </div>`;
   }).join('') + '</div>' : '<div class="ap-vazio">Nenhum equipamento encontrado</div>';
@@ -2033,6 +2067,104 @@ function apMontarResumo() {
     ${!funcs.length && !eqs.length ? '<div style="margin-top:10px;color:var(--red);font-size:13px">Marque pelo menos uma pessoa ou um equipamento.</div>' : ''}`;
 }
 
+
+// ══════════════════════════════════════════════════════════════
+// v2.15: HORÍMETRO NO ENCERRAMENTO
+// - cada equipamento: número digitado + foto obrigatória
+// - nunca menor que o último fechamento daquele equipamento
+// - a foto vai reduzida (~100 KB) para a coleção "fotos"; o apontamento guarda o id dela
+// ══════════════════════════════════════════════════════════════
+function _ultHorMapa() { try { return JSON.parse(localStorage.getItem('campo_ult_hor') || '{}'); } catch (e) { return {}; } }
+function _ultHorGravar(equipId, hor, data) {
+  const m = _ultHorMapa(); const a = m[equipId];
+  if (!a || hor >= a.hor) { m[equipId] = { hor, data }; try { localStorage.setItem('campo_ult_hor', JSON.stringify(m)); } catch (e) {} }
+}
+const _ultHorBusca = {};
+// último horímetro conhecido: servidor (apontamentos não rejeitados) + o que este celular já gravou
+async function ultimoHorimetro(equipId) {
+  let melhor = _ultHorMapa()[equipId] || null;
+  if (db && _fbReady && isOnline) {
+    if (!_ultHorBusca[equipId]) _ultHorBusca[equipId] = db.collection('aponEQ').where('equipId', '==', equipId).get()
+      .then(snap => { let m = null; snap.forEach(d => { const x = d.data(); const h = parseFloat(x.hor); if (x.status !== 'rejeitado' && !isNaN(h) && (!m || h > m.hor)) m = { hor:h, data:x.data || '' }; }); return m; })
+      .catch(() => null);
+    const srv = await _ultHorBusca[equipId];
+    if (srv && (!melhor || srv.hor > melhor.hor)) melhor = srv;
+  }
+  (pendentes || []).forEach(pd => { if (pd.colecao === 'aponEQ' && pd.item.equipId === equipId) { const h = parseFloat(pd.item.hor); if (!isNaN(h) && (!melhor || h > melhor.hor)) melhor = { hor:h, data:pd.item.data }; } });
+  return melhor;
+}
+function _fmtHor(n) { return Number(n).toLocaleString('pt-BR', { maximumFractionDigits: 1 }); }
+async function apRenderHorimetros() {
+  const card = document.getElementById('ap-hor-card'), el = document.getElementById('ap-hor-lista');
+  if (!card || !el) return;
+  const eqs = dadosCampo.equipamentos.filter(e => ap.eq.has(e.id));
+  card.style.display = eqs.length ? '' : 'none';
+  if (!eqs.length) return;
+  el.innerHTML = eqs.map(e => { const v = ap.eq.get(e.id), id = _esc(e.id);
+    return `<div class="hor-item" id="hor-${id}">
+      <div style="font-weight:700;font-size:14px">${_esc(e.tag || e.placa)}</div>
+      <div class="hor-ult" id="hor-ult-${id}">Buscando último horímetro…</div>
+      <div class="hor-linha">
+        <input type="number" inputmode="decimal" step="0.1" class="form-control" placeholder="Horímetro / km final" value="${_esc(v.hor || '')}" oninput="apEQCampo('${id}','hor',this.value);apHorChecar('${id}')" style="flex:1;min-width:0"/>
+        ${v.foto ? `<img class="hor-thumb" src="${v.foto}" onclick="apHorVer('${id}')"/>` : ''}
+        <label class="hor-foto-btn ${v.foto ? 'ok' : ''}" style="display:flex;align-items:center">📷 ${v.foto ? 'Trocar' : 'Foto'}
+          <input type="file" accept="image/*" capture="environment" style="display:none" onchange="apHorFoto('${id}', this)"/></label>
+      </div>
+      <div class="hor-erro" id="hor-erro-${id}"></div>
+    </div>`; }).join('');
+  for (const e of eqs) {
+    const u = await ultimoHorimetro(e.id); const v = ap.eq.get(e.id); if (!v) continue;
+    v._ult = u ? u.hor : null;
+    const t = document.getElementById('hor-ult-' + e.id);
+    if (t) t.innerHTML = u ? 'Último fechamento: <strong>' + _fmtHor(u.hor) + '</strong>' + (u.data ? ' em ' + _esc(String(u.data).split('-').reverse().join('/')) : '') : 'Sem horímetro anterior registrado';
+    apHorChecar(e.id);
+  }
+}
+function apHorChecar(id) {
+  const v = ap.eq.get(id); const el = document.getElementById('hor-erro-' + id); if (!v || !el) return '';
+  const h = parseFloat(String(v.hor).replace(',', '.'));
+  let err = '';
+  if (v.hor !== '' && v.hor !== undefined && !isNaN(h) && v._ult !== null && v._ult !== undefined && h < v._ult) err = 'Menor que o último fechamento (' + _fmtHor(v._ult) + '). Confira o número.';
+  el.textContent = err; return err;
+}
+// reduz a foto (lado maior 1024 px, JPEG) para não pesar no celular nem na internet da obra
+function _reduzirFoto(file) {
+  return new Promise((ok, falha) => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => {
+      const max = 1024, r = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement('canvas'); c.width = Math.round(img.width * r); c.height = Math.round(img.height * r);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+      let q = 0.6, d = c.toDataURL('image/jpeg', q);
+      while (d.length > 180000 && q > 0.3) { q -= 0.1; d = c.toDataURL('image/jpeg', q); }
+      ok(d);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); falha(new Error('foto inválida')); };
+    img.src = url;
+  });
+}
+async function apHorFoto(id, input) {
+  const f = input.files && input.files[0]; if (!f) return;
+  try { const v = ap.eq.get(id); if (!v) return; v.foto = await _reduzirFoto(f); v.fotoEm = new Date().toISOString(); apGuardar(); apRenderHorimetros(); toast('Foto do horímetro registrada', 'ok'); }
+  catch (e) { toast('Não consegui usar essa foto. Tente de novo.', 'err'); }
+}
+function apHorVer(id) {
+  const v = ap.eq.get(id); if (!v || !v.foto) return;
+  const ov = document.createElement('div'); ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:2000;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.innerHTML = `<img src="${v.foto}" style="max-width:100%;max-height:100%;border-radius:10px"/>`; ov.onclick = () => ov.remove(); document.body.appendChild(ov);
+}
+// validação no encerramento
+async function apHorValidar() {
+  for (const e of dadosCampo.equipamentos.filter(x => ap.eq.has(x.id))) {
+    const v = ap.eq.get(e.id), nome = e.tag || e.placa;
+    if (v.hor === '' || v.hor === undefined || isNaN(parseFloat(String(v.hor).replace(',', '.')))) return 'Informe o horímetro de ' + nome + '.';
+    if (!v.foto) return 'Tire a foto do horímetro de ' + nome + '.';
+    if (v._ult === undefined) { const u = await ultimoHorimetro(e.id); v._ult = u ? u.hor : null; }
+    if (v._ult !== null && parseFloat(String(v.hor).replace(',', '.')) < v._ult) return 'Horímetro de ' + nome + ' (' + _fmtHor(v.hor) + ') menor que o último fechamento (' + _fmtHor(v._ult) + ').';
+  }
+  return '';
+}
+
 async function salvarApropriacao() {
   if (!ap.mo.size && !ap.eq.size) { toast('Marque pelo menos uma pessoa ou um equipamento.', 'err'); return; }
   const frente = document.getElementById('ap-frente').value;
@@ -2042,6 +2174,7 @@ async function salvarApropriacao() {
   if (!document.getElementById('ap-hora-fim').value) apAgora('ap-hora-fim'); else apHorasMudaram();
   { const err = _checaFuturo(data, document.getElementById('ap-hora-ini').value, document.getElementById('ap-hora-fim').value);
     if (err) { toast(err, 'err'); return; } }
+  { const err = await apHorValidar(); if (err) { toast(err, 'err'); apRenderHorimetros(); document.getElementById('ap-hor-card')?.scrollIntoView({ behavior:'smooth' }); return; } }
   const btn = document.getElementById('ap-btn-salvar'); btn.disabled = true;
   const horaIni = document.getElementById('ap-hora-ini').value, horaFim = document.getElementById('ap-hora-fim').value;
   const servico = document.getElementById('ap-servico').value || '—';
@@ -2065,8 +2198,12 @@ async function salvarApropriacao() {
     const eqs = dadosCampo.equipamentos.filter(e => ap.eq.has(e.id));
     for (const e of eqs) {
       const v = ap.eq.get(e.id);
-      await fbSalvar('aponEQ', { ...base, id: 'ae' + sufixo(), hora: horaIni, horaIni, horaFim,
-        hp: parseFloat(v.hp) || 0, hpar: parseFloat(v.hpar) || 0, motivo: v.motivo || '', hor: v.hor || '',
+      const idEq = 'ae' + sufixo(), hor = parseFloat(String(v.hor).replace(',', '.'));
+      let fotoId = '';
+      if (v.foto) { fotoId = 'fh' + sufixo(); await fbSalvar('fotos', { id: fotoId, tipo: 'horimetro', equipId: e.id, equip: e.tag || e.placa, aponEQ: idEq, data, hor, obra: _apObra(), lancadoPor: usuarioCampo.nome, tiradaEm: v.fotoEm || '', img: v.foto }); }
+      _ultHorGravar(e.id, hor, data);
+      await fbSalvar('aponEQ', { ...base, id: idEq, hora: horaIni, horaIni, horaFim, fotoHor: fotoId,
+        hp: parseFloat(v.hp) || 0, hpar: parseFloat(v.hpar) || 0, motivo: v.motivo || '', hor: isNaN(hor) ? '' : hor,
         equip: e.tag || e.placa, equipId: e.id, tipo: e.familia || e.codFamilia || '—', operador: v.operador || '' });
       nEQ++;
     }
