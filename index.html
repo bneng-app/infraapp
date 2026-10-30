@@ -306,7 +306,7 @@ textarea.form-control{resize:vertical;min-height:72px}
         <a href="#" onclick="esqueciSenha();return false" style="font-size:13px;color:#1B2C6E;text-decoration:none">Esqueci minha senha</a>
       </div>
     </div>
-    <div style="text-align:center;margin-top:1rem;font-size:11px;color:#aaa">ObraControl v2.11 · Controle de Mão de Obra e Equipamentos</div>
+    <div style="text-align:center;margin-top:1rem;font-size:11px;color:#aaa">ObraControl v2.12 · Controle de Mão de Obra e Equipamentos</div>
   </div>
 </div>
 
@@ -1953,17 +1953,15 @@ textarea.form-control{resize:vertical;min-height:72px}
 <div class="page" id="page-usuarios">
   <div class="page-header">
     <div><div class="page-title">Usuários do sistema</div><div class="page-sub">Gerencie quem tem acesso e qual perfil</div></div>
-    <button class="btn btn-primary" onclick="openModal('modal-novo-usuario')">+ Novo usuário</button>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-outline" onclick="abrirPerfis()">⚙ Perfis</button>
+      <button class="btn btn-primary" onclick="openModal('modal-novo-usuario')">+ Novo usuário</button>
+    </div>
   </div>
 
   <div class="alert alert-info" style="margin-bottom:1.25rem">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-    <div><strong>Perfis:</strong> &nbsp;
-      <span class="tag tag-red">Admin</span> acesso total &nbsp;
-      <span class="tag tag-blue">Supervisor</span> apontamentos e relatórios &nbsp;
-      <span class="tag tag-green">Colaborador</span> lançamentos de campo &nbsp;
-      <span class="tag" style="background:#FFF3E0;color:#E65100">Abastecedor</span> somente Notas Fiscais e Diesel
-    </div>
+    <div id="legenda-perfis"><strong>Perfis:</strong></div>
   </div>
 
   <div class="card"><div class="card-body">
@@ -2695,6 +2693,48 @@ textarea.form-control{resize:vertical;min-height:72px}
 <!-- INPUT CSV oculto (legado) -->
 <input type="file" id="csv-input" accept=".csv" style="display:none" onchange="processarCSV(event)"/>
 <!-- MODAL: NOVO USUÁRIO -->
+<!-- v2.12: PERFIS -->
+<div class="modal-overlay" id="modal-perfis">
+  <div class="modal" style="max-width:720px">
+    <div class="modal-header"><span class="modal-title">Perfis de acesso</span><button class="modal-close" onclick="closeModal('modal-perfis')">×</button></div>
+    <div class="modal-body">
+      <div style="font-size:12px;color:var(--text-2);margin-bottom:.75rem">O perfil define o tipo de acesso e as permissões que vêm marcadas ao cadastrar um usuário. <strong>App de campo</strong>: entra com matrícula e senha, só lança apontamentos. <strong>Painel</strong>: entra com usuário/e-mail e vê os módulos marcados.</div>
+      <div id="lista-perfis"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-perfis')">Fechar</button>
+      <button class="btn btn-primary" onclick="editarPerfil()">+ Novo perfil</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-perfil">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header"><span class="modal-title" id="pf-titulo">Novo perfil</span><button class="modal-close" onclick="closeModal('modal-perfil')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="pf-id"/>
+      <div class="form-grid">
+        <div class="form-group"><label class="form-label">Nome do perfil *</label><input class="form-control" id="pf-nome" placeholder="Ex.: Encarregado"/></div>
+        <div class="form-group"><label class="form-label">Cor</label>
+          <select class="form-control" id="pf-cor"><option value="green">Verde</option><option value="blue">Azul</option><option value="amber">Laranja</option><option value="red">Vermelho</option><option value="gray">Cinza</option></select></div>
+        <div class="form-group form-full"><label class="form-label">Tipo de acesso *</label>
+          <select class="form-control" id="pf-tipo" onchange="pfTipoMudou()">
+            <option value="campo">App de campo — matrícula e senha, só apontamentos</option>
+            <option value="painel">Painel — usuário/e-mail, módulos marcados abaixo</option>
+          </select></div>
+        <div class="form-group form-full"><label class="form-label">Descrição</label><input class="form-control" id="pf-desc" placeholder="Ex.: lança apontamentos da equipe"/></div>
+      </div>
+      <div id="pf-perms-bloco">
+        <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;margin:.5rem 0 .6rem">Módulos liberados</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="pf-perms"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-perfil')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarPerfil()">Salvar perfil</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-novo-usuario">
   <div class="modal">
     <div class="modal-header"><span class="modal-title" id="modal-usr-titulo">Novo Usuário</span><button class="modal-close" onclick="closeModal('modal-novo-usuario')">×</button></div>
@@ -2702,6 +2742,7 @@ textarea.form-control{resize:vertical;min-height:72px}
       <input type="hidden" id="usr-edit-id"/>
       <div id="usr-aviso-campo" style="display:none;background:var(--blue-light);border:1px solid #B5D4F4;border-radius:8px;padding:10px 12px;font-size:12px;color:var(--blue);margin-bottom:1rem">
         📱 <strong>Apontador de campo:</strong> entra no app com <strong>matrícula e senha</strong>, sem e-mail. Link do app: <strong>bneng-app.github.io/infraapp/campo.html</strong>
+        <div style="margin-top:8px"><button type="button" class="btn btn-outline btn-sm" onclick="testarAcessoCampo()">🔑 Testar acesso (matrícula + senha digitada)</button> <span id="usr-teste-res" style="font-size:12px;margin-left:6px"></span></div>
       </div>
       <div class="form-grid">
         <div class="form-group form-full"><label class="form-label">Perfil *</label>
@@ -2758,6 +2799,7 @@ textarea.form-control{resize:vertical;min-height:72px}
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="perm-dashboards" checked/> Dashboards</label>
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="perm-qrcodes"/> QR Codes</label>
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="perm-config"/> Configurações ADM</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="perm-almoxarifado"/> Almoxarifado (diesel e notas)</label>
       </div>
       </div>
     </div>
@@ -3095,7 +3137,7 @@ async function sincronizarTudo() {
   if (!db || !_firebaseReady) return;
   const colecoes = ['obras','empresas','ua','cargos','turnos','equipes','funcionarios',
     'familias','modelos','equipamentos','frentes','tiposServico','tiposPerdas',
-    'aponMO','aponEQ','diesel','perdas','tanques','movTanques','notasFiscais','produtos'];
+    'aponMO','aponEQ','diesel','perdas','tanques','movTanques','notasFiscais','produtos','perfis'];
 
   // Check if Firebase was ever initialized
   let fbInicializado = false;
@@ -3174,6 +3216,7 @@ const DEMO = {
   aponEQ:       [],
   diesel:       [],
   perdas:       [],
+  perfis:       [],
 };
 
 let dados = JSON.parse(JSON.stringify(DEMO));
@@ -3518,6 +3561,7 @@ async function salvarUsuario() {
     dashboards:   document.getElementById('perm-dashboards')?.checked||false,
     qrcodes:      document.getElementById('perm-qrcodes')?.checked||false,
     config:       document.getElementById('perm-config')?.checked||false,
+    almoxarifado: document.getElementById('perm-almoxarifado')?.checked||false,
   };
   if (perfil==='Admin') Object.keys(perms).forEach(k=>perms[k]=true);
 
@@ -3596,7 +3640,7 @@ async function salvarUsuario() {
   saveUsuarios();
   closeModal('modal-novo-usuario');
   renderUsuarios();
-  toast((id?'Usuário atualizado!':'Usuário criado com sucesso!') + avisoAcesso);
+  toast((id?'Usuário atualizado!':'Usuário criado com sucesso!') + avisoAcesso + (senha && email.endsWith('@' + _DOMINIO_CAMPO) ? ' Login do app: matrícula ' + mat + '.' : ''));
   ['usr-edit-id','usr-nome','usr-email','usr-login','usr-mat','usr-senha','usr-cargo','usr-tel'].forEach(i=>{const e=document.getElementById(i);if(e){e.value='';delete e.dataset.manual;}});
   document.getElementById('usr-senha').placeholder = 'mínimo 6 caracteres';
   document.getElementById('modal-usr-titulo').textContent='Novo Usuário';
@@ -7132,6 +7176,255 @@ window.togglePermAbastecedor = usrPerfilMudou;
     return oSave.apply(this, arguments);
   };
 })();
+
+
+// ═══════════════════════════════════════════════════════════════
+// v2.12: PERFIS DE ACESSO (cadastráveis) + MENU POR PERMISSÃO
+// ═══════════════════════════════════════════════════════════════
+const MODULOS = [
+  ['dashboards',   'Dashboards',                 ['grp-dashboards']],
+  ['cadastros',    'Cadastros',                  ['grp-cadastros','grp-mo','grp-equipamentos','grp-frentes']],
+  ['apontamentos', 'Apontamentos',               ['grp-apontamentos']],
+  ['almoxarifado', 'Almoxarifado (diesel e notas)', ['grp-almoxarifado']],
+  ['relatorios',   'Relatórios',                 ['grp-analise']],
+  ['qrcodes',      'QR Codes',                   []],
+  ['config',       'Configurações ADM',          []],
+];
+const PERFIS_PADRAO = [
+  { id:'pf-admin',       nome:'Admin',       tipo:'painel', cor:'red',   sistema:true, desc:'acesso total',
+    perms:{dashboards:true,cadastros:true,apontamentos:true,almoxarifado:true,relatorios:true,qrcodes:true,config:true} },
+  { id:'pf-supervisor',  nome:'Supervisor',  tipo:'painel', cor:'blue',  sistema:true, desc:'apontamentos e relatórios',
+    perms:{dashboards:true,cadastros:true,apontamentos:true,almoxarifado:false,relatorios:true,qrcodes:false,config:false} },
+  { id:'pf-colaborador', nome:'Colaborador', tipo:'campo',  cor:'green', sistema:true, desc:'lançamentos de campo',
+    perms:{apontamentos:true} },
+  { id:'pf-abastecedor', nome:'Abastecedor', tipo:'painel', cor:'amber', sistema:true, desc:'somente notas fiscais e diesel',
+    perms:{dashboards:false,cadastros:false,apontamentos:false,almoxarifado:true,relatorios:false,qrcodes:false,config:false} },
+];
+function listaPerfis() {
+  const salvos = dados.perfis || [];
+  const porNome = new Map(salvos.map(p => [p.nome, p]));
+  const base = PERFIS_PADRAO.map(p => porNome.get(p.nome) ? { ...p, ...porNome.get(p.nome), sistema:true } : p);
+  return base.concat(salvos.filter(p => !PERFIS_PADRAO.some(d => d.nome === p.nome)));
+}
+function perfilPorNome(nome) { return listaPerfis().find(p => p.nome === nome); }
+function _perfilEhCampo(nome) { const p = perfilPorNome(nome); return p ? p.tipo === 'campo' : nome === 'Colaborador'; }
+const _escP = t => String(t ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function popularPerfis() {
+  const ps = listaPerfis();
+  const sel = document.getElementById('usr-perfil');
+  if (sel) { const v = sel.value; sel.innerHTML = ps.map(p => `<option value="${_escP(p.nome)}">${_escP(p.nome)}${p.tipo==='campo' ? ' — app de campo' : ''}</option>`).join(''); if (v && ps.some(p=>p.nome===v)) sel.value = v; }
+  const fil = document.getElementById('filtro-usr-perfil');
+  if (fil) { const v = fil.value; fil.innerHTML = '<option value="">Todos os perfis</option>' + ps.map(p => `<option value="${_escP(p.nome)}">${_escP(p.nome)}</option>`).join(''); fil.value = v; }
+  const leg = document.getElementById('legenda-perfis');
+  if (leg) leg.innerHTML = '<strong>Perfis:</strong> &nbsp;' + ps.map(p => `<span class="tag tag-${p.cor||'gray'}">${_escP(p.nome)}</span> ${_escP(p.desc||'')}`).join(' &nbsp; ');
+}
+
+function abrirPerfis() {
+  if (usuarioLogado?.perfil !== 'Admin') { toast('Só administradores editam perfis','error'); return; }
+  renderListaPerfis();
+  document.getElementById('modal-perfis').classList.add('open');
+}
+function renderListaPerfis() {
+  const uso = n => USUARIOS.filter(u => u.perfil === n).length;
+  document.getElementById('lista-perfis').innerHTML = '<table class="table" style="width:100%"><thead><tr><th>Perfil</th><th>Acesso</th><th>Módulos</th><th>Usuários</th><th></th></tr></thead><tbody>'
+    + listaPerfis().map(p => `<tr>
+      <td><span class="tag tag-${p.cor||'gray'}">${_escP(p.nome)}</span><div style="font-size:11px;color:var(--text-3);margin-top:2px">${_escP(p.desc||'')}</div></td>
+      <td style="font-size:12px">${p.tipo==='campo' ? '📱 App de campo' : '🖥 Painel'}</td>
+      <td style="font-size:11px;color:var(--text-2)">${p.nome==='Admin' ? 'Tudo' : MODULOS.filter(([k]) => p.perms?.[k]).map(([,l]) => l).join(', ') || '—'}</td>
+      <td style="text-align:center">${uso(p.nome)}</td>
+      <td style="white-space:nowrap;text-align:right">${p.nome==='Admin' ? '<span style="font-size:11px;color:var(--text-3)">fixo</span>' :
+        `<button class="btn btn-outline btn-sm" onclick="editarPerfil('${_escP(p.id)}')">Editar</button>`
+        + (p.sistema ? '' : ` <button class="btn btn-sm" style="background:var(--red-light);color:var(--red);border:1px solid var(--red-light)" onclick="excluirPerfil('${_escP(p.id)}')">Excluir</button>`)}</td>
+    </tr>`).join('') + '</tbody></table>';
+}
+function pfTipoMudou() {
+  const campo = document.getElementById('pf-tipo').value === 'campo';
+  document.getElementById('pf-perms-bloco').style.display = campo ? 'none' : '';
+}
+function editarPerfil(id) {
+  const p = id ? listaPerfis().find(x => x.id === id) : null;
+  const $ = k => document.getElementById(k);
+  $('pf-id').value = p ? p.id : '';
+  $('pf-nome').value = p ? p.nome : '';
+  $('pf-nome').disabled = !!(p && p.sistema);
+  $('pf-desc').value = p ? (p.desc||'') : '';
+  $('pf-cor').value = p ? (p.cor||'gray') : 'green';
+  $('pf-tipo').value = p ? (p.tipo||'painel') : 'painel';
+  $('pf-titulo').textContent = p ? 'Editar perfil' : 'Novo perfil';
+  $('pf-perms').innerHTML = MODULOS.map(([k,l]) => `<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="pf-perm-${k}" ${p?.perms?.[k] ? 'checked' : ''}/> ${l}</label>`).join('');
+  pfTipoMudou();
+  document.getElementById('modal-perfil').classList.add('open');
+}
+function salvarPerfil() {
+  const $ = k => document.getElementById(k);
+  const id = $('pf-id').value;
+  const atual = id ? listaPerfis().find(x => x.id === id) : null;
+  const nome = atual?.sistema ? atual.nome : ($('pf-nome').value || '').trim();
+  if (!nome) { toast('Informe o nome do perfil','error'); return; }
+  if (nome.toLowerCase() === 'admin' && !(atual && atual.nome === 'Admin')) { toast('"Admin" é reservado','error'); return; }
+  if (listaPerfis().some(p => p.nome.toLowerCase() === nome.toLowerCase() && p.id !== id)) { toast('Já existe um perfil com esse nome','error'); return; }
+  const tipo = $('pf-tipo').value;
+  const perms = {}; MODULOS.forEach(([k]) => perms[k] = tipo === 'campo' ? k === 'apontamentos' : !!$('pf-perm-' + k)?.checked);
+  const obj = { id: id || ('pf' + Date.now()), nome, desc: ($('pf-desc').value||'').trim(), cor: $('pf-cor').value, tipo, perms };
+  dados.perfis = (dados.perfis || []).filter(x => x.id !== obj.id && x.nome !== obj.nome);
+  dados.perfis.push(obj);
+  // renomeou: leva os usuários junto
+  if (atual && atual.nome !== nome) { USUARIOS.forEach(u => { if (u.perfil === atual.nome) u.perfil = nome; }); saveUsuarios(); }
+  if (db && _firebaseReady) fbSave('perfis', obj.id, obj).catch(() => toast('Perfil salvo aqui, mas não no servidor. Tente de novo.','error'));
+  closeModal('modal-perfil');
+  popularPerfis(); renderListaPerfis(); try { renderUsuarios(); } catch (e) {}
+  toast('Perfil "' + nome + '" salvo!');
+}
+async function excluirPerfil(id) {
+  const p = listaPerfis().find(x => x.id === id); if (!p || p.sistema) return;
+  const n = USUARIOS.filter(u => u.perfil === p.nome).length;
+  if (n) { toast('Há ' + n + ' usuário(s) com o perfil "' + p.nome + '". Troque o perfil deles antes de excluir.','error'); return; }
+  if (!confirm('Excluir o perfil "' + p.nome + '"?')) return;
+  dados.perfis = (dados.perfis || []).filter(x => x.id !== id);
+  if (db && _firebaseReady) { try { await fbDelete('perfis', id); } catch (e) {} }
+  popularPerfis(); renderListaPerfis();
+  toast('Perfil excluído.');
+}
+
+// usuário: tipo de acesso vem do perfil; permissões do perfil vêm marcadas ao escolher
+(function () {
+  window.usrPerfilMudouBase = window.usrPerfilMudou;
+  window.usrPerfilMudou = function (aoTrocar) {
+    const nome = document.getElementById('usr-perfil')?.value;
+    const campo = _perfilEhCampo(nome);
+    // reaproveita o layout simples do Colaborador para qualquer perfil de campo
+    const sel = document.getElementById('usr-perfil');
+    document.querySelectorAll('#modal-novo-usuario .usr-so-portal').forEach(el => el.style.display = campo ? 'none' : '');
+    const pb = document.getElementById('usr-perms-bloco'); if (pb) pb.style.display = campo ? 'none' : '';
+    const av = document.getElementById('usr-aviso-campo'); if (av) av.style.display = campo ? '' : 'none';
+    const ml = document.getElementById('usr-mat-lbl'); if (ml) ml.textContent = campo ? 'Matrícula *' : 'Matrícula (login no app de campo)';
+    const ol = document.getElementById('usr-obra-lbl'); if (ol) ol.textContent = campo ? 'Obra *' : 'Obra vinculada';
+    const os = document.getElementById('usr-obra'); if (os && os.options[0]) os.options[0].textContent = campo ? 'Selecione a obra…' : 'Todas as obras (Admin)';
+    const sd = document.getElementById('usr-senha-dica'); if (sd) sd.textContent = campo ? 'Passe a matrícula e esta senha para a pessoa. Na edição, preencha só para trocar.' : 'Na edição, preencha só para redefinir. Outros usuários do portal recebem um link por e-mail.';
+    const hint = document.getElementById('hint-abastecedor'); if (hint) hint.style.display = 'none';
+    if (aoTrocar === true) {
+      const p = perfilPorNome(nome);
+      if (p) MODULOS.forEach(([k]) => { const c = document.getElementById('perm-' + k); if (c) c.checked = nome === 'Admin' || !!p.perms?.[k]; });
+    }
+  };
+  window.togglePermAbastecedor = () => window.usrPerfilMudou(true);
+  const selPerfil = document.getElementById('usr-perfil');
+  if (selPerfil) selPerfil.setAttribute('onchange', 'usrPerfilMudou(true)');
+
+  const oOpen = window.openModal;
+  window.openModal = function (id) {
+    if (id === 'modal-novo-usuario') popularPerfis();
+    const r = oOpen.apply(this, arguments);
+    if (id === 'modal-novo-usuario' && !document.getElementById('usr-edit-id').value) usrPerfilMudou(true);
+    return r;
+  };
+  const oEdit = window.editarUsuario;
+  window.editarUsuario = function (id) {
+    popularPerfis();
+    const u = USUARIOS.find(x => x.id === id);
+    const r = oEdit.apply(this, arguments);
+    if (u) { const pp = document.getElementById('usr-perfil'); if (pp) pp.value = u.perfil; const pa = document.getElementById('perm-almoxarifado'); if (pa) pa.checked = !!u.perms?.almoxarifado; }
+    usrPerfilMudou();
+    return r;
+  };
+  // salvar: qualquer perfil do tipo "campo" usa o cadastro simples
+  const oSave = window.salvarUsuario;
+  window.salvarUsuario = async function () {
+    const $ = k => document.getElementById(k);
+    const nome = $('usr-perfil')?.value;
+    if (_perfilEhCampo(nome) && nome !== 'Colaborador') {
+      if (!($('usr-mat')?.value || '').trim()) { toast('Informe a matrícula','error'); return; }
+      if (!$('usr-obra')?.value) { toast('Selecione a obra','error'); return; }
+      const id = $('usr-edit-id')?.value; const u = id ? USUARIOS.find(x => x.id === id) : null;
+      if (!u || (u.email||'').endsWith('@' + _DOMINIO_CAMPO)) $('usr-email').value = '';
+      if ($('usr-login')) { $('usr-login').value = ''; $('usr-login').dataset.manual = '1'; }
+      MODULOS.forEach(([k]) => { const c = $('perm-' + k); if (c) c.checked = k === 'apontamentos'; });
+    }
+    return oSave.apply(this, arguments);
+  };
+  const oRender = window.renderUsuarios;
+  window.renderUsuarios = function () {
+    popularPerfis();
+    const r = oRender.apply(this, arguments);
+    // cor do perfil nos cartões
+    document.querySelectorAll('#page-usuarios .tag').forEach(t => {
+      const p = perfilPorNome(t.textContent.trim());
+      if (p && !t.closest('#legenda-perfis')) t.className = 'tag tag-' + (p.cor || 'gray');
+    });
+    return r;
+  };
+
+  // ── menu e telas conforme as permissões ──
+  const PAG_MOD = {};
+  MODULOS.forEach(([k, , grupos]) => grupos.forEach(g => document.querySelectorAll('#' + g + ' [onclick*="showPage("]').forEach(el => {
+    const m = (el.getAttribute('onclick') || '').match(/showPage\('([^']+)'/); if (m) PAG_MOD[m[1]] = k;
+  })));
+  PAG_MOD['qrcodes'] = 'qrcodes';
+  function permsDe(u) {
+    if (!u) return {};
+    if (u.perfil === 'Admin') return Object.fromEntries(MODULOS.map(([k]) => [k, true]));
+    const base = perfilPorNome(u.perfil)?.perms || {};
+    return { ...base, ...(u.perms || {}) };
+  }
+  window.podeVerPagina = function (pag) {
+    if (!usuarioLogado || usuarioLogado.perfil === 'Admin') return true;
+    if (pag === 'usuarios' || pag === 'config') return false;
+    const mod = PAG_MOD[pag]; if (!mod) return true;
+    return !!permsDe(usuarioLogado)[mod];
+  };
+  const oAplicar = window.aplicarPermissoes;
+  window.aplicarPermissoes = function () {
+    const r = oAplicar.apply(this, arguments);
+    if (!usuarioLogado) return r;
+    const admin = usuarioLogado.perfil === 'Admin';
+    const p = permsDe(usuarioLogado);
+    MODULOS.forEach(([k, , grupos]) => grupos.forEach(g => { const el = document.getElementById(g); if (el) el.style.display = (admin || p[k]) ? '' : 'none'; }));
+    const ga = document.getElementById('grp-admin'); if (ga) ga.style.display = admin ? '' : 'none';
+    // se a tela aberta não é permitida, vai para a primeira que for
+    const ativa = document.querySelector('.page.active')?.id?.replace('page-', '');
+    if (ativa && !podeVerPagina(ativa)) {
+      const primeira = Object.keys(PAG_MOD).find(podeVerPagina);
+      if (primeira) showPage(primeira, document.querySelector(`[onclick*="showPage('${primeira}'"]`));
+    }
+    return r;
+  };
+  const oShow = window.showPage;
+  window.showPage = function (id) {
+    if (!podeVerPagina(id)) { toast('Seu perfil não tem acesso a esta tela','error'); return; }
+    return oShow.apply(this, arguments);
+  };
+})();
+
+
+// v2.12: testa matrícula + senha exatamente como o app de campo faz, sem mexer no seu login
+async function testarAcessoCampo() {
+  const res = document.getElementById('usr-teste-res');
+  const mat = (document.getElementById('usr-mat')?.value || '').trim().replace(/\s+/g, '');
+  const senha = document.getElementById('usr-senha')?.value || '';
+  if (!mat || !senha) { res.textContent = 'Digite a matrícula e a senha no formulário para testar.'; res.style.color = 'var(--red)'; return; }
+  if (!_firebaseReady) { res.textContent = 'Sem conexão com o servidor.'; res.style.color = 'var(--red)'; return; }
+  res.textContent = 'Testando…'; res.style.color = 'var(--text-3)';
+  let app = firebase.apps.find(a => a.name === 'teste-campo'); if (!app) app = firebase.initializeApp(firebaseConfig, 'teste-campo');
+  const a = app.auth();
+  const cands = [mat + '@' + _DOMINIO_CAMPO, ...[2,3,4,5,6].map(n => mat + '.' + n + '@' + _DOMINIO_CAMPO)];
+  let ok = null, cod = '';
+  for (const em of cands) {
+    try { await a.signInWithEmailAndPassword(em, senha); ok = em; break; }
+    catch (e) { cod = e.code || e.message; if (cod === 'auth/too-many-requests' || cod === 'auth/network-request-failed') break; }
+  }
+  try { await a.signOut(); } catch (e) {}
+  const id = document.getElementById('usr-edit-id')?.value;
+  const u = id ? USUARIOS.find(x => x.id === id) : USUARIOS.find(x => (x.mat||'') === mat);
+  if (ok) {
+    const bate = u && (u.email||'').toLowerCase() === ok;
+    res.innerHTML = '✅ Matrícula e senha funcionam (acesso ' + ok.split('@')[0] + ').' + (u && !bate ? ' ⚠ Mas o cadastro aponta para outro acesso (' + _escP(u.email) + ') — salve o usuário de novo.' : '');
+    res.style.color = bate || !u ? 'var(--green-dark)' : 'var(--amber)';
+  } else {
+    res.textContent = '❌ Não entrou (' + cod + '). ' + (cod === 'auth/too-many-requests' ? 'Muitas tentativas: aguarde alguns minutos.' : 'A senha não é essa ou o acesso não foi criado: preencha a senha e clique em Salvar usuário.');
+    res.style.color = 'var(--red)';
+  }
+}
 
 // Apply configs on load
 setTimeout(applyConfigs, 200);

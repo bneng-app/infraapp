@@ -469,7 +469,7 @@ select.form-control { cursor: pointer; }
     </button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">v2.7</div>
+  <div class="login-versao">v2.8</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -1157,7 +1157,7 @@ async function fazerLoginCampo() {
     const c = ultimo && ultimo.code;
     if (c === 'auth/too-many-requests') erro('Muitas tentativas. Aguarde alguns minutos.');
     else if (c === 'auth/network-request-failed') erro('Sem internet. Tente de novo.');
-    else erro('Matrícula ou senha incorretos.');
+    else erro('Matrícula ou senha incorretos.' + (c ? ' (' + c.replace('auth/','') + ')' : ''));
     return;
   }
 
