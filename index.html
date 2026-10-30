@@ -306,7 +306,7 @@ textarea.form-control{resize:vertical;min-height:72px}
         <a href="#" onclick="esqueciSenha();return false" style="font-size:13px;color:#1B2C6E;text-decoration:none">Esqueci minha senha</a>
       </div>
     </div>
-    <div style="text-align:center;margin-top:1rem;font-size:11px;color:#aaa">ObraControl v2.12 · Controle de Mão de Obra e Equipamentos</div>
+    <div style="text-align:center;margin-top:1rem;font-size:11px;color:#aaa">ObraControl v2.13 · Controle de Mão de Obra e Equipamentos</div>
   </div>
 </div>
 
@@ -626,7 +626,9 @@ textarea.form-control{resize:vertical;min-height:72px}
   <div class="page-header">
     <div><div class="page-title">Obras</div><div class="page-sub">Gerencie as obras ativas</div></div>
     <div class="btn-group">
-      <button class="btn btn-outline btn-sm" onclick="abrirImportacao('obras')">↑ Importar CSV</button>
+      <button class="btn btn-outline btn-sm" onclick="abrirImportacao('pacote')" title="Um arquivo Excel com uma aba por cadastro">↑ Importar pacote completo</button>
+      <button class="btn btn-outline btn-sm" onclick="baixarTemplate('pacote')">↓ Template do pacote</button>
+      <button class="btn btn-outline btn-sm" onclick="abrirImportacao('obras')">↑ Importar</button>
       <button class="btn btn-outline btn-sm" onclick="baixarTemplate('obras')">↓ Template</button>
       <button class="btn btn-primary" onclick="openModal('modal-nova-obra')">+ Nova obra</button>
     </div>
@@ -711,7 +713,11 @@ textarea.form-control{resize:vertical;min-height:72px}
 <div class="page" id="page-turnos">
   <div class="page-header">
     <div><div class="page-title">Turnos</div><div class="page-sub">Defina os turnos e horários — usados para calcular horas normais e extras</div></div>
-    <button class="btn btn-primary" onclick="openModal('modal-novo-turno')">+ Novo turno</button>
+    <div class="btn-group">
+      <button class="btn btn-outline btn-sm" onclick="abrirImportacao('turnos')">↑ Importar</button>
+      <button class="btn btn-outline btn-sm" onclick="baixarTemplate('turnos')">↓ Template</button>
+      <button class="btn btn-primary" onclick="openModal('modal-novo-turno')">+ Novo turno</button>
+    </div>
   </div>
   <div class="alert alert-info" style="margin-bottom:1rem">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -934,7 +940,11 @@ textarea.form-control{resize:vertical;min-height:72px}
 <div class="page" id="page-frentes">
   <div class="page-header">
     <div><div class="page-title">Frentes de Serviço</div><div class="page-sub">Locais ou trechos de trabalho da obra</div></div>
-    <button class="btn btn-primary" onclick="openModal('modal-nova-frente')">+ Nova frente</button>
+    <div class="btn-group">
+      <button class="btn btn-outline btn-sm" onclick="abrirImportacao('frentes')">↑ Importar</button>
+      <button class="btn btn-outline btn-sm" onclick="baixarTemplate('frentes')">↓ Template</button>
+      <button class="btn btn-primary" onclick="openModal('modal-nova-frente')">+ Nova frente</button>
+    </div>
   </div>
   <div class="alert alert-info" style="margin-bottom:1rem">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -997,7 +1007,11 @@ textarea.form-control{resize:vertical;min-height:72px}
 <div class="page" id="page-tipos-servico">
   <div class="page-header">
     <div><div class="page-title">Tipos de Serviço</div><div class="page-sub">Serviços executados nas frentes — com unidade e meta</div></div>
-    <button class="btn btn-primary" onclick="openModal('modal-novo-tipo-servico')">+ Novo tipo</button>
+    <div class="btn-group">
+      <button class="btn btn-outline btn-sm" onclick="abrirImportacao('tiposServico')">↑ Importar</button>
+      <button class="btn btn-outline btn-sm" onclick="baixarTemplate('tiposServico')">↓ Template</button>
+      <button class="btn btn-primary" onclick="openModal('modal-novo-tipo-servico')">+ Novo tipo</button>
+    </div>
   </div>
   <div class="alert alert-info" style="margin-bottom:1rem">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -1280,7 +1294,11 @@ textarea.form-control{resize:vertical;min-height:72px}
       <div class="page-title">Tipos de Perda / Parada</div>
       <div class="page-sub">Categorias usadas pelos apontadores no registro de horas improdutivas</div>
     </div>
-    <button class="btn btn-primary" onclick="openModal('modal-novo-tipo-perda')">+ Novo tipo</button>
+    <div class="btn-group">
+      <button class="btn btn-outline btn-sm" onclick="abrirImportacao('tiposPerdas')">↑ Importar</button>
+      <button class="btn btn-outline btn-sm" onclick="baixarTemplate('tiposPerdas')">↓ Template</button>
+      <button class="btn btn-primary" onclick="openModal('modal-novo-tipo-perda')">+ Novo tipo</button>
+    </div>
   </div>
 
   <div class="alert alert-info" style="margin-bottom:1rem">
@@ -7425,6 +7443,177 @@ async function testarAcessoCampo() {
     res.style.color = 'var(--red)';
   }
 }
+
+
+// ═══════════════════════════════════════════════════════════════
+// v2.13: IMPORTAÇÃO — todos os cadastros, e "pacote completo" (um Excel com uma aba por cadastro)
+// ═══════════════════════════════════════════════════════════════
+const IMPORT_DEF = {
+  obras:        { rotulo:'Obras', porObra:false, chave:'cod', col:['Código','Nome da Obra','Local/Município','Status'],
+                  map:g=>({ cod:g(['código','codigo','cod']), nome:g(['nome da obra','nome']), local:g(['local','município','municipio']), status:g(['status'])||'Ativa' }), ok:x=>x.cod&&x.nome },
+  empresas:     { rotulo:'Empresas', porObra:true, chave:'cod', col:['Código','Razão Social','CNPJ','Tipo','Responsável'],
+                  map:g=>({ cod:g(['código','codigo','cod']), nome:g(['razão','razao','nome']), cnpj:g(['cnpj']), tipo:g(['tipo'])||'Empreiteira', resp:g(['responsável','responsavel']) }), ok:x=>x.cod&&x.nome },
+  ua:           { rotulo:'UA', porObra:true, chave:'cod', col:['Código UA','Descrição','Tipo (MO/EQ)'],
+                  map:g=>({ cod:g(['código ua','codigo ua','código','cod']), desc:g(['descrição','descricao','desc']), tipo:(g(['tipo'])||'MO').toUpperCase() }), ok:x=>x.cod&&x.desc },
+  cargos:       { rotulo:'Cargos', porObra:true, chave:'cod', col:['Cód. Função','Nome da Função','Cód. Recurso (UA)','Direto (Sim/Não)','Operador (Sim/Não)'],
+                  map:g=>({ cod:g(['cód. função','cod. função','cód','cod']), nome:g(['nome da função','nome da funcao','nome']), recurso:g(['recurso']), direto:g(['direto'])||'Sim', operador:g(['operador'])||'Não' }), ok:x=>x.cod&&x.nome },
+  familias:     { rotulo:'Famílias', porObra:true, chave:'cod', col:['Código','Descrição'],
+                  map:g=>({ cod:g(['código','codigo','cod']), desc:g(['descrição','descricao','desc']) }), ok:x=>x.cod&&x.desc },
+  modelos:      { rotulo:'Modelos', porObra:true, chave:'cod', col:['Código','Nome do Modelo','Família'],
+                  map:g=>({ cod:g(['código','codigo','cod']), nome:g(['nome do modelo','modelo']), familia:g(['família','familia']) }), ok:x=>x.cod&&x.nome },
+  frentes:      { rotulo:'Frentes de serviço', porObra:true, chave:'cod', col:['Código','Descrição','Responsável','Observações'],
+                  map:g=>({ cod:g(['código','codigo','cod']), desc:g(['descrição','descricao','desc']), resp:g(['responsável','responsavel']), obs:g(['observ']) }), ok:x=>x.cod&&x.desc },
+  tiposServico: { rotulo:'Tipos de serviço', porObra:false, chave:'cod', col:['Código','Nome do Serviço','Unidade','Meta diária'],
+                  map:g=>({ cod:g(['código','codigo','cod']), nome:g(['nome do serviço','nome do servico','serviço','servico','nome']), unidade:g(['unidade','un']), meta:parseFloat(String(g(['meta'])).replace(',','.'))||0 }), ok:x=>x.cod&&x.nome },
+  turnos:       { rotulo:'Turnos', porObra:false, chave:'cod', col:['Código','Nome','Início (HH:MM)','Fim (HH:MM)'],
+                  map:g=>({ cod:g(['código','codigo','cod']).toUpperCase(), nome:g(['nome']), inicio:_horaImport(g(['início','inicio'])), fim:_horaImport(g(['fim'])) }), ok:x=>x.cod&&x.nome&&x.inicio&&x.fim },
+  tiposPerdas:  { rotulo:'Tipos de perda', porObra:false, chave:'cod', col:['Código','Nome','Aplica a (MO/EQ/Ambos)'],
+                  map:g=>({ cod:g(['código','codigo','cod']).toUpperCase(), nome:g(['nome']), aplica:g(['aplica'])||'Ambos', cor:'gray' }), ok:x=>x.cod&&x.nome },
+  funcionarios: { rotulo:'Funcionários', porObra:true, chave:'mat', col:['Matrícula','Nome Completo','Cód. Função','Empresa (código)','Direto (Sim/Não)','Data Admissão (DD/MM/AAAA)','Matr. Líder','Cód. Equipe'],
+                  map:g=>({ mat:g(['matrícula','matricula','mat']), nome:g(['nome completo','nome']), codFuncao:g(['cód. função','cod. função','função','funcao']), _emp:g(['empresa']),
+                            direto:g(['direto'])||'Sim', admissao:excelDataParaISO(g(['admissão','admissao'])), demissao:excelDataParaISO(g(['demissão','demissao']))||'', lider:g(['líder','lider']), equipe:g(['equipe']) }), ok:x=>x.mat&&x.nome },
+  equipamentos: { rotulo:'Equipamentos', porObra:true, chave:'tag', col:['TAG','Placa/Série','Cód. Modelo','Família','Proprietário (empresa)','Status','Data Mobilização (DD/MM/AAAA)'],
+                  map:g=>({ tag:g(['tag']), placa:g(['placa','série','serie']), codModelo:g(['cód. modelo','cod. modelo','modelo']), familia:g(['família','familia']), prop:g(['proprietário','proprietario']),
+                            status:g(['status'])||'Mobilizado', dataMob:excelDataParaISO(g(['mobiliza'])) }), ok:x=>x.tag },
+};
+const IMPORT_ORDEM = ['obras','empresas','ua','cargos','familias','modelos','frentes','tiposServico','turnos','tiposPerdas','funcionarios','equipamentos'];
+function _horaImport(v) {
+  if (v === undefined || v === null || v === '') return '';
+  if (v instanceof Date) return String(v.getHours()).padStart(2,'0') + ':' + String(v.getMinutes()).padStart(2,'0');
+  const n = Number(v); if (!isNaN(n) && n > 0 && n < 1) { const m = Math.round(n * 1440); return String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0'); }
+  const t = String(v).trim().match(/^(\d{1,2})[:h](\d{2})/); return t ? t[1].padStart(2,'0') + ':' + t[2] : String(v).trim();
+}
+function _normAba(n) { return String(n||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/^[\d\s._-]+/,'').replace(/[^a-z]/g,''); }
+const _ABA_TIPO = { obras:'obras', empresas:'empresas', ua:'ua', uas:'ua', unidadesdeapuracao:'ua', cargos:'cargos', funcoes:'cargos', familias:'familias', modelos:'modelos',
+  frentes:'frentes', frentesdeservico:'frentes', tiposdeservico:'tiposServico', servicos:'tiposServico', turnos:'turnos', tiposdeperda:'tiposPerdas', perdas:'tiposPerdas',
+  funcionarios:'funcionarios', equipamentos:'equipamentos' };
+
+function _importarLinhas(tipo, rows, resumo) {
+  const def = IMPORT_DEF[tipo]; if (!def) return [];
+  const headers = (rows[0]||[]).map(h => String(h ?? '').trim().toLowerCase());
+  const idxObra = headers.findIndex(h => h.startsWith('obra'));
+  const linhas = rows.slice(1).filter(r => r && r.some(c => c !== undefined && c !== null && String(c).trim() !== ''));
+  const r = resumo[tipo] = { ok:0, dup:0, erro:0, avisos:[] };
+  const lista = dados[tipo] || (dados[tipo] = []);
+  const novos = [];
+  linhas.forEach((row, i) => {
+    const g = kws => { for (const kw of kws) { const idx = headers.findIndex((h, j) => j !== idxObra && h.includes(kw)); if (idx >= 0 && row[idx] !== undefined && row[idx] !== null) return row[idx] instanceof Date ? row[idx] : String(row[idx]).trim(); } return ''; };
+    let obraId = '';
+    if (def.porObra || idxObra >= 0) {
+      const v = idxObra >= 0 ? String(row[idxObra] ?? '').trim().toLowerCase() : '';
+      const ob = v ? (dados.obras||[]).find(o => (o.cod||'').toLowerCase() === v || (o.nome||'').toLowerCase() === v) || (dados.obras||[]).find(o => (o.nome||'').toLowerCase().includes(v)) : null;
+      obraId = ob ? ob.id : ((obraAtiva && obraAtiva.id !== 'todas') ? obraAtiva.id : '');
+      if (def.porObra && !obraId) { r.erro++; if (r.avisos.length < 3) r.avisos.push('linha ' + (i+2) + ': obra "' + (row[idxObra]||'') + '" não encontrada'); return; }
+    }
+    const item = def.map(g);
+    if (!def.ok(item)) { r.erro++; if (r.avisos.length < 3) r.avisos.push('linha ' + (i+2) + ': campos obrigatórios vazios'); return; }
+    if (obraId) item.obra = obraId;
+    if (tipo === 'funcionarios') {
+      const e = (dados.empresas||[]).find(x => (x.obra === obraId || !x.obra) && ((x.cod||'').toLowerCase() === String(item._emp).toLowerCase() || (x.nome||'').toLowerCase() === String(item._emp).toLowerCase()));
+      item.empresa = e ? e.nome : (item._emp || ''); item.empresaId = e ? e.id : ''; delete item._emp;
+    }
+    const chave = String(item[def.chave]).toLowerCase();
+    const existe = lista.concat(novos).some(x => String(x[def.chave]||'').toLowerCase() === chave && (!def.porObra || (x.obra||'') === obraId));
+    if (existe) { r.dup++; return; }
+    item.id = tipo.slice(0,3) + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+    novos.push(item); r.ok++;
+  });
+  lista.push(...novos);
+  return novos;
+}
+
+async function _gravarImportados(tipo, novos) {
+  if (!(db && _firebaseReady) || !novos.length) return 0;
+  let falhas = 0;
+  for (let i = 0; i < novos.length; i += 20) {
+    const lote = novos.slice(i, i + 20);
+    const rs = await Promise.allSettled(lote.map(x => fbSave(tipo, x.id, x)));
+    falhas += rs.filter(x => x.status === 'rejected').length;
+  }
+  return falhas;
+}
+
+window.baixarTemplate = function (tipo) {
+  if (typeof XLSX === 'undefined') { toast('Aguarde o carregamento do Excel e tente novamente.', 'error'); return; }
+  const wb = XLSX.utils.book_new();
+  const tipos = tipo === 'pacote' ? IMPORT_ORDEM : [tipo];
+  tipos.forEach(t => {
+    const def = IMPORT_DEF[t]; if (!def) return;
+    const cab = (def.porObra ? ['Obra (código ou nome)'] : []).concat(def.col);
+    const ws = XLSX.utils.aoa_to_sheet([cab]);
+    ws['!cols'] = cab.map(h => ({ wch: Math.max(h.length + 4, 16) }));
+    XLSX.utils.book_append_sheet(wb, ws, def.rotulo.slice(0, 31));
+  });
+  if (!wb.SheetNames.length) { toast('Template não disponível para este cadastro.', 'error'); return; }
+  XLSX.writeFile(wb, tipo === 'pacote' ? 'ObraControl_pacote_importacao.xlsx' : 'template_' + tipo + '.xlsx');
+  toast('Template baixado! Preencha e importe.');
+};
+
+window.abrirImportacao = function (tipo) {
+  const $ = k => document.getElementById(k);
+  if ($('import-titulo')) $('import-titulo').textContent = tipo === 'pacote' ? 'Importar pacote completo' : 'Importar ' + (IMPORT_DEF[tipo]?.rotulo || tipo);
+  if ($('import-tipo')) $('import-tipo').value = tipo;
+  const f = $('import-file'); if (f) { f.value = ''; f.onchange = function () { previewImport(this); }; }
+  const pv = $('import-preview'); if (pv) { pv.innerHTML = tipo === 'pacote'
+    ? 'Um arquivo Excel com <strong>uma aba por cadastro</strong> (Obras, Empresas, UA, Cargos, Famílias, Modelos, Frentes, Tipos de serviço, Turnos, Tipos de perda, Funcionários, Equipamentos). A importação segue essa ordem. Registros com código que já existe são ignorados.'
+    : 'Registros com código que já existe são ignorados.'; pv.style.display = 'block'; }
+  openModal('modal-importacao');
+};
+
+window.previewImport = function (input) {
+  if (!input.files || !input.files[0] || typeof XLSX === 'undefined') return;
+  const tipo = document.getElementById('import-tipo')?.value;
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    const wb = XLSX.read(e.target.result, { type:'binary', cellDates:true });
+    const pv = document.getElementById('import-preview'); pv.style.display = 'block';
+    const conta = n => XLSX.utils.sheet_to_json(wb.Sheets[n], { header:1 }).slice(1).filter(r => r.some(c => c !== undefined && String(c).trim() !== '')).length;
+    if (tipo === 'pacote') {
+      pv.innerHTML = '<strong style="color:var(--green-dark)">Abas encontradas:</strong><br>' + wb.SheetNames.map(n => {
+        const t = _ABA_TIPO[_normAba(n)];
+        return t ? '✅ ' + n + ' → ' + IMPORT_DEF[t].rotulo + ' (' + conta(n) + ' linhas)' : '⚪ ' + n + ' (ignorada)';
+      }).join('<br>');
+    } else pv.innerHTML = '<strong style="color:var(--green-dark)">✅ ' + conta(wb.SheetNames[0]) + ' linha(s) encontrada(s)</strong>';
+  };
+  reader.readAsBinaryString(input.files[0]);
+};
+
+window.confirmarImportacao = async function () {
+  const tipo = document.getElementById('import-tipo')?.value;
+  const file = document.getElementById('import-file')?.files?.[0];
+  if (!tipo || !file) { toast('Selecione um arquivo.', 'error'); return; }
+  if (typeof XLSX === 'undefined') { toast('SheetJS não carregado.', 'error'); return; }
+  const btn = document.querySelector('#modal-importacao .modal-footer .btn-primary'); if (btn) { btn.disabled = true; btn.textContent = 'Importando…'; }
+  const reader = new FileReader();
+  reader.onload = async function (e) {
+    const resumo = {}; let falhas = 0;
+    try {
+      const wb = XLSX.read(e.target.result, { type:'binary', cellDates:true });
+      const abas = {};
+      if (tipo === 'pacote') wb.SheetNames.forEach(n => { const t = _ABA_TIPO[_normAba(n)]; if (t && !abas[t]) abas[t] = n; });
+      else abas[tipo] = wb.SheetNames[0];
+      for (const t of IMPORT_ORDEM) {
+        if (!abas[t]) continue;
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[abas[t]], { header:1, defval:'' });
+        const novos = _importarLinhas(t, rows, resumo);
+        falhas += await _gravarImportados(t, novos);
+      }
+      ['renderObras','renderEmpresas','renderUA','renderCargos','renderTurnos','renderFuncionarios','renderFamilias','renderModelos','renderEquipamentos','renderFrentes','renderTiposServico','renderServicos','renderTiposPerdas']
+        .forEach(fn => { try { if (typeof window[fn] === 'function') window[fn](); } catch (x) {} });
+      try { popularSelects(); } catch (x) {}
+      const linhas = Object.entries(resumo).map(([t, r]) => '<strong>' + IMPORT_DEF[t].rotulo + ':</strong> ' + r.ok + ' importado(s)' + (r.dup ? ', ' + r.dup + ' já existiam' : '') + (r.erro ? ', <span style="color:var(--red)">' + r.erro + ' com erro</span> (' + r.avisos.join('; ') + ')' : ''));
+      const total = Object.values(resumo).reduce((a, r) => a + r.ok, 0);
+      const pv = document.getElementById('import-preview');
+      pv.style.display = 'block';
+      pv.innerHTML = '<strong style="color:var(--green-dark)">Importação concluída — ' + total + ' registro(s)</strong><br>' + linhas.join('<br>')
+        + (falhas ? '<br><span style="color:var(--red)">⚠ ' + falhas + ' não foram gravados no servidor. Importe o mesmo arquivo de novo (os que já entraram são ignorados).</span>' : '');
+      toast(total + ' registro(s) importado(s)!');
+    } catch (err) {
+      toast('Erro ao importar: ' + err.message, 'error');
+    } finally { if (btn) { btn.disabled = false; btn.textContent = '↑ Importar dados'; } }
+  };
+  reader.readAsBinaryString(file);
+};
 
 // Apply configs on load
 setTimeout(applyConfigs, 200);

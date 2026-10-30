@@ -469,7 +469,7 @@ select.form-control { cursor: pointer; }
     </button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">v2.8</div>
+  <div class="login-versao">v2.9</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -1182,8 +1182,10 @@ async function fazerLoginCampo() {
 
 async function carregarDadosCampo() {
   const cols = ['funcionarios','equipamentos','frentes','tiposServico','tiposPerdas','empresas','turnos','tanques'];
-  for (const col of cols) {
-    const items = await fbCarregar(col);
+  // v2.9: carrega todos os cadastros ao mesmo tempo (antes era um de cada vez — login demorava)
+  const resultados = await Promise.all(cols.map(c => fbCarregar(c)));
+  for (const [i, col] of cols.entries()) {
+    const items = resultados[i];
     if (items) {
       dadosCampo[col] = items;
       try { localStorage.setItem('campo_cache_' + col, JSON.stringify(items)); } catch(e){}
