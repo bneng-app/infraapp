@@ -469,7 +469,7 @@ select.form-control { cursor: pointer; }
     </button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">v2.9</div>
+  <div class="login-versao">v2.10</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -584,14 +584,14 @@ select.form-control { cursor: pointer; }
         </div>
         <div class="form-group">
           <label class="form-label">Data *</label>
-          <input type="date" class="form-control" id="ap-data" onchange="apGuardar()"/>
+          <input type="date" class="form-control" id="ap-data" onchange="apHoraValida(this);apGuardar()"/>
         </div>
         <div class="form-group">
           <label class="form-label">Turno</label>
           <select class="form-control" id="ap-turno" onchange="apTurnoMudou();apGuardar()"><option value="">Selecione o turno…</option></select>
         </div>
         <div class="form-group"><label class="form-label">Entrada</label>
-          <div class="ap-hora-wrap"><input type="time" class="form-control" id="ap-hora-ini" onchange="apHorasMudaram();apGuardar()"/><button type="button" class="ap-agora" onclick="apAgora('ap-hora-ini')">Agora</button></div></div>
+          <div class="ap-hora-wrap"><input type="time" class="form-control" id="ap-hora-ini" onchange="apHoraValida(this);apHorasMudaram();apGuardar()"/><button type="button" class="ap-agora" onclick="apAgora('ap-hora-ini')">Agora</button></div></div>
         <div style="font-size:11px;color:var(--text3);margin-top:-6px">A entrada é a hora do celular ao abrir o apontamento. A saída é marcada no fim do dia, ao encerrar.</div>
       </div>
     </div>
@@ -642,7 +642,7 @@ select.form-control { cursor: pointer; }
       <div class="card-body">
         <div class="time-row">
           <div class="form-group"><label class="form-label">Entrada</label><input type="time" class="form-control" id="ap-rev-ini" disabled/></div>
-          <div class="form-group"><label class="form-label">Saída</label><input type="time" class="form-control" id="ap-hora-fim" onchange="apHorasMudaram();apGuardar()"/></div>
+          <div class="form-group"><label class="form-label">Saída</label><input type="time" class="form-control" id="ap-hora-fim" onchange="apHoraValida(this);apHorasMudaram();apGuardar()"/></div>
         </div>
         <div style="font-size:11px;color:var(--text3);margin-top:-6px">Deixe a saída em branco: ao encerrar, ela é marcada com a hora do celular e as horas são recalculadas.</div>
       </div>
@@ -1244,7 +1244,7 @@ function abrirModulo(mod) {
 }
 
 function atualizarBadges() {
-  const hoje = new Date().toISOString().slice(0,10);
+  const hoje = _hojeISO();
   carregarPendentes();
 }
 
@@ -1356,7 +1356,7 @@ function moTab(tab) {
 }
 
 function preencherSelectsMO() {
-  const hoje = new Date().toISOString().slice(0,10);
+  const hoje = _hojeISO();
   document.getElementById('mo-data').value = hoje;
 
   // Turnos
@@ -1497,6 +1497,7 @@ async function salvarMO() {
   const obs     = document.getElementById('mo-obs').value;
   const motivoPerda = document.getElementById('mo-motivo-perda').value;
   const horasPerda  = parseFloat(document.getElementById('mo-horas-perda').value) || 0;
+  { const err = _checaFuturo(data, horaIni, horaFim); if (err) { toast(err, 'err'); return; } }
 
   if (!data || !frente) { toast('Preencha data e frente de serviço.', 'err'); return; }
 
@@ -1542,7 +1543,7 @@ async function salvarMO() {
 // EQ MODULE
 // ══════════════════════════════════════════════════════════════
 function preencherSelectsEQ() {
-  const hoje = new Date().toISOString().slice(0,10);
+  const hoje = _hojeISO();
   document.getElementById('eq-data').value = hoje;
 
   const obraId = usuarioCampo?.obra || '';
@@ -1628,6 +1629,7 @@ async function salvarEQ() {
   const frente  = document.getElementById('eq-frente').value;
   const servico = document.getElementById('eq-servico').value;
   const operador = document.getElementById('eq-operador').value;
+  { const err = _checaFuturo(data, horaIni, horaFim); if (err) { toast(err, 'err'); return; } }
 
   if (!data || !frente) { toast('Preencha data e frente.', 'err'); return; }
 
@@ -1660,6 +1662,36 @@ const ap = { mo: new Set(), eq: new Map(), aba: 'frente', hnManual: false };
 // v2.5: o apontamento fica "em andamento" no celular até ser encerrado no fim do dia
 const _AP_CAMPOS = ['ap-frente','ap-servico','ap-data','ap-turno','ap-hora-ini','ap-hora-fim','ap-hn','ap-he','ap-qtd','ap-unid','ap-obs','ap-motivo-perda','ap-horas-perda'];
 function _apChave() { return 'campo_ap_andamento_' + (usuarioCampo?.id || usuarioCampo?.mat || 'x'); }
+
+// v2.10: nunca lançar para frente (data ou hora depois de agora). Para trás pode.
+function _hojeISO(d) { d = d || new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+function _min(t) { const [h, m] = String(t||'').split(':').map(Number); return (h||0)*60 + (m||0); }
+function _checaFuturo(data, ini, fim) {
+  if (!data) return '';
+  const agora = new Date(), hoje = _hojeISO(agora), ontem = _hojeISO(new Date(agora.getTime() - 864e5));
+  const nowMin = agora.getHours()*60 + agora.getMinutes() + 5;   // 5 min de tolerância
+  const agoraTxt = String(agora.getHours()).padStart(2,'0') + ':' + String(agora.getMinutes()).padStart(2,'0');
+  if (data > hoje) return 'A data não pode ser depois de hoje.';
+  const virou = ini && fim && _min(fim) < _min(ini);              // turno que passa da meia-noite
+  if (data === hoje) {
+    if (ini && _min(ini) > nowMin) return 'A entrada (' + ini + ') ainda não chegou — agora são ' + agoraTxt + '.';
+    if (fim && virou) return 'A saída (' + fim + ') é amanhã. Encerre quando o turno acabar.';
+    if (fim && _min(fim) > nowMin) return 'A saída (' + fim + ') ainda não chegou — agora são ' + agoraTxt + '. Encerre no fim do turno.';
+  }
+  if (data === ontem && virou && _min(fim) > nowMin) return 'A saída (' + fim + ') ainda não chegou — agora são ' + agoraTxt + '.';
+  return '';
+}
+// calendário não deixa escolher dia futuro
+document.addEventListener('focusin', e => { if (e.target && e.target.type === 'date') e.target.max = _hojeISO(); });
+
+function apHoraValida(el) {
+  const g = id => document.getElementById(id).value;
+  const err = _checaFuturo(g('ap-data'), g('ap-hora-ini'), el.id === 'ap-hora-ini' || el.id === 'ap-data' ? '' : g('ap-hora-fim'));
+  if (!err) return true;
+  toast(err, 'err');
+  if (el.id === 'ap-data') el.value = _hojeISO(); else el.value = el.id === 'ap-hora-ini' ? _hhmm(new Date()) : '';
+  return false;
+}
 function apGuardar() {
   // só existe "em andamento" depois de escolher a frente
   if (!document.getElementById('ap-frente')?.value) { try { localStorage.removeItem(_apChave()); } catch (e) {} apAtualizarHome(); return; }
@@ -1690,7 +1722,7 @@ function apDescartar() {
   if (!confirm('Descartar este apontamento? Nada foi enviado ainda.')) return;
   ap.mo.clear(); ap.eq.clear(); ap.hnManual = false;
   _AP_CAMPOS.forEach(id => { const el = document.getElementById(id); if (el && id !== 'ap-unid') el.value = ''; });
-  document.getElementById('ap-data').value = new Date().toISOString().slice(0,10);
+  document.getElementById('ap-data').value = _hojeISO();
   apLimparRascunho(); apAgora('ap-hora-ini'); apAtualizarContadores(); apTab('frente');
 }
 
@@ -1711,7 +1743,7 @@ function _apHorasTurno(t) {
 }
 
 function iniciarApropriacao() {
-  const hoje = new Date().toISOString().slice(0,10);
+  const hoje = _hojeISO();
   const o = _apObra();
   const frentes = o ? dadosCampo.frentes.filter(f => !f.obra || f.obra === o) : dadosCampo.frentes;
   const sel = (id, ph, itens) => { const el = document.getElementById(id); const v = el.value; el.innerHTML = '<option value="">'+ph+'</option>' + itens.join(''); if (v) el.value = v; };
@@ -1899,6 +1931,8 @@ async function salvarApropriacao() {
   if (!frente || !data) { toast('Preencha frente e data.', 'err'); apTab('frente'); return; }
   // v2.5: saída = hora do celular no encerramento (se não foi preenchida)
   if (!document.getElementById('ap-hora-fim').value) apAgora('ap-hora-fim'); else apHorasMudaram();
+  { const err = _checaFuturo(data, document.getElementById('ap-hora-ini').value, document.getElementById('ap-hora-fim').value);
+    if (err) { toast(err, 'err'); return; } }
   const btn = document.getElementById('ap-btn-salvar'); btn.disabled = true;
   const horaIni = document.getElementById('ap-hora-ini').value, horaFim = document.getElementById('ap-hora-fim').value;
   const servico = document.getElementById('ap-servico').value || '—';
@@ -1945,7 +1979,7 @@ async function salvarApropriacao() {
 // FUEL MODULE
 // ══════════════════════════════════════════════════════════════
 function preencherSelectsFuel() {
-  const hoje = new Date().toISOString().slice(0,10);
+  const hoje = _hojeISO();
   const agora = new Date().toTimeString().slice(0,5);
   document.getElementById('fuel-data').value = hoje;
   document.getElementById('fuel-hora').value = agora;

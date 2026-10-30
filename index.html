@@ -310,7 +310,7 @@ textarea.form-control{resize:vertical;min-height:72px}
         <a href="#" onclick="esqueciSenha();return false" style="font-size:13px;color:#1B2C6E;text-decoration:none">Esqueci minha senha</a>
       </div>
     </div>
-    <div style="text-align:center;margin-top:1rem;font-size:11px;color:#aaa">ObraControl v2.18 · Controle de Mão de Obra e Equipamentos</div>
+    <div style="text-align:center;margin-top:1rem;font-size:11px;color:#aaa">ObraControl v2.19 · Controle de Mão de Obra e Equipamentos</div>
   </div>
 </div>
 
@@ -2354,6 +2354,8 @@ textarea.form-control{resize:vertical;min-height:72px}
         <div class="form-group"><label class="form-label">Custo por hora (R$)</label><input class="form-control" id="cargo-custo" type="number" step="0.01" min="0" placeholder="Ex.: 35,00"/></div>
         <div class="form-group"><label class="form-label">Adicional hora extra (%)</label><input class="form-control" id="cargo-adhe" type="number" step="1" min="0" placeholder="50"/>
           <div style="font-size:11px;color:var(--text-3);margin-top:3px">Em branco = 50%. Hora extra = custo/h × (1 + adicional).</div></div>
+        <div class="form-group"><label class="form-label">Adicional domingo/feriado (%)</label><input class="form-control" id="cargo-addf" type="number" step="1" min="0" placeholder="100"/>
+          <div style="font-size:11px;color:var(--text-3);margin-top:3px">Em branco = 100%. Vale para todas as horas do dia (normais e extras).</div></div>
       </div>
     </div>
     <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-novo-cargo')">Cancelar</button><button class="btn btn-primary" onclick="salvarCargo()">Salvar</button></div>
@@ -2498,6 +2500,8 @@ textarea.form-control{resize:vertical;min-height:72px}
         <div class="form-group form-full"><label class="form-label">Nome da obra *</label><input class="form-control" id="obra-nome" placeholder="Ex.: Rodovia SP-280 Km 34"/></div>
         <div class="form-group form-full"><label class="form-label">Local / Município</label><input class="form-control" id="obra-local" placeholder="Ex.: Sorocaba – SP"/></div>
         <div class="form-group"><label class="form-label">Status</label><select class="form-control" id="obra-status"><option>Ativa</option><option>Encerrada</option><option>Suspensa</option></select></div>
+        <div class="form-group form-full"><label class="form-label">Feriados locais (municipais/estaduais)</label><input class="form-control" id="obra-feriados" placeholder="Ex.: 20/01, 09/07, 25/01/2027"/>
+          <div style="font-size:11px;color:var(--text-3);margin-top:3px">Separe por vírgula. DD/MM repete todo ano; DD/MM/AAAA vale só naquele ano. Os feriados nacionais já são automáticos.</div></div>
       </div>
     </div>
     <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-nova-obra')">Cancelar</button><button class="btn btn-primary" onclick="salvarObra()">Salvar</button></div>
@@ -4264,7 +4268,7 @@ function salvarObra() {
   const cod = document.getElementById('obra-cod').value.trim();
   const nome = document.getElementById('obra-nome').value.trim();
   if (!cod || !nome) { toast('Preencha código e nome', 'error'); return; }
-  const novo = { id:'o'+Date.now(), cod, nome, local:document.getElementById('obra-local').value, status:document.getElementById('obra-status').value };
+  const novo = { id:'o'+Date.now(), cod, nome, local:document.getElementById('obra-local').value, status:document.getElementById('obra-status').value, feriados:(document.getElementById('obra-feriados')?.value||'').trim() };
   dados.obras.push(novo);
     // Save to Firebase
   if (db && _firebaseReady) {
@@ -4274,7 +4278,7 @@ function salvarObra() {
   closeModal('modal-nova-obra');
   renderObras();
   toast('Obra salva!');
-  ['obra-cod','obra-nome','obra-local'].forEach(id=>document.getElementById(id).value='');
+  ['obra-cod','obra-nome','obra-local','obra-feriados'].forEach(id=>{ const el=document.getElementById(id); if (el) el.value=''; });
 }
 
 // ───── EMPRESAS ─────
@@ -4371,6 +4375,7 @@ function salvarCargo() {
   dados.cargos.push({ id:'c'+Date.now(), obra, cod, nome,
     custoHora: parseFloat(document.getElementById('cargo-custo')?.value) || 0,
     adicHE: document.getElementById('cargo-adhe')?.value === '' ? 50 : (parseFloat(document.getElementById('cargo-adhe')?.value) || 0),
+    adicDF: (document.getElementById('cargo-addf')?.value ?? '') === '' ? 100 : (parseFloat(document.getElementById('cargo-addf')?.value) || 0),
     direto:   document.getElementById('cargo-direto').value,
     operador: document.getElementById('cargo-operador').value,
     recurso:  document.getElementById('cargo-recurso').value });
@@ -7142,7 +7147,8 @@ if (typeof drawGauge !== 'function') window.drawGauge = function(id, valor, meta
         if (titulo()) titulo().textContent = c.editar;
         if (!item) return;
         if (c.col === 'funcionarios' && $('func-funcao')) $('func-funcao').value = item.codFuncao || item.funcao || '';
-        if (c.col === 'cargos') { if ($('cargo-custo')) $('cargo-custo').value = item.custoHora || ''; if ($('cargo-adhe')) $('cargo-adhe').value = item.adicHE ?? ''; }
+        if (c.col === 'cargos') { if ($('cargo-custo')) $('cargo-custo').value = item.custoHora || ''; if ($('cargo-adhe')) $('cargo-adhe').value = item.adicHE ?? ''; if ($('cargo-addf')) $('cargo-addf').value = item.adicDF ?? ''; }
+        if (c.col === 'obras' && $('obra-feriados')) $('obra-feriados').value = item.feriados || '';
         if (c.col === 'equipamentos' && $('equip-custo')) $('equip-custo').value = item.custoHora || '';
         if (c.col === 'equipamentos') {
           if ($('equip-modelo')) $('equip-modelo').value = item.codModelo || item.modelo || '';
@@ -7518,9 +7524,9 @@ const IMPORT_DEF = {
                   map:g=>({ cod:g(['código','codigo','cod']), nome:g(['razão','razao','nome']), cnpj:g(['cnpj']), tipo:g(['tipo'])||'Empreiteira', resp:g(['responsável','responsavel']) }), ok:x=>x.cod&&x.nome },
   ua:           { rotulo:'UA', porObra:true, chave:'cod', col:['Código UA','Descrição','Tipo (MO/EQ)'],
                   map:g=>({ cod:g(['código ua','codigo ua','código','cod']), desc:g(['descrição','descricao','desc']), tipo:(g(['tipo'])||'MO').toUpperCase() }), ok:x=>x.cod&&x.desc },
-  cargos:       { rotulo:'Cargos', porObra:true, chave:'cod', col:['Cód. Função','Nome da Função','Cód. Recurso (UA)','Direto (Sim/Não)','Operador (Sim/Não)','Custo/hora (R$)','Adicional HE (%)'],
+  cargos:       { rotulo:'Cargos', porObra:true, chave:'cod', col:['Cód. Função','Nome da Função','Cód. Recurso (UA)','Direto (Sim/Não)','Operador (Sim/Não)','Custo/hora (R$)','Adicional HE (%)','Adicional domingo/feriado (%)'],
                   map:g=>({ cod:g(['cód. função','cod. função','cód','cod']), nome:g(['nome da função','nome da funcao','nome']), recurso:g(['recurso']), direto:g(['direto'])||'Sim', operador:g(['operador'])||'Não',
-                            custoHora:_numImport(g(['custo'])), adicHE:(v => v === '' ? 50 : _numImport(v))(g(['adicional','% he','hora extra'])) }), ok:x=>x.cod&&x.nome },
+                            custoHora:_numImport(g(['custo'])), adicHE:(v => v === '' ? 50 : _numImport(v))(g(['adicional he','% he','hora extra'])), adicDF:(v => v === '' ? 100 : _numImport(v))(g(['domingo','feriado'])) }), ok:x=>x.cod&&x.nome },
   familias:     { rotulo:'Famílias', porObra:true, chave:'cod', col:['Código','Descrição'],
                   map:g=>({ cod:g(['código','codigo','cod']), desc:g(['descrição','descricao','desc']) }), ok:x=>x.cod&&x.desc },
   modelos:      { rotulo:'Modelos', porObra:true, chave:'cod', col:['Código','Nome do Modelo','Família'],
@@ -7540,7 +7546,15 @@ const IMPORT_DEF = {
                   map:g=>({ tag:g(['tag']), placa:g(['placa','série','serie']), codModelo:g(['cód. modelo','cod. modelo','modelo']), familia:g(['família','familia']), prop:g(['proprietário','proprietario']),
                             status:g(['status'])||'Mobilizado', dataMob:excelDataParaISO(g(['mobiliza'])), custoHora:_numImport(g(['custo'])) }), ok:x=>x.tag },
 };
-const IMPORT_ORDEM = ['obras','empresas','ua','cargos','familias','modelos','frentes','tiposServico','turnos','tiposPerdas','funcionarios','equipamentos'];
+IMPORT_DEF.aponMO = { rotulo:'Apontamentos MO', porObra:true, chave:'_chave', col:['Data (DD/MM/AAAA)','Matrícula','Frente (código)','Serviço','Entrada (HH:MM)','Saída (HH:MM)','H. normais','H. extras','Equipe (nº)','Produção da equipe','Unidade','Apontador','Status (Aprovado/Pendente)'],
+  map:g=>({ data:excelDataParaISO(g(['data'])), mat:g(['matrícula','matricula','mat']), frente:g(['frente']), servico:g(['serviço','servico'])||'—', horaIni:_horaImport(g(['entrada'])), horaFim:_horaImport(g(['saída','saida'])),
+            hn:_numImport(g(['h. normais','normais'])), he:_numImport(g(['h. extras','extras'])), _grupo:g(['equipe']), _prod:_numImport(g(['produção','producao'])), unid:g(['unidade']),
+            lancadoPor:g(['apontador'])||'Importação', status:/pend/i.test(g(['status'])) ? 'campo' : 'aprovado' }), ok:x=>x.data&&x.mat };
+IMPORT_DEF.aponEQ = { rotulo:'Apontamentos EQ', porObra:true, chave:'_chave', col:['Data (DD/MM/AAAA)','TAG','Frente (código)','Serviço','Entrada (HH:MM)','Saída (HH:MM)','H. produtivas','H. paradas','Motivo parada','Operador','Apontador','Status (Aprovado/Pendente)'],
+  map:g=>({ data:excelDataParaISO(g(['data'])), equip:g(['tag']), frente:g(['frente']), servico:g(['serviço','servico'])||'—', horaIni:_horaImport(g(['entrada'])), horaFim:_horaImport(g(['saída','saida'])),
+            hp:_numImport(g(['produtivas'])), hpar:_numImport(g(['paradas'])), motivo:g(['motivo']), operador:g(['operador']),
+            lancadoPor:g(['apontador'])||'Importação', status:/pend/i.test(g(['status'])) ? 'campo' : 'aprovado' }), ok:x=>x.data&&x.equip };
+const IMPORT_ORDEM = ['obras','empresas','ua','cargos','familias','modelos','frentes','tiposServico','turnos','tiposPerdas','funcionarios','equipamentos','aponMO','aponEQ'];
 function _numImport(v) {
   if (v === undefined || v === null || v === '') return 0;
   if (typeof v === 'number') return v;
@@ -7557,7 +7571,7 @@ function _horaImport(v) {
 function _normAba(n) { return String(n||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/^[\d\s._-]+/,'').replace(/[^a-z]/g,''); }
 const _ABA_TIPO = { obras:'obras', empresas:'empresas', ua:'ua', uas:'ua', unidadesdeapuracao:'ua', cargos:'cargos', funcoes:'cargos', familias:'familias', modelos:'modelos',
   frentes:'frentes', frentesdeservico:'frentes', tiposdeservico:'tiposServico', servicos:'tiposServico', turnos:'turnos', tiposdeperda:'tiposPerdas', perdas:'tiposPerdas',
-  funcionarios:'funcionarios', equipamentos:'equipamentos' };
+  funcionarios:'funcionarios', equipamentos:'equipamentos', apontamentosmo:'aponMO', apontamentosdemaodeobra:'aponMO', apontamentoseq:'aponEQ', apontamentosdeequipamentos:'aponEQ' };
 
 function _importarLinhas(tipo, rows, resumo) {
   const def = IMPORT_DEF[tipo]; if (!def) return [];
@@ -7583,8 +7597,28 @@ function _importarLinhas(tipo, rows, resumo) {
       const e = (dados.empresas||[]).find(x => (x.obra === obraId || !x.obra) && ((x.cod||'').toLowerCase() === String(item._emp).toLowerCase() || (x.nome||'').toLowerCase() === String(item._emp).toLowerCase()));
       item.empresa = e ? e.nome : (item._emp || ''); item.empresaId = e ? e.id : ''; delete item._emp;
     }
+    if (tipo === 'aponMO') {
+      const f = (dados.funcionarios||[]).find(x => String(x.mat) === String(item.mat) && (!x.obra || x.obra === obraId)) || (dados.funcionarios||[]).find(x => String(x.mat) === String(item.mat));
+      if (!f) { r.erro++; if (r.avisos.length < 3) r.avisos.push('linha ' + (i+2) + ': matrícula ' + item.mat + ' não cadastrada'); return; }
+      item.func = f.nome; item.funcao = f.codFuncao || f.funcao || '—'; item.empresa = f.empresa || '';
+      item.hora = item.horaIni; item.lancadoEm = new Date().toISOString(); item.importado = true;
+      const gk = obraId + '|' + item.data + '|' + item.frente + '|' + (item._grupo || item.mat);
+      item.apropriacao = 'imp' + gk.replace(/[^a-zA-Z0-9]/g, '');
+      // a produção da equipe fica só no 1º funcionário do grupo (não soma em dobro)
+      const jaTem = novos.some(x => x.apropriacao === item.apropriacao && x.qtd);
+      item.qtd = jaTem ? 0 : item._prod; delete item._prod; delete item._grupo;
+      item._chave = item.data + '|' + item.mat + '|' + item.frente + '|' + item.horaIni;
+    }
+    if (tipo === 'aponEQ') {
+      const e = (dados.equipamentos||[]).find(x => (x.tag||'').toLowerCase() === String(item.equip).toLowerCase());
+      if (!e) { r.erro++; if (r.avisos.length < 3) r.avisos.push('linha ' + (i+2) + ': TAG ' + item.equip + ' não cadastrada'); return; }
+      item.equipId = e.id; item.tipo = e.familia || e.codFamilia || '—';
+      item.hora = item.horaIni; item.lancadoEm = new Date().toISOString(); item.importado = true;
+      item._chave = item.data + '|' + item.equip + '|' + item.frente + '|' + item.horaIni;
+    }
     const chave = String(item[def.chave]).toLowerCase();
-    const existe = lista.concat(novos).some(x => String(x[def.chave]||'').toLowerCase() === chave && (!def.porObra || (x.obra||'') === obraId));
+    const chaveDe = x => def.chave === '_chave' ? (x._chave || (x.data + '|' + (tipo === 'aponMO' ? x.mat : x.equip) + '|' + x.frente + '|' + (x.horaIni || x.hora))) : x[def.chave];
+    const existe = lista.concat(novos).some(x => String(chaveDe(x)||'').toLowerCase() === chave && (!def.porObra || (x.obra||'') === obraId));
     if (existe) { r.dup++; return; }
     item.id = tipo.slice(0,3) + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
     novos.push(item); r.ok++;
@@ -7626,7 +7660,7 @@ window.abrirImportacao = function (tipo) {
   if ($('import-tipo')) $('import-tipo').value = tipo;
   const f = $('import-file'); if (f) { f.value = ''; f.onchange = function () { previewImport(this); }; }
   const pv = $('import-preview'); if (pv) { pv.innerHTML = tipo === 'pacote'
-    ? 'Um arquivo Excel com <strong>uma aba por cadastro</strong> (Obras, Empresas, UA, Cargos, Famílias, Modelos, Frentes, Tipos de serviço, Turnos, Tipos de perda, Funcionários, Equipamentos). A importação segue essa ordem. Registros com código que já existe são ignorados.'
+    ? 'Um arquivo Excel com <strong>uma aba por cadastro</strong> (Obras, Empresas, UA, Cargos, Famílias, Modelos, Frentes, Tipos de serviço, Turnos, Tipos de perda, Funcionários, Equipamentos e, opcional, Apontamentos MO / Apontamentos EQ). A importação segue essa ordem. Registros com código que já existe são ignorados.'
     : 'Registros com código que já existe são ignorados.'; pv.style.display = 'block'; }
   openModal('modal-importacao');
 };
@@ -7669,6 +7703,7 @@ window.confirmarImportacao = async function () {
         const novos = _importarLinhas(t, rows, resumo);
         falhas += await _gravarImportados(t, novos);
       }
+      try { _rerenderTelaAtual(); } catch (x) {}
       ['renderObras','renderEmpresas','renderUA','renderCargos','renderTurnos','renderFuncionarios','renderFamilias','renderModelos','renderEquipamentos','renderFrentes','renderTiposServico','renderServicos','renderTiposPerdas']
         .forEach(fn => { try { if (typeof window[fn] === 'function') window[fn](); } catch (x) {} });
       try { popularSelects(); } catch (x) {}
@@ -8171,11 +8206,49 @@ function _equipDe(a) {
   const lista = dados.equipamentos || [];
   return lista.find(e => e.id === a.equipId) || lista.find(e => (e.tag && e.tag === a.equip) || (e.placa && e.placa === a.equip));
 }
+// Feriados nacionais (fixos + Sexta-feira Santa). Carnaval e Corpus Christi não são feriado nacional:
+// se a cidade da obra tiver, cadastre em Obras > Feriados locais.
+function _pascoa(y) { const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),mes=Math.floor((h+l-7*m+114)/31),dia=((h+l-7*m+114)%31)+1; return new Date(y,mes-1,dia); }
+const _ferCache = {};
+function _feriadosNacionais(y) {
+  if (_ferCache[y]) return _ferCache[y];
+  const iso = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  const p = _pascoa(y); const sexta = new Date(p); sexta.setDate(p.getDate() - 2);
+  const m = { [iso(sexta)]:'Sexta-feira Santa' };
+  [['01-01','Confraternização Universal'],['04-21','Tiradentes'],['05-01','Dia do Trabalho'],['09-07','Independência'],['10-12','N. Sra. Aparecida'],
+   ['11-02','Finados'],['11-15','Proclamação da República'],['11-20','Consciência Negra'],['12-25','Natal']].forEach(([md, n]) => m[y + '-' + md] = n);
+  return (_ferCache[y] = m);
+}
+function _feriadosLocais(obraId) {
+  const o = (dados.obras||[]).find(x => x.id === obraId); const m = {};
+  String(o?.feriados || '').split(/[,;\n]+/).map(t => t.trim()).filter(Boolean).forEach(t => {
+    const r = t.match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/); if (!r) return;
+    const md = r[2].padStart(2,'0') + '-' + r[1].padStart(2,'0'); const ano = r[3] ? (r[3].length === 2 ? '20' + r[3] : r[3]) : '*';
+    m[ano + '-' + md] = 'Feriado local';
+  });
+  return m;
+}
+// devolve '' (dia normal), 'Domingo' ou o nome do feriado
+function tipoDia(data, obraId) {
+  if (!data || data.length < 10) return '';
+  const y = +data.slice(0,4), md = data.slice(5,10);
+  const fn = _feriadosNacionais(y)[data]; if (fn) return fn;
+  const fl = _feriadosLocais(obraId); if (fl[data] || fl['*-' + md]) return 'Feriado local';
+  return new Date(y, +data.slice(5,7) - 1, +data.slice(8,10)).getDay() === 0 ? 'Domingo' : '';
+}
+function _obraDoApont(a) {
+  if (a.obra) return a.obra;
+  const f = (dados.frentes||[]).find(x => x.cod === a.frente || x.id === a.frente); return f ? f.obra : (obraAtiva && obraAtiva.id !== 'todas' ? obraAtiva.id : '');
+}
 function custoMO(a) {
   const c = _cargoDe(a); const ch = parseFloat(c?.custoHora) || 0;
   const ad = c && c.adicHE !== undefined && c.adicHE !== '' ? parseFloat(c.adicHE) : 50;
+  const adf = c && c.adicDF !== undefined && c.adicDF !== '' ? parseFloat(c.adicDF) : 100;
   const hn = parseFloat(a.hn) || 0, he = parseFloat(a.he) || 0;
-  return { normal: ch * hn, extra: ch * (1 + ad / 100) * he, semCusto: !ch };
+  const td = tipoDia(a.data, _obraDoApont(a));
+  // domingo/feriado: todas as horas do dia com o adicional de domingo/feriado
+  if (td) return { normal: 0, extra: 0, domFer: ch * (1 + adf / 100) * (hn + he), tipoDia: td, semCusto: !ch };
+  return { normal: ch * hn, extra: ch * (1 + ad / 100) * he, domFer: 0, tipoDia: '', semCusto: !ch };
 }
 function custoEQ(a) {
   const e = _equipDe(a); const ch = parseFloat(e?.custoHora) || 0;
@@ -8202,12 +8275,12 @@ function renderCustoMO() {
   const lista = _periodoMO();
   const eqs = filtrarPorObra([...(dados.aponEQ||[])], 'frente').filter(a => { const ini = document.getElementById('dash-mo-ini')?.value || '', fim = document.getElementById('dash-mo-fim')?.value || ''; return (!ini || a.data >= ini) && (!fim || a.data <= fim); });
   const dias = {}, semCustoF = new Set(), semCustoE = new Set();
-  const dia = d => (dias[d] = dias[d] || { mo:0, he:0, eq:0, par:0, hn:0, hhe:0, prod:0, unid:new Set(), pessoas:new Set() });
-  lista.forEach(a => { const c = custoMO(a), d = dia(a.data); d.mo += c.normal; d.he += c.extra; d.hn += parseFloat(a.hn)||0; d.hhe += parseFloat(a.he)||0; d.prod += parseFloat(a.qtd)||0; if (a.unid) d.unid.add(a.unid); d.pessoas.add(a.func); if (c.semCusto) semCustoF.add(a.funcao || '?'); });
+  const dia = d => (dias[d] = dias[d] || { mo:0, he:0, df:0, td:'', eq:0, par:0, hn:0, hhe:0, prod:0, unid:new Set(), pessoas:new Set() });
+  lista.forEach(a => { const c = custoMO(a), d = dia(a.data); d.mo += c.normal; d.he += c.extra; d.df += c.domFer; if (c.tipoDia) d.td = c.tipoDia; d.hn += parseFloat(a.hn)||0; d.hhe += parseFloat(a.he)||0; d.prod += parseFloat(a.qtd)||0; if (a.unid) d.unid.add(a.unid); d.pessoas.add(a.func); if (c.semCusto) semCustoF.add(a.funcao || '?'); });
   eqs.forEach(a => { const c = custoEQ(a), d = dia(a.data); d.eq += c.prod; d.par += c.parado; if (c.semCusto) semCustoE.add(a.equip || '?'); });
   const linhas = Object.entries(dias).sort((a, b) => b[0].localeCompare(a[0]));
-  const tot = linhas.reduce((t, [, d]) => { t.mo += d.mo; t.he += d.he; t.eq += d.eq; t.par += d.par; return t; }, { mo:0, he:0, eq:0, par:0 });
-  const total = tot.mo + tot.he + tot.eq + tot.par;
+  const tot = linhas.reduce((t, [, d]) => { t.mo += d.mo; t.he += d.he; t.df += d.df; t.eq += d.eq; t.par += d.par; return t; }, { mo:0, he:0, df:0, eq:0, par:0 });
+  const total = tot.mo + tot.he + tot.df + tot.eq + tot.par;
   const aviso = (semCustoF.size || semCustoE.size)
     ? `<div style="font-size:12px;color:var(--amber);margin-top:8px">⚠ Sem custo cadastrado: ${semCustoF.size ? 'funções ' + [...semCustoF].slice(0,8).map(_e).join(', ') : ''}${semCustoF.size && semCustoE.size ? ' · ' : ''}${semCustoE.size ? 'equipamentos ' + [...semCustoE].slice(0,8).map(_e).join(', ') : ''}. Cadastre em Cargos / Equipamentos.</div>` : '';
   el.innerHTML = `<div class="card-header" style="display:flex;justify-content:space-between;align-items:center"><span class="card-title">Custo da equipe por dia</span>
@@ -8216,18 +8289,19 @@ function renderCustoMO() {
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px">
         <div class="stat-card"><div class="stat-label">MO normal</div><div class="stat-value" style="font-size:20px">${_moeda(tot.mo)}</div></div>
         <div class="stat-card"><div class="stat-label">MO hora extra</div><div class="stat-value" style="font-size:20px;color:var(--amber)">${_moeda(tot.he)}</div></div>
+        <div class="stat-card"><div class="stat-label">MO domingo/feriado</div><div class="stat-value" style="font-size:20px;color:var(--amber)">${_moeda(tot.df)}</div></div>
         <div class="stat-card"><div class="stat-label">Equip. produtivo</div><div class="stat-value" style="font-size:20px">${_moeda(tot.eq)}</div></div>
         <div class="stat-card"><div class="stat-label">Equip. parado</div><div class="stat-value" style="font-size:20px;color:var(--red)">${_moeda(tot.par)}</div></div>
       </div>
-      <div class="table-wrap"><table style="font-size:12px"><thead><tr><th>Data</th><th>Pessoas</th><th>H. normais</th><th>H. extras</th><th>MO normal</th><th>MO extra</th><th>Equip. produtivo</th><th>Equip. parado</th><th>Total do dia</th><th>Produção</th><th>Custo unitário</th></tr></thead><tbody>
-      ${linhas.length ? linhas.map(([data, d]) => { const t = d.mo + d.he + d.eq + d.par; const u = [...d.unid][0] || '';
-        return `<tr><td class="td-mono">${fmtData(data)}</td><td class="td-mono">${d.pessoas.size}</td><td class="td-mono">${d.hn}h</td><td class="td-mono">${d.hhe}h</td>
-          <td class="td-mono">${_moeda(d.mo)}</td><td class="td-mono">${_moeda(d.he)}</td><td class="td-mono">${_moeda(d.eq)}</td><td class="td-mono" style="color:${d.par ? 'var(--red)' : 'inherit'}">${_moeda(d.par)}</td>
+      <div class="table-wrap"><table style="font-size:12px"><thead><tr><th>Data</th><th>Pessoas</th><th>H. normais</th><th>H. extras</th><th>MO normal</th><th>MO extra</th><th>MO dom./feriado</th><th>Equip. produtivo</th><th>Equip. parado</th><th>Total do dia</th><th>Produção</th><th>Custo unitário</th></tr></thead><tbody>
+      ${linhas.length ? linhas.map(([data, d]) => { const t = d.mo + d.he + d.df + d.eq + d.par; const u = [...d.unid][0] || '';
+        return `<tr${d.td ? ' style="background:rgba(245,158,11,.08)"' : ''}><td class="td-mono">${fmtData(data)}${d.td ? ' <span class="tag tag-amber" style="font-size:10px">' + _e(d.td) + '</span>' : ''}</td><td class="td-mono">${d.pessoas.size}</td><td class="td-mono">${d.hn}h</td><td class="td-mono">${d.hhe}h</td>
+          <td class="td-mono">${_moeda(d.mo)}</td><td class="td-mono">${_moeda(d.he)}</td><td class="td-mono">${d.df ? _moeda(d.df) : '—'}</td><td class="td-mono">${_moeda(d.eq)}</td><td class="td-mono" style="color:${d.par ? 'var(--red)' : 'inherit'}">${_moeda(d.par)}</td>
           <td class="td-mono"><strong>${_moeda(t)}</strong></td><td class="td-mono">${d.prod ? d.prod + ' ' + _e(u) : '—'}</td>
           <td class="td-mono">${d.prod ? _moeda(t / d.prod) + (u ? '/' + _e(u) : '') : '—'}</td></tr>`; }).join('')
-        : '<tr><td colspan="11" style="text-align:center;color:var(--text-3);padding:1.5rem">Nenhum apontamento aprovado no período</td></tr>'}
+        : '<tr><td colspan="12" style="text-align:center;color:var(--text-3);padding:1.5rem">Nenhum apontamento aprovado no período</td></tr>'}
       </tbody></table></div>
-      <div style="font-size:11px;color:var(--text-3);margin-top:6px">Hora extra = custo/h da função × (1 + adicional). Equipamento = custo/h × (produtivas + paradas). Custo unitário = total do dia ÷ produção do dia${linhas.some(([, d]) => d.unid.size > 1) ? ' (atenção: dias com serviços de unidades diferentes)' : ''}.</div>
+      <div style="font-size:11px;color:var(--text-3);margin-top:6px">Hora extra = custo/h da função × (1 + adicional HE). Domingo/feriado = custo/h × (1 + adicional dom./feriado) × todas as horas do dia (padrão 100%). Equipamento = custo/h × (produtivas + paradas). Custo unitário = total do dia ÷ produção do dia${linhas.some(([, d]) => d.unid.size > 1) ? ' (atenção: dias com serviços de unidades diferentes)' : ''}.</div>
       ${aviso}
     </div>`;
 }
