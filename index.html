@@ -261,6 +261,10 @@ textarea.form-control{resize:vertical;min-height:72px}
 .mo-process-green{background:var(--green);color:white}
 .mo-process-green:hover{background:var(--green-dark)}
 .mo-process-done{background:var(--bg);color:var(--text-3);border:1px solid var(--border);cursor:default}
+#mo-lista-view table{font-size:12px}
+#mo-lista-view th,#mo-lista-view td{padding:6px 8px}
+#mo-lista-view thead tr:nth-child(2) th .form-control{min-width:0!important;width:100%}
+#mo-lista-view td.td-mono{white-space:nowrap}
 .mo-obs{margin-top:7px;padding:6px 8px;background:var(--amber-light);border-radius:6px;font-size:10px;color:#633806;line-height:1.5}
 
 .acoes-cell{display:flex;gap:4px;justify-content:flex-end}
@@ -306,7 +310,7 @@ textarea.form-control{resize:vertical;min-height:72px}
         <a href="#" onclick="esqueciSenha();return false" style="font-size:13px;color:#1B2C6E;text-decoration:none">Esqueci minha senha</a>
       </div>
     </div>
-    <div style="text-align:center;margin-top:1rem;font-size:11px;color:#aaa">ObraControl v2.16 · Controle de Mão de Obra e Equipamentos</div>
+    <div style="text-align:center;margin-top:1rem;font-size:11px;color:#aaa">ObraControl v2.17 · Controle de Mão de Obra e Equipamentos</div>
   </div>
 </div>
 
@@ -1170,9 +1174,14 @@ textarea.form-control{resize:vertical;min-height:72px}
         <div class="form-group" style="min-width:140px"><label class="form-label">Status</label>
           <select class="form-control" id="filtro-mo-status" onchange="renderMO()">
             <option value="">Todos</option>
-            <option value="corrigido">Processado</option>
+            <option value="aprovado">Aprovado</option>
             <option value="campo">Pendente</option>
+            <option value="rejeitado">Rejeitado</option>
+            <option value="corrigido">Processado</option>
           </select>
+        </div>
+        <div class="form-group" style="min-width:170px"><label class="form-label">Apontador</label>
+          <select class="form-control" id="filtro-mo-apontador" onchange="renderMO()"><option value="">Todos</option></select>
         </div>
         <button class="btn btn-outline btn-sm" onclick="renderMO()">Filtrar</button>
         <button class="btn btn-outline btn-sm" onclick="limparFiltrosMO()">✕ Limpar</button>
@@ -1213,8 +1222,8 @@ textarea.form-control{resize:vertical;min-height:72px}
     <div class="card">
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Data/Hora</th><th>Funcionário</th><th>Função</th><th>Empresa</th><th>Frente</th><th>Serviço</th><th>H. Normais</th><th>H. Extras</th><th>Produção</th><th>Status</th><th></th></tr></thead>
-          <tbody id="tbody-apon-mo"><tr><td colspan="11" class="empty-row">Carregando…</td></tr></tbody>
+          <thead id="thead-apon-mo"></thead>
+          <tbody id="tbody-apon-mo"><tr><td colspan="14" class="empty-row">Carregando…</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -8019,6 +8028,105 @@ async function aprReabrir(k) {
     return r;
   };
   setInterval(() => { if (usuarioLogado) atualizarBadgeAprovacao(); }, 5000);
+})();
+
+
+// ═══════════════════════════════════════════════════════════════
+// v2.17: LISTA DETALHADA DE MÃO DE OBRA
+// - coluna e filtro "Apontador"
+// - cada coluna com filtro (lista ou texto) e ordenação ao clicar no título
+// - produção: o campo grava a quantidade da equipe UMA vez (no 1º funcionário), para não somar em dobro
+//   nos painéis e relatórios. Aqui ela é exibida em todas as linhas da equipe, só para leitura.
+// ═══════════════════════════════════════════════════════════════
+const _ml = { sort: { col: 'data', dir: -1 }, f: {} };
+const _ML_COLS = [
+  { k:'data',    t:'Data',        tipo:'texto', v:a => a.data || '',              fmt:a => fmtData(a.data) },
+  { k:'ini',     t:'Entrada',     tipo:'texto', v:a => a.horaIni || a.hora || '' },
+  { k:'fim',     t:'Saída',       tipo:'texto', v:a => a.horaFim || '' },
+  { k:'func',    t:'Funcionário', tipo:'texto', v:a => a.func || '',              fmt:a => '<strong>' + _e(a.func||'') + '</strong>' },
+  { k:'funcao',  t:'Função',      tipo:'lista', v:a => a.funcao || '' },
+  { k:'empresa', t:'Empresa',     tipo:'lista', v:a => a.empresa || '' },
+  { k:'frente',  t:'Frente',      tipo:'lista', v:a => a.frente || '' },
+  { k:'servico', t:'Serviço',     tipo:'lista', v:a => a.servico || '' },
+  { k:'hn',      t:'H. normais',  tipo:'num',   v:a => parseFloat(a.hn) || 0,     fmt:a => (parseFloat(a.hn)||0) + 'h' },
+  { k:'he',      t:'H. extras',   tipo:'num',   v:a => parseFloat(a.he) || 0,     fmt:a => a.he ? a.he + 'h' : '—' },
+  { k:'prod',    t:'Produção (equipe)', tipo:'num', v:a => a._prodEquipe || 0,    fmt:a => a._prodEquipe ? a._prodEquipe + ' ' + _e(a._unidEquipe||'') + (a._prodNaLinha ? '' : ' <span style="font-size:10px;color:var(--text-3)">equipe</span>') : '—' },
+  { k:'apont',   t:'Apontador',   tipo:'lista', v:a => a.lancadoPor || 'Escritório' },
+  { k:'status',  t:'Status',      tipo:'lista', v:a => ({campo:'Pendente',aprovado:'Aprovado',rejeitado:'Rejeitado',corrigido:'Processado'})[a.status] || a.status || '', fmt:a => tagStatus(a.status) },
+];
+function _mlBase() {
+  const g = id => (document.getElementById(id)||{}).value || '';
+  let lista = filtrarPorObra([...(dados.aponMO||[])], 'frente');
+  if (g('filtro-mo-data'))      lista = lista.filter(a => (a.data||'').slice(0,10) === g('filtro-mo-data'));
+  if (g('filtro-mo-frente'))    lista = lista.filter(a => a.frente === g('filtro-mo-frente'));
+  if (g('filtro-mo-empresa'))   lista = lista.filter(a => (a.empresa||'').includes(g('filtro-mo-empresa')));
+  if (g('filtro-mo-status'))    lista = lista.filter(a => a.status === g('filtro-mo-status'));
+  if (g('filtro-mo-apontador')) lista = lista.filter(a => (a.lancadoPor || 'Escritório') === g('filtro-mo-apontador'));
+  // produção da equipe em cada linha (só exibição)
+  const porGrupo = {};
+  lista.forEach(a => { const k = a.apropriacao || a.id; (porGrupo[k] = porGrupo[k] || { q:0, u:'' }); porGrupo[k].q += parseFloat(a.qtd) || 0; if (a.unid) porGrupo[k].u = a.unid; });
+  return lista.map(a => { const gr = porGrupo[a.apropriacao || a.id]; return Object.assign(Object.create(a), a, { _prodEquipe: gr.q, _unidEquipe: gr.u || a.unid || '', _prodNaLinha: !!parseFloat(a.qtd) }); });
+}
+function renderListaMO(soCorpo) {
+  const thead = document.getElementById('thead-apon-mo'), tbody = document.getElementById('tbody-apon-mo');
+  if (!thead || !tbody) return;
+  const base = _mlBase();
+  if (!soCorpo) {
+    thead.innerHTML = '<tr>' + _ML_COLS.map(c => `<th style="cursor:pointer;white-space:nowrap;user-select:none" onclick="mlOrdenar('${c.k}')">${c.t} ${_ml.sort.col === c.k ? (_ml.sort.dir > 0 ? '▲' : '▼') : '<span style="opacity:.3">↕</span>'}</th>`).join('') + '<th></th></tr>'
+      + '<tr>' + _ML_COLS.map(c => {
+        const val = _ml.f[c.k] || '';
+        if (c.tipo === 'lista') {
+          const ops = [...new Set(base.map(c.v).filter(x => x !== ''))].sort((a, b) => String(a).localeCompare(String(b)));
+          return `<th style="padding:4px"><select class="form-control" style="padding:3px 4px;font-size:11px;max-width:150px" onchange="mlFiltrar('${c.k}',this.value)"><option value="">(Todos)</option>${ops.map(o => `<option ${String(o) === val ? 'selected' : ''}>${_e(o)}</option>`).join('')}</select></th>`;
+        }
+        return `<th style="padding:4px"><input class="form-control" style="padding:3px 6px;font-size:11px;max-width:110px" placeholder="${c.tipo === 'num' ? '≥' : 'filtrar…'}" value="${_e(val)}" oninput="mlFiltrar('${c.k}',this.value,true)"/></th>`;
+      }).join('') + `<th style="padding:4px"><button class="btn btn-outline btn-sm" style="font-size:11px;padding:3px 8px" onclick="mlLimpar()" title="Limpar filtros das colunas">✕</button></th></tr>`;
+  }
+  let lista = base.filter(a => _ML_COLS.every(c => {
+    const f = _ml.f[c.k]; if (!f) return true;
+    const v = c.v(a);
+    if (c.tipo === 'lista') return String(v) === f;
+    if (c.tipo === 'num') { const n = parseFloat(String(f).replace(',', '.')); return isNaN(n) ? true : v >= n; }
+    const alvo = c.k === 'data' ? fmtData(v) + ' ' + v : String(v);
+    return alvo.toLowerCase().includes(String(f).toLowerCase());
+  }));
+  const col = _ML_COLS.find(c => c.k === _ml.sort.col) || _ML_COLS[0], d = _ml.sort.dir;
+  lista.sort((a, b) => {
+    let x = col.v(a), y = col.v(b);
+    if (col.k === 'data') { x = x + ' ' + (a.horaIni||a.hora||''); y = y + ' ' + (b.horaIni||b.hora||''); }
+    return (typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y), 'pt-BR', { numeric:true })) * d;
+  });
+  const tot = lista.reduce((s, a) => { s.hn += parseFloat(a.hn)||0; s.he += parseFloat(a.he)||0; return s; }, { hn:0, he:0 });
+  tbody.innerHTML = lista.length
+    ? _linhasLimitadas('tbody-apon-mo', lista, a => '<tr>' + _ML_COLS.map(c => `<td class="${c.tipo === 'num' || c.k === 'ini' || c.k === 'fim' || c.k === 'data' ? 'td-mono' : ''}">${c.fmt ? c.fmt(a) : _e(c.v(a)) || '—'}</td>`).join('')
+        + '<td>' + acoesCell("corrigirAponMO('" + a.id + "')", "deletar('aponMO','" + a.id + "')") + '</td></tr>', 14, 'renderListaMO')
+      + `<tr style="background:var(--bg);font-weight:600"><td colspan="8">${lista.length} linha(s)</td><td class="td-mono">${tot.hn}h</td><td class="td-mono">${tot.he}h</td><td colspan="4"></td></tr>`
+    : '<tr><td colspan="14" style="text-align:center;color:var(--text-3);padding:2rem">Nenhum apontamento com esses filtros</td></tr>';
+}
+function mlOrdenar(k) { _ml.sort = { col:k, dir: _ml.sort.col === k ? -_ml.sort.dir : 1 }; renderListaMO(); }
+function mlFiltrar(k, v, digitando) { if (v) _ml.f[k] = v; else delete _ml.f[k]; if (digitando) { clearTimeout(window.__mlT); window.__mlT = setTimeout(() => renderListaMO(true), 200); } else renderListaMO(true); }
+function mlLimpar() { _ml.f = {}; renderListaMO(); }
+(function () {
+  const oMO = window.renderMO;
+  window.renderMO = function () {
+    // lista de apontadores no filtro
+    const sel = document.getElementById('filtro-mo-apontador');
+    if (sel) {
+      const v = sel.value;
+      const aps = [...new Set(filtrarPorObra([...(dados.aponMO||[])], 'frente').map(a => a.lancadoPor || 'Escritório'))].sort();
+      sel.innerHTML = '<option value="">Todos</option>' + aps.map(a => `<option ${a === v ? 'selected' : ''}>${_e(a)}</option>`).join('');
+    }
+    const r = oMO.apply(this, arguments);
+    // cartões: respeita o filtro de apontador
+    const ap = sel ? sel.value : '';
+    if (ap) document.querySelectorAll('#mo-cards-grid .mo-card').forEach(c => {
+      const b = c.querySelector('[data-mo-nome]'); c.style.display = (b && b.getAttribute('data-mo-nome') === ap) ? '' : 'none';
+    });
+    renderListaMO();
+    return r;
+  };
+  const oLimpar = window.limparFiltrosMO;
+  window.limparFiltrosMO = function () { const s = document.getElementById('filtro-mo-apontador'); if (s) s.value = ''; _ml.f = {}; return typeof oLimpar === 'function' ? oLimpar.apply(this, arguments) : renderMO(); };
 })();
 
 // Apply configs on load
