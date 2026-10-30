@@ -310,7 +310,7 @@ textarea.form-control{resize:vertical;min-height:72px}
         <a href="#" onclick="esqueciSenha();return false" style="font-size:13px;color:#1B2C6E;text-decoration:none">Esqueci minha senha</a>
       </div>
     </div>
-    <div style="text-align:center;margin-top:1rem;font-size:11px;color:#aaa">ObraControl v2.21 · Controle de Mão de Obra e Equipamentos</div>
+    <div style="text-align:center;margin-top:1rem;font-size:11px;color:#aaa">ObraControl v2.22 · Controle de Mão de Obra e Equipamentos</div>
   </div>
 </div>
 
@@ -8318,15 +8318,14 @@ function renderCustoMO() {
         <div class="stat-card"><div class="stat-label">Equip. produtivo</div><div class="stat-value" style="font-size:20px">${_moeda(tot.eq)}</div></div>
         <div class="stat-card"><div class="stat-label">Equip. parado</div><div class="stat-value" style="font-size:20px;color:var(--red)">${_moeda(tot.par)}</div></div>
       </div>
-      <div class="table-wrap"><table style="font-size:12px"><thead><tr><th>Mês</th><th>Pessoas</th><th>H. normais</th><th>H. extras</th><th>MO normal</th><th>MO extra</th><th>MO dom./feriado</th><th>Equip. produtivo</th><th>Equip. parado</th><th>Total do mês</th><th>Produção</th><th>Custo unitário</th></tr></thead><tbody>
+      <div class="table-wrap"><table style="font-size:12px"><thead><tr><th>Mês</th><th>Pessoas</th><th>H. normais</th><th>H. extras</th><th>MO normal</th><th>MO extra</th><th>MO dom./feriado</th><th>Equip. produtivo</th><th>Equip. parado</th><th>Total do mês</th></tr></thead><tbody>
       ${linhas.length ? linhas.map(([data, d]) => { const t = d.mo + d.he + d.df + d.eq + d.par; const us = Object.keys(d.prodU); const u = us.length === 1 ? us[0] : '';
         return `<tr><td class="td-mono"><strong>${_mesTxt(data)}</strong>${d.td.size ? ' <span class="tag tag-amber" style="font-size:10px">' + d.td.size + ' dom./fer.</span>' : ''}</td><td class="td-mono">${d.pessoas.size}</td><td class="td-mono">${_n1(d.hn)}h</td><td class="td-mono">${_n1(d.hhe)}h</td>
           <td class="td-mono">${_moeda(d.mo)}</td><td class="td-mono">${_moeda(d.he)}</td><td class="td-mono">${d.df ? _moeda(d.df) : '—'}</td><td class="td-mono">${_moeda(d.eq)}</td><td class="td-mono" style="color:${d.par ? 'var(--red)' : 'inherit'}">${_moeda(d.par)}</td>
-          <td class="td-mono"><strong>${_moeda(t)}</strong></td><td class="td-mono">${us.length ? us.map(k => _n1(d.prodU[k]) + ' ' + _e(k)).join('<br>') : '—'}</td>
-          <td class="td-mono">${us.length === 1 ? _moeda(t / d.prod) + (u ? '/' + _e(u) : '') : (us.length ? '<span style="color:var(--text-3)" title="Unidades diferentes no mês: veja o custo unitário por serviço na tabela abaixo">ver por serviço ↓</span>' : '—')}</td></tr>`; }).join('')
-        : '<tr><td colspan="12" style="text-align:center;color:var(--text-3);padding:1.5rem">Nenhum apontamento aprovado no período</td></tr>'}
+          <td class="td-mono"><strong>${_moeda(t)}</strong></td></tr>`; }).join('')
+        : '<tr><td colspan="10" style="text-align:center;color:var(--text-3);padding:1.5rem">Nenhum apontamento aprovado no período</td></tr>'}
       </tbody></table></div>
-      <div style="font-size:11px;color:var(--text-3);margin-top:6px">Hora extra = custo/h da função × (1 + adicional HE). Domingo/feriado = custo/h × (1 + adicional dom./feriado) × todas as horas do dia (padrão 100%). Equipamento = custo/h × (produtivas + paradas). Custo unitário = total do mês ÷ produção do mês (quando o mês tem serviços com unidades diferentes, veja o custo unitário por serviço na tabela de produção).</div>
+      <div style="font-size:11px;color:var(--text-3);margin-top:6px">Hora extra = custo/h da função × (1 + adicional HE). Domingo/feriado = custo/h × (1 + adicional dom./feriado) × todas as horas do dia (padrão 100%). Equipamento = custo/h × (produtivas + paradas). A produção e o custo unitário por frente e serviço estão na tabela abaixo.</div>
       ${aviso}
     </div>`;
 }
