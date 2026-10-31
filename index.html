@@ -170,6 +170,17 @@ textarea.form-control{resize:vertical;min-height:72px}
 .qr-canvas{display:flex;justify-content:center;margin-bottom:8px}
 .qr-label{font-size:12px;font-weight:500;color:var(--text);word-break:break-word}
 .qr-sub{font-size:10px;color:var(--text-3);margin-top:2px;font-family:var(--mono)}
+@media print{
+  body.imprimindo-dash .page:not(.active){display:none!important}
+  body.imprimindo-dash .page.active{display:block!important;padding:0!important}
+  body.imprimindo-dash #toast-container, body.imprimindo-dash .toast-container{display:none!important}
+  body.imprimindo-dash *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  html, body.imprimindo-dash{height:auto!important;overflow:visible!important}
+  body.imprimindo-dash div{overflow:visible!important;max-height:none!important}
+  body.imprimindo-dash .card{break-inside:avoid}
+  body.imprimindo-dash #app, body.imprimindo-dash .app, body.imprimindo-dash .layout{display:block!important;height:auto!important}
+  @page{size:A4 landscape;margin:10mm}
+}
 .qr-card{position:relative}
 .dia-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px}
 .dia-card{background:white;border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;position:relative}
@@ -360,7 +371,7 @@ textarea.form-control{resize:vertical;min-height:72px}
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraControl</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraControl v2.35 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraControl v2.37 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -8141,7 +8152,7 @@ function _aprDetalheHTML(g, pend) {
         <div><div class="form-label" style="margin-bottom:3px">Serviço</div>${pend
           ? `<select class="form-control" style="padding:5px 6px;min-width:180px" onchange="aprEditarGrupo('${k}','servico',this.value)"><option value="—">—</option>${servicos.map(sv => { const n = sv.nome||sv.desc||sv.cod; return `<option value="${_e(n)}" ${n === g.servico ? 'selected' : ''}>${_e(n)}</option>`; }).join('')}</select>`
           : _e(g.servico)}</div>
-        <div><div class="form-label" style="margin-bottom:3px">Produção</div>${pend ? `<input type="number" class="form-control" style="width:90px;padding:5px 6px" value="${qtd || ''}" onchange="aprEditarGrupo('${k}','qtd',this.value)"/>` : (qtd || '—')} ${_e(unid)}</div>
+        <div><div class="form-label" style="margin-bottom:3px">Produção</div>${pend ? `<input type="number" class="form-control" style="width:90px;padding:5px 6px" value="${qtd || ''}" onchange="aprEditarGrupo('${k}','qtd',this.value)"/>` : (qtd || '—')} ${_e(unid)}${!qtd && g.mo.some(x => x.prodStatus === 'andamento') ? ' <span class="tag tag-amber" style="font-size:10px">⏳ serviço em andamento — sem quantidade hoje</span>' : ''}</div>
       </div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px;margin-top:12px">
@@ -8192,7 +8203,7 @@ function _aprCardHTML(g, i, status) {
       <div class="mo-frente-val">📍 ${_e(g.frente)}${fr ? ' — ' + _e(fr.desc||'') : ''}</div>
       <div class="mo-info-tags">
         ${g.servico && g.servico !== '—' ? `<span class="mo-info-tag" style="background:var(--blue-light);color:var(--blue)">${_e(g.servico)}</span>` : ''}
-        ${qtd ? `<span class="mo-info-tag" style="background:var(--green-light);color:var(--green-dark)">${qtd} ${_e(unid)}</span>` : ''}
+        ${qtd ? `<span class="mo-info-tag" style="background:var(--green-light);color:var(--green-dark)">${qtd} ${_e(unid)}</span>` : (g.mo.some(x => x.prodStatus === 'andamento') ? `<span class="mo-info-tag" style="background:#FEF3C7;color:#B45309">⏳ em andamento</span>` : '')}
         ${perdas ? `<span class="mo-info-tag" style="background:var(--amber-light);color:#633806">perda ${perdas}h</span>` : ''}
       </div>
     </div>
@@ -8388,7 +8399,7 @@ const _ML_COLS = [
   { k:'hn',      t:'H. normais',  tipo:'num',   v:a => parseFloat(a.hn) || 0,     fmt:a => (parseFloat(a.hn)||0) + 'h' },
   { k:'he',      t:'H. extras',   tipo:'num',   v:a => parseFloat(a.he) || 0,     fmt:a => a.he ? a.he + 'h' : '—' },
   { k:'prod',    t:'Produção (equipe)', tipo:'num', v:a => (_ml.prod.get(a.apropriacao || a.id) || {}).q || 0,
-    fmt:a => { const g = _ml.prod.get(a.apropriacao || a.id) || {}; return g.q ? g.q + ' ' + _e(g.u || a.unid || '') + (parseFloat(a.qtd) ? '' : ' <span style="font-size:10px;color:var(--text-3)">equipe</span>') : '—'; } },
+    fmt:a => { const g = _ml.prod.get(a.apropriacao || a.id) || {}; return g.q ? g.q + ' ' + _e(g.u || a.unid || '') + (parseFloat(a.qtd) ? '' : ' <span style="font-size:10px;color:var(--text-3)">equipe</span>') : (a.prodStatus === 'andamento' ? '<span style="font-size:11px;color:#B45309">⏳ em andamento</span>' : '—'); } },
   { k:'apont',   t:'Apontador',   tipo:'lista', v:a => a.lancadoPor || 'Escritório' },
   { k:'status',  t:'Status',      tipo:'lista', v:a => ({campo:'Pendente',aprovado:'Aprovado',rejeitado:'Rejeitado',corrigido:'Processado'})[a.status] || a.status || '', fmt:a => tagStatus(a.status) },
 ];
@@ -8916,6 +8927,7 @@ function _diaCard(t, tipo) {
     <div style="margin-top:8px">
       <div class="dia-linha"><span style="color:var(--text-3)">Apontador</span><strong>${_e(t.apontador || '—')}</strong></div>
       <div class="dia-linha"><span style="color:var(--text-3)">${tipo === 'encerrado' ? 'Horário' : 'Entrada'}</span><span class="td-mono">${tipo === 'encerrado' ? _e(dur || t.horaIni || '—') : _e(t.horaIni || '—') + ' <span style="color:var(--text-3)">' + dur + '</span>'}${t.turno ? ' · ' + _e(t.turno) : ''}</span></div>
+      ${tipo === 'encerrado' ? `<div class="dia-linha"><span style="color:var(--text-3)">Produção</span><strong>${t.qtd ? _e(String(t.qtd).replace('.', ',')) + ' ' + _e(t.unid || '') + (prev && prev.prodDia ? ' <span style="font-weight:400;color:var(--text-3)">de ' + _e(prev.prodDia) + ' previstos</span>' : '') : (t.prodStatus === 'andamento' ? '<span style="color:#B45309">⏳ em andamento</span>' : '—')}</strong></div>` : ''}
       <div class="dia-linha"><span style="color:var(--text-3)">Equipe</span><strong>${mo.length}${pPrev ? ' de ' + pPrev + ' previstas' : ''}</strong></div>
       ${prev && (prev.equipe||[]).length ? `<div>${_diaComparar(prev.equipe.map(x => ({ k:x.funcao, q:x.qtd })), contar(mo, 'funcao'), _nomeFuncao)}</div>` : ''}
       <div class="dia-linha"><span style="color:var(--text-3)">Equipamentos</span><strong>${eq.length}${ePrev ? ' de ' + ePrev + ' previstos' : ''}</strong></div>
@@ -8949,6 +8961,16 @@ function renderDiario() {
   window.entrarNoApp = function () { const r = oEntrar.apply(this, arguments); setTimeout(() => { try { diarioAssinar(); } catch (e) {} }, 2500); return r; };
   setInterval(() => { if (document.getElementById('page-diario')?.classList.contains('active')) renderDiario(); }, 60000);
 })();
+
+
+// v2.36: PDF dos dashboards — usa a impressão do navegador ("Salvar como PDF"), só a tela aberta, em paisagem
+function exportarDashPDF(pagina, nome) {
+  const t = document.title;
+  document.title = (nome || 'Dashboard') + '_' + new Date().toISOString().slice(0,10);
+  document.body.classList.add('imprimindo-dash');
+  toast('Na janela de impressão, escolha "Salvar como PDF".');
+  setTimeout(() => { window.print(); setTimeout(() => { document.body.classList.remove('imprimindo-dash'); document.title = t; }, 800); }, 300);
+}
 
 // Apply configs on load
 setTimeout(applyConfigs, 200);

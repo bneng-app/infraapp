@@ -374,6 +374,9 @@ select.form-control { cursor: pointer; }
 .qr-feedback { margin-top: 14px; min-height: 22px; font-size: 15px; font-weight: 700; color: #4ADE80; text-align: center; }
 .qr-feedback.err { color: #F87171; }
 .qr-concluir { margin-top: 14px; background: var(--red); color: white; border: none; border-radius: 12px; padding: 14px 28px; font-size: 16px; font-weight: 700; cursor: pointer; }
+.prod-andamento { display:flex; gap:10px; align-items:flex-start; padding:12px; border:1.5px dashed var(--border); border-radius:var(--radius-sm); margin:4px 0 14px; font-size:13px; cursor:pointer; }
+.prod-andamento input { width:20px; height:20px; margin-top:1px; accent-color: var(--red); flex:0 0 auto; }
+.prod-andamento.on { border-style:solid; border-color:#F59E0B; background:#FFFBEB; }
 .hor-item { padding: 12px 0; border-bottom: 1px solid var(--border); }
 .hor-item:last-child { border-bottom: none; }
 .hor-linha { display: flex; gap: 10px; align-items: stretch; }
@@ -495,7 +498,7 @@ select.form-control { cursor: pointer; }
     </button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">v2.16</div>
+  <div class="login-versao">v2.17</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -689,13 +692,18 @@ select.form-control { cursor: pointer; }
       </div>
     </div>
     <div class="card">
-      <div class="card-header"><span class="card-title">Produção (opcional)</span></div>
+      <div class="card-header"><span class="card-title">Produção da equipe *</span></div>
       <div class="card-body">
         <div class="time-row">
-          <div class="form-group"><label class="form-label">Quantidade</label><input type="number" class="form-control" id="ap-qtd" placeholder="Ex.: 120"/></div>
+          <div class="form-group"><label class="form-label">Quantidade executada hoje</label><input type="number" inputmode="decimal" class="form-control" id="ap-qtd" placeholder="Ex.: 120" oninput="apProdMudou()"/></div>
           <div class="form-group"><label class="form-label">Unidade</label>
             <select class="form-control" id="ap-unid"><option>m³</option><option>m²</option><option>m</option><option>un</option><option>t</option><option>km</option></select></div>
         </div>
+        <input type="hidden" id="ap-prod-status"/>
+        <label class="prod-andamento" id="ap-prod-and-lbl">
+          <input type="checkbox" id="ap-prod-and" onchange="apProdAndamento(this.checked)"/>
+          <span><strong>Serviço em andamento</strong> — ainda sem quantidade concluída hoje<br><span style="font-size:11px;color:var(--text3)">Ex.: poço de visita que só termina amanhã. Informe a quantidade no dia em que concluir.</span></span>
+        </label>
         <div class="time-row">
           <div class="form-group"><label class="form-label">Perda (MO)</label><select class="form-control" id="ap-motivo-perda"><option value="">Nenhuma</option></select></div>
           <div class="form-group"><label class="form-label">Horas perdidas</label><input type="number" class="form-control" id="ap-horas-perda" step="0.5" placeholder="0"/></div>
@@ -1734,7 +1742,7 @@ async function salvarEQ() {
 const ap = { mo: new Set(), eq: new Map(), aba: 'frente', hnManual: false, uid: '' };
 
 // v2.5: o apontamento fica "em andamento" no celular até ser encerrado no fim do dia
-const _AP_CAMPOS = ['ap-frente','ap-servico','ap-data','ap-turno','ap-hora-ini','ap-hora-fim','ap-hn','ap-he','ap-qtd','ap-unid','ap-obs','ap-motivo-perda','ap-horas-perda'];
+const _AP_CAMPOS = ['ap-frente','ap-servico','ap-data','ap-turno','ap-hora-ini','ap-hora-fim','ap-hn','ap-he','ap-qtd','ap-unid','ap-obs','ap-motivo-perda','ap-horas-perda','ap-prod-status'];
 function _apChave() { return 'campo_ap_andamento_' + (usuarioCampo?.id || usuarioCampo?.mat || 'x'); }
 
 // v2.10: nunca lançar para frente (data ou hora depois de agora). Para trás pode.
@@ -2002,7 +2010,7 @@ function apTab(aba) {
   ['ap-resumo-mo','ap-resumo-eq'].forEach(id => document.getElementById(id).innerHTML = resumo);
   if (aba === 'mo') apRenderMO();
   if (aba === 'eq') apRenderEQ();
-  if (aba === 'rev') { document.getElementById('ap-rev-ini').value = document.getElementById('ap-hora-ini').value; apMontarResumo(); apRenderHorimetros(); }
+  if (aba === 'rev') { document.getElementById('ap-rev-ini').value = document.getElementById('ap-hora-ini').value; _apProdSync(); apMontarResumo(); apRenderHorimetros(); }
   if (document.getElementById('ap-frente').value) apGuardar();
   _apBotaoAbertos();
   window.scrollTo(0,0); const pn = document.getElementById('ap-panel-' + aba); if (pn) pn.scrollTop = 0;
@@ -2206,6 +2214,16 @@ async function apHorValidar() {
   return '';
 }
 
+
+// v2.17: produção obrigatória — ou quantidade, ou "serviço em andamento" marcado
+function _apProdSync() {
+  const and = document.getElementById('ap-prod-status')?.value === 'andamento';
+  const cb = document.getElementById('ap-prod-and'), q = document.getElementById('ap-qtd'), l = document.getElementById('ap-prod-and-lbl');
+  if (cb) cb.checked = and; if (q) { q.disabled = and; if (and) q.value = ''; } if (l) l.classList.toggle('on', and);
+}
+function apProdAndamento(on) { document.getElementById('ap-prod-status').value = on ? 'andamento' : ''; _apProdSync(); apGuardar(); }
+function apProdMudou() { if (parseFloat(document.getElementById('ap-qtd').value) > 0) { document.getElementById('ap-prod-status').value = ''; _apProdSync(); } apGuardar(); }
+
 async function salvarApropriacao() {
   if (!ap.mo.size && !ap.eq.size) { toast('Marque pelo menos uma pessoa ou um equipamento.', 'err'); return; }
   const frente = document.getElementById('ap-frente').value;
@@ -2215,6 +2233,8 @@ async function salvarApropriacao() {
   if (!document.getElementById('ap-hora-fim').value) apAgora('ap-hora-fim'); else apHorasMudaram();
   { const err = _checaFuturo(data, document.getElementById('ap-hora-ini').value, document.getElementById('ap-hora-fim').value);
     if (err) { toast(err, 'err'); return; } }
+  { const qv = parseFloat(document.getElementById('ap-qtd').value) || 0, and = document.getElementById('ap-prod-status').value === 'andamento';
+    if (ap.mo.size && !qv && !and) { toast('Informe a quantidade executada ou marque "Serviço em andamento".', 'err'); document.getElementById('ap-qtd').closest('.card')?.scrollIntoView({ behavior:'smooth', block:'center' }); return; } }
   { const err = await apHorValidar(); if (err) { toast(err, 'err'); apRenderHorimetros(); document.getElementById('ap-hor-card')?.scrollIntoView({ behavior:'smooth' }); return; } }
   const btn = document.getElementById('ap-btn-salvar'); btn.disabled = true;
   const horaIni = document.getElementById('ap-hora-ini').value, horaFim = document.getElementById('ap-hora-fim').value;
@@ -2225,7 +2245,8 @@ async function salvarApropriacao() {
   const motivoPerda = document.getElementById('ap-motivo-perda').value, horasPerda = parseFloat(document.getElementById('ap-horas-perda').value) || 0;
   const apropriacao = 'ap' + Date.now() + Math.random().toString(36).slice(2,5);
   const _t = _apTurno();
-  const base = { data, frente, servico, obs, obra: _apObra(), turno: _t ? (_t.cod || _t.nome || '') : '', lancadoPor: usuarioCampo.nome, status: 'campo', lancadoEm: new Date().toISOString(), apropriacao };
+  const prodStatus = qtd > 0 ? 'informada' : (document.getElementById('ap-prod-status').value === 'andamento' ? 'andamento' : '');
+  const base = { data, frente, servico, obs, prodStatus, obra: _apObra(), turno: _t ? (_t.cod || _t.nome || '') : '', lancadoPor: usuarioCampo.nome, status: 'campo', lancadoEm: new Date().toISOString(), apropriacao };
   const sufixo = () => Date.now() + Math.random().toString(36).slice(2,6);
   let nMO = 0, nEQ = 0;
   try {
@@ -2253,7 +2274,7 @@ async function salvarApropriacao() {
     }
   } finally { btn.disabled = false; }
   toast(`Turno encerrado (${horaIni}–${horaFim}): ${nMO} pessoa(s) e ${nEQ} equipamento(s)` + (isOnline ? '' : ' — offline, sincroniza depois'), 'ok');
-  _turnoFechar('encerrado', { ..._turnoFoto(), status: 'encerrado', horaFim, hn, he, nMO, nEQ });
+  _turnoFechar('encerrado', { ..._turnoFoto(), status: 'encerrado', horaFim, hn, he, nMO, nEQ, qtd, unid, prodStatus });
   // limpa para a próxima frente (mantém data e turno)
   apLimparRascunho();
   if (apRascunhos().length) apMostrarLista(); else apNovo();
