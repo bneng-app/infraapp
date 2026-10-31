@@ -495,7 +495,7 @@ select.form-control { cursor: pointer; }
     </button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">v2.15</div>
+  <div class="login-versao">v2.16</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -1785,7 +1785,47 @@ function apGuardar() {
   }
   _apGravarLista(lista);
   apAtualizarHome();
+  if (ap.uid && document.getElementById('ap-frente')?.value) _turnoSync();
 }
+// ══════════════════════════════════════════════════════════════
+// v2.16: TURNO ABERTO NO SERVIDOR — o painel acompanha ao vivo
+// (abre ao escolher a frente; atualiza a cada pessoa/equipamento; fecha ao encerrar ou descartar)
+// ══════════════════════════════════════════════════════════════
+function _turnoId(uid) { return 'ta_' + (usuarioCampo?.id || usuarioCampo?.mat || 'x') + '_' + uid; }
+function _turnoFoto() {
+  const g = id => document.getElementById(id)?.value || '';
+  const t = _apTurno();
+  return {
+    id: _turnoId(ap.uid), uid: ap.uid, obra: _apObra(), data: g('ap-data'), frente: g('ap-frente'), servico: g('ap-servico') || '—',
+    turno: t ? (t.cod || t.nome || '') : '', horaIni: g('ap-hora-ini'), status: 'aberto',
+    apontador: usuarioCampo?.nome || '', apontadorId: usuarioCampo?.id || '',
+    mo: dadosCampo.funcionarios.filter(f => ap.mo.has(f.id)).map(f => ({ id: f.id, nome: f.nome || '', mat: f.mat || '', funcao: f.codFuncao || f.funcao || '' })),
+    eq: dadosCampo.equipamentos.filter(e => ap.eq.has(e.id)).map(e => ({ id: e.id, tag: e.tag || e.placa || '', familia: e.familia || e.codFamilia || '' })),
+    atualizadoEm: new Date().toISOString()
+  };
+}
+let _turnoPend = (() => { try { return JSON.parse(localStorage.getItem('campo_turnos_pend') || '{}'); } catch (e) { return {}; } })();
+function _turnoGuardaPend() { try { localStorage.setItem('campo_turnos_pend', JSON.stringify(_turnoPend)); } catch (e) {} }
+async function _turnoEnviar() {
+  if (!isOnline || !db || !_fbReady) return;
+  for (const [id, obj] of Object.entries(_turnoPend)) {
+    try { await db.collection('turnosAbertos').doc(id).set(obj, { merge: true }); delete _turnoPend[id]; } catch (e) { console.warn('turno aberto:', e.message); break; }
+  }
+  _turnoGuardaPend();
+}
+let _turnoT = null;
+function _turnoSync() {
+  const obj = _turnoFoto(); if (!obj.frente) return;
+  _turnoPend[obj.id] = { ...(_turnoPend[obj.id] || {}), ...obj }; _turnoGuardaPend();
+  clearTimeout(_turnoT); _turnoT = setTimeout(_turnoEnviar, 1200);
+}
+function _turnoFechar(status, extra) {
+  if (!ap.uid) return;
+  const id = _turnoId(ap.uid);
+  _turnoPend[id] = { ...(_turnoPend[id] || _turnoFoto()), ...(extra || {}), status, fechadoEm: new Date().toISOString(), atualizadoEm: new Date().toISOString() };
+  _turnoGuardaPend(); clearTimeout(_turnoT); _turnoEnviar();
+}
+window.addEventListener('online', () => setTimeout(_turnoEnviar, 1500));
 function _apLimparForm() {
   ap.mo = new Set(); ap.eq = new Map(); ap.hnManual = false; ap.uid = ''; ap.aba = 'frente';
   _AP_CAMPOS.forEach(id => { const el = document.getElementById(id); if (el && id !== 'ap-unid') el.value = ''; });
@@ -1849,6 +1889,7 @@ function apContinuarDepois(abrirOutro) {
 }
 function apDescartar() {
   if (!confirm('Descartar este apontamento? Nada foi enviado ainda.')) return;
+  _turnoFechar('descartado');
   apLimparRascunho();
   if (apRascunhos().length) apMostrarLista(); else apNovo();
 }
@@ -2212,6 +2253,7 @@ async function salvarApropriacao() {
     }
   } finally { btn.disabled = false; }
   toast(`Turno encerrado (${horaIni}–${horaFim}): ${nMO} pessoa(s) e ${nEQ} equipamento(s)` + (isOnline ? '' : ' — offline, sincroniza depois'), 'ok');
+  _turnoFechar('encerrado', { ..._turnoFoto(), status: 'encerrado', horaFim, hn, he, nMO, nEQ });
   // limpa para a próxima frente (mantém data e turno)
   apLimparRascunho();
   if (apRascunhos().length) apMostrarLista(); else apNovo();

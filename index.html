@@ -171,6 +171,16 @@ textarea.form-control{resize:vertical;min-height:72px}
 .qr-label{font-size:12px;font-weight:500;color:var(--text);word-break:break-word}
 .qr-sub{font-size:10px;color:var(--text-3);margin-top:2px;font-family:var(--mono)}
 .qr-card{position:relative}
+.dia-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px}
+.dia-card{background:white;border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;position:relative}
+.dia-card.aberto{border-left:4px solid #16A34A}
+.dia-card.encerrado{border-left:4px solid #94A3B8;opacity:.9}
+.dia-card.esquecido{border-left:4px solid var(--red);background:#FFF7F7}
+.dia-pulse{display:inline-block;width:8px;height:8px;border-radius:50%;background:#16A34A;margin-right:6px;animation:diaPulse 1.6s infinite}
+@keyframes diaPulse{0%{box-shadow:0 0 0 0 rgba(22,163,74,.5)}70%{box-shadow:0 0 0 7px rgba(22,163,74,0)}100%{box-shadow:0 0 0 0 rgba(22,163,74,0)}}
+.dia-linha{display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:3px 0}
+.dia-chip{display:inline-block;font-size:11px;padding:2px 7px;border-radius:10px;background:var(--bg);margin:2px 4px 2px 0}
+.dia-chip.falta{background:#FEE2E2;color:#B91C1C}.dia-chip.ok{background:#DCFCE7;color:#15803D}.dia-chip.sobra{background:#FEF3C7;color:#B45309}
 .qr-card .qr-canvas{display:flex;justify-content:center;margin-bottom:8px}
 .qr-card .qr-check{position:absolute;top:8px;right:8px;width:20px;height:20px;border-radius:50%;border:1.5px solid var(--border);color:transparent;font-size:12px;display:flex;align-items:center;justify-content:center}
 .qr-card.qr-sel{border-color:#E30613;box-shadow:0 0 0 2px rgba(227,6,19,.18)}
@@ -350,7 +360,7 @@ textarea.form-control{resize:vertical;min-height:72px}
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraControl</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraControl v2.33 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraControl v2.34 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -430,6 +440,11 @@ textarea.form-control{resize:vertical;min-height:72px}
   <div class="nav-group" id="grp-apontamentos">
     <div class="nav-section" onclick="toggleNavGroup('grp-apontamentos')">Apontamentos <span class="nav-chevron">▾</span></div>
     <div class="nav-group-items">
+      <div class="nav-item" onclick="showPage('diario',this)" title="Acompanhamento do dia">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+        <span>Acompanhamento do dia</span>
+        <span class="nav-badge" id="badge-diario"></span>
+      </div>
       <div class="nav-item" id="nav-aprovacao" onclick="showPage('aprovacao',this)" title="Aprovação">
         <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
         <span>Aprovação</span>
@@ -1199,6 +1214,21 @@ textarea.form-control{resize:vertical;min-height:72px}
     </div>
     <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-orc-item')">Cancelar</button><button class="btn btn-primary" onclick="orcSalvarItem()">Salvar serviço</button></div>
   </div>
+</div>
+
+
+<!-- ═══════════════ ACOMPANHAMENTO DO DIA (v2.34) ═══════════════ -->
+<div class="page" id="page-diario">
+  <div class="page-header">
+    <div><div class="page-title">Acompanhamento do dia</div><div class="page-sub">Turnos abertos pelos apontadores, ao vivo · <span id="dia-atualizado">—</span></div></div>
+    <div class="btn-group">
+      <input type="date" class="form-control" id="dia-data" onchange="diarioAssinar()"/>
+      <button class="btn btn-outline btn-sm" onclick="document.getElementById('dia-data').value=_hojeLocal();diarioAssinar()">Hoje</button>
+    </div>
+  </div>
+  <div id="dia-kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px"></div>
+  <div id="dia-esquecidos"></div>
+  <div id="dia-cards"></div>
 </div>
 
 <!-- ═══════════════ QR CODES ═══════════════ -->
@@ -8805,6 +8835,94 @@ function renderPrevistoRealizado() {
   window.pageInit = function (id) { const r = oInit.apply(this, arguments); if (id === 'orcamento') renderOrcamento(); return r; };
   const o = window.atualizarDashboard;
   if (typeof o === 'function') window.atualizarDashboard = function () { const r = o.apply(this, arguments); try { renderPrevistoRealizado(); } catch (e) { console.warn('previsto', e); } return r; };
+})();
+
+
+// ═══════════════════════════════════════════════════════════════
+// v2.34: ACOMPANHAMENTO DO DIA (turnosAbertos ao vivo)
+// ═══════════════════════════════════════════════════════════════
+const _dia = { lista: [], off: null, desde: '' };
+function _hojeLocal(d) { d = d || new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+function diarioAssinar() {
+  const el = document.getElementById('dia-data'); if (el && !el.value) el.value = _hojeLocal();
+  const dataSel = el ? el.value : _hojeLocal();
+  // busca a semana anterior também, para achar turnos esquecidos abertos
+  const d = new Date(dataSel + 'T12:00:00'); d.setDate(d.getDate() - 14); const desde = _hojeLocal(d);
+  if (_dia.off && _dia.desde === desde) { renderDiario(); return; }
+  if (_dia.off) { try { _dia.off(); } catch (e) {} _dia.off = null; }
+  _dia.desde = desde;
+  if (!db || !_firebaseReady || !db.collection) { renderDiario(); return; }
+  _dia.off = db.collection('turnosAbertos').where('data', '>=', desde).onSnapshot(snap => {
+    _dia.lista = snap.docs.map(x => ({ id: x.id, ...x.data() }));
+    const a = document.getElementById('dia-atualizado'); if (a) a.textContent = 'atualizado ' + new Date().toTimeString().slice(0,5);
+    renderDiario(); _diarioBadge();
+  }, err => { const c = document.getElementById('dia-cards'); if (c) c.innerHTML = '<div class="card"><div class="card-body" style="color:var(--red)">Não consegui ler os turnos (' + _e(err.code || err.message) + '). Se for permissão, libere a coleção "turnosAbertos" no Firebase.</div></div>'; });
+}
+function _diarioBadge() {
+  const hoje = _hojeLocal(); const ob = obraAtiva && obraAtiva.id !== 'todas' ? obraAtiva.id : '';
+  const n = _dia.lista.filter(t => t.status === 'aberto' && (!ob || t.obra === ob)).length;
+  const b = document.getElementById('badge-diario'); if (b) { b.textContent = n || ''; b.style.display = n ? '' : 'none'; }
+}
+function _minDesde(data, hora) { if (!data || !hora) return 0; const t = new Date(data + 'T' + hora + ':00'); return Math.max(0, (Date.now() - t.getTime()) / 60000); }
+function _durTxt(min) { const h = Math.floor(min / 60), m = Math.round(min % 60); return h ? h + 'h' + String(m).padStart(2,'0') : m + 'min'; }
+// previsto do orçamento vigente para o serviço (equipe por função e equipamentos por família)
+function _diaPrevisto(obra, servico) { const v = obra ? orcVigente(obra) : null; return v ? (v.itens||[]).find(i => i.servico === servico) || null : null; }
+function _diaComparar(prev, real, nomeDe) {
+  const chaves = [...new Set([...prev.map(x => x.k), ...Object.keys(real)])];
+  return chaves.map(k => { const p = (prev.find(x => x.k === k) || {}).q || 0, r = real[k] || 0;
+    const cls = !p ? 'sobra' : r < p ? 'falta' : r > p ? 'sobra' : 'ok';
+    return `<span class="dia-chip ${cls}" title="${_e(nomeDe(k))}">${_e(k || '?')} ${r}${p ? '/' + p : ''}</span>`; }).join('');
+}
+function _diaCard(t, tipo) {
+  const fr = (dados.frentes||[]).find(x => x.cod === t.frente || x.id === t.frente);
+  const mo = t.mo || [], eq = t.eq || [];
+  const prev = _diaPrevisto(t.obra, t.servico);
+  const contar = (lst, k) => lst.reduce((m, x) => { m[x[k] || ''] = (m[x[k] || ''] || 0) + 1; return m; }, {});
+  const pPrev = prev ? (prev.equipe||[]).reduce((s, x) => s + (Number(x.qtd)||0), 0) : 0;
+  const ePrev = prev ? (prev.equipamentos||[]).reduce((s, x) => s + (Number(x.qtd)||0), 0) : 0;
+  const dur = tipo === 'encerrado' ? (t.horaIni && t.horaFim ? t.horaIni + '–' + t.horaFim : '') : (t.data === _hojeLocal() ? 'há ' + _durTxt(_minDesde(t.data, t.horaIni)) : 'aberto desde ' + fmtData(t.data));
+  const st = tipo === 'aberto' ? '<span class="tag tag-green"><span class="dia-pulse"></span>Aberto</span>'
+           : tipo === 'esquecido' ? '<span class="tag tag-red">Não encerrado</span>' : '<span class="tag tag-gray">Encerrado</span>';
+  const nomes = mo.slice(0, 40).map(x => _e(x.nome)).join(', ') + (mo.length > 40 ? '…' : '');
+  return `<div class="dia-card ${tipo}">
+    <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">
+      <div><div style="font-weight:700;font-size:14px"><span class="td-mono">${_e(t.frente)}</span> ${_e(fr ? (fr.desc || fr.nome || '') : '')}</div>
+        <div style="font-size:12px;color:var(--text-2);margin-top:2px">${_e(t.servico || '—')}</div></div>${st}</div>
+    <div style="margin-top:8px">
+      <div class="dia-linha"><span style="color:var(--text-3)">Apontador</span><strong>${_e(t.apontador || '—')}</strong></div>
+      <div class="dia-linha"><span style="color:var(--text-3)">${tipo === 'encerrado' ? 'Horário' : 'Entrada'}</span><span class="td-mono">${tipo === 'encerrado' ? _e(dur || t.horaIni || '—') : _e(t.horaIni || '—') + ' <span style="color:var(--text-3)">' + dur + '</span>'}${t.turno ? ' · ' + _e(t.turno) : ''}</span></div>
+      <div class="dia-linha"><span style="color:var(--text-3)">Equipe</span><strong>${mo.length}${pPrev ? ' de ' + pPrev + ' previstas' : ''}</strong></div>
+      ${prev && (prev.equipe||[]).length ? `<div>${_diaComparar(prev.equipe.map(x => ({ k:x.funcao, q:x.qtd })), contar(mo, 'funcao'), _nomeFuncao)}</div>` : ''}
+      <div class="dia-linha"><span style="color:var(--text-3)">Equipamentos</span><strong>${eq.length}${ePrev ? ' de ' + ePrev + ' previstos' : ''}</strong></div>
+      ${prev && (prev.equipamentos||[]).length ? `<div>${_diaComparar(prev.equipamentos.map(x => ({ k:x.familia, q:x.qtd })), contar(eq, 'familia'), _nomeFamilia)}</div>` : (eq.length ? `<div>${eq.map(x => `<span class="dia-chip">${_e(x.tag)}</span>`).join('')}</div>` : '')}
+      ${mo.length ? `<details style="margin-top:6px;font-size:12px"><summary style="cursor:pointer;color:var(--text-3)">Ver pessoas</summary><div style="margin-top:4px">${nomes}</div></details>` : ''}
+    </div></div>`;
+}
+function renderDiario() {
+  const dataSel = document.getElementById('dia-data')?.value || _hojeLocal(), hoje = _hojeLocal();
+  const ob = obraAtiva && obraAtiva.id !== 'todas' ? obraAtiva.id : '';
+  const lst = _dia.lista.filter(t => (!ob || t.obra === ob) && t.status !== 'descartado');
+  const doDia = lst.filter(t => t.data === dataSel);
+  const abertos = doDia.filter(t => t.status === 'aberto'), encerrados = doDia.filter(t => t.status === 'encerrado');
+  const esquecidos = lst.filter(t => t.status === 'aberto' && t.data < (dataSel === hoje ? hoje : dataSel) && t.data !== dataSel);
+  const pessoas = new Set(abertos.flatMap(t => (t.mo||[]).map(x => x.id))).size, equips = new Set(abertos.flatMap(t => (t.eq||[]).map(x => x.id))).size;
+  const kpi = (rot, v, cor) => `<div class="stat-card"><div class="stat-label">${rot}</div><div class="stat-value" style="font-size:24px${cor ? ';color:' + cor : ''}">${v}</div></div>`;
+  document.getElementById('dia-kpis').innerHTML = kpi('Turnos abertos', abertos.length, '#16A34A') + kpi('Encerrados', encerrados.length) + kpi('Pessoas em campo', pessoas) + kpi('Equipamentos em campo', equips) + kpi('Não encerrados (dias anteriores)', esquecidos.length, esquecidos.length ? 'var(--red)' : '');
+  document.getElementById('dia-esquecidos').innerHTML = esquecidos.length
+    ? `<div class="card" style="margin-bottom:14px;border-color:#FCA5A5"><div class="card-header"><span class="card-title" style="color:var(--red)">⚠ Abertos e não encerrados de dias anteriores (${esquecidos.length})</span></div><div class="card-body"><div class="dia-grid">${esquecidos.sort((a, b) => a.data.localeCompare(b.data)).map(t => _diaCard(t, 'esquecido')).join('')}</div>
+      <div style="font-size:12px;color:var(--text-3);margin-top:8px">O apontador precisa abrir o app, entrar em Apropriação e encerrar (ou descartar) esses turnos.</div></div></div>` : '';
+  const sec = (tit, arr, tipo) => arr.length ? `<div style="font-weight:700;font-size:13px;margin:6px 0 8px;color:var(--text-2)">${tit} (${arr.length})</div><div class="dia-grid" style="margin-bottom:16px">${arr.sort((a, b) => String(a.frente).localeCompare(String(b.frente)) || String(a.horaIni).localeCompare(String(b.horaIni))).map(t => _diaCard(t, tipo)).join('')}</div>` : '';
+  document.getElementById('dia-cards').innerHTML = (abertos.length || encerrados.length)
+    ? sec('Em andamento', abertos, 'aberto') + sec('Encerrados', encerrados, 'encerrado')
+    : `<div class="card"><div class="card-body" style="text-align:center;color:var(--text-3);padding:2.5rem">Nenhum turno aberto em ${fmtData(dataSel)}${ob ? ' nesta obra' : ''}.<br><span style="font-size:12px">Os turnos aparecem aqui assim que o apontador escolhe a frente no app de campo (versão 2.16 ou mais nova).</span></div></div>`;
+}
+(function () {
+  const oInit = window.pageInit;
+  window.pageInit = function (id) { const r = oInit.apply(this, arguments); if (id === 'diario') diarioAssinar(); return r; };
+  // o selo do menu acompanha desde o login
+  const oEntrar = window.entrarNoApp;
+  window.entrarNoApp = function () { const r = oEntrar.apply(this, arguments); setTimeout(() => { try { diarioAssinar(); } catch (e) {} }, 2500); return r; };
+  setInterval(() => { if (document.getElementById('page-diario')?.classList.contains('active')) renderDiario(); }, 60000);
 })();
 
 // Apply configs on load
