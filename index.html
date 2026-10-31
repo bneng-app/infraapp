@@ -371,7 +371,7 @@ textarea.form-control{resize:vertical;min-height:72px}
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraControl</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraControl v2.37 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraControl v2.38 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -621,6 +621,7 @@ textarea.form-control{resize:vertical;min-height:72px}
       <div class="page-sub" id="dash-date" style="cursor:default;color:rgba(255,255,255,.7);font-size:12px">—</div>
     </div>
     <div class="btn-group">
+      <button class="btn btn-outline btn-sm" onclick="exportarDashPDF('page-dashboard','Visao_Geral')">⬇ PDF</button>
       <button class="btn btn-outline btn-sm" onclick="atualizarDashboard()">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
         Atualizar
