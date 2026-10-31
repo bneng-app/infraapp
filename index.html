@@ -350,7 +350,7 @@ textarea.form-control{resize:vertical;min-height:72px}
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraControl</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraControl v2.32 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraControl v2.33 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -533,6 +533,10 @@ textarea.form-control{resize:vertical;min-height:72px}
         <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
         <span>Tipos de Serviço</span>
       </div>
+      <div class="nav-item" onclick="showPage('orcamento',this)" title="Orçamento previsto">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/></svg>
+        <span>Orçamento previsto</span>
+      </div>
     </div>
   </div>
 
@@ -685,6 +689,7 @@ textarea.form-control{resize:vertical;min-height:72px}
       </div>
     </div>
   </div>
+  <div id="dash-geral-previsto"></div>
   <div id="dash-geral-custo"></div>
 </div>
 
@@ -1148,6 +1153,53 @@ textarea.form-control{resize:vertical;min-height:72px}
   </div>
 </div>
 
+
+
+<!-- ═══════════════ ORÇAMENTO PREVISTO (v2.33) ═══════════════ -->
+<div class="page" id="page-orcamento">
+  <div class="page-header">
+    <div><div class="page-title">Orçamento previsto</div><div class="page-sub">Previsto por serviço na obra · vale sempre a última versão validada</div></div>
+    <div class="btn-group">
+      <select class="form-control" id="orc-obra" onchange="_orc.ver='';renderOrcamento()" style="min-width:220px"></select>
+      <button class="btn btn-primary btn-sm" id="orc-btn-nova" onclick="orcNovaVersao()">+ Nova versão</button>
+    </div>
+  </div>
+  <div id="orc-corpo"></div>
+</div>
+<div class="modal-overlay" id="modal-orc-versao">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-header"><span class="modal-title">Nova versão do orçamento</span><button class="modal-close" onclick="closeModal('modal-orc-versao')">×</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">Tipo</label>
+        <select class="form-control" id="orc-v-tipo"><option>Proposta</option><option>Executivo</option><option>Revisão</option></select></div>
+      <label style="display:flex;gap:8px;align-items:center;font-size:13px;margin-top:8px"><input type="checkbox" id="orc-v-copiar" checked/> Começar com os serviços da versão vigente</label>
+      <div style="font-size:12px;color:var(--text-3);margin-top:10px">A versão nasce como <strong>rascunho</strong>. Depois de <strong>validada</strong> ela fica travada e passa a valer para as comparações.</div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-orc-versao')">Cancelar</button><button class="btn btn-primary" onclick="orcCriarVersao()">Criar</button></div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-orc-item">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-header"><span class="modal-title" id="orc-i-titulo">Serviço previsto</span><button class="modal-close" onclick="closeModal('modal-orc-item')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="orc-i-idx"/>
+      <div class="form-grid">
+        <div class="form-group form-full"><label class="form-label">Serviço *</label><select class="form-control" id="orc-i-serv" onchange="orcServMudou()"></select></div>
+        <div class="form-group"><label class="form-label">Unidade</label><input class="form-control" id="orc-i-unid" placeholder="m³"/></div>
+        <div class="form-group"><label class="form-label">Quantidade total prevista *</label><input class="form-control" id="orc-i-qtd" type="number" step="0.01" min="0"/></div>
+        <div class="form-group"><label class="form-label">Produção prevista por dia *</label><input class="form-control" id="orc-i-prod" type="number" step="0.01" min="0"/></div>
+        <div class="form-group"><label class="form-label">Custo unitário previsto (R$)</label><input class="form-control" id="orc-i-custo" type="number" step="0.01" min="0"/></div>
+      </div>
+      <div class="form-label" style="margin-top:12px">Equipe prevista por dia (por função)</div>
+      <div id="orc-i-equipe"></div>
+      <button class="btn btn-outline btn-sm" type="button" onclick="orcLinha('equipe')">+ Função</button>
+      <div class="form-label" style="margin-top:14px">Equipamentos previstos por dia (por família)</div>
+      <div id="orc-i-equip"></div>
+      <button class="btn btn-outline btn-sm" type="button" onclick="orcLinha('equip')">+ Família</button>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-orc-item')">Cancelar</button><button class="btn btn-primary" onclick="orcSalvarItem()">Salvar serviço</button></div>
+  </div>
+</div>
 
 <!-- ═══════════════ QR CODES ═══════════════ -->
 <div class="page" id="page-qrcodes">
@@ -3284,7 +3336,7 @@ async function sincronizarTudo() {
   if (!db || !_firebaseReady) return;
   const colecoes = ['obras','empresas','ua','cargos','turnos','equipes','funcionarios',
     'familias','modelos','equipamentos','frentes','tiposServico','tiposPerdas',
-    'aponMO','aponEQ','diesel','perdas','tanques','movTanques','notasFiscais','produtos','perfis'];
+    'aponMO','aponEQ','diesel','perdas','tanques','movTanques','notasFiscais','produtos','perfis','orcamentos'];
 
   // Check if Firebase was ever initialized
   let fbInicializado = false;
@@ -8586,6 +8638,173 @@ function renderCustoGeral() {
   embrulha('renderDashMO', () => { renderCustoMO(); renderProdMensal(); });
   embrulha('renderDashEQ', renderCustoEQ);
   embrulha('atualizarDashboard', renderCustoGeral);
+})();
+
+
+// ═══════════════════════════════════════════════════════════════
+// v2.33: ORÇAMENTO PREVISTO (versões) + PREVISTO x REALIZADO
+// ═══════════════════════════════════════════════════════════════
+const _orc = { ver: '' };
+const _ehAdmin = () => usuarioLogado && usuarioLogado.perfil === 'Admin';
+function orcVersoes(obraId) { return (dados.orcamentos||[]).filter(o => o.obra === obraId).sort((a, b) => String(a.criadoEm).localeCompare(String(b.criadoEm))); }
+function orcVigente(obraId) { return orcVersoes(obraId).filter(o => o.status === 'validada').sort((a, b) => String(a.validadoEm).localeCompare(String(b.validadoEm))).pop() || null; }
+function _orcObraSel() { return document.getElementById('orc-obra')?.value || ''; }
+function _fmtN(v, d) { return (Number(v)||0).toLocaleString('pt-BR', { maximumFractionDigits: d ?? 2 }); }
+function _orcResumoLista(lst, nomeDe) { return (lst||[]).filter(x => x.qtd).map(x => _n1(x.qtd) + ' ' + _e(nomeDe(x))).join(', ') || '—'; }
+const _nomeFuncao = c => ((dados.cargos||[]).find(x => x.cod === c) || {}).nome || c;
+const _nomeFamilia = c => ((dados.familias||[]).find(x => x.cod === c) || {}).desc || c;
+
+function renderOrcamento() {
+  const sel = document.getElementById('orc-obra'); if (!sel) return;
+  const atual = sel.value || ((obraAtiva && obraAtiva.id !== 'todas') ? obraAtiva.id : ((dados.obras||[])[0]?.id || ''));
+  sel.innerHTML = (dados.obras||[]).map(o => `<option value="${_e(o.id)}">${_e(o.cod ? o.cod + ' — ' : '')}${_e(o.nome||'')}</option>`).join('');
+  sel.value = atual;
+  const obra = _orcObraSel(), corpo = document.getElementById('orc-corpo');
+  const vs = orcVersoes(obra), vig = orcVigente(obra), rasc = vs.find(v => v.status !== 'validada');
+  const bNova = document.getElementById('orc-btn-nova'); if (bNova) { bNova.style.display = _ehAdmin() ? '' : 'none'; bNova.disabled = !!rasc; bNova.title = rasc ? 'Já existe um rascunho — valide ou exclua antes' : ''; }
+  if (!obra) { corpo.innerHTML = '<div class="card"><div class="card-body" style="color:var(--text-3)">Cadastre uma obra primeiro.</div></div>'; return; }
+  if (!vs.length) { corpo.innerHTML = `<div class="card"><div class="card-body" style="text-align:center;padding:2.5rem;color:var(--text-3)">Nenhuma versão de orçamento nesta obra.${_ehAdmin() ? '<br><br><button class="btn btn-primary" onclick="orcNovaVersao()">+ Criar a primeira versão (ex.: Proposta)</button>' : ''}</div></div>`; return; }
+  if (!_orc.ver || !vs.some(v => v.id === _orc.ver)) _orc.ver = (rasc || vig || vs[vs.length - 1]).id;
+  const v = vs.find(x => x.id === _orc.ver);
+  const editavel = _ehAdmin() && v.status !== 'validada';
+  const dt = d => d ? new Date(d).toLocaleDateString('pt-BR') : '';
+  const chips = vs.map(x => `<button class="btn btn-sm ${x.id === v.id ? 'btn-primary' : 'btn-outline'}" onclick="_orc.ver='${x.id}';renderOrcamento()" style="display:flex;gap:6px;align-items:center">
+      ${_e(x.nome)} ${x.status === 'validada' ? (vig && x.id === vig.id ? '<span class="tag tag-green" style="font-size:10px">vigente</span>' : '<span class="tag tag-gray" style="font-size:10px">histórico</span>') : '<span class="tag tag-amber" style="font-size:10px">rascunho</span>'}</button>`).join('');
+  const itens = v.itens || [];
+  const total = itens.reduce((t, i) => t + (Number(i.qtd)||0) * (Number(i.custoUnit)||0), 0);
+  const info = v.status === 'validada'
+    ? `🔒 Validada em ${dt(v.validadoEm)} por ${_e(v.validadoPor||'')}. ${vig && vig.id === v.id ? '<strong>É a versão vigente</strong> — usada nas comparações.' : 'Substituída por uma versão mais nova (só consulta).'}`
+    : `✏️ Rascunho criado em ${dt(v.criadoEm)} por ${_e(v.criadoPor||'')}. ${_ehAdmin() ? 'Ajuste os serviços e clique em <strong>Validar</strong> para travar e passar a valer.' : 'Só o Admin edita e valida.'}`;
+  corpo.innerHTML = `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">${chips}</div>
+    <div class="card"><div class="card-header" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <div><span class="card-title">${_e(v.nome)}</span><div style="font-size:12px;color:var(--text-3);margin-top:4px">${info}</div></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span style="font-size:13px">Custo total previsto: <strong>${_moeda(total)}</strong></span>
+        ${editavel ? `<button class="btn btn-outline btn-sm" onclick="orcEditarItem(-1)">+ Serviço</button><button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="orcExcluirRascunho()">Excluir rascunho</button><button class="btn btn-primary btn-sm" onclick="orcValidar()">✓ Validar versão</button>` : ''}
+      </div></div>
+      <div class="card-body" style="padding:0"><div class="table-wrap"><table style="font-size:12px">
+        <thead><tr><th>Serviço</th><th>Qtd. prevista</th><th>Produção/dia</th><th>Prazo (dias)</th><th>Equipe/dia</th><th>Equipamentos/dia</th><th>Custo unit.</th><th>Custo total</th>${editavel ? '<th></th>' : ''}</tr></thead><tbody>
+        ${itens.length ? itens.map((i, k) => `<tr><td><strong>${_e(i.servico)}</strong></td><td class="td-mono">${_fmtN(i.qtd)} ${_e(i.unid||'')}</td><td class="td-mono">${_fmtN(i.prodDia)} ${_e(i.unid||'')}/dia</td>
+          <td class="td-mono">${i.prodDia ? _fmtN(Math.ceil(i.qtd / i.prodDia), 0) : '—'}</td>
+          <td>${_orcResumoLista(i.equipe, x => _nomeFuncao(x.funcao))}<div style="color:var(--text-3)">${(i.equipe||[]).reduce((t, x) => t + (Number(x.qtd)||0), 0) || ''}${(i.equipe||[]).length ? ' pessoas' : ''}</div></td>
+          <td>${_orcResumoLista(i.equipamentos, x => _nomeFamilia(x.familia))}</td>
+          <td class="td-mono">${i.custoUnit ? _moeda(i.custoUnit) + '/' + _e(i.unid||'') : '—'}</td><td class="td-mono"><strong>${_moeda((Number(i.qtd)||0) * (Number(i.custoUnit)||0))}</strong></td>
+          ${editavel ? `<td style="white-space:nowrap"><button class="btn btn-outline btn-sm" onclick="orcEditarItem(${k})">Editar</button> <button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="orcExcluirItem(${k})">✕</button></td>` : ''}</tr>`).join('')
+          : `<tr><td colspan="9" style="text-align:center;color:var(--text-3);padding:2rem">Nenhum serviço nesta versão${editavel ? ' — clique em <strong>+ Serviço</strong>' : ''}</td></tr>`}
+      </tbody></table></div></div></div>`;
+}
+function _orcAtual() { return (dados.orcamentos||[]).find(o => o.id === _orc.ver); }
+async function _orcGravar(v) { v.alteradoEm = new Date().toISOString(); if (db && _firebaseReady) await fbSave('orcamentos', v.id, JSON.parse(JSON.stringify(v))); }
+function orcNovaVersao() {
+  if (!_ehAdmin()) { toast('Só o Admin cria versões do orçamento.', 'error'); return; }
+  if (!_orcObraSel()) { toast('Escolha a obra.', 'error'); return; }
+  const vs = orcVersoes(_orcObraSel());
+  document.getElementById('orc-v-tipo').value = !vs.length ? 'Proposta' : (vs.some(v => /^Executivo/.test(v.nome)) ? 'Revisão' : 'Executivo');
+  document.getElementById('orc-v-copiar').checked = !!orcVigente(_orcObraSel());
+  openModal('modal-orc-versao');
+}
+async function orcCriarVersao() {
+  const obra = _orcObraSel(), tipo = document.getElementById('orc-v-tipo').value, vs = orcVersoes(obra);
+  if (vs.some(v => v.status !== 'validada')) { toast('Já existe um rascunho nesta obra.', 'error'); return; }
+  let nome = tipo;
+  if (tipo === 'Revisão') nome = 'Revisão ' + (vs.filter(v => /^Revisão/.test(v.nome)).length + 1);
+  else if (vs.some(v => v.nome === tipo)) nome = tipo + ' (' + (vs.filter(v => v.nome.startsWith(tipo)).length + 1) + ')';
+  const base = document.getElementById('orc-v-copiar').checked ? orcVigente(obra) : null;
+  const v = { id: 'orc' + Date.now().toString(36), obra, nome, tipo, status: 'rascunho', criadoEm: new Date().toISOString(), criadoPor: usuarioLogado?.nome || '',
+              baseadaEm: base ? base.nome : '', itens: base ? JSON.parse(JSON.stringify(base.itens || [])) : [] };
+  (dados.orcamentos = dados.orcamentos || []).push(v); _orc.ver = v.id;
+  await _orcGravar(v); closeModal('modal-orc-versao'); renderOrcamento(); toast('Versão "' + nome + '" criada como rascunho');
+}
+async function orcValidar() {
+  const v = _orcAtual(); if (!v || !_ehAdmin()) return;
+  if (!(v.itens||[]).length) { toast('Inclua pelo menos um serviço antes de validar.', 'error'); return; }
+  if (!confirm('Validar "' + v.nome + '"?\n\nDepois de validada ela fica TRAVADA e passa a ser a versão vigente para as comparações. Para mudar depois, crie uma revisão.')) return;
+  v.status = 'validada'; v.validadoEm = new Date().toISOString(); v.validadoPor = usuarioLogado?.nome || '';
+  await _orcGravar(v); renderOrcamento(); toast('"' + v.nome + '" validada — agora é a versão vigente');
+}
+async function orcExcluirRascunho() {
+  const v = _orcAtual(); if (!v || v.status === 'validada' || !_ehAdmin()) return;
+  if (!confirm('Excluir o rascunho "' + v.nome + '"?')) return;
+  dados.orcamentos = (dados.orcamentos||[]).filter(o => o.id !== v.id); _orc.ver = '';
+  try { if (db && _firebaseReady) await fbDelete('orcamentos', v.id); } catch (e) { toast('Não consegui excluir no servidor: ' + e.message, 'error'); }
+  renderOrcamento();
+}
+function orcEditarItem(k) {
+  const v = _orcAtual(); if (!v || v.status === 'validada' || !_ehAdmin()) return;
+  const i = k >= 0 ? v.itens[k] : { servico:'', unid:'', qtd:'', prodDia:'', custoUnit:'', equipe:[], equipamentos:[] };
+  const $ = id => document.getElementById(id);
+  $('orc-i-idx').value = k; $('orc-i-titulo').textContent = k >= 0 ? 'Editar serviço previsto' : 'Novo serviço previsto';
+  const usados = new Set((v.itens||[]).filter((_, j) => j !== k).map(x => x.servico));
+  $('orc-i-serv').innerHTML = '<option value="">Selecione…</option>' + (dados.tiposServico||[]).map(t => { const n = t.nome || t.desc || t.cod; return `<option value="${_e(n)}" ${usados.has(n) ? 'disabled' : ''}>${_e(n)}${usados.has(n) ? ' (já incluído)' : ''}</option>`; }).join('');
+  $('orc-i-serv').value = i.servico; $('orc-i-unid').value = i.unid || ''; $('orc-i-qtd').value = i.qtd; $('orc-i-prod').value = i.prodDia; $('orc-i-custo').value = i.custoUnit;
+  _orcLinhas('equipe', i.equipe && i.equipe.length ? i.equipe : [{ funcao:'', qtd:'' }]);
+  _orcLinhas('equip', i.equipamentos && i.equipamentos.length ? i.equipamentos : [{ familia:'', qtd:'' }]);
+  openModal('modal-orc-item');
+}
+function orcServMudou() { const n = document.getElementById('orc-i-serv').value; const t = (dados.tiposServico||[]).find(x => (x.nome||x.desc||x.cod) === n); if (t && t.unidade) document.getElementById('orc-i-unid').value = t.unidade; }
+function _orcOpcoes(tipo) {
+  const obra = _orcObraSel();
+  if (tipo === 'equipe') return (dados.cargos||[]).filter(c => !c.obra || c.obra === obra).map(c => [c.cod, c.cod + ' — ' + c.nome]);
+  return (dados.familias||[]).filter(f => !f.obra || f.obra === obra).map(f => [f.cod, f.cod + ' — ' + (f.desc||'')]);
+}
+function _orcLinhas(tipo, lst) {
+  const el = document.getElementById(tipo === 'equipe' ? 'orc-i-equipe' : 'orc-i-equip'); const ops = _orcOpcoes(tipo); const k = tipo === 'equipe' ? 'funcao' : 'familia';
+  el.innerHTML = lst.map(x => `<div class="orc-linha" style="display:flex;gap:8px;margin-bottom:6px"><select class="form-control" style="flex:1"><option value="">Selecione…</option>${ops.map(([c, t]) => `<option value="${_e(c)}" ${c === x[k] ? 'selected' : ''}>${_e(t)}</option>`).join('')}</select>
+    <input class="form-control" type="number" min="0" step="1" placeholder="Qtd" value="${_e(x.qtd)}" style="width:90px"/><button class="btn btn-outline btn-sm" type="button" onclick="this.parentElement.remove()">✕</button></div>`).join('');
+}
+function orcLinha(tipo) { const el = document.getElementById(tipo === 'equipe' ? 'orc-i-equipe' : 'orc-i-equip'); const tmp = document.createElement('div'); el.appendChild(tmp); const k = tipo === 'equipe' ? 'funcao' : 'familia';
+  const atual = [...el.querySelectorAll('.orc-linha')].map(l => ({ [k]: l.querySelector('select').value, qtd: l.querySelector('input').value })); atual.push({ [k]:'', qtd:'' }); _orcLinhas(tipo, atual); }
+function _orcLer(tipo) { const k = tipo === 'equipe' ? 'funcao' : 'familia'; const el = document.getElementById(tipo === 'equipe' ? 'orc-i-equipe' : 'orc-i-equip');
+  return [...el.querySelectorAll('.orc-linha')].map(l => ({ [k]: l.querySelector('select').value, qtd: parseFloat(l.querySelector('input').value) || 0 })).filter(x => x[k] && x.qtd > 0); }
+async function orcSalvarItem() {
+  const v = _orcAtual(); if (!v || v.status === 'validada') return;
+  const $ = id => document.getElementById(id);
+  const it = { servico: $('orc-i-serv').value, unid: $('orc-i-unid').value.trim(), qtd: parseFloat($('orc-i-qtd').value) || 0, prodDia: parseFloat($('orc-i-prod').value) || 0,
+               custoUnit: parseFloat($('orc-i-custo').value) || 0, equipe: _orcLer('equipe'), equipamentos: _orcLer('equip') };
+  if (!it.servico || !it.qtd || !it.prodDia) { toast('Preencha serviço, quantidade total e produção por dia.', 'error'); return; }
+  const k = parseInt($('orc-i-idx').value, 10);
+  v.itens = v.itens || []; if (k >= 0) v.itens[k] = it; else v.itens.push(it);
+  await _orcGravar(v); closeModal('modal-orc-item'); renderOrcamento(); toast('Serviço salvo no rascunho');
+}
+async function orcExcluirItem(k) { const v = _orcAtual(); if (!v || v.status === 'validada') return; if (!confirm('Tirar "' + v.itens[k].servico + '" desta versão?')) return; v.itens.splice(k, 1); await _orcGravar(v); renderOrcamento(); }
+
+// ── PREVISTO x REALIZADO (Visão Geral) — por serviço na obra, versão vigente, só aprovados
+function renderPrevistoRealizado() {
+  const el = document.getElementById('dash-geral-previsto'); if (!el) return;
+  const obra = obraAtiva && obraAtiva.id !== 'todas' ? obraAtiva.id : '';
+  if (!obra) { el.innerHTML = `<div class="card" style="margin-top:1rem"><div class="card-header"><span class="card-title">Previsto x Realizado</span></div><div class="card-body" style="color:var(--text-3);font-size:13px">Escolha uma obra no topo para comparar com o orçamento.</div></div>`; return; }
+  const vig = orcVigente(obra);
+  if (!vig) { el.innerHTML = `<div class="card" style="margin-top:1rem"><div class="card-header"><span class="card-title">Previsto x Realizado</span></div><div class="card-body" style="color:var(--text-3);font-size:13px">Esta obra ainda não tem orçamento validado. Cadastre em <strong>Frentes → Orçamento previsto</strong>.</div></div>`; return; }
+  const { mo, eq } = _custoBase(false);
+  const chS = a => a.tipoServico || a.servico || '—';
+  const linhas = (vig.itens||[]).map(i => {
+    const m = mo.filter(a => chS(a) === i.servico), e = eq.filter(a => chS(a) === i.servico);
+    const exec = m.reduce((t, a) => t + (parseFloat(a.qtd)||0), 0);
+    const dias = new Set(m.map(a => a.data)).size;
+    const pessoasDia = dias ? [...new Set(m.map(a => a.data))].reduce((t, d) => t + new Set(m.filter(a => a.data === d).map(a => a.func)).size, 0) / dias : 0;
+    const custo = m.reduce((t, a) => { const c = custoMO(a); return t + c.normal + c.extra + c.domFer; }, 0) + e.reduce((t, a) => { const c = custoEQ(a); return t + c.prod + c.parado; }, 0);
+    const eqPrev = (i.equipe||[]).reduce((t, x) => t + (Number(x.qtd)||0), 0);
+    return { i, exec, dias, prodReal: dias ? exec / dias : 0, pessoasDia, eqPrev, custoUnitReal: exec ? custo / exec : 0, custo };
+  });
+  const cor = (bom) => bom ? 'var(--green-dark, #15803d)' : 'var(--red)';
+  el.innerHTML = `<div class="card" style="margin-top:1rem"><div class="card-header" style="display:flex;justify-content:space-between;align-items:center"><span class="card-title">Previsto x Realizado — por serviço</span>
+      <span style="font-size:12px;color:var(--text-3)">Orçamento vigente: <strong>${_e(vig.nome)}</strong> (validado em ${new Date(vig.validadoEm).toLocaleDateString('pt-BR')})</span></div>
+    <div class="card-body" style="padding:0"><div class="table-wrap"><table style="font-size:12px">
+      <thead><tr><th>Serviço</th><th>Executado / previsto</th><th>% executado</th><th>Produção/dia<br><span style="font-weight:400">prev. · real</span></th><th>Equipe/dia<br><span style="font-weight:400">prev. · real</span></th><th>Custo unitário<br><span style="font-weight:400">prev. · real</span></th><th>Dias trabalhados</th></tr></thead><tbody>
+      ${linhas.length ? linhas.map(l => { const u = _e(l.i.unid||''); const pct = l.i.qtd ? l.exec / l.i.qtd * 100 : 0;
+        return `<tr><td><strong>${_e(l.i.servico)}</strong></td><td class="td-mono">${_fmtN(l.exec, 1)} / ${_fmtN(l.i.qtd)} ${u}</td>
+          <td><div style="display:flex;align-items:center;gap:6px"><div style="flex:1;min-width:60px;height:6px;background:var(--bg);border-radius:3px"><div style="width:${Math.min(100, pct)}%;height:6px;background:var(--red);border-radius:3px"></div></div><span class="td-mono">${_fmtN(pct, 1)}%</span></div></td>
+          <td class="td-mono">${_fmtN(l.i.prodDia, 1)} · ${l.dias ? `<strong style="color:${cor(l.prodReal >= l.i.prodDia)}">${_fmtN(l.prodReal, 1)}</strong>` : '—'} ${u}</td>
+          <td class="td-mono">${l.eqPrev || '—'} · ${l.dias ? `<strong>${_fmtN(l.pessoasDia, 1)}</strong>` : '—'}</td>
+          <td class="td-mono">${l.i.custoUnit ? _moeda(l.i.custoUnit) : '—'} · ${l.exec ? `<strong style="color:${cor(!l.i.custoUnit || l.custoUnitReal <= l.i.custoUnit)}">${_moeda(l.custoUnitReal)}</strong>` : '—'}</td>
+          <td class="td-mono">${l.dias} de ${l.i.prodDia ? Math.ceil(l.i.qtd / l.i.prodDia) : '—'}</td></tr>`; }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--text-3);padding:1.5rem">Versão vigente sem serviços</td></tr>'}
+    </tbody></table></div></div></div>`;
+}
+(function () {
+  const oInit = window.pageInit;
+  window.pageInit = function (id) { const r = oInit.apply(this, arguments); if (id === 'orcamento') renderOrcamento(); return r; };
+  const o = window.atualizarDashboard;
+  if (typeof o === 'function') window.atualizarDashboard = function () { const r = o.apply(this, arguments); try { renderPrevistoRealizado(); } catch (e) { console.warn('previsto', e); } return r; };
 })();
 
 // Apply configs on load
