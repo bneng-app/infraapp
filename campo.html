@@ -498,7 +498,7 @@ select.form-control { cursor: pointer; }
     </button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">v2.17</div>
+  <div class="login-versao">v2.18</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -2330,6 +2330,7 @@ async function salvarFuel() {
     equip: eq?.tag || equipId,
     equipId,
     tanqueId: tanqId,
+    precoL: +((dadosCampo.tanques || []).find(t => t.id === tanqId) || {}).preco || 0,   // v2.18: preço do litro no dia
     litros, hor: horim,
     obs,
     obra: usuarioCampo.obra || '',
