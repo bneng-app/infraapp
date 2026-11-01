@@ -613,6 +613,12 @@ select.form-control,select.form-control:focus{background-image:url("data:image/s
 /* v2.28: módulo sem acesso pelo perfil */
 .hcard.off{opacity:.38;filter:grayscale(1);cursor:not-allowed}
 .hcard.off .hchev{display:none}
+
+/* v2.29: repetir de ontem com várias frentes */
+.rep-op{display:flex;align-items:center;gap:10px;width:100%;background:#fff;border:1.5px solid #FDBA74;border-radius:12px;padding:11px 12px;margin-top:8px;cursor:pointer;text-align:left}
+.rep-op b{font-size:14px;color:var(--text)}.rep-op span{font-size:12px;color:var(--text2)}
+.rep-op .rep-seta{margin-left:auto;color:var(--red);font-weight:900;font-size:18px}
+.rep-outra{width:100%;margin-top:8px;background:none;border:1.5px dashed #9A9CA5;border-radius:12px;padding:10px;font-size:13.5px;font-weight:700;color:var(--text2);cursor:pointer}
 /* v2.26: cadastro provisório */
 .ap-prov-btn{display:block;margin:8px 14px 0;width:calc(100% - 28px);background:none;border:1.5px dashed #9A9CA5;border-radius:12px;padding:10px;font-size:13.5px;font-weight:700;color:var(--text2);cursor:pointer}
 .ap-prov-tag{display:inline-block;font-size:10px;font-weight:800;color:#9A3412;background:#FFEDD5;border-radius:6px;padding:1px 6px;margin-left:6px}
@@ -759,7 +765,7 @@ select.form-control,select.form-control:focus{background-image:url("data:image/s
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraControl Campo · v2.28</div>
+  <div class="login-versao">ObraControl Campo · v2.29</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -3174,6 +3180,77 @@ function _modulosAplicar() {
     if (!podeModulo('apontamentos')) { const b = document.getElementById('meu-resumo-body'); if (b) { b.querySelectorAll('.mr-kpi').forEach(k => { if (/encerrad|andamento|pessoas|equipamentos/i.test(k.textContent)) k.style.display = 'none'; }); b.querySelectorAll('.mr-sec').forEach(s => { if (/andamento|encerrad/i.test(s.textContent)) { let n = s.nextElementSibling; s.style.display = 'none'; while (n && n.classList.contains('mr-item')) { n.style.display = 'none'; n = n.nextElementSibling; } } }); } }
     return r;
   };
+})();
+
+// ══════════════════════════════════════════════════════════════
+// v2.29: VÁRIOS APONTAMENTOS NO MESMO DIA → no dia seguinte escolhe qual repetir
+// Guarda todos os apontamentos dos últimos dias (por apropriador). No novo apontamento mostra
+// os do último dia que ainda não foram repetidos hoje; escolher um traz frente, serviço, turno e equipe.
+// ══════════════════════════════════════════════════════════════
+function _diasLer() { try { return JSON.parse(localStorage.getItem('campo_ult_dias') || '{}'); } catch (e) { return {}; } }
+function _diasDo() {
+  const m = _diasLer(), uid = usuarioCampo && usuarioCampo.id; if (!uid) return {};
+  if (!m[uid]) { const ant = _repLer()[uid]; m[uid] = ant && ant.data ? { [ant.data]: [ant] } : {}; }   // migra o formato antigo (só o último)
+  return m[uid];
+}
+_repGuardar = function () {
+  if (!usuarioCampo) return;
+  const eu = _apEu(), mo = [...ap.mo].filter(id => !eu || id !== eu.id); if (!mo.length && !ap.eq.size) return;
+  const g = id => document.getElementById(id)?.value || '';
+  const item = { uid: ap.uid, data: g('ap-data') || _hojeISO(), frente: g('ap-frente'), servico: g('ap-servico'), turno: g('ap-turno'), mo, eq: [...ap.eq.keys()], origem: ap.repItem ? ap.repItem.uid : '', em: new Date().toISOString() };
+  const m = _diasLer(), dias = _diasDo();
+  dias[item.data] = (dias[item.data] || []).filter(x => x.uid !== item.uid).concat(item);
+  Object.keys(dias).sort().reverse().slice(3).forEach(d => delete dias[d]);   // guarda só os 3 últimos dias
+  m[usuarioCampo.id] = dias;
+  try { localStorage.setItem('campo_ult_dias', JSON.stringify(m)); } catch (e) {}
+};
+function _repOpcoes() {
+  const dias = _diasDo(), hoje = document.getElementById('ap-data')?.value || _hojeISO();
+  const ant = Object.keys(dias).filter(d => d < hoje).sort().pop(); if (!ant) return [];
+  const usados = new Set((dias[hoje] || []).map(x => x.origem).filter(Boolean));
+  apRascunhos().forEach(r => { if (r.repUid) usados.add(r.repUid); });
+  const fr = c => dadosCampo.frentes.find(f => f.cod === c);
+  return dias[ant].filter(x => !usados.has(x.uid) && fr(x.frente));
+}
+_repUltima = function () { return ap.repItem || null; };
+function _repEscolher(i) {
+  const op = _repOpcoes()[i]; if (!op) return;
+  ap.repItem = op; ap.frentePend = false;
+  const sel = document.getElementById('ap-frente'); sel.value = op.frente;
+  const sv = document.getElementById('ap-servico'); if (sv && op.servico && [...sv.options].some(o => o.value === op.servico)) { sv.value = op.servico; try { apServicoMudou(); } catch (e) {} }
+  const tu = document.getElementById('ap-turno'); if (tu && op.turno && [...tu.options].some(o => o.value === op.turno)) { tu.value = op.turno; try { apTurnoMudou(); } catch (e) {} }
+  document.getElementById('ap-mesma').style.display = 'none'; document.getElementById('ap-panel-frente').classList.remove('ap-pend');
+  apGuardar(); toast('Frente ' + op.frente + ' confirmada — a equipe aparece no próximo passo.', 'ok');
+}
+function _repOutra() {
+  ap.repItem = null; ap.frentePend = false;
+  document.getElementById('ap-frente').value = ''; document.getElementById('ap-servico').value = '';
+  document.getElementById('ap-mesma').style.display = 'none'; document.getElementById('ap-panel-frente').classList.remove('ap-pend');
+  document.getElementById('ap-frente').focus();
+}
+(function () {
+  const oNovo = apNovo;
+  apNovo = function () {
+    ap.repItem = null;
+    const r = oNovo.apply(this, arguments);
+    const ops = _repOpcoes(), box = document.getElementById('ap-mesma');
+    if (!ops.length || !box) return r;
+    const fr = c => dadosCampo.frentes.find(f => f.cod === c) || {};
+    const d = ops[0].data.split('-').reverse().join('/');
+    box.innerHTML = `<div style="font-size:13px;font-weight:800;color:#9A3412">Repetir um apontamento de ${d.slice(0, 5)}?</div>
+      <div style="font-size:12px;color:var(--text2);margin-top:2px">${ops.length > 1 ? 'Você teve ' + ops.length + ' apontamentos. Escolha qual é este:' : 'Confirme se é a mesma frente:'}</div>`
+      + ops.map((o, i) => `<button type="button" class="rep-op" onclick="_repEscolher(${i})"><div><b>${_esc(o.frente)} — ${_esc(fr(o.frente).desc || fr(o.frente).nome || '')}</b><br><span>${_esc(o.servico || 'sem serviço')} · ${o.mo.length} pessoa(s)${o.eq.length ? ' · ' + o.eq.length + ' equip.' : ''}</span></div><span class="rep-seta">›</span></button>`).join('')
+      + `<button type="button" class="rep-outra" onclick="_repOutra()">Outra frente</button>`;
+    box.style.display = ''; ap.frentePend = true;
+    document.getElementById('ap-frente').value = ''; document.getElementById('ap-servico').value = '';
+    document.getElementById('ap-panel-frente').classList.add('ap-pend');
+    return r;
+  };
+  // guarda de qual apontamento de ontem este nasceu (no rascunho), para não oferecer de novo
+  const oGuardar = apGuardar;
+  apGuardar = function () { const r = oGuardar.apply(this, arguments); if (ap.uid && ap.repItem) { const l = apRascunhos(); const x = l.find(y => y.uid === ap.uid); if (x && x.repUid !== ap.repItem.uid) { x.repUid = ap.repItem.uid; x.repItem = ap.repItem; _apGravarLista(l); } } return r; };
+  const oAbrir = apAbrir;
+  apAbrir = function (uid) { const x = apRascunhos().find(y => y.uid === uid); const r = oAbrir.apply(this, arguments); ap.repItem = (x && x.repItem) || null; return r; };
 })();
 
 // Salvar sessão ao entrar
