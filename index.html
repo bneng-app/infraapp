@@ -337,6 +337,8 @@ body.dx-full .dx-main{padding-top:18px;min-width:0}
 .amb-sw button:hover:not(.on){color:#fff;background:rgba(255,255,255,.08)}
 .amb-sw button.on{background:#E30613;color:#fff;box-shadow:0 2px 8px rgba(227,6,19,.35)}
 body.amb-gestao #grp-dashboards{display:none!important}
+/* v2.66: no ambiente Dashboards, a tela antiga nunca aparece — a página só mostra quando o visual novo já está montado */
+body.amb-dash :is(#page-dashboard,#page-dash-mo,#page-dash-eq,#page-dash-abs,#page-diario):not(:has(.dx)){visibility:hidden}
 .sidebar .nav-item[onclick*="showPage('diario'"]{display:none!important}
 body.amb-dash .sidebar{display:none!important}
 body.amb-dash .main{padding:0!important}
@@ -552,7 +554,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v2.65 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v2.66 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -9647,7 +9649,7 @@ function dxRender() {
 (function () {
   const oInit = window.pageInit;
   window.pageInit = function (id) { const r = oInit.apply(this, arguments);
-    if (id === 'dash-mo' || id === 'dash-eq' || id === 'dashboard' || id === 'dash-abs') setTimeout(() => { try { dxRender(); } catch (e) { console.warn('dashboard', e); } }, 150);
+    if (id === 'dash-mo' || id === 'dash-eq' || id === 'dashboard' || id === 'dash-abs') { try { dxRender(); } catch (e) { console.warn('dashboard', e); } }   // v2.66: na hora, sem esperar (evita a piscada da tela antiga)
     return r; };
   // trocar a obra no topo do painel leva o filtro junto
   const oSel = window.selecionarObra;
@@ -10560,7 +10562,7 @@ function perdaSugIgnorar(i) { const x = _perdaSugestoes()[i]; if (!x) return; le
     if (!at || !_DASH_PAGS.includes(at.replace('page-', ''))) return;
     _redesenhando = true; try { dxRender(); } catch (e) { console.warn('dashboard', e); } finally { _redesenhando = false; } };
   const oAtu = window.atualizarDashboard;
-  if (typeof oAtu === 'function') window.atualizarDashboard = function () { const r = oAtu.apply(this, arguments); if (!_redesenhando) setTimeout(_dxRefazer, 0); return r; };
+  if (typeof oAtu === 'function') window.atualizarDashboard = function () { const r = oAtu.apply(this, arguments); if (!_redesenhando) _dxRefazer(); return r; };
   const oEntrar = window.entrarNoApp;
   window.entrarNoApp = function () { const r = oEntrar.apply(this, arguments); setTimeout(_dxRefazer, 50); setTimeout(_dxRefazer, 1500); return r; };
 })();
