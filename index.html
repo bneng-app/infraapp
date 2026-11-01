@@ -552,7 +552,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v2.58 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v2.59 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -10522,6 +10522,22 @@ function perdaSugIgnorar(i) { const x = _perdaSugestoes()[i]; if (!x) return; le
   window.pageInit = function (id) { const r = oInit.apply(this, arguments); if (id === 'tipos-perdas') setTimeout(_perdaSugRender, 100); return r; };
   const oEntrar = window.entrarNoApp;
   window.entrarNoApp = function () { const r = oEntrar.apply(this, arguments); setTimeout(() => { try { _perdaSugRender(); } catch (e) {} }, 3200); return r; };
+})();
+
+// ═══════════════════════════════════════════════════════════════
+// v2.59: AO ENTRAR, A VISÃO GERAL JÁ ABRE NO VISUAL DAS DASHBOARDS
+// O login carregava o painel antigo (renderAll → atualizarDashboard) por cima da Visão Geral;
+// agora, no ambiente Dashboards, qualquer atualização da tela redesenha a versão nova.
+// ═══════════════════════════════════════════════════════════════
+(function () {
+  let _redesenhando = false;
+  const _dxRefazer = () => { if (_redesenhando || _amb !== 'dash') return; const at = document.querySelector('.page.active')?.id;
+    if (!at || !_DASH_PAGS.includes(at.replace('page-', ''))) return;
+    _redesenhando = true; try { dxRender(); } catch (e) { console.warn('dashboard', e); } finally { _redesenhando = false; } };
+  const oAtu = window.atualizarDashboard;
+  if (typeof oAtu === 'function') window.atualizarDashboard = function () { const r = oAtu.apply(this, arguments); if (!_redesenhando) setTimeout(_dxRefazer, 0); return r; };
+  const oEntrar = window.entrarNoApp;
+  window.entrarNoApp = function () { const r = oEntrar.apply(this, arguments); setTimeout(_dxRefazer, 50); setTimeout(_dxRefazer, 1500); return r; };
 })();
 
 // Apply configs on load
