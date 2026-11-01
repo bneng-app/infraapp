@@ -337,6 +337,7 @@ body.dx-full .dx-main{padding-top:18px;min-width:0}
 .amb-sw button:hover:not(.on){color:#fff;background:rgba(255,255,255,.08)}
 .amb-sw button.on{background:#E30613;color:#fff;box-shadow:0 2px 8px rgba(227,6,19,.35)}
 body.amb-gestao #grp-dashboards{display:none!important}
+.sidebar .nav-item[onclick*="showPage('diario'"]{display:none!important}
 body.amb-dash .sidebar{display:none!important}
 body.amb-dash .main{padding:0!important}
 body.amb-dash .dx{margin:0;min-height:calc(100vh - var(--header-h));display:grid;grid-template-columns:200px 1fr;gap:18px;padding:0 18px 20px 0}
@@ -551,7 +552,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v2.56 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v2.57 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -635,7 +636,8 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
   <div class="nav-group" id="grp-apontamentos">
     <div class="nav-section" onclick="toggleNavGroup('grp-apontamentos')">Apontamentos <span class="nav-chevron">▾</span></div>
     <div class="nav-group-items">
-      <div class="nav-item" onclick="showPage('diario',this)" title="Acompanhamento do dia">
+      <!-- v2.57: Acompanhamento do dia fica só no ambiente Dashboards -->
+      <div class="nav-item" onclick="showPage('diario',this)" title="Acompanhamento do dia" style="display:none">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
         <span>Acompanhamento do dia</span>
         <span class="nav-badge" id="badge-diario"></span>
