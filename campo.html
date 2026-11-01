@@ -608,6 +608,11 @@ select.form-control,select.form-control:focus{background-image:url("data:image/s
 
 
 /* v2.24: repetir a equipe do último apontamento */
+.ap-mesma{background:#FFF7ED;border:1.5px solid #FDBA74;border-radius:12px;padding:12px;margin-bottom:14px}
+.ap-mesma button{flex:1;border-radius:10px;padding:11px;font-size:14px;font-weight:800;cursor:pointer}
+.ap-mesma-sim{background:var(--red);color:#fff;border:none}
+.ap-mesma-nao{background:#fff;color:var(--text);border:1.5px solid #D3D4DA}
+.ap-pend .form-control{border-color:#FDBA74!important}
 .rep-sec{font-size:12px;font-weight:800;letter-spacing:.06em;color:var(--text2);text-transform:uppercase;margin:12px 2px 6px;display:flex;justify-content:space-between;align-items:center}
 .rep-sec button{background:none;border:none;color:var(--red);font-size:12px;font-weight:700;cursor:pointer;text-transform:none;letter-spacing:0}
 .rep-it{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid rgba(0,0,0,.06);border-radius:12px;padding:10px 12px;margin-bottom:6px;cursor:pointer}
@@ -727,7 +732,7 @@ select.form-control,select.form-control:focus{background-image:url("data:image/s
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraControl Campo · v2.24</div>
+  <div class="login-versao">ObraControl Campo · v2.25</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -818,6 +823,11 @@ select.form-control,select.form-control:focus{background-image:url("data:image/s
   <div class="content" id="ap-panel-frente">
     <div class="card ap-card">
       <div class="ap-card-tit">1. Frente de serviço</div>
+      <div class="ap-mesma" id="ap-mesma" style="display:none">
+        <div style="font-size:13px;font-weight:800;color:#9A3412">Mesma frente do último apontamento?</div>
+        <div style="font-size:13px;color:var(--text);margin-top:3px" id="ap-mesma-txt"></div>
+        <div style="display:flex;gap:8px;margin-top:10px"><button type="button" class="ap-mesma-sim" onclick="apMesmaFrente(true)">Sim, mesma frente</button><button type="button" class="ap-mesma-nao" onclick="apMesmaFrente(false)">Não, trocar</button></div>
+      </div>
       <div class="form-group">
         <label class="form-label">Frente de serviço *</label>
         <div class="fld"><svg class="fld-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg><select class="form-control" id="ap-frente" onchange="apGuardar()"><option value="">Selecione a frente…</option></select></div>
@@ -2943,8 +2953,34 @@ function repConfirmar() {
     }
     return r;
   };
+  // frente (e serviço) do último apontamento vêm preenchidos, mas o apropriador precisa confirmar
   const oNovo = apNovo;
-  apNovo = function () { _repOferecido = ''; return oNovo.apply(this, arguments); };
+  apNovo = function () {
+    _repOferecido = ''; ap.frentePend = false;
+    const r = oNovo.apply(this, arguments);
+    const u = _repUltima(), fr = u && dadosCampo.frentes.find(f => f.cod === u.frente);
+    const sel = document.getElementById('ap-frente');
+    if (fr && sel && [...sel.options].some(o => o.value === u.frente)) {
+      ap.frentePend = true; sel.value = u.frente;
+      const sv = document.getElementById('ap-servico'); if (sv && u.servico && [...sv.options].some(o => o.value === u.servico)) sv.value = u.servico;
+      document.getElementById('ap-mesma-txt').innerHTML = '<b>' + _esc(u.frente) + ' — ' + _esc(fr.desc || fr.nome || '') + '</b>' + (u.servico ? '<br>' + _esc(u.servico) : '') + '<br><span style="font-size:12px;color:var(--text2)">último apontamento em ' + u.data.split('-').reverse().join('/') + '</span>';
+      document.getElementById('ap-mesma').style.display = ''; document.getElementById('ap-panel-frente').classList.add('ap-pend');
+    } else { const b = document.getElementById('ap-mesma'); if (b) b.style.display = 'none'; document.getElementById('ap-panel-frente')?.classList.remove('ap-pend'); }
+    return r;
+  };
+  window.apMesmaFrente = function (sim) {
+    ap.frentePend = false; document.getElementById('ap-mesma').style.display = 'none'; document.getElementById('ap-panel-frente').classList.remove('ap-pend');
+    if (sim) { apGuardar(); toast('Frente confirmada.', 'ok'); }
+    else { document.getElementById('ap-frente').value = ''; document.getElementById('ap-servico').value = ''; document.getElementById('ap-frente').focus(); toast('Escolha a frente de hoje.'); }
+  };
+  // trocar a frente na mão também conta como confirmação
+  document.getElementById('ap-frente')?.addEventListener('change', () => { if (ap.frentePend) { ap.frentePend = false; document.getElementById('ap-mesma').style.display = 'none'; document.getElementById('ap-panel-frente').classList.remove('ap-pend'); } });
+  const oGuardar = apGuardar;
+  apGuardar = function () { if (ap.frentePend && !ap.uid) return; return oGuardar.apply(this, arguments); };
+  const oTab2 = apTab;
+  apTab = function (aba) { if (aba !== 'frente' && ap.frentePend) { toast('Confirme se é a mesma frente do último apontamento.', 'err'); document.getElementById('ap-mesma')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; } return oTab2.apply(this, arguments); };
+  const oLimpar = _apLimparForm;
+  _apLimparForm = function () { oLimpar.apply(this, arguments); ap.frentePend = false; const b = document.getElementById('ap-mesma'); if (b) b.style.display = 'none'; document.getElementById('ap-panel-frente')?.classList.remove('ap-pend'); };
   const oFechar = _turnoFechar;
   _turnoFechar = function (status) { if (status === 'encerrado') _repGuardar(); return oFechar.apply(this, arguments); };
   const oDepois = apContinuarDepois;
