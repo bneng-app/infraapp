@@ -552,7 +552,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v2.59 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v2.60 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -3792,12 +3792,14 @@ function fazerLogin() {
   const senha  = document.getElementById('login-senha')?.value||'';
   const erroEl = document.getElementById('login-erro');
   const btnEl  = document.querySelector('#login-screen button[onclick="fazerLogin()"]');
-  const erro = (msg) => { if (erroEl) { erroEl.textContent = msg; erroEl.style.display=''; } if (btnEl) btnEl.textContent = 'Entrar no ObraKontrol'; };
+  const erro = (msg) => { if (erroEl) { erroEl.textContent = msg; erroEl.style.display=''; } if (btnEl) { btnEl.textContent = 'Entrar no ObraKontrol'; btnEl.disabled = false; } };
+  // v2.60: um clique só — enquanto entra, o botão fica travado em "Entrando..."
+  if (btnEl && btnEl.disabled) return;
 
   if (!digitado || !senha) { erro('Preencha usuário e senha.'); return; }
   // v2.2: não existe mais login "local" — sem Firebase não entra
   if (!auth || !_firebaseReady) { erro('Sem conexão com o servidor. Verifique a internet e recarregue a página.'); return; }
-  if (btnEl) btnEl.textContent = 'Entrando...';
+  if (btnEl) { btnEl.textContent = 'Entrando...'; btnEl.disabled = true; }
 
   let email = digitado;
   entrarComCandidatos(digitado, senha)
@@ -3820,8 +3822,8 @@ function fazerLogin() {
       if (!digitado.includes('@')) _lembrarLogin(digitado, emailAuth);
       usuarioLogado = usr;
       if (erroEl) erroEl.style.display='none';
-      if (btnEl) btnEl.textContent = 'Entrar no ObraKontrol';
-      await sincronizarTudo();
+      if (btnEl) btnEl.textContent = 'Carregando dados...';
+      try { await sincronizarTudo(); } finally { if (btnEl) { btnEl.textContent = 'Entrar no ObraKontrol'; btnEl.disabled = false; } }
       entrarNoApp();
     })
     .catch(err => {
@@ -9683,8 +9685,7 @@ function ambDefinir(a) {
 function _ambIniciar() {
   const dash = _ambPode('dash'), gest = _ambPode('gestao');
   const sw = document.getElementById('amb-sw'); if (sw) sw.style.display = dash && gest ? '' : 'none';
-  let a = ''; try { a = localStorage.getItem('oc_amb_' + (usuarioLogado.id || usuarioLogado.email || '')) || ''; } catch (e) {}
-  if (!a) a = dash ? 'dash' : 'gestao';
+  const a = dash ? 'dash' : 'gestao';   // v2.60: ao entrar, sempre abre nas Dashboards (se o perfil tiver acesso)
   ambDefinir(a);
 }
 (function () {
