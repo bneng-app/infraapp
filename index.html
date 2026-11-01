@@ -313,6 +313,23 @@ body.dx-full .dx-main{padding-top:18px;min-width:0}
 .nf-msg.err{background:#FEF2F2;border:1px solid #FCA5A5;color:#7F1D1D}
 .nf-msg.load{background:#EFF6FF;border:1px solid #93C5FD;color:#1E3A8A}
 .nf-auto{background:#FFFBEB!important;border-color:#F59E0B!important}
+
+/* v2.53: lançar apontamento pela Gestão */
+#modal-ag .modal{max-width:1080px;width:96vw}
+#modal-ag .form-grid > .form-group{min-width:0}
+#modal-ag .form-grid .form-control{width:100%;min-width:0}
+.ag-cols{display:grid;grid-template-columns:1.2fr 1fr;gap:16px}
+.ag-box{border:1px solid var(--border);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;min-height:0}
+.ag-box-h{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;background:var(--bg);border-bottom:1px solid var(--border);font-size:12px;font-weight:700;color:var(--text-2)}
+.ag-lista{max-height:330px;overflow:auto}
+.ag-it{display:flex;align-items:center;gap:10px;padding:7px 10px;border-bottom:1px solid var(--border);font-size:13px;cursor:pointer}
+.ag-it:hover{background:var(--bg)}
+.ag-it.on{background:#FFF5F5}
+.ag-it input[type=checkbox]{width:16px;height:16px;accent-color:#E30613}
+.ag-it .s{font-size:11px;color:var(--text-3)}
+.ag-it input.ag-h{width:58px;padding:3px 6px;border:1px solid var(--border);border-radius:6px;font-size:12px;text-align:right}
+.ag-rep{background:#FFF7ED;border:1px solid #FDBA74;border-radius:10px;padding:8px 12px;font-size:12.5px;display:flex;gap:10px;align-items:center;justify-content:space-between;margin-bottom:12px}
+@media (max-width:900px){.ag-cols{grid-template-columns:1fr}}
 /* v2.44: dois ambientes — Dashboards e Gestão */
 .amb-sw{display:flex;align-items:center;gap:2px;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.22);border-radius:20px;padding:3px}
 .amb-sw button{display:flex;align-items:center;gap:6px;border:none;background:none;color:rgba(255,255,255,.72);font-size:12.5px;font-weight:700;padding:5px 13px;border-radius:16px;cursor:pointer;white-space:nowrap}
@@ -534,7 +551,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraControl</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraControl v2.52 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraControl v2.53 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -1457,6 +1474,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
     <div><div class="page-title">Aprovação de apontamentos</div>
       <div class="page-sub">O que o campo lança fica aqui até ser aprovado. Só o que é aprovado entra nos painéis e relatórios.</div></div>
     <div class="btn-group">
+      <button class="btn btn-outline btn-sm" onclick="agAbrir()">+ Lançar apontamento</button>
       <button class="btn btn-outline btn-sm" onclick="aprSelecionarTodos()">Selecionar todos</button>
       <button class="btn btn-primary" onclick="aprAprovarSelecionados()">✓ Aprovar selecionados</button>
     </div>
@@ -1485,7 +1503,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
     </div>
     <div class="btn-group">
       <button class="btn btn-outline btn-sm" onclick="exportarCSV('mo')">↓ Exportar CSV</button>
-      <button class="btn btn-outline btn-sm" onclick="openModal('modal-novo-apon-mo')">+ Lançamento manual</button>
+      <button class="btn btn-primary btn-sm" onclick="agAbrir()">+ Lançar apontamento</button>
       <button class="btn btn-primary" id="btn-processar-todos-mo" onclick="processarTodosMO()">✓ Processar todos</button>
     </div>
   </div>
@@ -1571,7 +1589,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
     <div><div class="page-title" id="titulo-apon-eq">Equipamentos — Painel de Apropriação</div><div class="page-sub" id="eq-atualizado">—</div></div>
     <div class="btn-group">
       <button class="btn btn-outline btn-sm" onclick="exportarCSV('eq')">↓ Exportar CSV</button>
-      <button class="btn btn-primary" onclick="openModal('modal-novo-apon-eq')">+ Lançamento manual</button>
+      <button class="btn btn-primary" onclick="agAbrir()">+ Lançar apontamento</button>
     </div>
   </div>
 
@@ -10311,6 +10329,138 @@ function pendLigar(tipo, pid) {
   window.entrarNoApp = function () { const r = oEntrar.apply(this, arguments); setTimeout(() => { try { _pendRender(); } catch (e) {} }, 3000); return r; };
   setInterval(() => { try { _pendRender(); } catch (e) {} }, 60000);
 })();
+
+// ═══════════════════════════════════════════════════════════════
+// v2.53: LANÇAR APONTAMENTO PELA GESTÃO (times sem apropriador próprio, ex.: canteiro)
+// Mesmo formato do app (equipe inteira + equipamentos + produção), já entra APROVADO.
+// ═══════════════════════════════════════════════════════════════
+const _ag = { mo: new Set(), eq: new Map() };
+function _agHtml() {
+  if (document.getElementById('modal-ag')) return;
+  document.body.insertAdjacentHTML('beforeend', `<div class="modal-overlay" id="modal-ag"><div class="modal">
+    <div class="modal-header"><span class="modal-title">Lançar apontamento (Gestão) — entra aprovado</span><button class="modal-close" onclick="closeModal('modal-ag')">×</button></div>
+    <div class="modal-body">
+      <div class="form-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:12px">
+        <div class="form-group"><label class="form-label">Obra *</label><select class="form-control" id="ag-obra" onchange="agObraMudou()"></select></div>
+        <div class="form-group"><label class="form-label">Data *</label><input type="date" class="form-control" id="ag-data" onchange="agRepCheck()"/></div>
+        <div class="form-group"><label class="form-label">Frente *</label><select class="form-control" id="ag-frente" onchange="agRepCheck()"></select></div>
+        <div class="form-group"><label class="form-label">Serviço</label><select class="form-control" id="ag-servico" onchange="agServico()"></select></div>
+      </div>
+      <div class="form-grid" style="grid-template-columns:2fr 1fr 1fr 1fr 1fr;margin-bottom:12px">
+        <div class="form-group"><label class="form-label">Turno</label><select class="form-control" id="ag-turno" onchange="agTurno()"></select></div>
+        <div class="form-group"><label class="form-label">Entrada *</label><input type="time" class="form-control" id="ag-ini" onchange="agHoras()"/></div>
+        <div class="form-group"><label class="form-label">Saída *</label><input type="time" class="form-control" id="ag-fim" onchange="agHoras()"/></div>
+        <div class="form-group"><label class="form-label">H. normais</label><input type="number" step="0.5" class="form-control" id="ag-hn" oninput="agEqDefault()"/></div>
+        <div class="form-group"><label class="form-label">H. extras</label><input type="number" step="0.5" class="form-control" id="ag-he"/></div>
+      </div>
+      <div class="ag-rep" id="ag-rep" style="display:none"></div>
+      <div class="ag-cols">
+        <div class="ag-box"><div class="ag-box-h"><span>Mão de obra (<span id="ag-nmo">0</span>)</span><input class="form-control" id="ag-busca-mo" placeholder="Buscar nome ou matrícula…" style="max-width:220px;padding:5px 8px;font-size:12px" oninput="agRender()"/><button class="btn btn-outline btn-sm" onclick="agTodos()">Selecionar todos</button></div><div class="ag-lista" id="ag-lista-mo"></div></div>
+        <div class="ag-box"><div class="ag-box-h"><span>Equipamentos (<span id="ag-neq">0</span>)</span><input class="form-control" id="ag-busca-eq" placeholder="TAG ou placa…" style="max-width:160px;padding:5px 8px;font-size:12px" oninput="agRender()"/><span style="font-weight:500">h prod. · h parado</span></div><div class="ag-lista" id="ag-lista-eq"></div></div>
+      </div>
+      <div class="form-grid" style="grid-template-columns:1fr 110px 1.2fr 2fr;margin-top:12px">
+        <div class="form-group"><label class="form-label">Produção da equipe</label><input type="number" step="0.01" class="form-control" id="ag-qtd" placeholder="Quantidade"/></div>
+        <div class="form-group"><label class="form-label">Unidade</label><input class="form-control" id="ag-unid" placeholder="m³"/></div>
+        <div class="form-group"><label class="form-label">&nbsp;</label><label style="display:flex;gap:6px;align-items:center;font-size:13px;margin-top:8px;cursor:pointer"><input type="checkbox" id="ag-and"/> Serviço em andamento</label></div>
+        <div class="form-group"><label class="form-label">Observações</label><input class="form-control" id="ag-obs" placeholder="Opcional…"/></div>
+      </div>
+    </div>
+    <div class="modal-footer"><span style="margin-right:auto;font-size:12px;color:var(--text-3)">Lançado como <strong>${_e(usuarioLogado?.nome || '')}</strong> · entra aprovado</span>
+      <button class="btn btn-outline" onclick="closeModal('modal-ag')">Cancelar</button><button class="btn btn-primary" onclick="agSalvar()">✓ Lançar e aprovar</button></div></div></div>`);
+}
+const _agV = id => document.getElementById(id)?.value || '';
+const _agMin = h => { const [a, b] = String(h || '').split(':').map(Number); return isNaN(a) ? null : a * 60 + (b || 0); };
+function agAbrir() {
+  _agHtml(); _ag.mo = new Set(); _ag.eq = new Map();
+  const ob = obraAtiva && obraAtiva.id !== 'todas' ? obraAtiva.id : ((dados.obras || [])[0] || {}).id || '';
+  document.getElementById('ag-obra').innerHTML = (dados.obras || []).map(o => `<option value="${_e(o.id)}" ${o.id === ob ? 'selected' : ''}>${_e((o.cod ? o.cod + ' — ' : '') + o.nome)}</option>`).join('');
+  document.getElementById('ag-data').value = _hojeLocal(); document.getElementById('ag-data').max = _hojeLocal();
+  document.getElementById('ag-servico').innerHTML = '<option value="">—</option>' + (dados.tiposServico || []).map(t => { const n = t.nome || t.desc || t.cod; return `<option value="${_e(n)}">${_e(n)}${t.unidade ? ' (' + _e(t.unidade) + ')' : ''}</option>`; }).join('');
+  document.getElementById('ag-turno').innerHTML = '<option value="">—</option>' + (dados.turnos || []).map(t => `<option value="${_e(t.id)}">${_e(t.cod || '')} ${_e(t.nome || '')} ${_e(t.inicio || '')}–${_e(t.fim || '')}</option>`).join('');
+  ['ag-qtd', 'ag-unid', 'ag-obs', 'ag-busca-mo', 'ag-busca-eq', 'ag-hn', 'ag-he', 'ag-ini', 'ag-fim'].forEach(id => document.getElementById(id).value = ''); document.getElementById('ag-and').checked = false;
+  if ((dados.turnos || []).length === 1) document.getElementById('ag-turno').value = dados.turnos[0].id;
+  agObraMudou(); agTurno(); openModal('modal-ag');
+}
+function agObraMudou() {
+  const ob = _agV('ag-obra');
+  document.getElementById('ag-frente').innerHTML = '<option value="">Selecione…</option>' + (dados.frentes || []).filter(f => !f.obra || f.obra === ob).map(f => `<option value="${_e(f.cod)}">${_e(f.cod)} — ${_e(f.desc || '')}</option>`).join('');
+  _ag.mo = new Set([..._ag.mo].filter(id => _agFuncs().some(f => f.id === id))); agRender(); agRepCheck();
+}
+function agServico() { const n = _agV('ag-servico'); const t = (dados.tiposServico || []).find(x => (x.nome || x.desc || x.cod) === n); if (t && t.unidade) document.getElementById('ag-unid').value = t.unidade; }
+function agTurno() { const t = (dados.turnos || []).find(x => x.id === _agV('ag-turno')); if (t) { document.getElementById('ag-ini').value = t.inicio || ''; document.getElementById('ag-fim').value = t.fim || ''; } agHoras(); }
+function agHoras() {
+  const i = _agMin(_agV('ag-ini')), f = _agMin(_agV('ag-fim')); if (i == null || f == null || f <= i) return;
+  let tot = (f - i) / 60; if (tot > 6) tot -= 1;   // 1h de almoço
+  const t = (dados.turnos || []).find(x => x.id === _agV('ag-turno'));
+  let base = tot; if (t && _agMin(t.inicio) != null && _agMin(t.fim) != null) { base = (_agMin(t.fim) - _agMin(t.inicio)) / 60; if (base > 6) base -= 1; }
+  const hn = Math.min(tot, base), he = Math.max(0, tot - base);
+  document.getElementById('ag-hn').value = Math.round(hn * 2) / 2; document.getElementById('ag-he').value = Math.round(he * 2) / 2; agEqDefault();
+}
+function agEqDefault() { const hn = _agV('ag-hn'); _ag.eq.forEach(v => { if (v.auto) v.hp = hn; }); agRender(); }
+function _agFuncs() { const ob = _agV('ag-obra'), d = _agV('ag-data') || _hojeLocal(); return (dados.funcionarios || []).filter(f => (!f.obra || f.obra === ob) && f.status !== 'Desligado' && (!f.demissao || f.demissao > d) && (typeof _geraApont !== 'function' || _geraApont(f) === 'Sim')).sort((a, b) => String(a.nome).localeCompare(String(b.nome))); }
+function _agEquips() { const ob = _agV('ag-obra'); return (dados.equipamentos || []).filter(e => (!e.obra || e.obra === ob) && /mobiliz/i.test(e.status || 'Mobilizado')).sort((a, b) => String(a.tag || a.placa).localeCompare(String(b.tag || b.placa))); }
+function agRender() {
+  const n = v => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const bm = _agV('ag-busca-mo').toLowerCase(), be = n(_agV('ag-busca-eq'));
+  const fs = _agFuncs().filter(f => !bm || String(f.nome).toLowerCase().includes(bm) || String(f.mat).includes(bm)).sort((a, b) => (_ag.mo.has(b.id) - _ag.mo.has(a.id)));
+  document.getElementById('ag-lista-mo').innerHTML = fs.map(f => `<label class="ag-it ${_ag.mo.has(f.id) ? 'on' : ''}"><input type="checkbox" ${_ag.mo.has(f.id) ? 'checked' : ''} onchange="agTrocaMO('${_e(f.id)}',this.checked)"/><div style="flex:1;min-width:0"><div>${_e(f.nome)}</div><div class="s">Mat. ${_e(f.mat)} · ${_e(f.codFuncao || f.funcao || '—')}${f.equipe ? ' · ' + _e(f.equipe) : ''}</div></div></label>`).join('') || '<div class="ag-it s">Nenhum funcionário</div>';
+  const es = _agEquips().filter(e => !be || n(e.tag).includes(be) || n(e.placa).includes(be));
+  document.getElementById('ag-lista-eq').innerHTML = es.map(e => { const v = _ag.eq.get(e.id); return `<div class="ag-it ${v ? 'on' : ''}"><input type="checkbox" ${v ? 'checked' : ''} onchange="agTrocaEQ('${_e(e.id)}',this.checked)"/><div style="flex:1;min-width:0"><div><strong>${_e(e.tag || e.placa)}</strong></div><div class="s">${e.placa ? 'Placa ' + _e(e.placa) + ' · ' : ''}${_e(e.familia || e.codFamilia || '')}</div></div>${v ? `<input class="ag-h" type="number" step="0.5" value="${_e(v.hp)}" oninput="agEQ('${_e(e.id)}','hp',this.value)" title="Horas produtivas"/><input class="ag-h" type="number" step="0.5" value="${_e(v.hpar)}" oninput="agEQ('${_e(e.id)}','hpar',this.value)" title="Horas paradas"/>` : ''}</div>`; }).join('') || '<div class="ag-it s">Nenhum equipamento mobilizado</div>';
+  document.getElementById('ag-nmo').textContent = _ag.mo.size; document.getElementById('ag-neq').textContent = _ag.eq.size;
+}
+function agTrocaMO(id, on) { on ? _ag.mo.add(id) : _ag.mo.delete(id); const cb = event && event.target; if (cb && cb.closest) cb.closest('.ag-it')?.classList.toggle('on', on); document.getElementById('ag-nmo').textContent = _ag.mo.size; }
+function agTrocaEQ(id, on) { if (on) _ag.eq.set(id, { hp: _agV('ag-hn'), hpar: 0, auto: true }); else _ag.eq.delete(id); agRender(); }
+function agEQ(id, k, v) { const x = _ag.eq.get(id); if (x) { x[k] = v; if (k === 'hp') x.auto = false; document.getElementById('ag-neq').textContent = _ag.eq.size; } }
+function agTodos() { const bm = _agV('ag-busca-mo').toLowerCase(); _agFuncs().filter(f => !bm || String(f.nome).toLowerCase().includes(bm) || String(f.mat).includes(bm)).forEach(f => _ag.mo.add(f.id)); agRender(); }
+// último apontamento desta frente (para times fixos do canteiro)
+function _agUltimo() {
+  const ob = _agV('ag-obra'), fr = _agV('ag-frente'), d = _agV('ag-data'); if (!fr) return null;
+  const mo = (dados.aponMO || []).filter(a => a.frente === fr && (!a.obra || a.obra === ob) && a.data < d && a.status !== 'rejeitado');
+  if (!mo.length) return null;
+  const dia = mo.map(a => a.data).sort().pop(), ult = mo.filter(a => a.data === dia);
+  const grp = ult.reduce((m, a) => { const k = a.apropriacao || 'x'; (m[k] = m[k] || []).push(a); return m; }, {});
+  const k = Object.keys(grp).sort((a, b) => grp[b].length - grp[a].length)[0], g = grp[k];
+  const eq = (dados.aponEQ || []).filter(a => a.data === dia && a.frente === fr && (a.apropriacao ? a.apropriacao === k : true) && a.status !== 'rejeitado');
+  return { dia, mo: g, eq, servico: g[0].servico, turno: g[0].turno };
+}
+function agRepCheck() {
+  const u = _agUltimo(), el = document.getElementById('ag-rep'); if (!el) return;
+  if (!u) { el.style.display = 'none'; return; }
+  el.innerHTML = `<span>📋 Último apontamento desta frente: <strong>${fmtData(u.dia)}</strong> · ${u.mo.length} pessoa(s)${u.eq.length ? ' · ' + u.eq.length + ' equip.' : ''}${u.servico && u.servico !== '—' ? ' · ' + _e(u.servico) : ''}</span><button class="btn btn-primary btn-sm" onclick="agRepetir()">Repetir esta equipe</button>`;
+  el.style.display = '';
+}
+function agRepetir() {
+  const u = _agUltimo(); if (!u) return;
+  const fs = _agFuncs();
+  u.mo.forEach(a => { const f = fs.find(x => String(x.mat) === String(a.mat)) || fs.find(x => x.nome === a.func); if (f) _ag.mo.add(f.id); });
+  const es = _agEquips();
+  u.eq.forEach(a => { const e = es.find(x => x.id === a.equipId) || es.find(x => (x.tag || x.placa) === a.equip); if (e && !_ag.eq.has(e.id)) _ag.eq.set(e.id, { hp: _agV('ag-hn'), hpar: 0, auto: true }); });
+  if (u.servico && u.servico !== '—' && !_agV('ag-servico')) { document.getElementById('ag-servico').value = u.servico; agServico(); }
+  agRender(); toast('Equipe de ' + fmtData(u.dia) + ' carregada — tire quem não veio e adicione quem entrou.');
+}
+async function agSalvar() {
+  const ob = _agV('ag-obra'), data = _agV('ag-data'), frente = _agV('ag-frente'), ini = _agV('ag-ini'), fim = _agV('ag-fim');
+  if (!ob || !data || !frente || !ini || !fim) { toast('Preencha obra, data, frente, entrada e saída.', 'error'); return; }
+  if (data > _hojeLocal()) { toast('Não dá para lançar em data futura.', 'error'); return; }
+  if (!_ag.mo.size && !_ag.eq.size) { toast('Marque pelo menos uma pessoa ou um equipamento.', 'error'); return; }
+  const qtd = parseFloat(_agV('ag-qtd')) || 0, and = document.getElementById('ag-and').checked;
+  if (_ag.mo.size && !qtd && !and) { toast('Informe a produção ou marque "Serviço em andamento".', 'error'); return; }
+  const t = (dados.turnos || []).find(x => x.id === _agV('ag-turno'));
+  const agora = new Date().toISOString(), quem = (usuarioLogado?.nome || 'Gestão');
+  const sfx = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const base = { data, frente, servico: _agV('ag-servico') || '—', obs: _agV('ag-obs'), prodStatus: qtd > 0 ? 'informada' : (and ? 'andamento' : ''), obra: ob, turno: t ? (t.cod || t.nome || '') : '',
+    lancadoPor: quem + ' (Gestão)', lancadoEm: agora, status: 'aprovado', aprovadoPor: quem, aprovadoEm: agora, origem: 'gestao', apropriacao: 'gs' + sfx(), hora: ini, horaIni: ini, horaFim: fim };
+  const hn = parseFloat(_agV('ag-hn')) || 0, he = parseFloat(_agV('ag-he')) || 0, unid = _agV('ag-unid');
+  const novosMO = [], novosEQ = [];
+  [..._ag.mo].map(id => (dados.funcionarios || []).find(f => f.id === id)).filter(Boolean).forEach((f, i) => novosMO.push({ ...base, id: 'am' + sfx() + i, hn, he, qtd: i === 0 ? qtd : 0, unid, func: f.nome, funcao: f.codFuncao || f.funcao || '—', mat: f.mat, empresa: f.empresa || '' }));
+  [..._ag.eq.entries()].forEach(([id, v], i) => { const e = (dados.equipamentos || []).find(x => x.id === id); if (e) novosEQ.push({ ...base, id: 'ae' + sfx() + i, hp: parseFloat(v.hp) || 0, hpar: parseFloat(v.hpar) || 0, motivo: '', hor: '', equip: e.tag || e.placa, equipId: e.id, tipo: e.familia || e.codFamilia || '—', operador: '' }); });
+  (dados.aponMO = dados.aponMO || []).push(...novosMO); (dados.aponEQ = dados.aponEQ || []).push(...novosEQ);
+  let falhas = 0;
+  if (db && _firebaseReady) { const rs = await Promise.allSettled([...novosMO.map(x => fbSave('aponMO', x.id, x)), ...novosEQ.map(x => fbSave('aponEQ', x.id, x))]); falhas = rs.filter(r => r.status === 'rejected').length; }
+  closeModal('modal-ag');
+  try { _rerenderTelaAtual(); } catch (e) {} try { renderMO(); } catch (e) {} try { renderEQ && renderEQ(); } catch (e) {}
+  toast('Apontamento lançado e aprovado: ' + novosMO.length + ' pessoa(s), ' + novosEQ.length + ' equipamento(s)' + (falhas ? ' — ⚠ ' + falhas + ' não foram gravados no servidor' : ''), falhas ? 'error' : undefined);
+}
 
 // Apply configs on load
 setTimeout(applyConfigs, 200);
