@@ -606,6 +606,19 @@ select.form-control,select.form-control:focus{background-image:url("data:image/s
 .mr-item b{color:var(--text);font-size:14px}
 .mr-sec{font-size:12px;font-weight:800;letter-spacing:.07em;color:var(--text2);text-transform:uppercase;margin:14px 2px 8px}
 
+
+/* v2.24: repetir a equipe do último apontamento */
+.rep-sec{font-size:12px;font-weight:800;letter-spacing:.06em;color:var(--text2);text-transform:uppercase;margin:12px 2px 6px;display:flex;justify-content:space-between;align-items:center}
+.rep-sec button{background:none;border:none;color:var(--red);font-size:12px;font-weight:700;cursor:pointer;text-transform:none;letter-spacing:0}
+.rep-it{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid rgba(0,0,0,.06);border-radius:12px;padding:10px 12px;margin-bottom:6px;cursor:pointer}
+.rep-it .list-check{order:0;margin:0}
+.rep-it.on .list-check{background:var(--red);border-color:var(--red)}
+.rep-it.on .list-check::after{content:'';width:6px;height:11px;border:solid #fff;border-width:0 2.5px 2.5px 0;transform:rotate(45deg) translate(-1px,-1px)}
+.rep-it:not(.on){opacity:.55}
+.rep-it:not(.on) .rep-n{text-decoration:line-through}
+.rep-n{font-size:14px;font-weight:700}.rep-s{font-size:12px;color:var(--text2)}
+.ap-rep-btn{display:flex;align-items:center;justify-content:center;gap:8px;margin:10px 14px 0;padding:11px;border-radius:12px;border:1.5px dashed var(--red);background:#FFF5F5;color:var(--red);font-weight:700;font-size:14px;cursor:pointer;width:calc(100% - 28px)}
+.ap-rep-btn svg{width:18px;height:18px}
 /* v2.22: entrada com Face ID / digital */
 .bio-lock{position:fixed;inset:0;z-index:2000;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:30px 24px;color:#fff;
   background:linear-gradient(180deg,rgba(10,10,12,.82),rgba(10,10,12,.96)),var(--ink)}
@@ -663,6 +676,16 @@ select.form-control,select.form-control:focus{background-image:url("data:image/s
 </div>
 
 
+
+<!-- v2.24: repetir a equipe do último apontamento -->
+<div class="sheet-bg" id="rep-equipe" onclick="if(event.target===this)repFechar()">
+  <div class="sheet"><div class="sheet-h"><b id="rep-tit">Repetir a equipe?</b><button class="sheet-x" onclick="repFechar()">×</button></div>
+  <div id="rep-sub" style="font-size:13px;color:var(--text2);margin:-4px 0 6px"></div>
+  <div style="font-size:12.5px;color:var(--text2);background:#fff;border-radius:10px;padding:8px 10px;border:1px solid rgba(0,0,0,.06)">Toque em quem <b>não veio</b> para tirar. Quem entrou novo você adiciona depois, pela busca ou pelo QR.</div>
+  <div id="rep-lista"></div>
+  <button class="btn btn-primary" id="rep-ok" style="margin-top:12px" onclick="repConfirmar()">Usar esta equipe</button>
+  <button class="btn btn-outline" style="margin-top:8px" onclick="repFechar()">Montar do zero</button></div>
+</div>
 <!-- v2.22: trava com Face ID / digital -->
 <div class="bio-lock" id="bio-lock">
   <svg class="login-tenco" viewBox="0 0 312 60" role="img" aria-label="TENCO"><g fill="#E30613"><rect x="0" y="0" width="48" height="12"/><rect x="18" y="0" width="12" height="60"/><rect x="62" y="0" width="44" height="12"/><rect x="62" y="24" width="44" height="12"/><rect x="62" y="48" width="44" height="12"/><rect x="120" y="0" width="12" height="60"/><rect x="168" y="0" width="12" height="60"/><polygon points="120,0 133,0 180,60 167,60"/></g><g fill="none" stroke="#E30613" stroke-width="12"><path d="M240.4 14.6 A24 24 0 1 0 240.4 45.4"/><circle cx="282" cy="30" r="24"/></g></svg>
@@ -704,7 +727,7 @@ select.form-control,select.form-control:focus{background-image:url("data:image/s
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraControl Campo · v2.23</div>
+  <div class="login-versao">ObraControl Campo · v2.24</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -827,6 +850,7 @@ select.form-control,select.form-control:focus{background-image:url("data:image/s
       <label class="ap-hcard"><svg class="" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><div style="min-width:0"><div class="ap-hlbl">H. Normais</div><div class="ap-hval"><input type="number" id="ap-hn" step="0.5" inputmode="decimal" placeholder="8" oninput="ap.hnManual=true;apGuardar()"/><span>h</span></div></div></label>
       <label class="ap-hcard"><svg class="" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><div style="min-width:0"><div class="ap-hlbl">H. Extras</div><div class="ap-hval"><input type="number" id="ap-he" step="0.5" inputmode="decimal" placeholder="0" oninput="apGuardar()"/><span>h</span></div></div></label>
     </div>
+    <button class="ap-rep-btn" id="ap-rep-btn" style="display:none" onclick="repAbrir(true)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg><span id="ap-rep-txt">Repetir a equipe do último apontamento</span></button>
     <div class="search-bar ap-busca"><svg class="" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="ap-mo-busca" placeholder="Buscar por nome ou matrícula…" oninput="apRenderMO()"/></div>
     <div class="ap-selrow"><span><span id="ap-mo-sel">0</span> selecionados</span><button class="ap-btn-redout" onclick="apSelecionarTodosMO()">Selecionar todos</button></div>
     <div id="ap-mo-lista"></div>
@@ -2844,6 +2868,87 @@ showLogoutMenu = function () {
     }
     return r;
   };
+})();
+
+// ══════════════════════════════════════════════════════════════
+// v2.24: REPETIR A EQUIPE DO ÚLTIMO APONTAMENTO
+// Guarda a equipe (pessoas e equipamentos) de cada apropriador neste celular ao encerrar/guardar.
+// No próximo apontamento, ao chegar em Mão de obra, mostra a equipe para confirmar: tira quem não veio.
+// ══════════════════════════════════════════════════════════════
+function _repLer() { try { return JSON.parse(localStorage.getItem('campo_ult_equipe') || '{}'); } catch (e) { return {}; } }
+function _repUltima() { return usuarioCampo ? _repLer()[usuarioCampo.id] || null : null; }
+function _repGuardar() {
+  if (!usuarioCampo || !ap.mo.size) return;
+  const eu = _apEu(); const mo = [...ap.mo].filter(id => !eu || id !== eu.id);
+  if (!mo.length && !ap.eq.size) return;
+  const m = _repLer();
+  m[usuarioCampo.id] = { data: document.getElementById('ap-data')?.value || _hojeISO(), frente: document.getElementById('ap-frente')?.value || '', servico: document.getElementById('ap-servico')?.value || '',
+    uid: ap.uid, mo, eq: [...ap.eq.keys()], em: new Date().toISOString() };
+  try { localStorage.setItem('campo_ult_equipe', JSON.stringify(m)); } catch (e) {}
+}
+let _repSel = { mo: new Set(), eq: new Set() }, _repOferecido = '';
+function _repDisponivel() {
+  const u = _repUltima(); if (!u || (u.uid && u.uid === ap.uid)) return null;
+  const o = _apObra();
+  const pessoas = u.mo.map(id => dadosCampo.funcionarios.find(f => f.id === id)).filter(f => f && f.status !== 'Desligado' && (!o || !f.obra || f.obra === o));
+  const equips = (u.eq || []).map(id => dadosCampo.equipamentos.find(e => e.id === id)).filter(e => e && (!o || !e.obra || e.obra === o));
+  return pessoas.length || equips.length ? { u, pessoas, equips } : null;
+}
+function _repBotao() {
+  const b = document.getElementById('ap-rep-btn'); if (!b) return;
+  const d = _repDisponivel(); b.style.display = d ? '' : 'none';
+  if (d) document.getElementById('ap-rep-txt').textContent = 'Repetir a equipe de ' + d.u.data.split('-').reverse().slice(0, 2).join('/') + ' (' + d.pessoas.length + ' pessoas)';
+}
+function repAbrir(manual) {
+  const d = _repDisponivel(); if (!d) { if (manual) toast('Ainda não há equipe anterior guardada neste celular.', 'err'); return; }
+  _repSel = { mo: new Set(d.pessoas.map(f => f.id)), eq: new Set(d.equips.map(e => e.id)) };
+  const dd = d.u.data.split('-').reverse().join('/');
+  document.getElementById('rep-tit').textContent = 'Repetir a equipe de ' + dd.slice(0, 5) + '?';
+  document.getElementById('rep-sub').textContent = [d.u.frente, d.u.servico].filter(Boolean).join(' · ');
+  _repRender(d);
+  document.getElementById('rep-equipe').classList.add('show');
+}
+function _repRender(d) {
+  d = d || _repDisponivel(); if (!d) return;
+  const ini = n => String(n || '?').split(' ').filter(Boolean).map(x => x[0]).slice(0, 2).join('').toUpperCase();
+  const it = (tipo, id, av, nome, sub) => `<div class="rep-it ${_repSel[tipo].has(id) ? 'on' : ''}" onclick="repTroca('${tipo}','${_esc(id)}')"><div class="list-check"></div><div class="list-avatar" style="width:36px;height:36px;font-size:12px">${av}</div><div style="min-width:0"><div class="rep-n">${_esc(nome)}</div><div class="rep-s">${sub}</div></div></div>`;
+  let h = `<div class="rep-sec"><span>Pessoas (${[..._repSel.mo].length} de ${d.pessoas.length})</span><button onclick="repTodos('mo')">${_repSel.mo.size === d.pessoas.length ? 'Desmarcar todas' : 'Marcar todas'}</button></div>`
+    + d.pessoas.map(f => it('mo', f.id, _esc(ini(f.nome)), f.nome, 'Mat. ' + _esc(f.mat || '—') + ' · ' + _esc(f.codFuncao || f.funcao || '—'))).join('');
+  if (d.equips.length) h += `<div class="rep-sec"><span>Equipamentos (${[..._repSel.eq].length} de ${d.equips.length})</span><button onclick="repTodos('eq')">${_repSel.eq.size === d.equips.length ? 'Desmarcar todos' : 'Marcar todos'}</button></div>`
+    + d.equips.map(e => it('eq', e.id, '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>', e.tag || e.placa, (e.placa ? 'Placa ' + _esc(e.placa) + ' · ' : '') + _esc(e.familia || e.codFamilia || ''))).join('');
+  document.getElementById('rep-lista').innerHTML = h;
+  document.getElementById('rep-ok').textContent = 'Usar esta equipe (' + _repSel.mo.size + ' pessoa' + (_repSel.mo.size === 1 ? '' : 's') + (d.equips.length ? ', ' + _repSel.eq.size + ' equip.' : '') + ')';
+}
+function repTroca(tipo, id) { _repSel[tipo].has(id) ? _repSel[tipo].delete(id) : _repSel[tipo].add(id); _repRender(); }
+function repTodos(tipo) { const d = _repDisponivel(); if (!d) return; const todos = tipo === 'mo' ? d.pessoas.map(f => f.id) : d.equips.map(e => e.id); _repSel[tipo] = _repSel[tipo].size === todos.length ? new Set() : new Set(todos); _repRender(d); }
+function repFechar() { document.getElementById('rep-equipe').classList.remove('show'); }
+function repConfirmar() {
+  _repSel.mo.forEach(id => ap.mo.add(id));
+  const hn = document.getElementById('ap-hn')?.value || '';
+  _repSel.eq.forEach(id => { if (!ap.eq.has(id)) ap.eq.set(id, { hp: hn, hpAuto: true, hpar: 0, motivo: '', hor: '', operador: '' }); });
+  repFechar(); apRenderMO(); apAtualizarContadores(); apGuardar();
+  const b = document.getElementById('ap-rep-btn'); if (b) b.style.display = 'none';
+  toast('Equipe carregada: ' + _repSel.mo.size + ' pessoa(s)' + (_repSel.eq.size ? ', ' + _repSel.eq.size + ' equip.' : ''), 'ok');
+}
+(function () {
+  const oTab = apTab;
+  apTab = function (aba) {
+    const r = oTab.apply(this, arguments);
+    if (ap.aba === 'mo') {
+      _repBotao();
+      // oferece sozinho uma vez por apontamento novo, quando a equipe ainda está vazia (só o próprio apropriador)
+      const eu = _apEu(), so = [...ap.mo].filter(id => !eu || id !== eu.id).length === 0;
+      const chave = ap.uid || 'novo';
+      if (so && _repOferecido !== chave && _repDisponivel()) { _repOferecido = chave; setTimeout(() => repAbrir(false), 250); }
+    }
+    return r;
+  };
+  const oNovo = apNovo;
+  apNovo = function () { _repOferecido = ''; return oNovo.apply(this, arguments); };
+  const oFechar = _turnoFechar;
+  _turnoFechar = function (status) { if (status === 'encerrado') _repGuardar(); return oFechar.apply(this, arguments); };
+  const oDepois = apContinuarDepois;
+  apContinuarDepois = function () { _repGuardar(); return oDepois.apply(this, arguments); };
 })();
 
 // Salvar sessão ao entrar
