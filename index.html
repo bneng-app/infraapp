@@ -534,7 +534,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraControl</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraControl v2.50 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraControl v2.51 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -8399,11 +8399,11 @@ function _aprDetalheHTML(g, pend) {
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px;margin-top:12px">
       <div><div class="form-label">Mão de obra (${g.mo.length})</div>
         ${g.mo.length ? `<table class="table" style="width:100%;font-size:13px"><thead><tr><th>Funcionário</th><th>Função</th><th>H. norm.</th><th>H. extra</th></tr></thead><tbody>
-          ${g.mo.map(x => `<tr><td>${_e(x.func)}${x.mat ? ' <span style="color:var(--text-3);font-size:11px">' + _e(x.mat) + '</span>' : ''}</td><td>${_e(x.funcao)}</td><td>${inp(x.id,'hn',x.hn)}</td><td>${inp(x.id,'he',x.he)}</td></tr>`).join('')}</tbody></table>` : '<div style="font-size:12px;color:var(--text-3)">—</div>'}
+          ${g.mo.map(x => `<tr><td>${_e(x.func)}${x.mat ? ' <span style="color:var(--text-3);font-size:11px">' + _e(x.mat) + '</span>' : ''}${x.provisorio ? ' <span class="tag tag-amber" title="Lançado no campo sem cadastro — cadastre em Funcionários">sem cadastro</span>' : ''}</td><td>${_e(x.funcao)}</td><td>${inp(x.id,'hn',x.hn)}</td><td>${inp(x.id,'he',x.he)}</td></tr>`).join('')}</tbody></table>` : '<div style="font-size:12px;color:var(--text-3)">—</div>'}
       </div>
       <div><div class="form-label">Equipamentos (${g.eq.length})</div>
         ${g.eq.length ? `<table class="table" style="width:100%;font-size:13px"><thead><tr><th>Equip.</th><th>H. prod.</th><th>H. parado</th><th>Motivo</th><th>Horímetro</th><th>Operador</th></tr></thead><tbody>
-          ${g.eq.map(x => `<tr><td><strong>${_e(x.equip)}</strong></td><td>${inp(x.id,'hp',x.hp)}</td><td>${inp(x.id,'hpar',x.hpar)}</td>
+          ${g.eq.map(x => `<tr><td><strong>${_e(x.equip)}</strong>${x.provisorio ? ' <span class="tag tag-amber" title="Lançado no campo sem cadastro — cadastre em Equipamentos">sem cadastro</span>' : ''}</td><td>${inp(x.id,'hp',x.hp)}</td><td>${inp(x.id,'hpar',x.hpar)}</td>
             <td>${pend ? `<select class="form-control" style="padding:5px 4px;width:120px" onchange="aprEditar('${_e(x.id)}','motivo',this.value)">${motivos.map(([c,t]) => `<option value="${c}" ${(x.motivo||'') === c ? 'selected' : ''}>${t}</option>`).join('')}</select>` : _e(x.motivo || '—')}</td>
             <td style="white-space:nowrap">${x.hor !== undefined && x.hor !== '' ? '<span class="td-mono">' + _e(Number(x.hor).toLocaleString('pt-BR')) + '</span>' : '—'}${x.fotoHor ? ` <button class="btn btn-outline btn-sm" style="padding:3px 8px;font-size:12px" onclick="verFotoHorimetro('${_e(x.fotoHor)}','${_e(x.equip)}')" title="Ver foto do horímetro">📷</button>` : ''}</td>
             <td>${_e(x.operador || '—')}</td></tr>`).join('')}</tbody></table>` : '<div style="font-size:12px;color:var(--text-3)">—</div>'}
@@ -10206,6 +10206,102 @@ window.exportarNFExcel = function () {
   const ws = XLSX.utils.aoa_to_sheet(rows); ws['!cols'] = rows[0].map((h, i) => ({ wch: i === 2 ? 48 : Math.max(12, h.length + 2) }));
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Notas de diesel'); XLSX.writeFile(wb, 'Notas_diesel_' + _hojeLocal() + '.xlsx');
 };
+
+// ═══════════════════════════════════════════════════════════════
+// v2.51: PENDÊNCIAS DE CADASTRO vindas do campo (pessoa / equipamento que não estava na lista)
+// O apropriador lança na hora; aqui a Gestão cadastra (ou liga a um cadastro existente) e os apontamentos são corrigidos.
+// ═══════════════════════════════════════════════════════════════
+let _pendAtual = null;
+function _pendencias() {
+  const ligados = new Set([...(dados.funcionarios || []), ...(dados.equipamentos || [])].flatMap(x => x.origensProvisorias || []));
+  const mo = new Map(), eq = new Map();
+  const add = (m, k, o) => { if (!k || ligados.has(k)) return; const x = m.get(k) || { ...o, n: 0, datas: new Set() }; x.n++; if (o.data) x.datas.add(o.data); m.set(k, x); };
+  (dados.aponMO || []).filter(a => a.provisorio && a.status !== 'rejeitado').forEach(a => add(mo, a.pid, { pid: a.pid, nome: a.func, mat: a.mat || '', funcao: a.funcao, obra: a.obra, apontador: a.lancadoPor, data: a.data, frente: a.frente }));
+  (dados.aponEQ || []).filter(a => a.provisorio && a.status !== 'rejeitado').forEach(a => add(eq, a.pid, { pid: a.pid, tag: a.equip, placa: a.placa || '', familia: a.tipo, obra: a.obra, apontador: a.lancadoPor, data: a.data, frente: a.frente }));
+  (typeof _dia !== 'undefined' ? _dia.lista : []).filter(t => t.status !== 'descartado').forEach(t => {
+    (t.mo || []).filter(x => x.provisorio).forEach(x => add(mo, x.id, { pid: x.id, nome: x.nome, mat: x.mat || '', funcao: x.funcao, obra: t.obra, apontador: t.apontador, data: t.data, frente: t.frente }));
+    (t.eq || []).filter(x => x.provisorio).forEach(x => add(eq, x.id, { pid: x.id, tag: x.tag, placa: x.placa || '', familia: x.familia, obra: t.obra, apontador: t.apontador, data: t.data, frente: t.frente }));
+  });
+  const ob = obraAtiva && obraAtiva.id !== 'todas' ? obraAtiva.id : '';
+  const f = l => [...l.values()].filter(x => !ob || !x.obra || x.obra === ob);
+  return { mo: f(mo), eq: f(eq) };
+}
+function _pendRender() {
+  const p = _pendencias();
+  const badge = (pag, n) => { const it = document.querySelector(`.sidebar .nav-item[onclick*="showPage('${pag}'"]`); if (!it) return; let b = it.querySelector('.pend-badge');
+    if (!n) { if (b) b.remove(); return; } if (!b) { b = document.createElement('span'); b.className = 'nav-badge pend-badge'; b.style.cssText = 'margin-left:auto;background:#F59E0B;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700'; it.appendChild(b); } b.textContent = n; b.title = n + ' pendente(s) de cadastro vindas do campo'; };
+  badge('funcionarios', p.mo.length); badge('equipamentos', p.eq.length);
+  const bloco = (pag, lista, tipo) => {
+    const pg = document.getElementById('page-' + pag); if (!pg) return;
+    let el = pg.querySelector('.pend-box'); if (!lista.length) { if (el) el.remove(); return; }
+    if (!el) { el = document.createElement('div'); el.className = 'pend-box'; const h = pg.querySelector('.page-header'); h ? h.after(el) : pg.prepend(el); }
+    const ds = x => [...x.datas].sort().map(d => d.split('-').reverse().slice(0, 2).join('/')).join(', ');
+    el.innerHTML = `<div class="card" style="margin-bottom:14px;border:1.5px solid #FCD34D;background:#FFFBEB"><div class="card-body">
+      <div style="font-weight:800;color:#92400E;margin-bottom:4px">⚠ ${lista.length} ${tipo === 'mo' ? 'pessoa(s)' : 'equipamento(s)'} lançado(s) no campo sem cadastro</div>
+      <div style="font-size:12px;color:#78350F;margin-bottom:10px">O apropriador incluiu no apontamento porque ainda não estava na lista. Cadastre (ou ligue a um cadastro que já existe) para o custo e os relatórios ficarem certos.</div>
+      ${lista.map(x => `<div style="display:flex;gap:10px;align-items:center;background:#fff;border:1px solid #FDE68A;border-radius:10px;padding:8px 12px;margin-bottom:6px;flex-wrap:wrap">
+        <div style="flex:1;min-width:220px"><strong>${tipo === 'mo' ? _e(x.nome) : _e(x.tag) + (x.placa && x.placa !== x.tag ? ' · placa ' + _e(x.placa) : '')}</strong>
+          <span style="font-size:12px;color:var(--text-2)"> · ${tipo === 'mo' ? 'mat. ' + _e(x.mat || '—') + ' · função ' + _e(x.funcao || '—') : _e(x.familia || '—')}</span>
+          <div style="font-size:11.5px;color:var(--text-3)">${_e(getNomeObra(x.obra))} · ${_e(x.frente || '')} · lançado por ${_e(x.apontador || '—')} em ${ds(x)} · ${x.n} registro(s)</div></div>
+        <button class="btn btn-primary btn-sm" onclick="pendCadastrar('${tipo}','${_e(x.pid)}')">Cadastrar</button>
+        <button class="btn btn-outline btn-sm" onclick="pendLigar('${tipo}','${_e(x.pid)}')">Já existe — ligar</button></div>`).join('')}</div></div>`;
+  };
+  bloco('funcionarios', p.mo, 'mo'); bloco('equipamentos', p.eq, 'eq');
+}
+function _pendAplicar(tipo, pid, reg) {
+  // liga o cadastro e corrige os apontamentos já lançados
+  reg.origensProvisorias = [...new Set([...(reg.origensProvisorias || []), pid])];
+  if (db && _firebaseReady) fbSave(tipo === 'mo' ? 'funcionarios' : 'equipamentos', reg.id, reg).catch(() => {});
+  let n = 0;
+  if (tipo === 'mo') (dados.aponMO || []).filter(a => a.pid === pid).forEach(a => { Object.assign(a, { provisorio: false, mat: reg.mat, func: reg.nome, funcao: reg.codFuncao || reg.funcao || a.funcao, empresa: reg.empresa || a.empresa }); n++; if (db && _firebaseReady) fbSave('aponMO', a.id, a).catch(() => {}); });
+  else (dados.aponEQ || []).filter(a => a.pid === pid).forEach(a => { Object.assign(a, { provisorio: false, equip: reg.tag || reg.placa, equipId: reg.id, tipo: reg.familia || reg.codFamilia || a.tipo, placa: reg.placa || a.placa }); n++; if (db && _firebaseReady) fbSave('aponEQ', a.id, a).catch(() => {}); });
+  toast((tipo === 'mo' ? reg.nome : (reg.tag || reg.placa)) + ' ligado ao cadastro' + (n ? ' · ' + n + ' apontamento(s) corrigido(s)' : ''));
+  _pendRender();
+}
+function pendCadastrar(tipo, pid) {
+  const x = _pendencias()[tipo].find(p => p.pid === pid); if (!x) return;
+  _pendAtual = { tipo, pid };
+  if (tipo === 'mo') {
+    openModal('modal-novo-func'); const $ = id => document.getElementById(id);
+    popularSelectObra('func-obra', x.obra); if ($('func-mat')) $('func-mat').value = x.mat || ''; if ($('func-nome')) $('func-nome').value = x.nome || '';
+    setTimeout(() => { if ($('func-funcao') && x.funcao) $('func-funcao').value = x.funcao; }, 50);
+  } else {
+    openModal('modal-novo-equip'); const $ = id => document.getElementById(id);
+    if ($('equip-obra')) popularSelectObra('equip-obra', x.obra); if ($('equip-tag')) $('equip-tag').value = x.tag || ''; if ($('equip-placa')) $('equip-placa').value = x.placa || ''; setTimeout(() => { if ($('equip-familia') && x.familia) $('equip-familia').value = x.familia; }, 50);
+  }
+  toast('Complete o cadastro e salve — os apontamentos dele serão ligados.');
+}
+function pendLigar(tipo, pid) {
+  const x = _pendencias()[tipo].find(p => p.pid === pid); if (!x) return;
+  const q = prompt(tipo === 'mo' ? 'Matrícula do funcionário já cadastrado (para ligar "' + x.nome + '"):' : 'TAG ou placa do equipamento já cadastrado (para ligar "' + x.tag + '"):', tipo === 'mo' ? (x.mat || '') : (x.placa || x.tag || ''));
+  if (!q) return; const n = v => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const reg = tipo === 'mo' ? (dados.funcionarios || []).find(f => n(f.mat) === n(q)) : (dados.equipamentos || []).find(e => n(e.tag) === n(q) || n(e.placa) === n(q));
+  if (!reg) { toast('Não encontrei ' + (tipo === 'mo' ? 'a matrícula ' : 'o equipamento ') + q + ' no cadastro.', 'error'); return; }
+  if (!confirm('Ligar ' + (tipo === 'mo' ? x.nome : x.tag) + ' a ' + (tipo === 'mo' ? reg.nome + ' (mat. ' + reg.mat + ')' : (reg.tag || reg.placa)) + '?')) return;
+  _pendAplicar(tipo, pid, reg);
+}
+(function () {
+  const ligarDepois = (salvarNome, lista, achar) => {
+    const o = window[salvarNome]; if (typeof o !== 'function') return;
+    window[salvarNome] = function () {
+      const pend = _pendAtual; const r = o.apply(this, arguments);
+      if (pend && pend.tipo === lista) {
+        const modal = lista === 'mo' ? 'modal-novo-func' : 'modal-novo-equip';
+        if (!document.getElementById(modal)?.classList.contains('open')) { const reg = achar(); if (reg) _pendAplicar(lista, pend.pid, reg); _pendAtual = null; }
+      }
+      return r;
+    };
+  };
+  ligarDepois('salvarFuncionario', 'mo', () => { const m = (document.getElementById('func-mat')?.value || '').trim(); return [...(dados.funcionarios || [])].reverse().find(f => String(f.mat) === m) || (dados.funcionarios || []).slice(-1)[0]; });
+  ligarDepois('salvarEquipamento', 'eq', () => { const t = (document.getElementById('equip-tag')?.value || '').trim(); return [...(dados.equipamentos || [])].reverse().find(e => String(e.tag) === t) || (dados.equipamentos || []).slice(-1)[0]; });
+  const oClose = window.closeModal;
+  window.closeModal = function (id) { if (id === 'modal-novo-func' || id === 'modal-novo-equip') setTimeout(() => { if (!document.getElementById(id)?.classList.contains('open')) _pendAtual = null; }, 0); return oClose.apply(this, arguments); };
+  const oInit = window.pageInit;
+  window.pageInit = function (id) { const r = oInit.apply(this, arguments); if (id === 'funcionarios' || id === 'equipamentos') setTimeout(_pendRender, 100); return r; };
+  const oEntrar = window.entrarNoApp;
+  window.entrarNoApp = function () { const r = oEntrar.apply(this, arguments); setTimeout(() => { try { _pendRender(); } catch (e) {} }, 3000); return r; };
+  setInterval(() => { try { _pendRender(); } catch (e) {} }, 60000);
+})();
 
 // Apply configs on load
 setTimeout(applyConfigs, 200);

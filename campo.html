@@ -607,6 +607,10 @@ select.form-control,select.form-control:focus{background-image:url("data:image/s
 .mr-sec{font-size:12px;font-weight:800;letter-spacing:.07em;color:var(--text2);text-transform:uppercase;margin:14px 2px 8px}
 
 
+
+/* v2.26: cadastro provisório */
+.ap-prov-btn{display:block;margin:8px 14px 0;width:calc(100% - 28px);background:none;border:1.5px dashed #9A9CA5;border-radius:12px;padding:10px;font-size:13.5px;font-weight:700;color:var(--text2);cursor:pointer}
+.ap-prov-tag{display:inline-block;font-size:10px;font-weight:800;color:#9A3412;background:#FFEDD5;border-radius:6px;padding:1px 6px;margin-left:6px}
 /* v2.24: repetir a equipe do último apontamento */
 .ap-mesma{background:#FFF7ED;border:1.5px solid #FDBA74;border-radius:12px;padding:12px;margin-bottom:14px}
 .ap-mesma button{flex:1;border-radius:10px;padding:11px;font-size:14px;font-weight:800;cursor:pointer}
@@ -682,6 +686,24 @@ select.form-control,select.form-control:focus{background-image:url("data:image/s
 
 
 
+
+<!-- v2.26: cadastro provisório (pessoa / equipamento que ainda não está na lista) -->
+<div class="sheet-bg" id="prov-sheet" onclick="if(event.target===this)this.classList.remove('show')">
+  <div class="sheet"><div class="sheet-h"><b id="prov-tit">Pessoa nova</b><button class="sheet-x" onclick="document.getElementById('prov-sheet').classList.remove('show')">×</button></div>
+  <div style="font-size:12.5px;color:var(--text2);margin:-4px 0 12px">Entra neste apontamento agora e vai como <b>pendência de cadastro</b> para a Gestão. Quando cadastrarem, o apontamento é ligado ao cadastro.</div>
+  <div id="prov-mo">
+    <div class="form-group"><label class="form-label">Nome completo *</label><input class="form-control" id="prov-nome" placeholder="Nome do funcionário"/></div>
+    <div class="time-row"><div class="form-group"><label class="form-label">Matrícula (se souber)</label><input class="form-control" id="prov-mat" inputmode="numeric" placeholder="—"/></div>
+      <div class="form-group"><label class="form-label">Função *</label><select class="form-control" id="prov-funcao"></select></div></div>
+  </div>
+  <div id="prov-eq" style="display:none">
+    <div class="time-row"><div class="form-group"><label class="form-label">TAG</label><input class="form-control" id="prov-tag" placeholder="Ex.: ESC-05"/></div>
+      <div class="form-group"><label class="form-label">Placa</label><input class="form-control" id="prov-placa" placeholder="Ex.: ABC-1234"/></div></div>
+    <div class="form-group"><label class="form-label">Tipo (família) *</label><select class="form-control" id="prov-familia"></select></div>
+    <div style="font-size:11.5px;color:var(--text3);margin:-4px 0 8px">Informe a TAG ou a placa (pelo menos uma).</div>
+  </div>
+  <button class="btn btn-primary" onclick="provSalvar()">Adicionar ao apontamento</button></div>
+</div>
 <!-- v2.24: repetir a equipe do último apontamento -->
 <div class="sheet-bg" id="rep-equipe" onclick="if(event.target===this)repFechar()">
   <div class="sheet"><div class="sheet-h"><b id="rep-tit">Repetir a equipe?</b><button class="sheet-x" onclick="repFechar()">×</button></div>
@@ -732,7 +754,7 @@ select.form-control,select.form-control:focus{background-image:url("data:image/s
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraControl Campo · v2.25</div>
+  <div class="login-versao">ObraControl Campo · v2.26</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -863,6 +885,7 @@ select.form-control,select.form-control:focus{background-image:url("data:image/s
     <button class="ap-rep-btn" id="ap-rep-btn" style="display:none" onclick="repAbrir(true)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg><span id="ap-rep-txt">Repetir a equipe do último apontamento</span></button>
     <div class="search-bar ap-busca"><svg class="" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="ap-mo-busca" placeholder="Buscar por nome ou matrícula…" oninput="apRenderMO()"/></div>
     <div class="ap-selrow"><span><span id="ap-mo-sel">0</span> selecionados</span><button class="ap-btn-redout" onclick="apSelecionarTodosMO()">Selecionar todos</button></div>
+    <button class="ap-prov-btn" onclick="provAbrir('mo')">+ Pessoa que ainda não está na lista</button>
     <div id="ap-mo-lista"></div>
     <div class="ap-foot"><button class="btn btn-primary" onclick="apTab('eq')">Próximo <svg class="" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg> Equipamentos</button></div>
   </div>
@@ -872,6 +895,7 @@ select.form-control,select.form-control:focus{background-image:url("data:image/s
     <div class="ap-fr-card" id="ap-resumo-eq"></div>
     <div class="search-bar ap-busca"><svg class="" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="ap-eq-busca" placeholder="Buscar por TAG ou placa (ex.: ABC1234)…" oninput="apRenderEQ()"/></div>
     <div class="ap-selrow"><span><span id="ap-eq-sel">0</span> selecionados</span><span style="font-size:12px;color:var(--text2)">toque para marcar e lançar as horas</span></div>
+    <button class="ap-prov-btn" onclick="provAbrir('eq')">+ Equipamento que ainda não está na lista</button>
     <div id="ap-eq-lista"></div>
     <datalist id="ap-operadores"></datalist>
     <div class="ap-foot"><button class="btn btn-primary" onclick="apTab('rev')">Próximo <svg class="" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg> Revisar</button></div>
@@ -2986,6 +3010,109 @@ function repConfirmar() {
   const oDepois = apContinuarDepois;
   apContinuarDepois = function () { _repGuardar(); return oDepois.apply(this, arguments); };
 })();
+
+// ══════════════════════════════════════════════════════════════
+// v2.26: ENTRADA PELO TURNO + PESSOA / EQUIPAMENTO QUE AINDA NÃO ESTÁ NA LISTA
+// ══════════════════════════════════════════════════════════════
+// turno escolhido → entrada teórica do turno (dá para alterar)
+(function () {
+  const oTurno = apTurnoMudou;
+  apTurnoMudou = function () {
+    const t = _apTurno(), h = _apHorasTurno(t);
+    if (h && h.ini) { const el = document.getElementById('ap-hora-ini'); if (el) el.value = h.ini; }
+    return oTurno.apply(this, arguments);
+  };
+  // apontamento novo: turno do último apontamento (ou o único turno da obra)
+  const oNovo = apNovo;
+  apNovo = function () {
+    const r = oNovo.apply(this, arguments);
+    const sel = document.getElementById('ap-turno'); if (!sel) return r;
+    const ops = [...sel.options].filter(o => o.value);
+    const u = typeof _repUltima === 'function' ? _repUltima() : null;
+    const alvo = (u && u.turno && ops.find(o => o.value === u.turno)) || (ops.length === 1 ? ops[0] : null);
+    if (alvo) { sel.value = alvo.value; apTurnoMudou(); }
+    return r;
+  };
+  const oGuardarUlt = _repGuardar;
+  _repGuardar = function () { oGuardarUlt.apply(this, arguments); try { const m = _repLer(); if (usuarioCampo && m[usuarioCampo.id]) { m[usuarioCampo.id].turno = document.getElementById('ap-turno')?.value || ''; localStorage.setItem('campo_ult_equipe', JSON.stringify(m)); } } catch (e) {} };
+})();
+
+// pessoa / equipamento provisório
+function _provLer() { try { return JSON.parse(localStorage.getItem('campo_provisorios') || '{"mo":[],"eq":[]}'); } catch (e) { return { mo: [], eq: [] }; } }
+function _provGravar(p) { try { localStorage.setItem('campo_provisorios', JSON.stringify(p)); } catch (e) {} }
+// junta os provisórios na lista do celular e tira os que já foram cadastrados na Gestão
+function _provAplicar() {
+  const p = _provLer(), n = v => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const ligados = new Set([...dadosCampo.funcionarios, ...dadosCampo.equipamentos].flatMap(x => x.origensProvisorias || []));
+  p.mo = p.mo.filter(f => !ligados.has(f.id) && !(f.mat && dadosCampo.funcionarios.some(x => !x.provisorio && n(x.mat) === n(f.mat))));
+  p.eq = p.eq.filter(e => !ligados.has(e.id) && !dadosCampo.equipamentos.some(x => !x.provisorio && ((e.tag && n(x.tag) === n(e.tag)) || (e.placa && n(x.placa) === n(e.placa)))));
+  _provGravar(p);
+  dadosCampo.funcionarios = dadosCampo.funcionarios.filter(x => !x.provisorio).concat(p.mo);
+  dadosCampo.equipamentos = dadosCampo.equipamentos.filter(x => !x.provisorio).concat(p.eq);
+}
+function provAbrir(tipo) {
+  const mo = tipo === 'mo', $ = id => document.getElementById(id);
+  $('prov-tit').textContent = mo ? 'Pessoa que não está na lista' : 'Equipamento que não está na lista';
+  $('prov-mo').style.display = mo ? '' : 'none'; $('prov-eq').style.display = mo ? 'none' : '';
+  ['prov-nome', 'prov-mat', 'prov-tag', 'prov-placa'].forEach(id => $(id).value = '');
+  const busca = (document.getElementById(mo ? 'ap-mo-busca' : 'ap-eq-busca')?.value || '').trim();
+  if (busca) { if (mo) { if (/^\d+$/.test(busca)) $('prov-mat').value = busca; else $('prov-nome').value = busca; } else $('prov-tag').value = busca.toUpperCase(); }
+  const funcoes = [...new Set(dadosCampo.funcionarios.map(f => f.codFuncao || f.funcao).filter(Boolean))].sort();
+  $('prov-funcao').innerHTML = '<option value="">Escolha…</option>' + funcoes.map(f => `<option>${_esc(f)}</option>`).join('');
+  const fams = [...new Set(dadosCampo.equipamentos.map(e => e.familia || e.codFamilia).filter(Boolean))].sort();
+  $('prov-familia').innerHTML = '<option value="">Escolha…</option>' + fams.map(f => `<option>${_esc(f)}</option>`).join('');
+  $('prov-sheet').dataset.tipo = tipo; $('prov-sheet').classList.add('show');
+  setTimeout(() => (mo ? $('prov-nome') : $('prov-tag')).focus(), 200);
+}
+function provSalvar() {
+  const $ = id => document.getElementById(id), tipo = $('prov-sheet').dataset.tipo, p = _provLer();
+  const base = { id: 'tmp' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), provisorio: true, obra: _apObra(), criadoPor: usuarioCampo?.nome || '', criadoEm: new Date().toISOString() };
+  if (tipo === 'mo') {
+    const nome = $('prov-nome').value.trim(), funcao = $('prov-funcao').value;
+    if (!nome || !funcao) { toast('Informe o nome e a função.', 'err'); return; }
+    const f = { ...base, nome, mat: $('prov-mat').value.trim(), codFuncao: funcao };
+    p.mo.push(f); _provGravar(p); _provAplicar(); ap.mo.add(f.id); apRenderMO();
+    toast(nome + ' entrou no apontamento (pendente de cadastro)', 'ok');
+  } else {
+    const tag = $('prov-tag').value.trim().toUpperCase(), placa = $('prov-placa').value.trim().toUpperCase(), familia = $('prov-familia').value;
+    if (!(tag || placa) || !familia) { toast('Informe a TAG ou a placa, e o tipo.', 'err'); return; }
+    const e = { ...base, tag: tag || placa, placa, familia };
+    p.eq.push(e); _provGravar(p); _provAplicar(); apToggleEQ(e.id);
+    toast((tag || placa) + ' entrou no apontamento (pendente de cadastro)', 'ok');
+  }
+  $('prov-sheet').classList.remove('show'); apGuardar();
+}
+(function () {
+  // depois de carregar os cadastros, junta os provisórios
+  const oCarregar = carregarDadosCampo;
+  carregarDadosCampo = async function () { const r = await oCarregar.apply(this, arguments); _provAplicar(); return r; };
+  _provAplicar();
+  // marca "pendente" na lista
+  const oMO = apRenderMO;
+  apRenderMO = function () { const r = oMO.apply(this, arguments); _provMarcar('mo'); return r; };
+  const oEQ = apRenderEQ;
+  apRenderEQ = function () { const r = oEQ.apply(this, arguments); _provMarcar('eq'); return r; };
+  // o turno aberto e os apontamentos levam a marca de provisório para a Gestão
+  const oFoto = _turnoFoto;
+  _turnoFoto = function () { const o = oFoto.apply(this, arguments); const p = _provLer(), idm = new Set(p.mo.map(x => x.id)), ide = new Set(p.eq.map(x => x.id));
+    (o.mo || []).forEach(x => { if (idm.has(x.id)) x.provisorio = true; }); (o.eq || []).forEach(x => { if (ide.has(x.id)) { x.provisorio = true; x.placa = (p.eq.find(e => e.id === x.id) || {}).placa || ''; } }); return o; };
+  const oSalvarFb = fbSalvar;
+  fbSalvar = async function (col, item) {
+    if (item && (col === 'aponMO' || col === 'aponEQ')) {
+      const p = _provLer();
+      const prov = col === 'aponMO' ? p.mo.find(f => ap.mo.has(f.id) && f.nome === item.func && String(f.mat || '') === String(item.mat || ''))
+                                    : p.eq.find(e => ap.eq.has(e.id) && (e.tag || e.placa) === item.equip);
+      if (prov) { item.provisorio = true; item.pid = prov.id; if (col === 'aponEQ') { item.placa = prov.placa || ''; item.equipId = ''; } }
+    }
+    return oSalvarFb.apply(this, arguments);
+  };
+})();
+function _provMarcar(tipo) {
+  const ids = new Set(_provLer()[tipo].map(x => x.id));
+  document.querySelectorAll(tipo === 'mo' ? '#ap-mo-lista .list-item' : '#ap-eq-lista .list-item').forEach(el => {
+    const m = (el.getAttribute('onclick') || '').match(/'([^']+)'/); if (m && ids.has(m[1]) && !el.querySelector('.ap-prov-tag')) el.querySelector('.list-name')?.insertAdjacentHTML('beforeend', '<span class="ap-prov-tag">pendente de cadastro</span>');
+  });
+}
 
 // Salvar sessão ao entrar
 const _origEntrar = entrarNoCampo;
