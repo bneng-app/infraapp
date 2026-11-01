@@ -673,7 +673,7 @@ select.form-control,select.form-control:focus{background-image:url("data:image/s
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraControl Campo · v2.20</div>
+  <div class="login-versao">ObraControl Campo · v2.21</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -2658,6 +2658,72 @@ function abrirMeuResumo() {
   document.getElementById('meu-resumo').classList.add('show');
 }
 _homeSaudacao(); _meuDiaBadges();
+
+// ══════════════════════════════════════════════════════════════
+// v2.21: LOCALIZAÇÃO NA ABERTURA E NO ENCERRAMENTO DO TURNO
+// - sem a localização do celular o apontamento não abre
+// - grava só nesses dois momentos (não rastreia o dia)
+// ══════════════════════════════════════════════════════════════
+function _geoPegar(timeout) {
+  return new Promise((ok, falha) => {
+    if (!navigator.geolocation) return falha({ code: 0, message: 'sem GPS' });
+    navigator.geolocation.getCurrentPosition(
+      p => ok({ lat: +p.coords.latitude.toFixed(6), lng: +p.coords.longitude.toFixed(6), acc: Math.round(p.coords.accuracy || 0), em: new Date().toISOString() }),
+      e => falha(e), { enableHighAccuracy: true, timeout: timeout || 20000, maximumAge: 120000 });
+  });
+}
+let _geoBusca = null;
+function _apGeoIni(silencioso) {
+  if (ap.geoIni) return Promise.resolve(true);
+  if (!_geoBusca) _geoBusca = _geoPegar(20000).then(g => { ap.geoIni = g; _geoBusca = null; if (document.getElementById('ap-frente')?.value) apGuardar(); return true; })
+    .catch(e => { _geoBusca = null;
+      if (!silencioso) toast(e && e.code === 1 ? 'Localização bloqueada. Libere a localização do ObraControl no celular para abrir o apontamento.' : 'Não consegui pegar a localização. Ligue o GPS do celular e tente de novo.', 'err');
+      return false; });
+  return _geoBusca;
+}
+// guarda a localização junto do rascunho
+(function () {
+  const oGuardar = apGuardar;
+  apGuardar = function () {
+    // novo apontamento sem localização ainda não vira "em andamento"
+    if (!ap.uid && !ap.geoIni) { apAtualizarHome(); return; }
+    oGuardar.apply(this, arguments);
+    if (ap.uid) { const l = apRascunhos(); const r = l.find(x => x.uid === ap.uid); if (r && (r.geoIni !== ap.geoIni)) { r.geoIni = ap.geoIni || null; _apGravarLista(l); } }
+  };
+  let _geoAbrindo = null;
+  const oAbrir = apAbrir;
+  apAbrir = function (uid) { const r = apRascunhos().find(x => x.uid === uid); _geoAbrindo = (r && r.geoIni) || null; try { return oAbrir.apply(this, arguments); } finally { _geoAbrindo = null; } };
+  const oLimpar = _apLimparForm;
+  _apLimparForm = function () { oLimpar.apply(this, arguments); ap.geoIni = _geoAbrindo; ap.geoFim = null; };
+  const oNovo = apNovo;
+  apNovo = function () { const r = oNovo.apply(this, arguments); _apGeoIni(true); return r; };   // já pede a permissão
+  const oFoto = _turnoFoto;
+  _turnoFoto = function () { const o = oFoto.apply(this, arguments); if (ap.geoIni) o.geoIni = ap.geoIni; return o; };
+  // não passa da frente sem localização
+  const oTab = apTab;
+  apTab = function (aba) {
+    // (apontamentos abertos antes desta versão já têm uid e seguem sem bloquear)
+    if (aba !== 'frente' && !ap.geoIni && !ap.uid && document.getElementById('ap-frente')?.value) {
+      toast('Pegando a localização…');
+      _apGeoIni(false).then(ok => { if (ok) oTab.call(this, aba); });
+      return;
+    }
+    return oTab.apply(this, arguments);
+  };
+  // encerramento: tenta a localização de novo (não bloqueia)
+  const oSalvar = salvarApropriacao;
+  salvarApropriacao = async function () {
+    if (!ap.geoFim) { try { ap.geoFim = await _geoPegar(8000); } catch (e) { ap.geoFim = null; } }
+    return oSalvar.apply(this, arguments);
+  };
+  const oSalvarFb = fbSalvar;
+  fbSalvar = async function (col, item) {
+    if ((col === 'aponMO' || col === 'aponEQ' || col === 'perdas') && item && ap.uid) { if (ap.geoIni) item.geoIni = ap.geoIni; if (ap.geoFim) item.geoFim = ap.geoFim; }
+    return oSalvarFb.apply(this, arguments);
+  };
+  const oFechar = _turnoFechar;
+  _turnoFechar = function (status, extra) { if (status === 'encerrado' && ap.geoFim) extra = { ...(extra || {}), geoFim: ap.geoFim }; return oFechar.call(this, status, extra); };
+})();
 
 // Salvar sessão ao entrar
 const _origEntrar = entrarNoCampo;
