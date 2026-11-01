@@ -609,6 +609,10 @@ select.form-control,select.form-control:focus{background-image:url("data:image/s
 
 
 
+
+/* v2.28: módulo sem acesso pelo perfil */
+.hcard.off{opacity:.38;filter:grayscale(1);cursor:not-allowed}
+.hcard.off .hchev{display:none}
 /* v2.26: cadastro provisório */
 .ap-prov-btn{display:block;margin:8px 14px 0;width:calc(100% - 28px);background:none;border:1.5px dashed #9A9CA5;border-radius:12px;padding:10px;font-size:13.5px;font-weight:700;color:var(--text2);cursor:pointer}
 .ap-prov-tag{display:inline-block;font-size:10px;font-weight:800;color:#9A3412;background:#FFEDD5;border-radius:6px;padding:1px 6px;margin-left:6px}
@@ -755,7 +759,7 @@ select.form-control,select.form-control:focus{background-image:url("data:image/s
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraControl Campo · v2.27</div>
+  <div class="login-versao">ObraControl Campo · v2.28</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -1447,7 +1451,7 @@ async function fazerLoginCampo() {
   if (usr.status === 'Inativo') { try { await auth.signOut(); } catch (_) {} erro('Acesso desativado. Fale com o escritório.'); return; }
 
   if (!digitado.includes('@')) { mapa[digitado.replace(/\s+/g, '')] = emailAuth; try { localStorage.setItem('campo_login_map', JSON.stringify(mapa)); } catch (e) {} }
-  usuarioCampo = { id: usr.id, nome: usr.nome || digitado, perfil: usr.perfil || 'Colaborador', mat: usr.mat || digitado, obra: usr.obra || '', empresa: usr.empresa || '' };
+  usuarioCampo = { id: usr.id, nome: usr.nome || digitado, perfil: usr.perfil || 'Colaborador', mat: usr.mat || digitado, obra: usr.obra || '', empresa: usr.empresa || '', perms: usr.perms || null };
   btn.textContent = 'Entrar'; btn.disabled = false;
   document.getElementById('login-senha').value = '';
   await carregarDadosCampo();
@@ -3123,6 +3127,54 @@ function _provMarcar(tipo) {
     const m = (el.getAttribute('onclick') || '').match(/'([^']+)'/); if (m && ids.has(m[1]) && !el.querySelector('.ap-prov-tag')) el.querySelector('.list-name')?.insertAdjacentHTML('beforeend', '<span class="ap-prov-tag">pendente de cadastro</span>');
   });
 }
+
+// ══════════════════════════════════════════════════════════════
+// v2.28: MÓDULOS DO APP PELO PERFIL (Apropriação / Abastecimento)
+// Vale o que estiver marcado no perfil (Gestão → Usuários → Perfis); sem marcação:
+// Colaborador (líder/apropriador) só apropria; Abastecedor só abastece; Admin faz tudo.
+// ══════════════════════════════════════════════════════════════
+const _PERM_PADRAO = { Colaborador: { apontamentos: true, abastecimento: false }, Abastecedor: { apontamentos: false, abastecimento: true } };
+function podeModulo(k) {
+  const u = usuarioCampo; if (!u) return false; if (u.perfil === 'Admin') return true;
+  const pf = (dadosCampo.perfis || []).find(p => p.nome === u.perfil);
+  if (pf && pf.perms && pf.perms[k] !== undefined) return !!pf.perms[k];
+  if (u.perms && u.perms[k] !== undefined) return !!u.perms[k];
+  const d = _PERM_PADRAO[u.perfil]; if (d) return !!d[k];
+  return k === 'apontamentos';
+}
+function _modulosAplicar() {
+  const ap = podeModulo('apontamentos'), ab = podeModulo('abastecimento');
+  const cAp = document.querySelector('.hcard[onclick*="abrirModulo(\'ap\')"]'), cAb = document.getElementById('card-fuel');
+  if (cAp) { cAp.classList.toggle('off', !ap); const s = cAp.querySelector('.hcard-s'); if (s) s.textContent = ap ? 'Mão de obra e Equipamentos' : 'Sem acesso no seu perfil'; }
+  if (cAb) { cAb.classList.toggle('off', !ab); const s = cAb.querySelector('.hcard-s'); if (s) s.textContent = ab ? 'Diesel' : 'Sem acesso no seu perfil'; const bf = document.getElementById('badge-fuel'); if (bf && !ab) bf.style.display = 'none'; }
+}
+(function () {
+  // perfis (para ler o que está marcado) — se o servidor não liberar, usa o que veio no cadastro do usuário
+  const oCarregar = carregarDadosCampo;
+  carregarDadosCampo = async function () {
+    const r = await oCarregar.apply(this, arguments);
+    try { const ps = await fbCarregar('perfis'); if (ps && ps.length) { dadosCampo.perfis = ps; localStorage.setItem('campo_cache_perfis', JSON.stringify(ps)); } else throw 0; }
+    catch (e) { try { dadosCampo.perfis = JSON.parse(localStorage.getItem('campo_cache_perfis') || '[]'); } catch (x) { dadosCampo.perfis = []; } }
+    try { _modulosAplicar(); } catch (e) {}
+    return r;
+  };
+  const oModulo = abrirModulo;
+  abrirModulo = function (mod) {
+    const k = mod === 'fuel' ? 'abastecimento' : mod === 'ap' ? 'apontamentos' : '';
+    if (k && !podeModulo(k)) { toast((k === 'abastecimento' ? 'Abastecimento' : 'Apropriação') + ' não está liberado no seu perfil.', 'err'); return; }
+    return oModulo.apply(this, arguments);
+  };
+  const oEntrar = entrarNoCampo;
+  entrarNoCampo = function () { const r = oEntrar.apply(this, arguments); try { _modulosAplicar(); } catch (e) {} return r; };
+  // "Meu resumo": sem abastecimento no perfil, não mostra nada de diesel
+  const oResumo = abrirMeuResumo;
+  abrirMeuResumo = function () {
+    const r = oResumo.apply(this, arguments);
+    if (!podeModulo('abastecimento')) { const b = document.getElementById('meu-resumo-body'); if (b) { b.querySelectorAll('.mr-kpi').forEach(k => { if (/abastec|diesel/i.test(k.textContent)) k.style.display = 'none'; }); b.querySelectorAll('.mr-kpis').forEach(g => g.style.gridTemplateColumns = 'repeat(2,1fr)'); b.querySelectorAll('.mr-sec').forEach(s => { if (/abastec/i.test(s.textContent)) { let n = s.nextElementSibling; s.style.display = 'none'; while (n && n.classList.contains('mr-item')) { n.style.display = 'none'; n = n.nextElementSibling; } } }); } }
+    if (!podeModulo('apontamentos')) { const b = document.getElementById('meu-resumo-body'); if (b) { b.querySelectorAll('.mr-kpi').forEach(k => { if (/encerrad|andamento|pessoas|equipamentos/i.test(k.textContent)) k.style.display = 'none'; }); b.querySelectorAll('.mr-sec').forEach(s => { if (/andamento|encerrad/i.test(s.textContent)) { let n = s.nextElementSibling; s.style.display = 'none'; while (n && n.classList.contains('mr-item')) { n.style.display = 'none'; n = n.nextElementSibling; } } }); } }
+    return r;
+  };
+})();
 
 // Salvar sessão ao entrar
 const _origEntrar = entrarNoCampo;

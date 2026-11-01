@@ -534,7 +534,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraControl</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraControl v2.51 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraControl v2.52 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -3247,6 +3247,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="perm-config"/> Configurações ADM</label>
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="perm-almoxarifado"/> Almoxarifado (diesel e notas)</label>
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="perm-aprovacao"/> Aprovar apontamentos</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="perm-abastecimento"/> Abastecimento no app de campo</label>
       </div>
       </div>
     </div>
@@ -4010,6 +4011,7 @@ async function salvarUsuario() {
     config:       document.getElementById('perm-config')?.checked||false,
     almoxarifado: document.getElementById('perm-almoxarifado')?.checked||false,
     aprovacao:    document.getElementById('perm-aprovacao')?.checked||false,
+    abastecimento: document.getElementById('perm-abastecimento')?.checked||false,
   };
   if (perfil==='Admin') Object.keys(perms).forEach(k=>perms[k]=true);
 
@@ -7741,18 +7743,19 @@ const MODULOS = [
   ['aprovacao',    'Aprovar apontamentos',       []],
   ['qrcodes',      'QR Codes',                   []],
   ['config',       'Configurações ADM',          []],
+  ['abastecimento', 'Abastecimento no app de campo', []],
 ];
 const PERFIS_PADRAO = [
   { id:'pf-admin',       nome:'Admin',       tipo:'painel', cor:'red',   sistema:true, desc:'acesso total',
     perms:{dashboards:true,cadastros:true,apontamentos:true,almoxarifado:true,relatorios:true,qrcodes:true,config:true} },
   { id:'pf-supervisor',  nome:'Supervisor',  tipo:'painel', cor:'blue',  sistema:true, desc:'apontamentos e relatórios',
-    perms:{dashboards:true,cadastros:true,apontamentos:true,almoxarifado:false,relatorios:true,aprovacao:true,qrcodes:false,config:false} },
+    perms:{dashboards:true,cadastros:true,apontamentos:true,almoxarifado:false,relatorios:true,aprovacao:true,qrcodes:false,config:false,abastecimento:false} },
   { id:'pf-colaborador', nome:'Colaborador', tipo:'campo',  cor:'green', sistema:true, desc:'lançamentos de campo',
-    perms:{apontamentos:true} },
+    perms:{apontamentos:true,abastecimento:false} },
   { id:'pf-gerencia',    nome:'Gerência',    tipo:'painel', cor:'gray',  sistema:true, desc:'somente dashboards',
     perms:{dashboards:true,cadastros:false,apontamentos:false,almoxarifado:false,relatorios:false,aprovacao:false,qrcodes:false,config:false} },
   { id:'pf-abastecedor', nome:'Abastecedor', tipo:'painel', cor:'amber', sistema:true, desc:'somente notas fiscais e diesel',
-    perms:{dashboards:false,cadastros:false,apontamentos:false,almoxarifado:true,relatorios:false,qrcodes:false,config:false} },
+    perms:{dashboards:false,cadastros:false,apontamentos:false,almoxarifado:true,relatorios:false,qrcodes:false,config:false,abastecimento:true} },
 ];
 function listaPerfis() {
   const salvos = dados.perfis || [];
@@ -7794,7 +7797,11 @@ function renderListaPerfis() {
 }
 function pfTipoMudou() {
   const campo = document.getElementById('pf-tipo').value === 'campo';
-  document.getElementById('pf-perms-bloco').style.display = campo ? 'none' : '';
+  document.getElementById('pf-perms-bloco').style.display = '';
+  // v2.52: no perfil de campo só valem os módulos do app (Apropriação e Abastecimento)
+  MODULOS.forEach(([k, l]) => { const c = document.getElementById('pf-perm-' + k); if (!c) return; const lb = c.closest('label');
+    const doApp = k === 'apontamentos' || k === 'abastecimento'; if (lb) lb.style.display = campo && !doApp ? 'none' : '';
+    if (lb && k === 'apontamentos') lb.lastChild.textContent = campo ? ' Apropriação (mão de obra e equipamentos) no app' : ' ' + l; });
 }
 function editarPerfil(id) {
   const p = id ? listaPerfis().find(x => x.id === id) : null;
@@ -7819,7 +7826,9 @@ function salvarPerfil() {
   if (nome.toLowerCase() === 'admin' && !(atual && atual.nome === 'Admin')) { toast('"Admin" é reservado','error'); return; }
   if (listaPerfis().some(p => p.nome.toLowerCase() === nome.toLowerCase() && p.id !== id)) { toast('Já existe um perfil com esse nome','error'); return; }
   const tipo = $('pf-tipo').value;
-  const perms = {}; MODULOS.forEach(([k]) => perms[k] = tipo === 'campo' ? k === 'apontamentos' : !!$('pf-perm-' + k)?.checked);
+  // v2.52: perfil de campo escolhe Apropriação e/ou Abastecimento no app
+  const perms = {}; MODULOS.forEach(([k]) => perms[k] = tipo === 'campo' ? ((k === 'apontamentos' || k === 'abastecimento') && !!$('pf-perm-' + k)?.checked) : !!$('pf-perm-' + k)?.checked);
+  if (tipo === 'campo' && !perms.apontamentos && !perms.abastecimento) { toast('Marque pelo menos Apropriação ou Abastecimento para o app de campo.', 'error'); return; }
   const obj = { id: id || ('pf' + Date.now()), nome, desc: ($('pf-desc').value||'').trim(), cor: $('pf-cor').value, tipo, perms };
   dados.perfis = (dados.perfis || []).filter(x => x.id !== obj.id && x.nome !== obj.nome);
   dados.perfis.push(obj);
@@ -7893,7 +7902,7 @@ async function excluirPerfil(id) {
       const id = $('usr-edit-id')?.value; const u = id ? USUARIOS.find(x => x.id === id) : null;
       if (!u || (u.email||'').endsWith('@' + _DOMINIO_CAMPO)) $('usr-email').value = '';
       if ($('usr-login')) { $('usr-login').value = ''; $('usr-login').dataset.manual = '1'; }
-      MODULOS.forEach(([k]) => { const c = $('perm-' + k); if (c) c.checked = k === 'apontamentos'; });
+      { const pf = perfilPorNome(nome); MODULOS.forEach(([k]) => { const c = $('perm-' + k); if (c) c.checked = (k === 'apontamentos' || k === 'abastecimento') ? !!(pf && pf.perms && pf.perms[k]) : false; }); }
     }
     return oSave.apply(this, arguments);
   };
