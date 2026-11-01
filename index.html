@@ -275,6 +275,22 @@ body.dx-full .dx-nav{display:flex;flex-direction:column;background:linear-gradie
 .dx-nav-foto{margin-top:auto;width:100%;aspect-ratio:400/696;max-height:72vh;background-size:100% auto;background-position:center bottom;background-repeat:no-repeat;-webkit-mask-image:linear-gradient(to bottom,transparent,#000 16%);mask-image:linear-gradient(to bottom,transparent,#000 16%)}
 body.dx-full .dx-main{padding-top:18px;min-width:0}
 @media print{ .dx{margin:0;min-height:auto} .dx-filtros .dx-btn{display:none} }
+/* v2.44: dois ambientes — Dashboards e Gestão */
+.amb-sw{display:flex;align-items:center;gap:2px;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.22);border-radius:20px;padding:3px}
+.amb-sw button{display:flex;align-items:center;gap:6px;border:none;background:none;color:rgba(255,255,255,.72);font-size:12.5px;font-weight:700;padding:5px 13px;border-radius:16px;cursor:pointer;white-space:nowrap}
+.amb-sw button svg{width:14px;height:14px}
+.amb-sw button:hover:not(.on){color:#fff;background:rgba(255,255,255,.08)}
+.amb-sw button.on{background:#E30613;color:#fff;box-shadow:0 2px 8px rgba(227,6,19,.35)}
+body.amb-gestao #grp-dashboards{display:none!important}
+body.amb-dash .sidebar{display:none!important}
+body.amb-dash .main{padding:0!important}
+body.amb-dash .dx{margin:0;min-height:calc(100vh - var(--header-h));display:grid;grid-template-columns:200px 1fr;gap:18px;padding:0 18px 20px 0}
+body.amb-dash .dx-nav{display:flex;flex-direction:column;background:linear-gradient(180deg,#0D0B0E 0%,#1A0A10 38%,#370B15 100%);border-right:1px solid var(--ln);position:sticky;top:0;align-self:start;height:calc(100vh - var(--header-h));min-height:0}
+body.amb-dash .dx-main{padding-top:18px;min-width:0}
+body.amb-dash.dx-full .dx{min-height:100vh}
+body.amb-dash.dx-full .dx-nav{height:100vh}
+body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
+
 
 .dx-kpi.b-rd{border-left:4px solid #E30613}.dx-kpi.b-or{border-left:4px solid #F97316}.dx-kpi.b-am{border-left:4px solid #FACC15}
 .dx-kpi.fill{background:linear-gradient(160deg,#6B0A14,#3A050B);border-color:#E30613;box-shadow:0 0 0 1px rgba(227,6,19,.4),0 6px 24px rgba(227,6,19,.18)}
@@ -480,7 +496,7 @@ body.dx-full .dx-main{padding-top:18px;min-width:0}
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraControl</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraControl v2.43 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraControl v2.44 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -507,6 +523,10 @@ body.dx-full .dx-main{padding-top:18px;min-width:0}
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="10" r="3"/><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/></svg>
     <span id="obra-ativa-label" style="color:white;font-weight:700;font-size:13px">Todas as obras</span>
     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+  </div>
+  <div class="amb-sw" id="amb-sw" style="display:none">
+    <button type="button" id="amb-btn-dash" onclick="ambDefinir('dash')" title="Dashboards"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>Dashboards</button>
+    <button type="button" id="amb-btn-gestao" onclick="ambDefinir('gestao')" title="Gestão: apontamentos, aprovação, cadastros"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>Gestão</button>
   </div>
   <div class="topbar-right">
     <div class="sync-indicator" id="sync-status">
@@ -7652,6 +7672,8 @@ const PERFIS_PADRAO = [
     perms:{dashboards:true,cadastros:true,apontamentos:true,almoxarifado:false,relatorios:true,aprovacao:true,qrcodes:false,config:false} },
   { id:'pf-colaborador', nome:'Colaborador', tipo:'campo',  cor:'green', sistema:true, desc:'lançamentos de campo',
     perms:{apontamentos:true} },
+  { id:'pf-gerencia',    nome:'Gerência',    tipo:'painel', cor:'gray',  sistema:true, desc:'somente dashboards',
+    perms:{dashboards:true,cadastros:false,apontamentos:false,almoxarifado:false,relatorios:false,aprovacao:false,qrcodes:false,config:false} },
   { id:'pf-abastecedor', nome:'Abastecedor', tipo:'painel', cor:'amber', sistema:true, desc:'somente notas fiscais e diesel',
     perms:{dashboards:false,cadastros:false,apontamentos:false,almoxarifado:true,relatorios:false,qrcodes:false,config:false} },
 ];
@@ -9182,7 +9204,7 @@ function _dxNav(tipo) {
   const it = (id, pag, rot, ic) => `<a class="${tipo === id ? 'on' : ''}" onclick="showPage('${pag}')">${ic}${rot}</a>`;
   return `<nav class="dx-nav"><div class="dx-nav-logo"><svg viewBox="0 0 312 60" style="width:96px"><g fill="#E30613"><rect x="0" y="0" width="48" height="12"/><rect x="18" y="0" width="12" height="60"/><rect x="62" y="0" width="44" height="12"/><rect x="62" y="24" width="44" height="12"/><rect x="62" y="48" width="44" height="12"/><rect x="120" y="0" width="12" height="60"/><rect x="168" y="0" width="12" height="60"/><polygon points="120,0 133,0 180,60 167,60"/></g><g fill="none" stroke="#E30613" stroke-width="12"><path d="M240.4 14.6 A24 24 0 1 0 240.4 45.4"/><circle cx="282" cy="30" r="24"/></g></svg><b>ObraControl</b></div>
     ${it('geral', 'dashboard', 'Visão Geral', _ic.grid)}${it('mo', 'dash-mo', 'Mão de Obra', _ic.user)}${it('eq', 'dash-eq', 'Equipamentos', _ic.truck)}${it('abs', 'dash-abs', 'Abastecimento', _ic.fuel)}
-    <a onclick="dxTelaCheia(true)" style="margin-top:14px;color:#aaa;font-weight:500">← Sair da tela cheia</a>
+    <a class="dx-nav-sair" onclick="dxTelaCheia(true)" style="margin-top:14px;color:#aaa;font-weight:500">← Sair da tela cheia</a>
     <div class="dx-nav-foto" style="background-image:url('${_DX_FOTOS[tipo] || _DX_FOTOS.geral}')"></div></nav>`;
 }
 function _dxMontar(tipo, pagina, titulo, sub, corpo) {
@@ -9484,6 +9506,82 @@ function dxRender() {
   const oSel = window.selecionarObra;
   if (typeof oSel === 'function') window.selecionarObra = function () { const r = oSel.apply(this, arguments); _dx.obra = obraAtiva && obraAtiva.id !== 'todas' ? obraAtiva.id : ''; _dx.frente = ''; setTimeout(() => { try { dxRender(); } catch (e) {} }, 60); return r; };
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.body.classList.contains('dx-full')) dxTelaCheia(true); });
+})();
+
+// ═══════════════════════════════════════════════════════════════
+// v2.44: DOIS AMBIENTES — Dashboards (só os painéis, menu com foto) e Gestão (apontamentos, aprovação, cadastros…)
+// Quem vê cada um sai das permissões do perfil: "Dashboards" libera o ambiente de dashboards;
+// qualquer outro módulo libera o de Gestão. Perfil "Gerência" já vem só com Dashboards.
+// ═══════════════════════════════════════════════════════════════
+const _DASH_PAGS = ['dashboard', 'dash-mo', 'dash-eq', 'dash-abs'];
+let _amb = '';
+const _ambUlt = { dash: 'dashboard', gestao: '' };
+function _ambPagsGestao() {
+  const vistas = new Set();
+  document.querySelectorAll('.sidebar .nav-item[onclick*="showPage("]').forEach(el => {
+    const m = (el.getAttribute('onclick') || '').match(/showPage\('([^']+)'/); if (!m) return;
+    const p = m[1]; if (_DASH_PAGS.includes(p)) return;
+    const g = el.closest('.nav-group');
+    if (el.style.display === 'none' || (g && g.style.display === 'none')) return;
+    if (typeof podeVerPagina === 'function' && !podeVerPagina(p)) return;
+    vistas.add(p);
+  });
+  return [...vistas];
+}
+function _ambPode(a) {
+  if (!usuarioLogado) return false;
+  if (a === 'dash') return typeof podeVerPagina !== 'function' || podeVerPagina('dashboard');
+  return _ambPagsGestao().length > 0;
+}
+function _ambClasses(a) {
+  _amb = a;
+  document.body.classList.toggle('amb-dash', a === 'dash');
+  document.body.classList.toggle('amb-gestao', a === 'gestao');
+  document.getElementById('amb-btn-dash')?.classList.toggle('on', a === 'dash');
+  document.getElementById('amb-btn-gestao')?.classList.toggle('on', a === 'gestao');
+  try { if (usuarioLogado) localStorage.setItem('oc_amb_' + (usuarioLogado.id || usuarioLogado.email || ''), a); } catch (e) {}
+}
+function _ambIr(pag) {
+  const el = document.querySelector(`.sidebar .nav-item[onclick*="showPage('${pag}'"]`);
+  showPage(pag, el);
+}
+function ambDefinir(a) {
+  if (!_ambPode(a)) a = a === 'dash' ? 'gestao' : 'dash';
+  if (!_ambPode(a)) return;
+  _ambClasses(a);
+  const ativa = document.querySelector('.page.active')?.id?.replace('page-', '') || '';
+  if (a === 'dash' && !_DASH_PAGS.includes(ativa)) _ambIr(_ambUlt.dash || 'dashboard');
+  if (a === 'gestao' && (_DASH_PAGS.includes(ativa) || !ativa)) {
+    const ps = _ambPagsGestao();
+    _ambIr(ps.includes(_ambUlt.gestao) ? _ambUlt.gestao : (ps.includes('diario') ? 'diario' : ps[0]));
+  }
+  if (a === 'gestao' && document.body.classList.contains('dx-full')) dxTelaCheia(true);
+}
+function _ambIniciar() {
+  const dash = _ambPode('dash'), gest = _ambPode('gestao');
+  const sw = document.getElementById('amb-sw'); if (sw) sw.style.display = dash && gest ? '' : 'none';
+  let a = ''; try { a = localStorage.getItem('oc_amb_' + (usuarioLogado.id || usuarioLogado.email || '')) || ''; } catch (e) {}
+  if (!a) a = dash ? 'dash' : 'gestao';
+  ambDefinir(a);
+}
+(function () {
+  // abrir uma tela leva junto o ambiente dela (ex.: link para Aprovação a partir de um painel)
+  const oShow = window.showPage;
+  window.showPage = function (id) {
+    if (usuarioLogado && _amb) {
+      const alvo = _DASH_PAGS.includes(id) ? 'dash' : 'gestao';
+      if (alvo !== _amb && _ambPode(alvo)) _ambClasses(alvo);
+      _ambUlt[alvo] = id;
+    }
+    return oShow.apply(this, arguments);
+  };
+  const oEntrar = window.entrarNoApp;
+  window.entrarNoApp = function () { const r = oEntrar.apply(this, arguments); try { _ambIniciar(); } catch (e) { console.warn('ambiente', e); } return r; };
+  const oPerm = window.aplicarPermissoes;
+  window.aplicarPermissoes = function () { const r = oPerm.apply(this, arguments); if (_amb) { const sw = document.getElementById('amb-sw'); if (sw) sw.style.display = _ambPode('dash') && _ambPode('gestao') ? '' : 'none'; } return r; };
+  // sair do sistema limpa o ambiente
+  const oSair = window.fazerLogout;
+  if (typeof oSair === 'function') window.fazerLogout = function () { document.body.classList.remove('amb-dash', 'amb-gestao'); _amb = ''; return oSair.apply(this, arguments); };
 })();
 
 // Apply configs on load
