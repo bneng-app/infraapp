@@ -552,7 +552,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v2.64 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v2.65 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -3822,6 +3822,7 @@ function fazerLogin() {
         try { await fbSave('usuarios', usr.id, usr); } catch (e) { console.warn('salvar admin', e); }
       }
       if (usr.status === 'Inativo') { auth.signOut(); erro('Usuário desativado. Fale com o administrador.'); return; }
+      usuarioLogado = usr; _garantirMaster();
       if (!digitado.includes('@')) _lembrarLogin(digitado, emailAuth);
       usuarioLogado = usr;
       if (erroEl) erroEl.style.display='none';
@@ -4154,6 +4155,13 @@ function editarUsuario(id) {
 }
 
 // v2.5: exclui o cadastro do usuário (some da lista e perde o acesso ao portal e ao campo)
+// v2.65: se não sobrar nenhum master, o Admin logado vira o master (com gravação no servidor)
+function _garantirMaster() {
+  if (!usuarioLogado || USUARIOS.some(u => u.master && u.status !== 'Inativo')) return;
+  const eu = USUARIOS.find(u => u.id === usuarioLogado.id); if (!eu || eu.perfil !== 'Admin') return;
+  eu.master = true; usuarioLogado.master = true;
+  if (db && _firebaseReady) { const { senha, ...x } = eu; fbSave('usuarios', eu.id, x).catch(() => {}); }
+}
 // v2.62: um master pode ser excluído por outro Admin, desde que sobre pelo menos um Admin ativo
 function _outroAdmin(id) { return USUARIOS.some(x => x.id !== id && x.perfil === 'Admin' && x.status !== 'Inativo'); }
 async function excluirUsuario(id) {
@@ -4165,6 +4173,7 @@ async function excluirUsuario(id) {
     catch (e) { toast('Não consegui excluir no servidor. Tente de novo.','error'); return; }
   }
   USUARIOS = USUARIOS.filter(x=>x.id!==id);
+  _garantirMaster();
   renderUsuarios();
   toast('Usuário "'+u.nome+'" excluído.');
 }
