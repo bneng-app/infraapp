@@ -523,7 +523,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraControl</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraControl v2.47 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraControl v2.48 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -9832,6 +9832,73 @@ function _geoTxt(g, frente, obra) {
   };
   const oEdit = window.editarFrente;
   window.editarFrente = function (id) { const r = oEdit.apply(this, arguments); const f = (dados.frentes || []).find(x => x.id === id); if ($('frente-coord')) $('frente-coord').value = (f && f.coord) || ''; return r; };
+})();
+
+// ═══════════════════════════════════════════════════════════════
+// v2.48: MAPA DAS EQUIPES ABERTAS (fim do acompanhamento do dia)
+// ═══════════════════════════════════════════════════════════════
+let _mapaDia = null, _mapaVista = null, _mapaChave = '', _leafletP = null;
+function _leaflet() {
+  if (window.L) return Promise.resolve(window.L);
+  if (_leafletP) return _leafletP;
+  _leafletP = new Promise((ok, falha) => {
+    const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css'; document.head.appendChild(css);
+    const js = document.createElement('script'); js.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+    js.onload = () => ok(window.L); js.onerror = () => { _leafletP = null; falha(new Error('mapa')); }; document.head.appendChild(js);
+  });
+  return _leafletP;
+}
+function _diaMapaMontar(turnos, frentes) {
+  const el = document.getElementById('dia-mapa'); if (!el) return;
+  _leaflet().then(L => {
+    if (!document.body.contains(el)) return;
+    if (_mapaDia) { try { _mapaVista = { c: _mapaDia.getCenter(), z: _mapaDia.getZoom() }; _mapaDia.remove(); } catch (e) {} _mapaDia = null; }
+    const claro = !!_dx.claro;
+    const m = L.map(el, { zoomControl: true, attributionControl: true, scrollWheelZoom: false });
+    L.tileLayer(claro ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png' : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+      { maxZoom: 19, subdomains: 'abcd', attribution: '&copy; OpenStreetMap &copy; CARTO' }).addTo(m);
+    const pts = [];
+    frentes.forEach(f => {
+      L.circleMarker([f.lat, f.lng], { radius: 6, color: '#9CA3AF', weight: 2, fillColor: '#6B7280', fillOpacity: .6 }).addTo(m)
+        .bindTooltip(_e(f.cod) + ' — ' + _e(f.desc || ''), { direction: 'top' });
+      pts.push([f.lat, f.lng]);
+    });
+    turnos.forEach(t => {
+      const g = t.geoIni, fr = (dados.frentes || []).find(x => x.cod === t.frente);
+      const mk = L.marker([g.lat, g.lng], { icon: L.divIcon({ className: '', iconSize: [34, 34], iconAnchor: [17, 17],
+        html: `<div style="width:34px;height:34px;border-radius:50%;background:#E30613;border:3px solid #fff;box-shadow:0 0 0 6px rgba(227,6,19,.28),0 4px 10px rgba(0,0,0,.5);color:#fff;font:800 11px Inter,Arial,sans-serif;display:flex;align-items:center;justify-content:center">${(t.mo || []).length}</div>` }) }).addTo(m);
+      mk.bindPopup(`<div style="font:13px Inter,Arial,sans-serif;min-width:200px"><b>${_e(t.frente)}</b> ${_e(fr ? fr.desc || '' : '')}<br><span style="color:#666">${_e(t.servico || '—')}</span>
+        <div style="margin-top:6px">Apropriador: <b>${_e(t.apontador || '—')}</b><br>Entrada: <b>${_e(t.horaIni || '—')}</b> · ${(t.mo || []).length} pessoa(s) · ${(t.eq || []).length} equip.</div>
+        <div style="margin-top:6px"><a href="https://www.google.com/maps?q=${g.lat},${g.lng}" target="_blank" rel="noopener">Abrir no Google Maps</a> <span style="color:#888">±${_e(g.acc || '?')} m</span></div></div>`);
+      pts.push([g.lat, g.lng]);
+    });
+    // mantém o zoom de quem está olhando; se mudaram as equipes/frentes, enquadra de novo
+    const chave = turnos.map(t => t.id + ':' + t.geoIni.lat + ',' + t.geoIni.lng).sort().join('|') + '#' + frentes.map(f => f.cod).sort().join('|');
+    if (chave !== _mapaChave) { _mapaVista = null; _mapaChave = chave; }
+    if (_mapaVista) m.setView(_mapaVista.c, _mapaVista.z);
+    else if (pts.length) m.fitBounds(pts, { padding: [40, 40], maxZoom: 16 });
+    else m.setView([-15.78, -47.93], 4);
+    m.on('moveend', () => { _mapaVista = { c: m.getCenter(), z: m.getZoom() }; });
+    _mapaDia = m;
+  }).catch(() => { el.innerHTML = '<div class="dx-vazio">Não consegui carregar o mapa (sem internet?).</div>'; });
+}
+(function () {
+  const oRender = renderDiario;
+  renderDiario = function () {
+    const r = oRender.apply(this, arguments);
+    const pg = document.getElementById('page-diario'); const main = pg && pg.querySelector('.dx-main'); if (!main) return r;
+    const ob = _dx.obra, dataSel = _dia.dataSel || _hojeLocal();
+    const abertos = _dia.lista.filter(t => (!ob || t.obra === ob) && t.status === 'aberto' && t.data === dataSel);
+    const comGeo = abertos.filter(t => t.geoIni && t.geoIni.lat != null);
+    const frentes = (dados.frentes || []).filter(f => (!ob || !f.obra || f.obra === ob)).map(f => { const c = typeof _geoFrente === 'function' ? _geoFrente(f.cod, f.obra) : null; return c ? { ...c, cod: f.cod, desc: f.desc } : null; }).filter(Boolean);
+    const leg = `<span class="dx-leg"><span><i style="background:#E30613;border-radius:50%"></i>equipe aberta (nº de pessoas)</span>${frentes.length ? '<span><i style="background:#6B7280;border-radius:50%"></i>frente cadastrada</span>' : ''}</span>`;
+    const aviso = abertos.length > comGeo.length ? `<div class="dx-sub" style="margin:8px 0 0">${abertos.length - comGeo.length} turno(s) aberto(s) sem localização (abertos antes da versão 2.21 do app).</div>` : '';
+    main.insertAdjacentHTML('beforeend', _pn(_ic.target, 'Mapa das equipes abertas (' + comGeo.length + ')',
+      `<div id="dia-mapa" style="height:440px;border-radius:10px;overflow:hidden;background:#151519"></div>${aviso}`, leg, 'margin-bottom:12px'));
+    if (_mapaDia) { try { _mapaVista = { c: _mapaDia.getCenter(), z: _mapaDia.getZoom() }; _mapaDia.remove(); } catch (e) {} _mapaDia = null; }
+    _diaMapaMontar(comGeo, frentes);
+    return r;
+  };
 })();
 
 // Apply configs on load
