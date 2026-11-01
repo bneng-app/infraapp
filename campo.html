@@ -7,11 +7,11 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#1E2A3A"/>
-<title>ObraControl Campo</title>
+<title>ObraVexa Campo</title>
 <link rel="manifest" href="manifest-campo.webmanifest"/>
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png"/>
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png"/>
-<meta name="apple-mobile-web-app-title" content="ObraControl"/>
+<meta name="apple-mobile-web-app-title" content="ObraVexa"/>
 
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -769,7 +769,7 @@ select.form-control,select.form-control:focus{background-image:url("data:image/s
 <!-- v2.22: trava com Face ID / digital -->
 <div class="bio-lock" id="bio-lock">
   <svg class="login-tenco" viewBox="0 0 312 60" role="img" aria-label="TENCO"><g fill="#E30613"><rect x="0" y="0" width="48" height="12"/><rect x="18" y="0" width="12" height="60"/><rect x="62" y="0" width="44" height="12"/><rect x="62" y="24" width="44" height="12"/><rect x="62" y="48" width="44" height="12"/><rect x="120" y="0" width="12" height="60"/><rect x="168" y="0" width="12" height="60"/><polygon points="120,0 133,0 180,60 167,60"/></g><g fill="none" stroke="#E30613" stroke-width="12"><path d="M240.4 14.6 A24 24 0 1 0 240.4 45.4"/><circle cx="282" cy="30" r="24"/></g></svg>
-  <div class="bio-nome" id="bio-nome">ObraControl</div>
+  <div class="bio-nome" id="bio-nome">ObraVexa</div>
   <div class="bio-sub">Use o Face ID ou a digital para entrar</div>
   <button class="bio-btn" onclick="bioDesbloquear()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 3H5a2 2 0 00-2 2v2M17 3h2a2 2 0 012 2v2M7 21H5a2 2 0 01-2-2v-2M17 21h2a2 2 0 002-2v-2"/><path d="M9 9v1M15 9v1M12 9v4h-1M9 16c1.7 1.3 4.3 1.3 6 0"/></svg>Entrar com Face ID / digital</button>
   <div class="bio-erro" id="bio-erro"></div>
@@ -787,7 +787,7 @@ select.form-control,select.form-control:focus{background-image:url("data:image/s
     <div class="login-ec">ENGENHARIA E CONSTRUÇÃO</div>
   </div>
   <div class="login-hero">
-    <div class="login-title">ObraControl</div>
+    <div class="login-title">ObraVexa</div>
     <div class="login-sub">Apropriação de campo · mão de obra,<br>equipamentos e abastecimento</div>
     <div class="login-bar"></div>
   </div>
@@ -807,14 +807,14 @@ select.form-control,select.form-control:focus{background-image:url("data:image/s
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraControl Campo · v2.30</div>
+  <div class="login-versao">ObraVexa Campo · v2.31</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
 <div class="screen" id="screen-home">
   <div class="home-hero">
     <div class="home-top">
-      <div><svg class="home-tenco" viewBox="0 0 312 60" role="img" aria-label="TENCO"><g fill="#E30613"><rect x="0" y="0" width="48" height="12"/><rect x="18" y="0" width="12" height="60"/><rect x="62" y="0" width="44" height="12"/><rect x="62" y="24" width="44" height="12"/><rect x="62" y="48" width="44" height="12"/><rect x="120" y="0" width="12" height="60"/><rect x="168" y="0" width="12" height="60"/><polygon points="120,0 133,0 180,60 167,60"/></g><g fill="none" stroke="#E30613" stroke-width="12"><path d="M240.4 14.6 A24 24 0 1 0 240.4 45.4"/><circle cx="282" cy="30" r="24"/></g></svg><div class="home-app">ObraControl</div></div>
+      <div><svg class="home-tenco" viewBox="0 0 312 60" role="img" aria-label="TENCO"><g fill="#E30613"><rect x="0" y="0" width="48" height="12"/><rect x="18" y="0" width="12" height="60"/><rect x="62" y="0" width="44" height="12"/><rect x="62" y="24" width="44" height="12"/><rect x="62" y="48" width="44" height="12"/><rect x="120" y="0" width="12" height="60"/><rect x="168" y="0" width="12" height="60"/><polygon points="120,0 133,0 180,60 167,60"/></g><g fill="none" stroke="#E30613" stroke-width="12"><path d="M240.4 14.6 A24 24 0 1 0 240.4 45.4"/><circle cx="282" cy="30" r="24"/></g></svg><div class="home-app">ObraVexa</div></div>
       <div class="topbar-avatar" id="home-avatar" onclick="showLogoutMenu()" title="Sair">AP</div>
     </div>
     <div class="home-greeting" id="home-saud">Bom dia,</div>
@@ -1500,7 +1500,7 @@ async function fazerLoginCampo() {
     if (!snap.empty) usr = { ...snap.docs[0].data(), id: snap.docs[0].id };
   } catch (e) { try { await auth.signOut(); } catch (_) {} erro('Não consegui ler o cadastro (' + (e.code || 'erro') + '). Tente de novo.'); return; }
 
-  if (!usr) { try { await auth.signOut(); } catch (_) {} erro('Acesso sem cadastro no ObraControl. Fale com o escritório.'); return; }
+  if (!usr) { try { await auth.signOut(); } catch (_) {} erro('Acesso sem cadastro no ObraVexa. Fale com o escritório.'); return; }
   if (usr.status === 'Inativo') { try { await auth.signOut(); } catch (_) {} erro('Acesso desativado. Fale com o escritório.'); return; }
 
   if (!digitado.includes('@')) { mapa[digitado.replace(/\s+/g, '')] = emailAuth; try { localStorage.setItem('campo_login_map', JSON.stringify(mapa)); } catch (e) {} }
@@ -1580,7 +1580,7 @@ function atualizarBadges() {
 }
 
 function showLogoutMenu() {
-  if (confirm('Sair do ObraControl Campo?')) {
+  if (confirm('Sair do ObraVexa Campo?')) {
     usuarioCampo = null;
     localStorage.removeItem('campo_usuario');
     try { if (auth) auth.signOut(); } catch(e) {}
@@ -2693,7 +2693,7 @@ function atualizarAvisoInstalar() {
     let html = '';
     if (_jaInstalado()) html = '';
     else if (_promptInstalar) html = (escuro ? '<b>Instale o app no celular</b><br>Fica com ícone na tela inicial e abre mesmo sem internet.' : '')
-      + '<button class="btn ' + (escuro ? 'btn-primary' : 'btn-outline') + '" onclick="instalarApp()">📲 Instalar o app ObraControl</button>';
+      + '<button class="btn ' + (escuro ? 'btn-primary' : 'btn-outline') + '" onclick="instalarApp()">📲 Instalar o app ObraVexa</button>';
     else if (_ehIOS()) html = '<b>Instalar no iPhone:</b> toque em <b>Compartilhar</b> <span style="font-size:15px">⬆️</span> na barra do Safari e depois em <b>Adicionar à Tela de Início</b>.';
     el.innerHTML = html;
     el.classList.toggle('show', !!html && (escuro || !!_promptInstalar));
@@ -2702,7 +2702,7 @@ function atualizarAvisoInstalar() {
 async function instalarApp() {
   if (!_promptInstalar) return;
   _promptInstalar.prompt();
-  try { const r = await _promptInstalar.userChoice; if (r.outcome === 'accepted') toast('App instalado! Procure o ícone ObraControl.', 'ok'); } catch (e) {}
+  try { const r = await _promptInstalar.userChoice; if (r.outcome === 'accepted') toast('App instalado! Procure o ícone ObraVexa.', 'ok'); } catch (e) {}
   _promptInstalar = null; atualizarAvisoInstalar();
 }
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); _promptInstalar = e; atualizarAvisoInstalar(); });
@@ -2834,7 +2834,7 @@ function _apGeoIni(silencioso) {
   if (ap.geoIni) return Promise.resolve(true);
   if (!_geoBusca) _geoBusca = _geoPegar(20000).then(g => { ap.geoIni = g; _geoBusca = null; if (document.getElementById('ap-frente')?.value) apGuardar(); return true; })
     .catch(e => { _geoBusca = null;
-      if (!silencioso) toast(e && e.code === 1 ? 'Localização bloqueada. Libere a localização do ObraControl no celular para abrir o apontamento.' : 'Não consegui pegar a localização. Ligue o GPS do celular e tente de novo.', 'err');
+      if (!silencioso) toast(e && e.code === 1 ? 'Localização bloqueada. Libere a localização do ObraVexa no celular para abrir o apontamento.' : 'Não consegui pegar a localização. Ligue o GPS do celular e tente de novo.', 'err');
       return false; });
   return _geoBusca;
 }
@@ -2901,7 +2901,7 @@ async function bioAtivar() {
   try {
     const cred = await navigator.credentials.create({ publicKey: {
       challenge: crypto.getRandomValues(new Uint8Array(32)),
-      rp: { name: 'ObraControl' },
+      rp: { name: 'ObraVexa' },
       user: { id: new TextEncoder().encode(String(usuarioCampo.id || usuarioCampo.mat)).slice(0, 64), name: String(usuarioCampo.mat || usuarioCampo.nome), displayName: usuarioCampo.nome || 'Apropriador' },
       pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
       authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'discouraged' },
@@ -2934,7 +2934,7 @@ function _bioOferecer() {
   bioDisponivel().then(ok => {
     if (!ok) return;
     document.getElementById('menu-conta-nome').textContent = 'Entrar mais rápido?';
-    document.getElementById('menu-conta-body').innerHTML = `<div style="font-size:14px;color:var(--text2);margin-bottom:14px">Use o Face ID ou a digital deste celular para abrir o ObraControl, sem digitar matrícula e senha.</div>
+    document.getElementById('menu-conta-body').innerHTML = `<div style="font-size:14px;color:var(--text2);margin-bottom:14px">Use o Face ID ou a digital deste celular para abrir o ObraVexa, sem digitar matrícula e senha.</div>
       <button class="menu-op" onclick="document.getElementById('menu-conta').classList.remove('show');bioAtivar()">${_svg('<path d="M7 3H5a2 2 0 00-2 2v2M17 3h2a2 2 0 012 2v2M7 21H5a2 2 0 01-2-2v-2M17 21h2a2 2 0 002-2v-2"/><path d="M9 9v1M15 9v1M12 9v4h-1M9 16c1.7 1.3 4.3 1.3 6 0"/>')}<span>Usar Face ID / digital<small>Recomendado se o celular é só seu</small></span></button>
       <button class="menu-op" onclick="const m=_bioLer('campo_bio_nao');m[usuarioCampo.id]=true;_bioGravar('campo_bio_nao',m);document.getElementById('menu-conta').classList.remove('show')">${_svg('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>')}<span>Agora não<small>Dá para ativar depois tocando na sua inicial, no início</small></span></button>`;
     document.getElementById('menu-conta').classList.add('show');
@@ -2948,7 +2948,7 @@ showLogoutMenu = function () {
   bioDisponivel().then(disp => {
     document.getElementById('menu-conta-body').innerHTML =
       (disp ? `<button class="menu-op" onclick="document.getElementById('menu-conta').classList.remove('show');${on ? 'bioDesativar()' : 'bioAtivar()'}">${_svg('<path d="M7 3H5a2 2 0 00-2 2v2M17 3h2a2 2 0 012 2v2M7 21H5a2 2 0 01-2-2v-2M17 21h2a2 2 0 002-2v-2"/><path d="M9 9v1M15 9v1M12 9v4h-1M9 16c1.7 1.3 4.3 1.3 6 0"/>')}<span>${on ? 'Desativar Face ID / digital' : 'Ativar Face ID / digital'}<small>${on ? 'Hoje o app abre com a biometria deste celular' : 'Abrir o app sem digitar a senha'}</small></span></button>` : '')
-      + `<button class="menu-op red" onclick="document.getElementById('menu-conta').classList.remove('show');if(confirm('Sair do ObraControl Campo?')){bioDesativar();bioUsarSenha();}">${_svg('<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>')}<span>Sair<small>Na próxima vez entra com matrícula e senha</small></span></button>`;
+      + `<button class="menu-op red" onclick="document.getElementById('menu-conta').classList.remove('show');if(confirm('Sair do ObraVexa Campo?')){bioDesativar();bioUsarSenha();}">${_svg('<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>')}<span>Sair<small>Na próxima vez entra com matrícula e senha</small></span></button>`;
     document.getElementById('menu-conta').classList.add('show');
   });
 };
