@@ -275,6 +275,33 @@ body.dx-full .dx-nav{display:flex;flex-direction:column;background:linear-gradie
 .dx-nav-foto{margin-top:auto;width:100%;aspect-ratio:400/696;max-height:72vh;background-size:100% auto;background-position:center bottom;background-repeat:no-repeat;-webkit-mask-image:linear-gradient(to bottom,transparent,#000 16%);mask-image:linear-gradient(to bottom,transparent,#000 16%)}
 body.dx-full .dx-main{padding-top:18px;min-width:0}
 @media print{ .dx{margin:0;min-height:auto} .dx-filtros .dx-btn{display:none} }
+
+/* v2.45: acompanhamento do dia no visual das dashboards */
+.dx .dia-card{background:linear-gradient(170deg,var(--pn2),var(--pn));border:1px solid var(--ln);border-radius:12px;color:var(--tx)}
+.dx .dia-card.esquecido{background:rgba(227,6,19,.08)}
+.dx .dia-card [style*="var(--text-3)"],.dx .dia-card [style*="var(--text-2)"]{color:var(--mu)!important}
+.dx .dia-chip{background:rgba(255,255,255,.07);color:var(--tx)}
+.dx .dia-chip.falta{background:rgba(227,6,19,.22);color:#FF8A8F}.dx .dia-chip.ok{background:rgba(34,197,94,.18);color:#4ADE80}.dx .dia-chip.sobra{background:rgba(245,158,11,.18);color:#FBBF24}
+.dx.claro .dia-card{background:#fff}
+.dx.claro .dia-chip{background:#F1F1F3}
+.dd-l{display:flex;flex-direction:column;gap:6px;max-height:390px;overflow:auto;padding-right:2px}
+.dd-r{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:9px;background:rgba(255,255,255,.03);border:1px solid var(--ln)}
+.dx.claro .dd-r{background:#FAFAFB}
+.dd-av{width:34px;height:34px;border-radius:50%;background:#2E2F36;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex:0 0 34px}
+.dd-r.ok .dd-av{background:#16A34A}.dd-r.no .dd-av{background:#E30613}
+.dd-n{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dd-s{font-size:11px;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dd-st{margin-left:auto;font-size:11.5px;font-weight:700;white-space:nowrap;text-align:right}
+.dd-st.ok{color:#22C55E}.dd-st.no{color:#FF5A60}
+.dd-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.dd-h{font-size:11.5px;font-weight:800;color:var(--mu);text-transform:uppercase;letter-spacing:.06em;margin:2px 0 8px}
+.dx-f input[type=date]{background:transparent;color:var(--tx);border:none;font-size:12px;outline:none;color-scheme:dark}
+.dx.claro .dx-f input[type=date]{color-scheme:light}
+.wa-btn{display:inline-flex;align-items:center;gap:5px;background:#25D366;color:#fff!important;border-radius:8px;padding:5px 9px;font-size:11.5px;font-weight:700;text-decoration:none;flex:0 0 auto;line-height:1}
+.wa-btn svg{width:14px;height:14px}
+.wa-btn.mini{padding:3px 6px;border-radius:6px;vertical-align:middle}
+.wa-btn.mini svg{width:12px;height:12px}
+.dd-r > .wa-btn{margin-left:auto}.dd-st + .wa-btn{margin-left:0}
 /* v2.44: dois ambientes — Dashboards e Gestão */
 .amb-sw{display:flex;align-items:center;gap:2px;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.22);border-radius:20px;padding:3px}
 .amb-sw button{display:flex;align-items:center;gap:6px;border:none;background:none;color:rgba(255,255,255,.72);font-size:12.5px;font-weight:700;padding:5px 13px;border-radius:16px;cursor:pointer;white-space:nowrap}
@@ -496,7 +523,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraControl</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraControl v2.44 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraControl v2.45 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -1093,7 +1120,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
     <div class="search-wrap"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="busca-func" placeholder="Buscar por matrícula, nome ou cargo…" oninput="renderFuncionarios(0)"/></div>
     <div class="table-wrap">
       <table id="tabela-func">
-        <thead><tr><th style="width:36px"><input type="checkbox" class="cb-row-check" id="cb-master-funcionarios" onchange="toggleSelectAll('funcionarios',this)" title="Selecionar todos"></th><th>Obra</th><th>Matrícula</th><th>Nome</th><th>Cód. Função</th><th>Função</th><th>Direto</th><th>Admissão</th><th>Demissão</th><th>Matr. Líder</th><th>Cód. Equipe</th><th></th></tr></thead>
+        <thead><tr><th style="width:36px"><input type="checkbox" class="cb-row-check" id="cb-master-funcionarios" onchange="toggleSelectAll('funcionarios',this)" title="Selecionar todos"></th><th>Obra</th><th>Matrícula</th><th>Nome</th><th>Cód. Função</th><th>Função</th><th>Direto</th><th>Gera apont.</th><th>Apropriador</th><th>Telefone</th><th>Admissão</th><th>Demissão</th><th>Matr. Líder</th><th>Cód. Equipe</th><th></th></tr></thead>
         <tbody id="tbody-func"><tr><td colspan="10" class="empty-row">Carregando…</td></tr></tbody>
       </table>
     </div>
@@ -2671,8 +2698,16 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
         <div class="form-group"><label class="form-label">Cód. Função *</label><select class="form-control" id="func-funcao"><option value="">Selecione…</option></select></div>
         <div class="form-group form-full"><label class="form-label">Nome completo *</label><input class="form-control" id="func-nome" placeholder="Nome do funcionário"/></div>
         <div class="form-group"><label class="form-label">Direto</label>
-          <select class="form-control" id="func-direto"><option value="Sim">Sim</option><option value="Não">Não</option></select>
+          <select class="form-control" id="func-direto" onchange="const g=document.getElementById('func-gera'); if(g) g.value=this.value==='Não'?'Não':'Sim'"><option value="Sim">Sim</option><option value="Não">Não</option></select>
         </div>
+        <div class="form-group"><label class="form-label">Gera apontamento</label>
+          <select class="form-control" id="func-gera"><option value="Sim">Sim — precisa ser apontado todo dia</option><option value="Não">Não — indireto, administrativo…</option></select>
+        </div>
+        <div class="form-group"><label class="form-label">Líder / Apropriador</label>
+          <select class="form-control" id="func-aprop" onchange="document.getElementById('func-aprop-dica').style.display=this.value==='Sim'?'':'none'"><option value="Não">Não</option><option value="Sim">Sim — faz apontamento no app</option></select>
+          <div id="func-aprop-dica" style="display:none;font-size:11px;color:var(--blue);margin-top:4px">Ao salvar, o acesso ao app de campo é criado: login = matrícula, senha <b>Tenco@2026</b>.</div>
+        </div>
+        <div class="form-group"><label class="form-label">Telefone (WhatsApp)</label><input class="form-control" id="func-tel" placeholder="(11) 99999-9999" inputmode="tel"/></div>
         <div class="form-group"><label class="form-label">Empresa</label><select class="form-control" id="func-empresa"><option value="">Selecione…</option></select></div>
         <div class="form-group"><label class="form-label">Data admissão</label><input type="date" class="form-control" id="func-admissao"/></div>
         <div class="form-group"><label class="form-label">Matrícula líder</label><input class="form-control" id="func-lider" placeholder="Matrícula do líder"/></div>
@@ -3049,7 +3084,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
       </div>
       <label id="import-custo-wrap" style="display:flex;gap:8px;align-items:flex-start;font-size:13px;cursor:pointer;margin-top:4px">
         <input type="checkbox" id="import-atualizar-custo" style="margin-top:3px"/>
-        <span><strong>Atualizar custos dos cadastros que já existem</strong><br><span style="font-size:11px;color:var(--text-3)">Cargos: custo/hora, adicional HE e adicional domingo/feriado. Equipamentos: custo/hora. Tanques: preço do litro. Nada mais é alterado, e célula de custo em branco não apaga o valor atual.</span></span>
+        <span><strong>Atualizar cadastros que já existem</strong><br><span style="font-size:11px;color:var(--text-3)">Cargos: custo/hora, adicional HE e adicional domingo/feriado. Equipamentos: custo/hora. Tanques: preço do litro. Funcionários: gera apontamento, apropriador e telefone. Nada mais é alterado, e célula em branco não apaga o valor atual.</span></span>
       </label>
       <div id="import-preview" style="margin-top:1rem;font-size:12px;color:var(--text-3);background:var(--bg);padding:10px;border-radius:6px;display:none"></div>
       <input type="hidden" id="import-tipo"/>
@@ -4723,13 +4758,16 @@ function renderFuncionarios(pagina) {
         <td class="td-mono">${f.codFuncao}</td>
         <td>${nomeFunc}</td>
         <td>${tag(f.direto, f.direto==='Sim'?'green':'gray')}</td>
+        <td>${tag(_geraApont(f), _geraApont(f)==='Sim'?'blue':'gray')}</td>
+        <td>${f.apropriador==='Sim' ? tag('Apropriador','red') : '<span style="color:var(--text-3)">—</span>'}</td>
+        <td style="white-space:nowrap">${f.tel ? _e(f.tel) + ' ' + _waBotao(f.tel, '', 'mini') : '<span style="color:var(--text-3)">—</span>'}</td>
         <td class="td-mono">${f.admissao?fmtData(f.admissao):'—'}</td>
         <td class="td-mono">${f.demissao?fmtData(f.demissao):'—'}</td>
         <td class="td-mono">${f.lider||'—'}</td>
         <td class="td-mono">${f.equipe||'—'}</td>
         <td>${acoesCell(`editarFuncionario('${f.id}')`,`deletar('funcionarios','${f.id}')`)}</td>
       </tr>`;}).join('')
-    : '<tr><td colspan="10" style="text-align:center;color:var(--text-3);padding:2rem">Nenhum funcionário cadastrado</td></tr>';
+    : '<tr><td colspan="15" style="text-align:center;color:var(--text-3);padding:2rem">Nenhum funcionário cadastrado</td></tr>';
 
   // Paginação
   const pgBar = document.getElementById('pag-func');
@@ -7929,9 +7967,12 @@ const IMPORT_DEF = {
                   map:g=>({ cod:g(['código','codigo','cod']).toUpperCase(), nome:g(['nome']), inicio:_horaImport(g(['início','inicio'])), fim:_horaImport(g(['fim'])) }), ok:x=>x.cod&&x.nome&&x.inicio&&x.fim },
   tiposPerdas:  { rotulo:'Tipos de perda', porObra:false, chave:'cod', col:['Código','Nome','Aplica a (MO/EQ/Ambos)'],
                   map:g=>({ cod:g(['código','codigo','cod']).toUpperCase(), nome:g(['nome']), aplica:g(['aplica'])||'Ambos', cor:'gray' }), ok:x=>x.cod&&x.nome },
-  funcionarios: { rotulo:'Funcionários', porObra:true, chave:'mat', col:['Matrícula','Nome Completo','Cód. Função','Empresa (código)','Direto (Sim/Não)','Data Admissão (DD/MM/AAAA)','Matr. Líder','Cód. Equipe'],
-                  map:g=>({ mat:g(['matrícula','matricula','mat']), nome:g(['nome completo','nome']), codFuncao:g(['cód. função','cod. função','função','funcao']), _emp:g(['empresa']),
-                            direto:g(['direto'])||'Sim', admissao:excelDataParaISO(g(['admissão','admissao'])), demissao:excelDataParaISO(g(['demissão','demissao']))||'', lider:g(['líder','lider']), equipe:g(['equipe']) }), ok:x=>x.mat&&x.nome },
+  funcionarios: { rotulo:'Funcionários', porObra:true, chave:'mat', col:['Matrícula','Nome Completo','Cód. Função','Empresa (código)','Direto (Sim/Não)','Data Admissão (DD/MM/AAAA)','Matr. Líder','Cód. Equipe','Gera apontamento (Sim/Não)','Apropriador (Sim/Não)','Telefone (WhatsApp)'],
+                  map:g=>{ const direto = g(['direto'])||'Sim', ga = String(g(['gera apont']) || '');
+                    return { mat:g(['matrícula','matricula','mat']), nome:g(['nome completo','nome']), codFuncao:g(['cód. função','cod. função','função','funcao']), _emp:g(['empresa']),
+                            direto, admissao:excelDataParaISO(g(['admissão','admissao'])), demissao:excelDataParaISO(g(['demissão','demissao']))||'', lider:g(['matr. líder','matr. lider','matrícula do líder','matricula do lider','matrícula líder','matricula lider']), equipe:g(['cód. equipe','cod. equipe','equipe']),
+                            geraApont: ga ? (/^n/i.test(ga) ? 'Não' : 'Sim') : (/^n/i.test(direto) ? 'Não' : 'Sim'),
+                            apropriador: /^s/i.test(String(g(['apropriador']) || '')) ? 'Sim' : 'Não', tel:String(g(['telefone','whatsapp','celular']) || '') }; }, ok:x=>x.mat&&x.nome },
   equipamentos: { rotulo:'Equipamentos', porObra:true, chave:'tag', col:['TAG','Placa/Série','Cód. Modelo','Família','Proprietário (empresa)','Status','Data Mobilização (DD/MM/AAAA)','Custo/hora (R$)'],
                   map:g=>({ tag:g(['tag']), placa:g(['placa','série','serie']), codModelo:g(['cód. modelo','cod. modelo','modelo']), familia:g(['família','familia']), prop:g(['proprietário','proprietario']),
                             status:g(['status'])||'Mobilizado', dataMob:excelDataParaISO(g(['mobiliza'])), custoHora:_numImport(g(['custo'])) }), ok:x=>x.tag },
@@ -8025,6 +8066,15 @@ function _importarLinhas(tipo, rows, resumo) {
       if (document.getElementById('import-atualizar-custo')?.checked && tipo === 'tanques') {
         const x = lista.find(y => String(y.cod||'').toLowerCase() === chave && (y.obra||'') === obraId);
         if (x && item.preco && Number(x.preco) !== Number(item.preco)) { x.preco = item.preco; (window.__impAtualizados = window.__impAtualizados || []).push([tipo, x]); r.atual = (r.atual||0) + 1; return; }
+      }
+      if (document.getElementById('import-atualizar-custo')?.checked && tipo === 'funcionarios') {
+        const x = lista.find(y => String(y.mat||'').toLowerCase() === chave && (y.obra||'') === obraId);
+        const temCol2 = kws => headers.some((h, j) => j !== idxObra && kws.some(k => h.includes(k)) && row[j] !== undefined && row[j] !== null && String(row[j]).trim() !== '');
+        const mud = {};
+        if (temCol2(['apropriador'])) mud.apropriador = item.apropriador;
+        if (temCol2(['gera apont'])) mud.geraApont = item.geraApont;
+        if (temCol2(['telefone','whatsapp','celular'])) mud.tel = item.tel;
+        if (x && Object.keys(mud).some(k => String(x[k] || '') !== String(mud[k] || ''))) { Object.assign(x, mud); (window.__impAtualizados = window.__impAtualizados || []).push([tipo, x]); r.atual = (r.atual||0) + 1; return; }
       }
       if (document.getElementById('import-atualizar-custo')?.checked && (tipo === 'cargos' || tipo === 'equipamentos')) {
         const x = lista.find(y => String(chaveDe(y)||'').toLowerCase() === chave && (!def.porObra || (y.obra||'') === obraId));
@@ -8131,7 +8181,7 @@ window.confirmarImportacao = async function () {
       ['renderObras','renderEmpresas','renderUA','renderCargos','renderTurnos','renderFuncionarios','renderFamilias','renderModelos','renderEquipamentos','renderFrentes','renderTiposServico','renderServicos','renderTiposPerdas']
         .forEach(fn => { try { if (typeof window[fn] === 'function') window[fn](); } catch (x) {} });
       try { popularSelects(); } catch (x) {}
-      const linhas = Object.entries(resumo).map(([t, r]) => '<strong>' + IMPORT_DEF[t].rotulo + ':</strong> ' + r.ok + ' importado(s)' + (r.atual ? ', <strong>' + r.atual + ' com custo atualizado</strong>' : '') + (r.dup ? ', ' + r.dup + ' já existiam' : '') + (r.erro ? ', <span style="color:var(--red)">' + r.erro + ' com erro</span> (' + r.avisos.join('; ') + ')' : ''));
+      const linhas = Object.entries(resumo).map(([t, r]) => '<strong>' + IMPORT_DEF[t].rotulo + ':</strong> ' + r.ok + ' importado(s)' + (r.atual ? ', <strong>' + r.atual + ' atualizado(s)</strong>' : '') + (r.dup ? ', ' + r.dup + ' já existiam' : '') + (r.erro ? ', <span style="color:var(--red)">' + r.erro + ' com erro</span> (' + r.avisos.join('; ') + ')' : ''));
       const total = Object.values(resumo).reduce((a, r) => a + r.ok, 0);
       const pv = document.getElementById('import-preview');
       pv.style.display = 'block';
@@ -9203,7 +9253,7 @@ document.addEventListener('fullscreenchange', () => { if (!document.fullscreenEl
 function _dxNav(tipo) {
   const it = (id, pag, rot, ic) => `<a class="${tipo === id ? 'on' : ''}" onclick="showPage('${pag}')">${ic}${rot}</a>`;
   return `<nav class="dx-nav"><div class="dx-nav-logo"><svg viewBox="0 0 312 60" style="width:96px"><g fill="#E30613"><rect x="0" y="0" width="48" height="12"/><rect x="18" y="0" width="12" height="60"/><rect x="62" y="0" width="44" height="12"/><rect x="62" y="24" width="44" height="12"/><rect x="62" y="48" width="44" height="12"/><rect x="120" y="0" width="12" height="60"/><rect x="168" y="0" width="12" height="60"/><polygon points="120,0 133,0 180,60 167,60"/></g><g fill="none" stroke="#E30613" stroke-width="12"><path d="M240.4 14.6 A24 24 0 1 0 240.4 45.4"/><circle cx="282" cy="30" r="24"/></g></svg><b>ObraControl</b></div>
-    ${it('geral', 'dashboard', 'Visão Geral', _ic.grid)}${it('mo', 'dash-mo', 'Mão de Obra', _ic.user)}${it('eq', 'dash-eq', 'Equipamentos', _ic.truck)}${it('abs', 'dash-abs', 'Abastecimento', _ic.fuel)}
+    ${it('dia', 'diario', 'Acompanhamento do dia', _ic.clock)}${it('geral', 'dashboard', 'Visão Geral', _ic.grid)}${it('mo', 'dash-mo', 'Mão de Obra', _ic.user)}${it('eq', 'dash-eq', 'Equipamentos', _ic.truck)}${it('abs', 'dash-abs', 'Abastecimento', _ic.fuel)}
     <a class="dx-nav-sair" onclick="dxTelaCheia(true)" style="margin-top:14px;color:#aaa;font-weight:500">← Sair da tela cheia</a>
     <div class="dx-nav-foto" style="background-image:url('${_DX_FOTOS[tipo] || _DX_FOTOS.geral}')"></div></nav>`;
 }
@@ -9495,6 +9545,7 @@ function dxRenderAbs() {
 }
 function dxRender() {
   const ativa = document.querySelector('.page.active')?.id;
+  if (ativa === 'page-diario') { renderDiario(); return; }
   if (ativa === 'page-dash-mo') dxRenderMO(); else if (ativa === 'page-dash-eq') dxRenderEQ(); else if (ativa === 'page-dashboard') dxRenderGeral(); else if (ativa === 'page-dash-abs') dxRenderAbs();
 }
 (function () {
@@ -9513,7 +9564,7 @@ function dxRender() {
 // Quem vê cada um sai das permissões do perfil: "Dashboards" libera o ambiente de dashboards;
 // qualquer outro módulo libera o de Gestão. Perfil "Gerência" já vem só com Dashboards.
 // ═══════════════════════════════════════════════════════════════
-const _DASH_PAGS = ['dashboard', 'dash-mo', 'dash-eq', 'dash-abs'];
+const _DASH_PAGS = ['diario', 'dashboard', 'dash-mo', 'dash-eq', 'dash-abs'];
 let _amb = '';
 const _ambUlt = { dash: 'dashboard', gestao: '' };
 function _ambPagsGestao() {
@@ -9553,7 +9604,7 @@ function ambDefinir(a) {
   if (a === 'dash' && !_DASH_PAGS.includes(ativa)) _ambIr(_ambUlt.dash || 'dashboard');
   if (a === 'gestao' && (_DASH_PAGS.includes(ativa) || !ativa)) {
     const ps = _ambPagsGestao();
-    _ambIr(ps.includes(_ambUlt.gestao) ? _ambUlt.gestao : (ps.includes('diario') ? 'diario' : ps[0]));
+    _ambIr(ps.includes(_ambUlt.gestao) ? _ambUlt.gestao : (ps.includes('aprovacao') ? 'aprovacao' : ps[0]));
   }
   if (a === 'gestao' && document.body.classList.contains('dx-full')) dxTelaCheia(true);
 }
@@ -9583,6 +9634,158 @@ function _ambIniciar() {
   const oSair = window.fazerLogout;
   if (typeof oSair === 'function') window.fazerLogout = function () { document.body.classList.remove('amb-dash', 'amb-gestao'); _amb = ''; return oSair.apply(this, arguments); };
 })();
+
+// ═══════════════════════════════════════════════════════════════
+// v2.45: APROPRIADORES, "GERA APONTAMENTO", TELEFONE/WHATSAPP E ACOMPANHAMENTO DO DIA NO VISUAL DAS DASHBOARDS
+// ═══════════════════════════════════════════════════════════════
+const _SENHA_APROP = 'Tenco@2026';
+// sem marcação: indireto (Direto = Não) não gera apontamento
+function _geraApont(f) { return f.geraApont ? f.geraApont : (/^n/i.test(String(f.direto || '')) ? 'Não' : 'Sim'); }
+function _waLink(tel, msg) {
+  let d = String(tel || '').replace(/\D/g, ''); if (!d) return '';
+  if (d.length <= 11) d = '55' + d;
+  return 'https://wa.me/' + d + (msg ? '?text=' + encodeURIComponent(msg) : '');
+}
+const _IC_WA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>';
+function _waBotao(tel, msg, cls) { const u = _waLink(tel, msg); return u ? `<a class="wa-btn ${cls || ''}" href="${u}" target="_blank" rel="noopener" title="Abrir WhatsApp" onclick="event.stopPropagation()">${_IC_WA}${cls === 'mini' ? '' : 'WhatsApp'}</a>` : ''; }
+
+// cria o acesso ao app de campo do apropriador (login = matrícula, senha padrão)
+async function _garantirApropriador(f, silencioso) {
+  const mat = String(f.mat || '').trim().replace(/\s+/g, ''); if (!mat) return 'sem-mat';
+  const u = USUARIOS.find(x => String(x.mat || x.matricula || '').replace(/\s+/g, '') === mat);
+  if (u) { if (f.tel && !u.tel) { u.tel = f.tel; saveUsuarios(); } return 'existe'; }
+  if (!_firebaseReady) { if (!silencioso) toast('Sem conexão: o acesso de ' + f.nome + ' ao app será criado quando salvar de novo com internet.', 'error'); return 'offline'; }
+  const email = mat + '@' + _DOMINIO_CAMPO;
+  let jaTinha = false;
+  try { await criarAcessoFirebase(email, _SENHA_APROP); }
+  catch (e) { if (e.code !== 'auth/email-already-in-use') { if (!silencioso) toast('Não consegui criar o acesso de ' + f.nome + ': ' + _msgErroAuth(e.code), 'error'); return 'erro'; } jaTinha = true; }
+  const pf = perfilPorNome('Colaborador');
+  USUARIOS.push({ id: 'u' + Date.now() + Math.random().toString(36).slice(2, 5), nome: f.nome, email, login: '', mat, perfil: 'Colaborador', empresa: f.empresa || '', cargo: 'Apropriador',
+    tel: f.tel || '', status: 'Ativo', obra: f.obra || '', master: false, perms: { ...((pf && pf.perms) || { apontamentos: true }) }, origem: 'apropriador' });
+  saveUsuarios();
+  if (!silencioso) toast(jaTinha ? 'Usuário do app criado para ' + f.nome + ' (essa matrícula já tinha acesso: vale a senha antiga).' : 'Acesso ao app criado para ' + f.nome + ': matrícula ' + mat + ' · senha ' + _SENHA_APROP);
+  return jaTinha ? 'existia' : 'criado';
+}
+async function _sincApropriadores() {
+  const pend = (dados.funcionarios || []).filter(f => f.apropriador === 'Sim' && !USUARIOS.some(u => String(u.mat || u.matricula || '').replace(/\s+/g, '') === String(f.mat || '').replace(/\s+/g, '')));
+  let n = 0; for (const f of pend) { const r = await _garantirApropriador(f, true); if (r === 'criado' || r === 'existia') n++; }
+  if (n) toast(n + ' apropriador(es) com acesso ao app criado (senha ' + _SENHA_APROP + ').');
+  return n;
+}
+(function () {
+  const $ = id => document.getElementById(id);
+  const oEdit = window.editarFuncionario;
+  window.editarFuncionario = function (id) {
+    const r = oEdit.apply(this, arguments);
+    const f = (dados.funcionarios || []).find(x => x.id === id);
+    if (f) { if ($('func-gera')) $('func-gera').value = _geraApont(f); if ($('func-aprop')) $('func-aprop').value = f.apropriador === 'Sim' ? 'Sim' : 'Não'; if ($('func-tel')) $('func-tel').value = f.tel || ''; if ($('func-aprop-dica')) $('func-aprop-dica').style.display = f.apropriador === 'Sim' ? '' : 'none'; }
+    return r;
+  };
+  const oSave = window.salvarFuncionario;
+  window.salvarFuncionario = function () {
+    const v = id => ($(id)?.value || '');
+    const extra = { geraApont: v('func-gera') || 'Sim', apropriador: v('func-aprop') === 'Sim' ? 'Sim' : 'Não', tel: v('func-tel').trim() };
+    const mat = v('func-mat').trim(), obra = v('func-obra'), idEd = v('func-edit-id');
+    const r = oSave.apply(this, arguments);
+    if ($('modal-novo-func')?.classList.contains('open')) return r;          // não salvou (campo obrigatório etc.)
+    const f = idEd ? (dados.funcionarios || []).find(x => x.id === idEd) : [...(dados.funcionarios || [])].reverse().find(x => String(x.mat) === mat && (x.obra || '') === obra);
+    if (!f) return r;
+    Object.assign(f, extra);
+    if (db && _firebaseReady) fbSave('funcionarios', f.id, f).catch(() => {});
+    try { renderFuncionarios(); } catch (e) {}
+    if (f.apropriador === 'Sim') _garantirApropriador(f);
+    ['func-gera', 'func-aprop'].forEach(i => { if ($(i)) $(i).selectedIndex = 0; }); if ($('func-tel')) $('func-tel').value = ''; if ($('func-aprop-dica')) $('func-aprop-dica').style.display = 'none';
+    return r;
+  };
+  const oClose = window.closeModal;
+  window.closeModal = function (id) {
+    const r = oClose.apply(this, arguments);
+    if (id === 'modal-novo-func') { ['func-gera', 'func-aprop'].forEach(i => { if ($(i)) $(i).selectedIndex = 0; }); if ($('func-tel')) $('func-tel').value = ''; if ($('func-aprop-dica')) $('func-aprop-dica').style.display = 'none'; }
+    return r;
+  };
+  // importação: depois de gravar os funcionários, cria os acessos dos apropriadores
+  const oGrav = window._gravarImportados;
+  window._gravarImportados = async function (tipo) { const r = await oGrav.apply(this, arguments); if (tipo === 'funcionarios') { try { await _sincApropriadores(); } catch (e) { console.warn(e); } } return r; };
+  // quem vê dashboards também vê o acompanhamento do dia
+  const oPode = window.podeVerPagina;
+  if (typeof oPode === 'function') window.podeVerPagina = function (p) { return p === 'diario' ? (oPode('diario') || oPode('dashboard')) : oPode(p); };
+  // filtros do acompanhamento do dia: obra + data
+  const oFil = window._dxFiltros;
+  window._dxFiltros = function (tipo) {
+    if (tipo !== 'dia') return oFil.apply(this, arguments);
+    const obras = (dados.obras || []).map(o => [o.id, (o.cod ? o.cod + ' — ' : '') + (o.nome || '')]);
+    const ds = _dia.dataSel || _hojeLocal();
+    return _dxSel('Obra', 'obra', obras)
+      + `<label class="dx-f"><span class="ic">${_ic.cal}</span><b>Data</b><input type="date" id="dia-data" value="${ds}" max="${_hojeLocal()}" onchange="_dia.dataSel=this.value;diarioAssinar()"/></label>`
+      + `<button class="dx-btn" onclick="_dia.dataSel=_hojeLocal();diarioAssinar()">Hoje</button>`
+      + `<button class="dx-btn" onclick="_dx.claro=!_dx.claro;dxRender()" title="${_dx.claro ? 'Modo escuro' : 'Modo claro'}">${_dx.claro ? '🌙' : '☀️'}</button>`
+      + `<button class="dx-btn" onclick="dxTelaCheia()" title="Tela cheia (Esc para sair)">${_ic.full}</button>`;
+  };
+})();
+
+// acompanhamento do dia (mesmo visual das dashboards)
+renderDiario = function () {
+  if (_dx.obra === null) _dx.obra = obraAtiva && obraAtiva.id !== 'todas' ? obraAtiva.id : '';
+  const atu = document.getElementById('dia-atualizado')?.textContent || '';
+  const hoje = _hojeLocal(), dataSel = _dia.dataSel || hoje, ob = _dx.obra;
+  const dd = dataSel.split('-').reverse().join('/').slice(0, 5);
+  const lst = _dia.lista.filter(t => (!ob || t.obra === ob) && t.status !== 'descartado');
+  const doDia = lst.filter(t => t.data === dataSel);
+  const abertos = doDia.filter(t => t.status === 'aberto'), encerrados = doDia.filter(t => t.status === 'encerrado');
+  const esquecidos = lst.filter(t => t.status === 'aberto' && t.data < dataSel);
+  // quem já entrou em algum apontamento no dia (turnos do app + apontamentos lançados/importados)
+  const moIds = new Set(doDia.flatMap(t => (t.mo || []).map(x => x.id))), moMats = new Set(doDia.flatMap(t => (t.mo || []).map(x => String(x.mat || ''))).filter(Boolean));
+  (dados.aponMO || []).filter(a => a.data === dataSel && a.status !== 'rejeitado').forEach(a => moMats.add(String(a.mat || '')));
+  const eqIds = new Set(doDia.flatMap(t => (t.eq || []).map(x => x.id))), eqTags = new Set(doDia.flatMap(t => (t.eq || []).map(x => String(x.tag || '').toLowerCase())));
+  (dados.aponEQ || []).filter(a => a.data === dataSel && a.status !== 'rejeitado').forEach(a => eqTags.add(String(a.equip || '').toLowerCase()));
+  const ativo = f => (!ob || !f.obra || f.obra === ob) && f.status !== 'Desligado' && (!f.demissao || f.demissao > dataSel) && (!f.admissao || f.admissao <= dataSel);
+  const funcs = (dados.funcionarios || []).filter(ativo);
+  const devem = funcs.filter(f => _geraApont(f) === 'Sim');
+  const apontado = f => moIds.has(f.id) || moMats.has(String(f.mat));
+  const faltam = devem.filter(f => !apontado(f));
+  const eqs = (dados.equipamentos || []).filter(e => (!ob || !e.obra || e.obra === ob) && /mobiliz/i.test(e.status || 'Mobilizado'));
+  const eqFalta = eqs.filter(e => !(eqIds.has(e.id) || eqTags.has(String(e.tag || '').toLowerCase()) || (e.placa && eqTags.has(String(e.placa).toLowerCase()))));
+  const aprops = funcs.filter(f => f.apropriador === 'Sim').map(f => {
+    const u = USUARIOS.find(x => String(x.mat || x.matricula || '').replace(/\s+/g, '') === String(f.mat || '').replace(/\s+/g, ''));
+    const ts = doDia.filter(t => (u && t.apontadorId === u.id) || (t.apontador && (t.apontador === f.nome || (u && t.apontador === u.nome))));
+    const lanc = (dados.aponMO || []).some(a => a.data === dataSel && (a.lancadoPor === f.nome || (u && a.lancadoPor === u.nome)));
+    return { f, u, ts, ok: ts.length > 0 || lanc };
+  }).sort((a, b) => (a.ok - b.ok) || String(a.f.nome).localeCompare(String(b.f.nome)));
+  const apOk = aprops.filter(a => a.ok).length;
+  const ini = n => String(n || '?').split(' ').filter(Boolean).map(x => x[0]).slice(0, 2).join('').toUpperCase();
+  const nomeFunc = c => ((dados.cargos || []).find(x => x.cod === c) || {}).nome || c || '—';
+  const nomeLider = m => { const l = m && (dados.funcionarios || []).find(x => String(x.mat) === String(m)); return l ? l.nome.split(' ')[0] : ''; };
+  const cor = (a, b) => b && a < b ? '#FF5A60' : (b ? '#22C55E' : '');
+  const kpis = `<div class="dx-kpis">
+      ${_kpi(_ic.clock, abertos.length, 'Turnos abertos', encerrados.length + ' encerrado(s) no dia', '#22C55E')}
+      ${_kpi(_ic.user, aprops.length ? apOk + ' / ' + aprops.length : '—', 'Apropriadores com apontamento', aprops.length ? (aprops.length - apOk ? (aprops.length - apOk) + ' ainda não abriram' : 'todos abriram') : 'marque no cadastro de funcionários', cor(apOk, aprops.length), aprops.length && apOk < aprops.length)}
+      ${_kpi(_ic.users, devem.length ? (devem.length - faltam.length) + ' / ' + devem.length : '—', 'Pessoas apontadas', faltam.length ? faltam.length + ' faltando' : (devem.length ? 'todas apontadas' : ''), cor(devem.length - faltam.length, devem.length))}
+      ${_kpi(_ic.truck, eqs.length ? (eqs.length - eqFalta.length) + ' / ' + eqs.length : '—', 'Equipamentos apontados', eqFalta.length ? eqFalta.length + ' mobilizado(s) faltando' : (eqs.length ? 'todos apontados' : ''), cor(eqs.length - eqFalta.length, eqs.length))}
+      ${_kpi(_ic.alert || _ic.timer, esquecidos.length, 'Não encerrados', 'de dias anteriores', esquecidos.length ? '#FF5A60' : '', esquecidos.length > 0)}
+    </div>`;
+  const msgAp = f => 'Olá ' + String(f.nome || '').split(' ')[0] + ', tudo bem? Ainda não apareceu o seu apontamento de hoje (' + dd + ') no ObraControl. Consegue abrir o app e lançar?';
+  const listaAp = aprops.length ? `<div class="dd-l">${aprops.map(a => {
+      const t0 = a.ts.slice().sort((x, y) => String(x.horaIni).localeCompare(String(y.horaIni)))[0];
+      const st = a.ok ? `<div class="dd-st ok">✓ ${t0 ? 'Abriu ' + _e(t0.horaIni || '') : 'Lançou'}<div class="dd-s">${_e([...new Set(a.ts.map(t => t.frente))].join(', ') || '')}${a.ts.length > 1 ? ' · ' + a.ts.length + ' turnos' : ''}</div></div>` : `<div class="dd-st no">Ainda não abriu</div>`;
+      return `<div class="dd-r ${a.ok ? 'ok' : 'no'}"><div class="dd-av">${_e(ini(a.f.nome))}</div><div style="min-width:0"><div class="dd-n">${_e(a.f.nome)}</div><div class="dd-s">Mat. ${_e(a.f.mat)} · ${_e(nomeFunc(a.f.codFuncao))}${a.f.equipe ? ' · ' + _e(a.f.equipe) : ''}${a.u ? '' : ' · <span style="color:#FBBF24">sem acesso ao app</span>'}</div></div>${st}${_waBotao(a.f.tel, a.ok ? '' : msgAp(a.f))}</div>`; }).join('')}</div>`
+    : '<div class="dx-vazio">Nenhum apropriador marcado.<br>No cadastro de funcionários, marque <b>Líder / Apropriador = Sim</b> para quem faz o apontamento.</div>';
+  const listaPes = faltam.length ? `<div class="dd-l">${faltam.sort((a, b) => String(a.equipe || '').localeCompare(String(b.equipe || '')) || String(a.nome).localeCompare(String(b.nome))).map(f =>
+      `<div class="dd-r"><div class="dd-av">${_e(ini(f.nome))}</div><div style="min-width:0"><div class="dd-n">${_e(f.nome)}</div><div class="dd-s">Mat. ${_e(f.mat)} · ${_e(nomeFunc(f.codFuncao))}${f.equipe ? ' · ' + _e(f.equipe) : ''}${nomeLider(f.lider) ? ' · líder ' + _e(nomeLider(f.lider)) : ''}</div></div>${_waBotao(f.tel, '', 'mini')}</div>`).join('')}</div>`
+    : `<div class="dx-vazio">${devem.length ? '✓ Todas as ' + devem.length + ' pessoas que geram apontamento já foram apontadas.' : 'Nenhum funcionário ativo que gere apontamento.'}</div>`;
+  const listaEq = eqFalta.length ? `<div class="dd-l">${eqFalta.sort((a, b) => String(a.tag).localeCompare(String(b.tag))).map(e =>
+      `<div class="dd-r"><div class="dd-av" style="border-radius:9px">${_ic.truck.replace('<svg ', '<svg style="width:18px;height:18px" ')}</div><div style="min-width:0"><div class="dd-n">${_e(e.tag || e.placa)}</div><div class="dd-s">${_e(e.placa || '—')} · ${_e(((dados.familias || []).find(x => x.cod === (e.familia || e.codFamilia)) || {}).desc || e.familia || '—')}</div></div></div>`).join('')}</div>`
+    : `<div class="dx-vazio">${eqs.length ? '✓ Todos os ' + eqs.length + ' equipamentos mobilizados já foram apontados.' : 'Nenhum equipamento mobilizado.'}</div>`;
+  const grid = arr => `<div class="dia-grid" style="margin-bottom:12px">${arr.sort((a, b) => String(a.frente).localeCompare(String(b.frente)) || String(a.horaIni).localeCompare(String(b.horaIni))).map(t => _diaCard(t, t.status === 'aberto' && t.data < dataSel ? 'esquecido' : t.status)).join('')}</div>`;
+  const corpo = kpis + `<div class="dx-grid" style="grid-template-columns:1fr 1.35fr;margin-bottom:12px">
+      ${_pn(_ic.user, 'Apropriadores', listaAp, aprops.length ? apOk + ' de ' + aprops.length + ' abriram' : '')}
+      ${_pn(_ic.check, 'Faltando apontar', `<div class="dd-2"><div><div class="dd-h">Pessoas (${faltam.length})</div>${listaPes}</div><div><div class="dd-h">Equipamentos mobilizados (${eqFalta.length})</div>${listaEq}</div></div>`, 'quem gera apontamento e ainda não entrou em nenhum')}
+    </div>`
+    + (esquecidos.length ? _pn(_ic.timer, '⚠ Abertos e não encerrados de dias anteriores (' + esquecidos.length + ')', grid(esquecidos) + '<div class="dx-sub" style="margin-top:0">O apropriador precisa abrir o app, entrar em Apropriação e encerrar (ou descartar) esses turnos.</div>', '', 'margin-bottom:12px;border-color:rgba(227,6,19,.6)') : '')
+    + (abertos.length || encerrados.length
+      ? (abertos.length ? _pn(_ic.clock, 'Em andamento (' + abertos.length + ')', grid(abertos), '', 'margin-bottom:12px') : '') + (encerrados.length ? _pn(_ic.check, 'Encerrados (' + encerrados.length + ')', grid(encerrados), '', 'margin-bottom:12px') : '')
+      : _pn(_ic.clock, 'Turnos do dia', `<div class="dx-vazio">Nenhum turno aberto em ${fmtData(dataSel)}${ob ? ' nesta obra' : ''}.<br>Os turnos aparecem aqui assim que o apropriador escolhe a frente no app de campo.</div>`));
+  _dxMontar('dia', 'page-diario', 'Acompanhamento do dia', 'Turnos abertos pelos apropriadores, ao vivo · ' + fmtData(dataSel) + ' · <span id="dia-atualizado">' + _e(atu || '—') + '</span>', corpo);
+};
 
 // Apply configs on load
 setTimeout(applyConfigs, 200);

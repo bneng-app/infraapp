@@ -673,7 +673,7 @@ select.form-control,select.form-control:focus{background-image:url("data:image/s
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraControl Campo · v2.19</div>
+  <div class="login-versao">ObraControl Campo · v2.20</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -1986,6 +1986,8 @@ function apNovo() {
   _apLimparForm();
   document.getElementById('ap-data').value = _hojeISO();
   apAgora('ap-hora-ini');
+  // v2.20: quem abre o apontamento (apropriador) já entra marcado na equipe
+  { const eu = _apEu(); if (eu) ap.mo.add(eu.id); }
   apAtualizarContadores(); apTab('frente');
 }
 // compatibilidade: abre o mais recente
@@ -2042,7 +2044,10 @@ function _apOutros(tipo, id) {
 
 function _esc(t) { return String(t ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function _apObra() { return usuarioCampo?.obra || ''; }
-function _apFuncs() { const o = _apObra(); return dadosCampo.funcionarios.filter(f => (!o || !f.obra || f.obra === o) && f.status !== 'Desligado'); }
+function _apEu() { const m = String(usuarioCampo?.mat || '').replace(/\s+/g, ''); if (!m) return null; const o = _apObra(); return dadosCampo.funcionarios.find(f => String(f.mat || '').replace(/\s+/g, '') === m && (!o || !f.obra || f.obra === o)) || dadosCampo.funcionarios.find(f => String(f.mat || '').replace(/\s+/g, '') === m) || null; }
+// v2.20: quem não gera apontamento (indireto, administrativo) não aparece na lista; o próprio apropriador sempre aparece
+function _apGera(f) { return f.geraApont ? f.geraApont !== 'Não' : !/^n/i.test(String(f.direto || '')); }
+function _apFuncs() { const o = _apObra(), eu = _apEu(); return dadosCampo.funcionarios.filter(f => (!o || !f.obra || f.obra === o) && f.status !== 'Desligado' && (_apGera(f) || (eu && f.id === eu.id) || ap.mo.has(f.id))); }
 function _apEquips() { const o = _apObra(); return dadosCampo.equipamentos.filter(e => !o || !e.obra || e.obra === o); }
 function _apTurno() { const id = document.getElementById('ap-turno').value; return dadosCampo.turnos.find(t => (t.id || t.cod) === id); }
 function _apHorasTurno(t) {
