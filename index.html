@@ -551,7 +551,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraControl</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraControl v2.53 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraControl v2.54 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -10461,6 +10461,63 @@ async function agSalvar() {
   try { _rerenderTelaAtual(); } catch (e) {} try { renderMO(); } catch (e) {} try { renderEQ && renderEQ(); } catch (e) {}
   toast('Apontamento lançado e aprovado: ' + novosMO.length + ' pessoa(s), ' + novosEQ.length + ' equipamento(s)' + (falhas ? ' — ⚠ ' + falhas + ' não foram gravados no servidor' : ''), falhas ? 'error' : undefined);
 }
+
+// ═══════════════════════════════════════════════════════════════
+// v2.54: PARADAS DO CAMPO — ao vivo no acompanhamento do dia e sugestões de motivo ("Outro") para Tipos de Perda
+// ═══════════════════════════════════════════════════════════════
+(function () {
+  const oCard = window._diaCard;
+  window._diaCard = function (t, tipo) {
+    const h = oCard.apply(this, arguments);
+    const ps = t.paradas || []; if (!ps.length) return h;
+    const min = x => { const [a, b] = String(x || '').split(':').map(Number); return a * 60 + (b || 0); };
+    const abertas = ps.filter(p => !p.fim), fech = ps.filter(p => p.fim), horas = fech.reduce((s, p) => s + Math.max(0, min(p.fim) - min(p.ini)) / 60, 0);
+    const linha = `<div class="dia-linha" style="align-items:flex-start"><span style="color:var(--text-3)">Paradas</span><span style="text-align:right">`
+      + abertas.map(p => `<div style="color:#F59E0B;font-weight:700">⏸ ${_e(p.motivo)} — ${_e(p.quem)} desde ${_e(p.ini)}</div>`).join('')
+      + (fech.length ? `<div>${fech.length} encerrada(s) · ${horas.toFixed(1).replace('.', ',')} h</div>` : '') + `</span></div>`;
+    const i = h.lastIndexOf('<details'); const j = i >= 0 ? i : h.lastIndexOf('</div></div>');
+    return h.slice(0, j) + linha + h.slice(j);
+  };
+})();
+function _perdaSugestoes() {
+  let ign = []; try { ign = JSON.parse(localStorage.getItem('oc_perda_ign') || '[]'); } catch (e) {}
+  const lista = new Set((dados.tiposPerdas || []).map(t => String(t.nome || '').trim().toLowerCase()));
+  const m = new Map();
+  (dados.perdas || []).filter(p => p.outro && p.motivo).forEach(p => { const k = String(p.motivo).trim(); const kl = k.toLowerCase(); if (lista.has(kl) || ign.includes(kl)) return;
+    const x = m.get(kl) || { nome: k, n: 0, horas: 0, tipos: new Set(), quem: new Set() }; x.n++; x.horas += +p.horas || 0; x.tipos.add(p.tipo); x.quem.add(p.lancadoPor || ''); m.set(kl, x); });
+  return [...m.values()].sort((a, b) => b.n - a.n);
+}
+function _perdaSugRender() {
+  const pg = document.getElementById('page-tipos-perdas'); if (!pg) return;
+  const l = _perdaSugestoes(); let el = pg.querySelector('.perda-sug');
+  const it = document.querySelector(`.sidebar .nav-item[onclick*="showPage('tipos-perdas'"]`);
+  if (it) { let b = it.querySelector('.pend-badge'); if (!l.length) { if (b) b.remove(); } else { if (!b) { b = document.createElement('span'); b.className = 'nav-badge pend-badge'; b.style.cssText = 'margin-left:auto;background:#F59E0B;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700'; it.appendChild(b); } b.textContent = l.length; } }
+  if (!l.length) { if (el) el.remove(); return; }
+  if (!el) { el = document.createElement('div'); el.className = 'perda-sug'; const h = pg.querySelector('.page-header'); h ? h.after(el) : pg.prepend(el); }
+  el.innerHTML = `<div class="card" style="margin-bottom:14px;border:1.5px solid #FCD34D;background:#FFFBEB"><div class="card-body">
+    <div style="font-weight:800;color:#92400E;margin-bottom:4px">💡 ${l.length} motivo(s) escrito(s) no campo como "Outro"</div>
+    <div style="font-size:12px;color:#78350F;margin-bottom:10px">Se fizer sentido, inclua na lista — da próxima vez o apropriador escolhe direto.</div>
+    ${l.map((x, i) => `<div style="display:flex;gap:10px;align-items:center;background:#fff;border:1px solid #FDE68A;border-radius:10px;padding:8px 12px;margin-bottom:6px;flex-wrap:wrap">
+      <div style="flex:1;min-width:220px"><strong>${_e(x.nome)}</strong><div style="font-size:11.5px;color:var(--text-3)">${x.n} registro(s) · ${x.horas.toFixed(1).replace('.', ',')} h · ${[...x.tipos].map(_e).join(' e ')} · por ${[...x.quem].filter(Boolean).map(_e).join(', ') || '—'}</div></div>
+      <button class="btn btn-primary btn-sm" onclick="perdaSugIncluir(${i})">Incluir na lista</button><button class="btn btn-outline btn-sm" onclick="perdaSugIgnorar(${i})">Ignorar</button></div>`).join('')}</div></div>`;
+}
+function perdaSugIncluir(i) {
+  const x = _perdaSugestoes()[i]; if (!x) return;
+  const tipos = [...x.tipos], aplica = tipos.length > 1 ? 'Ambos' : (/equip/i.test(tipos[0] || '') ? 'EQ' : 'MO');
+  let base = x.nome.normalize('NFD').replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 3) || 'OUT', cod = base, n = 2;
+  while ((dados.tiposPerdas || []).some(t => String(t.cod).toUpperCase() === cod)) cod = base + n++;
+  const t = { id: 'tp' + Date.now().toString(36), cod, nome: x.nome, aplica, cor: 'gray' };
+  (dados.tiposPerdas = dados.tiposPerdas || []).push(t);
+  if (db && _firebaseReady) fbSave('tiposPerdas', t.id, t).catch(() => {});
+  try { renderTiposPerdas(); } catch (e) {} _perdaSugRender(); toast('"' + x.nome + '" incluído em Tipos de Perda (' + cod + ').');
+}
+function perdaSugIgnorar(i) { const x = _perdaSugestoes()[i]; if (!x) return; let ign = []; try { ign = JSON.parse(localStorage.getItem('oc_perda_ign') || '[]'); } catch (e) {} ign.push(x.nome.toLowerCase()); try { localStorage.setItem('oc_perda_ign', JSON.stringify(ign)); } catch (e) {} _perdaSugRender(); }
+(function () {
+  const oInit = window.pageInit;
+  window.pageInit = function (id) { const r = oInit.apply(this, arguments); if (id === 'tipos-perdas') setTimeout(_perdaSugRender, 100); return r; };
+  const oEntrar = window.entrarNoApp;
+  window.entrarNoApp = function () { const r = oEntrar.apply(this, arguments); setTimeout(() => { try { _perdaSugRender(); } catch (e) {} }, 3200); return r; };
+})();
 
 // Apply configs on load
 setTimeout(applyConfigs, 200);

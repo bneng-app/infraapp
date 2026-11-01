@@ -619,6 +619,23 @@ select.form-control,select.form-control:focus{background-image:url("data:image/s
 .rep-op b{font-size:14px;color:var(--text)}.rep-op span{font-size:12px;color:var(--text2)}
 .rep-op .rep-seta{margin-left:auto;color:var(--red);font-weight:900;font-size:18px}
 .rep-outra{width:100%;margin-top:8px;background:none;border:1.5px dashed #9A9CA5;border-radius:12px;padding:10px;font-size:13.5px;font-weight:700;color:var(--text2);cursor:pointer}
+
+/* v2.30: paradas e perdas ao longo do dia */
+.tb-par{white-space:nowrap;background:#F59E0B!important;color:#fff!important;border:none!important;border-radius:12px!important;font-weight:800!important;padding:9px 12px!important;font-size:14px!important;margin-right:8px}
+.par-esc{display:flex;gap:6px;margin-bottom:10px}
+.par-esc button{flex:1;border:1.5px solid #D3D4DA;background:#fff;border-radius:10px;padding:10px 4px;font-size:13px;font-weight:700;cursor:pointer;color:var(--text)}
+.par-esc button.on{background:var(--red);border-color:var(--red);color:#fff}
+.par-quem{max-height:190px;overflow:auto;background:#fff;border-radius:12px;border:1px solid rgba(0,0,0,.06);margin-bottom:10px}
+.par-quem label{display:flex;gap:10px;align-items:center;padding:9px 12px;border-bottom:1px solid #F0F0F2;font-size:14px}
+.par-quem input{width:18px;height:18px;accent-color:var(--red)}
+.par-it{background:#fff;border:1px solid rgba(0,0,0,.07);border-left:4px solid #F59E0B;border-radius:12px;padding:10px 12px;margin-bottom:8px}
+.par-it.fechada{border-left-color:#9CA3AF}
+.par-it .t{font-weight:800;font-size:14px}.par-it .s{font-size:12px;color:var(--text2);margin-top:2px}
+.par-it .a{display:flex;gap:8px;margin-top:8px}
+.par-it .a button{border:1px solid #D3D4DA;background:#fff;border-radius:8px;padding:6px 10px;font-size:12.5px;font-weight:700;cursor:pointer}
+.par-it .a button.ok{background:#16A34A;border-color:#16A34A;color:#fff}
+.ap-aberto .par-mini{margin-left:auto;background:#F59E0B;color:#fff;border:none;border-radius:10px;padding:8px 10px;font-weight:800;font-size:12px;cursor:pointer;flex:0 0 auto}
+.ap-eq-campos .form-group:has(select){display:none}
 /* v2.26: cadastro provisório */
 .ap-prov-btn{display:block;margin:8px 14px 0;width:calc(100% - 28px);background:none;border:1.5px dashed #9A9CA5;border-radius:12px;padding:10px;font-size:13.5px;font-weight:700;color:var(--text2);cursor:pointer}
 .ap-prov-tag{display:inline-block;font-size:10px;font-weight:800;color:#9A3412;background:#FFEDD5;border-radius:6px;padding:1px 6px;margin-left:6px}
@@ -698,6 +715,31 @@ select.form-control,select.form-control:focus{background-image:url("data:image/s
 
 
 
+
+<!-- v2.30: registrar parada / perda -->
+<div class="sheet-bg" id="par-sheet" onclick="if(event.target===this)this.classList.remove('show')">
+  <div class="sheet"><div class="sheet-h"><b id="par-tit">Registrar parada</b><button class="sheet-x" onclick="document.getElementById('par-sheet').classList.remove('show')">×</button></div>
+  <input type="hidden" id="par-id"/>
+  <div class="form-label">Quem parou?</div>
+  <div class="par-esc"><button type="button" data-e="tudo" onclick="parEscopo('tudo')">Tudo</button><button type="button" data-e="pessoas" onclick="parEscopo('pessoas')">Pessoas</button><button type="button" data-e="equip" onclick="parEscopo('equip')">Equipamentos</button></div>
+  <div class="par-quem" id="par-quem"></div>
+  <div class="form-group"><label class="form-label">Motivo *</label><select class="form-control" id="par-motivo" onchange="document.getElementById('par-outro-w').style.display=this.value==='__outro'?'':'none'"></select></div>
+  <div class="form-group" id="par-outro-w" style="display:none"><label class="form-label">Qual o motivo? *</label><input class="form-control" id="par-outro" placeholder="Descreva o motivo"/></div>
+  <div class="time-row">
+    <div class="form-group"><label class="form-label">Parou às *</label><input type="time" class="form-control" id="par-ini"/></div>
+    <div class="form-group"><label class="form-label">Retornou às</label><input type="time" class="form-control" id="par-fim"/></div>
+  </div>
+  <div style="font-size:11.5px;color:var(--text3);margin:-6px 0 10px">Se ainda está parado, deixe o retorno em branco e toque em <b>Retomou agora</b> quando voltar.</div>
+  <div class="form-group"><label class="form-label">Observação</label><input class="form-control" id="par-obs" placeholder="Opcional…"/></div>
+  <button class="btn btn-primary" onclick="parSalvar()">Salvar parada</button></div>
+</div>
+<!-- v2.30: fechar paradas sem retorno antes de encerrar -->
+<div class="sheet-bg" id="parfim-sheet">
+  <div class="sheet"><div class="sheet-h"><b>Paradas sem hora de retorno</b><button class="sheet-x" onclick="document.getElementById('parfim-sheet').classList.remove('show')">×</button></div>
+  <div style="font-size:13px;color:var(--text2);margin:-4px 0 10px">Para encerrar, informe a hora em que cada parada terminou.</div>
+  <div id="parfim-lista"></div>
+  <button class="btn btn-primary" onclick="parFimConfirmar()">Confirmar e encerrar o turno</button></div>
+</div>
 <!-- v2.26: cadastro provisório (pessoa / equipamento que ainda não está na lista) -->
 <div class="sheet-bg" id="prov-sheet" onclick="if(event.target===this)this.classList.remove('show')">
   <div class="sheet"><div class="sheet-h"><b id="prov-tit">Pessoa nova</b><button class="sheet-x" onclick="document.getElementById('prov-sheet').classList.remove('show')">×</button></div>
@@ -765,7 +807,7 @@ select.form-control,select.form-control:focus{background-image:url("data:image/s
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraControl Campo · v2.29</div>
+  <div class="login-versao">ObraControl Campo · v2.30</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -828,6 +870,7 @@ select.form-control,select.form-control:focus{background-image:url("data:image/s
   <div class="topbar">
     <div class="topbar-row">
       <div class="tb-left"><button class="tb-back" onclick="showScreen('home')" aria-label="Voltar"><svg class="" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg></button><div class="topbar-title">Apropriação</div></div>
+      <button class="btn btn-sm tb-par" id="ap-btn-parada" style="display:none;margin-left:auto" onclick="parAbrir()">⏸ Parada</button>
       <button class="btn btn-sm tb-pill" id="ap-btn-abertos" style="display:none;margin-left:auto;margin-right:8px" onclick="apMostrarLista()">Abertos <b id="ap-n-abertos">0</b></button>
       <button class="btn btn-sm tb-qr" id="ap-btn-qr" style="background:var(--red);color:white;border:none;display:none" onclick="abrirQR('ap')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
@@ -942,11 +985,15 @@ select.form-control,select.form-control:focus{background-image:url("data:image/s
           <span><strong>Serviço em andamento</strong> — ainda sem quantidade concluída hoje<br><span style="font-size:11px;color:var(--text3)">Ex.: poço de visita que só termina amanhã. Informe a quantidade no dia em que concluir.</span></span>
         </label>
         <div class="time-row">
-          <div class="form-group"><label class="form-label">Perda (MO)</label><select class="form-control" id="ap-motivo-perda" onchange="apMontarResumo()"><option value="">Nenhuma</option></select></div>
-          <div class="form-group" style="flex:0 0 110px"><label class="form-label">Horas</label><input type="number" class="form-control" id="ap-horas-perda" step="0.5" placeholder="0" oninput="apMontarResumo()"/></div>
+          <div class="form-group" style="display:none"><label class="form-label">Perda (MO)</label><select class="form-control" id="ap-motivo-perda" onchange="apMontarResumo()"><option value="">Nenhuma</option></select></div>
+          <div class="form-group" style="display:none"><label class="form-label">Horas</label><input type="number" class="form-control" id="ap-horas-perda" step="0.5" placeholder="0" oninput="apMontarResumo()"/></div>
         </div>
         <div class="form-group"><label class="form-label">Observações</label><input class="form-control" id="ap-obs" placeholder="Opcional…" oninput="apMontarResumo()"/></div>
       </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Paradas e perdas do dia</span><button class="btn btn-sm" style="background:#F59E0B;color:#fff;border:none;border-radius:8px;font-weight:800" onclick="parAbrir()">+ Parada</button></div>
+      <div class="card-body" id="ap-par-lista"></div>
     </div>
     <div class="card" style="padding:0">
       <div class="rs-tit">Resumo do apontamento</div>
@@ -3251,6 +3298,171 @@ function _repOutra() {
   apGuardar = function () { const r = oGuardar.apply(this, arguments); if (ap.uid && ap.repItem) { const l = apRascunhos(); const x = l.find(y => y.uid === ap.uid); if (x && x.repUid !== ap.repItem.uid) { x.repUid = ap.repItem.uid; x.repItem = ap.repItem; _apGravarLista(l); } } return r; };
   const oAbrir = apAbrir;
   apAbrir = function (uid) { const x = apRascunhos().find(y => y.uid === uid); const r = oAbrir.apply(this, arguments); ap.repItem = (x && x.repItem) || null; return r; };
+})();
+
+// ══════════════════════════════════════════════════════════════
+// v2.30: PARADAS E PERDAS AO LONGO DO DIA
+// Registradas com o turno aberto (Tudo / Pessoas / Equipamentos), motivo da lista da Gestão ou "Outro".
+// Hora de retorno obrigatória para encerrar (ou marcar "usar a hora do fechamento" de propósito).
+// Pessoa: horas continuam pagas; as paradas viram horas improdutivas. Equipamento: paradas = horas paradas.
+// ══════════════════════════════════════════════════════════════
+const _parMin = h => { const [a, b] = String(h || '').split(':').map(Number); return isNaN(a) ? null : a * 60 + (b || 0); };
+const _parH = p => { const i = _parMin(p.ini), f = _parMin(p.fim); return i != null && f != null && f > i ? (f - i) / 60 : 0; };
+const _parAgora = () => new Date().toTimeString().slice(0, 5);
+function _parMotivoTxt(p) { if (p.outro) return p.motivoTxt; const t = dadosCampo.tiposPerdas.find(x => x.cod === p.motivoCod); return t ? (t.nome || t.desc || t.cod) : p.motivoCod; }
+function _parQuemTxt(p) {
+  if (p.escopo === 'tudo') return 'Tudo (equipe e equipamentos)';
+  const nm = p.escopo === 'equip' ? (p.eq || []).map(id => { const e = dadosCampo.equipamentos.find(x => x.id === id); return e ? (e.tag || e.placa) : '?'; }) : (p.mo || []).map(id => { const f = dadosCampo.funcionarios.find(x => x.id === id); return f ? f.nome.split(' ')[0] : '?'; });
+  return nm.length > 3 ? nm.slice(0, 3).join(', ') + ' +' + (nm.length - 3) : nm.join(', ');
+}
+let _parEsc = 'tudo';
+function parAbrir(id) {
+  if (!ap.uid) { toast('Abra o apontamento (escolha a frente) antes de registrar uma parada.', 'err'); return; }
+  const p = id ? (ap.paradas || []).find(x => x.id === id) : null, $ = x => document.getElementById(x);
+  $('par-tit').textContent = p ? 'Editar parada' : 'Registrar parada';
+  $('par-id').value = p ? p.id : ''; $('par-ini').value = p ? p.ini : _parAgora(); $('par-fim').value = p ? (p.fim || '') : ''; $('par-obs').value = p ? (p.obs || '') : '';
+  $('par-outro').value = p && p.outro ? p.motivoTxt : '';
+  parEscopo(p ? p.escopo : 'tudo', p);
+  if (p) { $('par-motivo').value = p.outro ? '__outro' : p.motivoCod; $('par-outro-w').style.display = p.outro ? '' : 'none'; }
+  $('par-sheet').classList.add('show');
+}
+function parEscopo(e, p) {
+  _parEsc = e; const $ = x => document.getElementById(x);
+  document.querySelectorAll('.par-esc button').forEach(b => b.classList.toggle('on', b.dataset.e === e));
+  const mo = dadosCampo.funcionarios.filter(f => ap.mo.has(f.id)), eq = dadosCampo.equipamentos.filter(x => ap.eq.has(x.id));
+  const sel = p ? new Set([...(p.mo || []), ...(p.eq || [])]) : new Set();
+  $('par-quem').style.display = e === 'tudo' ? 'none' : '';
+  $('par-quem').innerHTML = e === 'pessoas' ? (mo.map(f => `<label><input type="checkbox" value="${_esc(f.id)}" ${sel.has(f.id) ? 'checked' : ''}/>${_esc(f.nome)} <span style="color:var(--text3);font-size:12px">${_esc(f.codFuncao || '')}</span></label>`).join('') || '<div style="padding:10px;color:var(--text3)">Nenhuma pessoa no apontamento</div>')
+    : e === 'equip' ? (eq.map(x => `<label><input type="checkbox" value="${_esc(x.id)}" ${sel.has(x.id) ? 'checked' : ''}/>${_esc(x.tag || x.placa)} <span style="color:var(--text3);font-size:12px">${_esc(x.familia || '')}</span></label>`).join('') || '<div style="padding:10px;color:var(--text3)">Nenhum equipamento no apontamento</div>') : '';
+  const aplica = t => { const a = String(t.aplica || 'Ambos').toUpperCase(); return a.startsWith('AMB') || (e === 'equip' ? a === 'EQ' : e === 'pessoas' ? a === 'MO' : true); };
+  const v = $('par-motivo').value;
+  $('par-motivo').innerHTML = '<option value="">Escolha o motivo…</option>' + dadosCampo.tiposPerdas.filter(aplica).map(t => `<option value="${_esc(t.cod)}">${_esc(t.nome || t.desc || t.cod)}</option>`).join('') + '<option value="__outro">Outro (escrever)…</option>';
+  if (v && [...$('par-motivo').options].some(o => o.value === v)) $('par-motivo').value = v;
+}
+function parSalvar() {
+  const $ = x => document.getElementById(x), v = x => ($(x)?.value || '').trim();
+  const mot = v('par-motivo'), outro = mot === '__outro';
+  if (!mot) { toast('Escolha o motivo.', 'err'); return; }
+  if (outro && !v('par-outro')) { toast('Escreva qual é o motivo.', 'err'); return; }
+  if (!v('par-ini')) { toast('Informe a hora em que parou.', 'err'); return; }
+  const marcados = [...document.querySelectorAll('#par-quem input:checked')].map(i => i.value);
+  if (_parEsc !== 'tudo' && !marcados.length) { toast('Marque quem parou.', 'err'); return; }
+  const hoje = document.getElementById('ap-data')?.value === _hojeISO();
+  if (hoje && _parMin(v('par-ini')) > _parMin(_parAgora())) { toast('A hora da parada ainda não chegou.', 'err'); return; }
+  if (v('par-fim') && _parMin(v('par-fim')) <= _parMin(v('par-ini'))) { toast('O retorno precisa ser depois do início.', 'err'); return; }
+  if (v('par-fim') && hoje && _parMin(v('par-fim')) > _parMin(_parAgora())) { toast('O retorno não pode ser no futuro.', 'err'); return; }
+  const id = v('par-id') || ('pa' + Date.now().toString(36));
+  const p = { id, escopo: _parEsc, mo: _parEsc === 'pessoas' ? marcados : [], eq: _parEsc === 'equip' ? marcados : [], motivoCod: outro ? '' : mot, outro, motivoTxt: outro ? v('par-outro') : '', ini: v('par-ini'), fim: v('par-fim'), obs: v('par-obs'), em: new Date().toISOString() };
+  ap.paradas = (ap.paradas || []).filter(x => x.id !== id).concat(p);
+  $('par-sheet').classList.remove('show'); apGuardar(); _parRender();
+  toast(p.fim ? 'Parada registrada (' + _parH(p).toFixed(1).replace('.', ',') + ' h)' : 'Parada registrada — toque em "Retomou agora" quando voltar', 'ok');
+}
+function parRetomou(id) { const p = (ap.paradas || []).find(x => x.id === id); if (!p) return; const a = _parAgora(); if (_parMin(a) <= _parMin(p.ini)) { toast('O retorno precisa ser depois do início (' + p.ini + ').', 'err'); return; } p.fim = a; apGuardar(); _parRender(); toast('Retorno às ' + a + ' · ' + _parH(p).toFixed(1).replace('.', ',') + ' h parado', 'ok'); }
+function parExcluir(id) { if (!confirm('Excluir esta parada?')) return; ap.paradas = (ap.paradas || []).filter(x => x.id !== id); apGuardar(); _parRender(); }
+function _parRender() {
+  const box = document.getElementById('ap-par-lista'); const l = (ap.paradas || []).slice().sort((a, b) => String(a.ini).localeCompare(String(b.ini)));
+  if (box) box.innerHTML = l.length ? l.map(p => `<div class="par-it ${p.fim ? 'fechada' : ''}"><div class="t">${p.fim ? '' : '⏸ '}${_esc(_parMotivoTxt(p))}${p.outro ? ' <span style="font-size:11px;color:#B45309">(outro)</span>' : ''}</div>
+      <div class="s">${_esc(_parQuemTxt(p))} · ${_esc(p.ini)}–${p.fim ? _esc(p.fim) + ' · ' + _parH(p).toFixed(1).replace('.', ',') + ' h' : '<b style="color:#B45309">ainda parado</b>'}${p.obs ? ' · ' + _esc(p.obs) : ''}</div>
+      <div class="a">${p.fim ? '' : `<button class="ok" onclick="parRetomou('${p.id}')">Retomou agora</button>`}<button onclick="parAbrir('${p.id}')">Editar</button><button onclick="parExcluir('${p.id}')" style="color:var(--red)">Excluir</button></div></div>`).join('')
+    : '<div style="font-size:13px;color:var(--text3);padding:4px 0 8px">Nenhuma parada registrada.</div>';
+  const b = document.getElementById('ap-btn-parada'); if (b) { const ab = l.filter(p => !p.fim).length; b.style.display = ap.uid ? '' : 'none'; b.textContent = ab ? '⏸ ' + ab + ' parada' + (ab > 1 ? 's' : '') : '⏸ Parada'; }
+}
+// horas paradas de uma pessoa / equipamento
+function _parHorasDe(tipo, id) { return (ap.paradas || []).filter(p => p.fim && (p.escopo === 'tudo' || (tipo === 'mo' ? (p.mo || []).includes(id) : (p.eq || []).includes(id)))).reduce((s, p) => s + _parH(p), 0); }
+function _parMotivosDe(tipo, id) { return [...new Set((ap.paradas || []).filter(p => p.escopo === 'tudo' || (tipo === 'mo' ? (p.mo || []).includes(id) : (p.eq || []).includes(id))).map(_parMotivoTxt))].join(', '); }
+// encerramento: paradas sem retorno precisam ser resolvidas
+function _parFimAbrir(abertas) {
+  document.getElementById('parfim-lista').innerHTML = abertas.map(p => `<div class="par-it"><div class="t">${_esc(_parMotivoTxt(p))}</div><div class="s">${_esc(_parQuemTxt(p))} · parou às ${_esc(p.ini)}</div>
+    <div class="form-group" style="margin:8px 0 6px"><label class="form-label">Retornou às *</label><input type="time" class="form-control" data-par="${p.id}" oninput="this.closest('.par-it').querySelector('input[type=checkbox]').checked=false"/></div>
+    <label style="display:flex;gap:8px;align-items:center;font-size:13.5px;cursor:pointer;font-weight:600"><input type="checkbox" data-parfech="${p.id}" style="width:20px;height:20px;accent-color:var(--red)" onchange="if(this.checked)this.closest('.par-it').querySelector('input[type=time]').value=''"/>ou: durou até o fechamento do turno</label></div>`).join('');
+  document.getElementById('parfim-sheet').classList.add('show');
+}
+function parFimConfirmar() {
+  const saida = document.getElementById('ap-hora-fim').value || _parAgora();
+  for (const p of (ap.paradas || []).filter(x => !x.fim)) {
+    const t = document.querySelector(`[data-par="${p.id}"]`)?.value, fech = document.querySelector(`[data-parfech="${p.id}"]`)?.checked;
+    if (!t && !fech) { toast('Informe o retorno de "' + _parMotivoTxt(p) + '" ou marque "durou até o fechamento".', 'err'); return; }
+    const fim = fech ? saida : t;
+    if (_parMin(fim) <= _parMin(p.ini)) { toast('O retorno de "' + _parMotivoTxt(p) + '" precisa ser depois de ' + p.ini + '.', 'err'); return; }
+  }
+  (ap.paradas || []).filter(x => !x.fim).forEach(p => { const t = document.querySelector(`[data-par="${p.id}"]`)?.value, fech = document.querySelector(`[data-parfech="${p.id}"]`)?.checked; p.fim = fech ? saida : t; p.fimFechamento = !!fech; });
+  document.getElementById('parfim-sheet').classList.remove('show'); apGuardar(); _parRender(); salvarApropriacao();
+}
+(function () {
+  // rascunho guarda as paradas
+  const oGuardar = apGuardar;
+  apGuardar = function () { const r = oGuardar.apply(this, arguments); if (ap.uid) { const l = apRascunhos(); const x = l.find(y => y.uid === ap.uid); if (x) { x.paradas = ap.paradas || []; _apGravarLista(l); } } return r; };
+  const oAbrir = apAbrir;
+  apAbrir = function (uid) { const x = apRascunhos().find(y => y.uid === uid); const r = oAbrir.apply(this, arguments); ap.paradas = (x && x.paradas) || []; _parRender(); return r; };
+  const oLimpar = _apLimparForm;
+  _apLimparForm = function () { oLimpar.apply(this, arguments); ap.paradas = []; setTimeout(_parRender, 0); };
+  const oTab = apTab;
+  apTab = function () { const r = oTab.apply(this, arguments); _parRender(); return r; };
+  // equipamento: "H. produtivas" passa a ser as horas no turno; as paradas saem dela
+  const oEQ = apRenderEQ;
+  apRenderEQ = function () { const r = oEQ.apply(this, arguments); document.querySelectorAll('#ap-eq-lista .ap-eq-campos .form-label').forEach(l => { if (/produtivas/i.test(l.textContent)) l.textContent = 'Horas no turno'; if (/parado/i.test(l.textContent)) l.closest('.form-group').style.display = 'none'; });
+    document.querySelectorAll('#ap-eq-lista .ap-eq-campos > div[style*="font-size:11px"]').forEach(d => d.textContent = 'Paradas: use o botão ⏸ Parada no topo, ao longo do dia. O horímetro vai no encerramento, com foto.'); return r; };
+  // encerrar: exige retorno de todas as paradas
+  const oSalvar = salvarApropriacao;
+  let ctx = null;
+  salvarApropriacao = async function () {
+    const abertas = (ap.paradas || []).filter(p => !p.fim);
+    if (abertas.length) { _parFimAbrir(abertas); return; }
+    ctx = { paradas: (ap.paradas || []).slice(), base: null, mo: dadosCampo.funcionarios.filter(f => ap.mo.has(f.id)), eq: dadosCampo.equipamentos.filter(e => ap.eq.has(e.id)), turnoFim: null };
+    try { return await oSalvar.apply(this, arguments); }
+    finally {
+      // grava cada parada como perda (uma por pessoa / equipamento), ligada ao mesmo apontamento
+      if (ctx && ctx.base && ctx.paradas.length) {
+        const sfx = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+        for (const p of ctx.paradas) {
+          const h = +_parH(p).toFixed(2); if (!h) continue;
+          const pessoas = p.escopo === 'tudo' ? ctx.mo : p.escopo === 'pessoas' ? ctx.mo.filter(f => p.mo.includes(f.id)) : [];
+          const equips = p.escopo === 'tudo' ? ctx.eq : p.escopo === 'equip' ? ctx.eq.filter(e => p.eq.includes(e.id)) : [];
+          const comum = { ...ctx.base, id: undefined, motivo: _parMotivoTxt(p), motivoCod: p.motivoCod || '', outro: !!p.outro, horaIni: p.ini, horaFim: p.fim, horas: h, escopo: p.escopo, paradaId: p.id, obsParada: p.obs || '', fimFechamento: !!p.fimFechamento };
+          for (const f of pessoas) await fbSalvar('perdas', { ...comum, id: 'pm' + sfx(), tipo: 'Mão de Obra', recurso: f.nome, mat: f.mat || '', funcao: f.codFuncao || '' });
+          for (const e of equips) await fbSalvar('perdas', { ...comum, id: 'pe' + sfx(), tipo: 'Equipamento', recurso: e.tag || e.placa, equipId: e.id });
+        }
+      }
+      ctx = null;
+    }
+  };
+  // marca horas improdutivas / paradas nos registros do apontamento
+  const oFb = fbSalvar;
+  fbSalvar = async function (col, item) {
+    if (ctx && item) {
+      if (col === 'aponMO') {
+        if (!ctx.base) ctx.base = { data: item.data, frente: item.frente, servico: item.servico, obra: item.obra, turno: item.turno, lancadoPor: item.lancadoPor, status: item.status, lancadoEm: item.lancadoEm, apropriacao: item.apropriacao };
+        const f = ctx.mo.find(x => x.nome === item.func && String(x.mat || '') === String(item.mat || ''));
+        if (f) { const h = _parHorasDe('mo', f.id); if (h) { item.hPerda = +h.toFixed(2); item.motivoPerda = _parMotivosDe('mo', f.id); } }
+      } else if (col === 'aponEQ') {
+        if (!ctx.base) ctx.base = { data: item.data, frente: item.frente, servico: item.servico, obra: item.obra, turno: item.turno, lancadoPor: item.lancadoPor, status: item.status, lancadoEm: item.lancadoEm, apropriacao: item.apropriacao };
+        const e = ctx.eq.find(x => (x.tag || x.placa) === item.equip);
+        if (e) { const h = _parHorasDe('eq', e.id); if (h) { item.hpar = +h.toFixed(2); item.hp = Math.max(0, +((parseFloat(item.hp) || 0) - h).toFixed(2)); item.motivo = _parMotivosDe('eq', e.id); } }
+      } else if (col === 'perdas' && !item.paradaId) return;   // o campo antigo de perda do Revisar não grava mais (as paradas substituem)
+    }
+    return oFb.apply(this, arguments);
+  };
+  // resumo: linha de perdas mostra as paradas
+  const oRes = apMontarResumo;
+  apMontarResumo = function () { const r = oRes.apply(this, arguments);
+    document.querySelectorAll('#ap-resumo .rs-row').forEach(row => { const l = row.querySelector('.rs-lbl'); if (l && /Perda/.test(l.textContent)) { l.textContent = 'Paradas';
+      const ps = ap.paradas || [], h = ps.reduce((s, p) => s + _parH(p), 0), ab = ps.filter(p => !p.fim).length;
+      row.querySelector('.rs-val').innerHTML = ps.length ? ps.length + ' parada(s) · ' + h.toFixed(1).replace('.', ',') + ' h' + (ab ? ' <span style="color:#B45309">· ' + ab + ' sem retorno</span>' : '') : 'Nenhuma'; } });
+    return r; };
+  // o painel vê as paradas do turno aberto
+  const oFoto = _turnoFoto;
+  _turnoFoto = function () { const o = oFoto.apply(this, arguments); o.paradas = (ap.paradas || []).map(p => ({ motivo: _parMotivoTxt(p), escopo: p.escopo, quem: _parQuemTxt(p), ini: p.ini, fim: p.fim || '' })); return o; };
+  // atalho na lista de apontamentos abertos
+  const oLista = apMostrarLista;
+  apMostrarLista = function () {
+    const r = oLista.apply(this, arguments);
+    const l = apRascunhos();
+    document.querySelectorAll('#ap-lista-abertos .ap-aberto').forEach((el, i) => { const x = l[i]; if (!x) return; const ab = (x.paradas || []).filter(p => !p.fim).length;
+      const b = document.createElement('button'); b.className = 'par-mini'; b.textContent = ab ? '⏸ ' + ab + ' aberta' + (ab > 1 ? 's' : '') : '⏸ Parada';
+      b.onclick = ev => { ev.stopPropagation(); apAbrir(x.uid); setTimeout(() => parAbrir(), 150); };
+      const seta = el.lastElementChild; el.insertBefore(b, seta); });
+    return r;
+  };
 })();
 
 // Salvar sessão ao entrar
