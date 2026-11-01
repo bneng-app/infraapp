@@ -704,7 +704,7 @@ select.form-control,select.form-control:focus{background-image:url("data:image/s
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraControl Campo · v2.22</div>
+  <div class="login-versao">ObraControl Campo · v2.23</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -836,7 +836,7 @@ select.form-control,select.form-control:focus{background-image:url("data:image/s
   <!-- 3) EQUIPAMENTOS -->
   <div class="content-no-pad" id="ap-panel-eq" style="display:none">
     <div class="ap-fr-card" id="ap-resumo-eq"></div>
-    <div class="search-bar ap-busca"><svg class="" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="ap-eq-busca" placeholder="Buscar equipamento (TAG ou placa)…" oninput="apRenderEQ()"/></div>
+    <div class="search-bar ap-busca"><svg class="" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="ap-eq-busca" placeholder="Buscar por TAG ou placa (ex.: ABC1234)…" oninput="apRenderEQ()"/></div>
     <div class="ap-selrow"><span><span id="ap-eq-sel">0</span> selecionados</span><span style="font-size:12px;color:var(--text2)">toque para marcar e lançar as horas</span></div>
     <div id="ap-eq-lista"></div>
     <datalist id="ap-operadores"></datalist>
@@ -1556,7 +1556,7 @@ function processarQR(texto, contexto) {
       const ja = ap.mo.has(f.id); ap.mo.add(f.id); apRenderMO(); apGuardar(); if (!ja) qrLidosSessao++;
       return { ok:true, msg:(ja ? '• ' + f.nome + ' já estava marcado' : '✓ ' + f.nome) + ' — ' + ap.mo.size + ' na equipe' };
     } else {
-      const e = dadosCampo.equipamentos.find(x => x.tag === (tag||'') || x.placa === (tag||'') || x.id === (tag||''));
+      const e = dadosCampo.equipamentos.find(x => x.tag === (tag||'') || x.placa === (tag||'') || x.id === (tag||'')) || dadosCampo.equipamentos.find(x => _normId(tag) && (_normId(x.tag) === _normId(tag) || _normId(x.placa) === _normId(tag)));
       if (!e) return { ok:false, msg:'✗ Equipamento não encontrado: ' + (tag||texto) };
       const ja = ap.eq.has(e.id); if (!ja) apToggleEQ(e.id); else apRenderEQ(); if (!ja) qrLidosSessao++;
       return { ok:true, msg:(ja ? '• ' + (e.tag||e.placa) + ' já estava marcado' : '✓ ' + (e.tag||e.placa)) + ' — ' + ap.eq.size + ' equipamento(s)' };
@@ -2078,6 +2078,7 @@ function _apObra() { return usuarioCampo?.obra || ''; }
 function _apEu() { const m = String(usuarioCampo?.mat || '').replace(/\s+/g, ''); if (!m) return null; const o = _apObra(); return dadosCampo.funcionarios.find(f => String(f.mat || '').replace(/\s+/g, '') === m && (!o || !f.obra || f.obra === o)) || dadosCampo.funcionarios.find(f => String(f.mat || '').replace(/\s+/g, '') === m) || null; }
 // v2.20: quem não gera apontamento (indireto, administrativo) não aparece na lista; o próprio apropriador sempre aparece
 function _apGera(f) { return f.geraApont ? f.geraApont !== 'Não' : !/^n/i.test(String(f.direto || '')); }
+function _normId(v) { return String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); }
 function _apFuncs() { const o = _apObra(), eu = _apEu(); return dadosCampo.funcionarios.filter(f => (!o || !f.obra || f.obra === o) && f.status !== 'Desligado' && (_apGera(f) || (eu && f.id === eu.id) || ap.mo.has(f.id))); }
 function _apEquips() { const o = _apObra(); return dadosCampo.equipamentos.filter(e => !o || !e.obra || e.obra === o); }
 function _apTurno() { const id = document.getElementById('ap-turno').value; return dadosCampo.turnos.find(t => (t.id || t.cod) === id); }
@@ -2233,7 +2234,8 @@ function apSelecionarTodosMO() {
 function apRenderEQ() {
   const busca = (document.getElementById('ap-eq-busca').value || '').toLowerCase();
   let lista = _apEquips();
-  if (busca) lista = lista.filter(e => String(e.tag||'').toLowerCase().includes(busca) || String(e.placa||'').toLowerCase().includes(busca));
+  // v2.23: placa ou TAG, com ou sem traço/espaço (ABC1234 acha ABC-1234)
+  if (busca) { const b = _normId(busca); lista = lista.filter(e => _normId(e.tag).includes(b) || _normId(e.placa).includes(b) || String(e.familia||'').toLowerCase().includes(busca)); }
   lista = [...lista].sort((a,b) => (ap.eq.has(b.id) - ap.eq.has(a.id)) || String(a.tag||a.placa||'').localeCompare(String(b.tag||b.placa||'')));
   // operadores sugeridos = equipe marcada
   document.getElementById('ap-operadores').innerHTML = dadosCampo.funcionarios.filter(f => ap.mo.has(f.id)).map(f => `<option value="${_esc(f.nome)}">`).join('');
@@ -2245,7 +2247,7 @@ function apRenderEQ() {
       <div class="list-item ${sel?'selected':''}" onclick="apToggleEQ('${id}')" style="border-bottom:none">
         <div class="list-avatar eq-icon" style="${sel?'background:var(--red)':''}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${sel?'white':'#1E2A3A'}" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></div>
         <div style="flex:1;min-width:0"><div class="list-name">${_esc(e.tag||e.placa)}</div>
-        <div class="list-sub">${_esc(e.placa||'—')} · ${_esc(e.familia||e.codFamilia||'—')}${_apOutros('eq', e.id).map(fr => '<span class="ap-tambem">também em ' + _esc(fr) + '</span>').join('')}</div></div>
+        <div class="list-sub">${e.placa ? 'Placa <b>' + _esc(e.placa) + '</b>' : 'sem placa'} · ${_esc(e.familia||e.codFamilia||'—')}${_apOutros('eq', e.id).map(fr => '<span class="ap-tambem">também em ' + _esc(fr) + '</span>').join('')}</div></div>
         <div class="list-check"></div>
       </div>
       ${sel ? `<div class="ap-eq-campos" onclick="event.stopPropagation()">
@@ -2489,7 +2491,7 @@ function filtrarEquipamentosFuel() {
   const sel = document.getElementById('fuel-equip');
   Array.from(sel.options).forEach(opt => {
     if (!opt.value) return;
-    opt.style.display = opt.text.toLowerCase().includes(busca) ? '' : 'none';
+    opt.style.display = (opt.text.toLowerCase().includes(busca) || _normId(opt.text).includes(_normId(busca))) ? '' : 'none';
   });
 }
 

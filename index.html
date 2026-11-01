@@ -534,7 +534,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraControl</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraControl v2.49 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraControl v2.50 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -652,10 +652,6 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
   <div class="nav-group" id="grp-cadastros">
     <div class="nav-section" onclick="toggleNavGroup('grp-cadastros')">Cadastros <span class="nav-chevron">▾</span></div>
     <div class="nav-group-items">
-      <div class="nav-item" id="nav-qrcodes" onclick="showPage('qrcodes',this)" title="QR Codes">
-        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM20 14v3M14 20h3M20 20h1"/></svg>
-        <span>QR Codes</span>
-      </div>
       <div class="nav-item" onclick="showPage('obras',this)" title="Obras">
         <svg viewBox="0 0 24 24"><polygon points="3 9 12 2 21 9 21 20 3 20"/></svg>
         <span>Obras</span>
@@ -675,6 +671,10 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
       <div class="nav-item" onclick="showPage('cargos',this)" title="Cargos">
         <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg>
         <span>Cargos</span>
+      </div>
+      <div class="nav-item" id="nav-qrcodes" onclick="showPage('qrcodes',this)" title="QR Codes">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM20 14v3M14 20h3M20 20h1"/></svg>
+        <span>QR Codes</span>
       </div>
     </div>
   </div>
