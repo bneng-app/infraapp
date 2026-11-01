@@ -807,7 +807,7 @@ select.form-control,select.form-control:focus{background-image:url("data:image/s
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.32</div>
+  <div class="login-versao">ObraKontrol Campo · v2.33</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -1349,13 +1349,16 @@ const _IC_PIN = _svg('<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><c
 // FIREBASE CONFIG
 // ══════════════════════════════════════════════════════════════
 const firebaseConfig = {
-  apiKey: "AIzaSyCSYBPUX4LGxFypy5AA3yPYe1ElWwWaLGc",
-  authDomain: "infraapp-bn.firebaseapp.com",
-  projectId: "infraapp-bn",
-  storageBucket: "infraapp-bn.firebasestorage.app",
-  messagingSenderId: "53568601397",
-  appId: "1:53568601397:web:3956a7da0be90c63aca07c"
+  apiKey: "AIzaSyBShR-XvPrUiFtnndFXJV7IYrrTG90BS5o",
+  authDomain: "obrakontrol-205c4.firebaseapp.com",
+  projectId: "obrakontrol-205c4",
+  storageBucket: "obrakontrol-205c4.firebasestorage.app",
+  messagingSenderId: "358934542972",
+  appId: "1:358934542972:web:50fe905586582de99527f9"
 };
+// v2.58 / v2.33: projeto Firebase novo — ao trocar de projeto, limpa o que ficou guardado do projeto antigo
+// (sessão, rascunhos e pendências não podem ser enviados para o banco novo)
+try { if (localStorage.getItem('fb_projeto') !== firebaseConfig.projectId) { localStorage.clear(); localStorage.setItem('fb_projeto', firebaseConfig.projectId); } } catch (e) {}
 
 let db = null, auth = null, _fbReady = false;
 try {

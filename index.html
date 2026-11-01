@@ -552,7 +552,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v2.57 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v2.58 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -3360,13 +3360,16 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
 // CONFIGURAÇÃO FIREBASE — SUBSTITUA COM SEUS DADOS
 // ═══════════════════════════════════════════════════
 const firebaseConfig = {
-  apiKey: "AIzaSyCSYBPUX4LGxFypy5AA3yPYe1ElWwWaLGc",
-  authDomain: "infraapp-bn.firebaseapp.com",
-  projectId: "infraapp-bn",
-  storageBucket: "infraapp-bn.firebasestorage.app",
-  messagingSenderId: "53568601397",
-  appId: "1:53568601397:web:3956a7da0be90c63aca07c"
+  apiKey: "AIzaSyBShR-XvPrUiFtnndFXJV7IYrrTG90BS5o",
+  authDomain: "obrakontrol-205c4.firebaseapp.com",
+  projectId: "obrakontrol-205c4",
+  storageBucket: "obrakontrol-205c4.firebasestorage.app",
+  messagingSenderId: "358934542972",
+  appId: "1:358934542972:web:50fe905586582de99527f9"
 };
+// v2.58 / v2.33: projeto Firebase novo — ao trocar de projeto, limpa o que ficou guardado do projeto antigo
+// (sessão, rascunhos e pendências não podem ser enviados para o banco novo)
+try { if (localStorage.getItem('fb_projeto') !== firebaseConfig.projectId) { localStorage.clear(); localStorage.setItem('fb_projeto', firebaseConfig.projectId); } } catch (e) {}
 
 // ───── INIT ─────
 let db   = null;
@@ -3382,7 +3385,7 @@ try {
   _firebaseReady = true;
   document.getElementById('sync-label').textContent = 'Firebase conectado';
   document.getElementById('sync-dot').style.background = 'var(--green)';
-  console.log('Firebase infraapp-bn conectado!');
+  console.log('Firebase ' + firebaseConfig.projectId + ' conectado!');
 
   // Observe auth state
   auth.onAuthStateChanged(user => {
