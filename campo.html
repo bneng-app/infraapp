@@ -373,6 +373,7 @@ select.form-control { cursor: pointer; }
 #qr-reader { width: 100%; }
 .qr-feedback { margin-top: 14px; min-height: 22px; font-size: 15px; font-weight: 700; color: #4ADE80; text-align: center; }
 .qr-feedback.err { color: #F87171; }
+.qr-add { margin-top: 10px; background: #F59E0B; color: #fff; border: none; border-radius: 12px; padding: 12px 18px; font-size: 15px; font-weight: 800; cursor: pointer; }
 .qr-concluir { margin-top: 14px; background: var(--red); color: white; border: none; border-radius: 12px; padding: 14px 28px; font-size: 16px; font-weight: 700; cursor: pointer; }
 .prod-andamento { display:flex; gap:10px; align-items:flex-start; padding:12px; border:1.5px dashed var(--border); border-radius:var(--radius-sm); margin:4px 0 14px; font-size:13px; cursor:pointer; }
 .prod-andamento input { width:20px; height:20px; margin-top:1px; accent-color: var(--red); flex:0 0 auto; }
@@ -754,7 +755,7 @@ select.form-control,select.form-control:focus{background-image:url("data:image/s
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraControl Campo · v2.26</div>
+  <div class="login-versao">ObraControl Campo · v2.27</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -1562,7 +1563,15 @@ function abrirQR(contexto) {
         qrUltimo = { t: text, ts: agora };
         const r = processarQR(text, contexto) || {};
         const fb = document.getElementById('qr-feedback');
-        if (fb) { fb.className = 'qr-feedback' + (r.ok ? '' : ' err'); fb.textContent = r.msg || ''; }
+        if (fb) { fb.className = 'qr-feedback' + (r.ok ? '' : ' err'); fb.textContent = r.msg || '';
+          // v2.27: não achou no cadastro → oferece lançar como pendente de cadastro, já com a matrícula/TAG do QR
+          if (!r.ok && r.add && typeof provAbrir === 'function') {
+            const b = document.createElement('button'); b.className = 'qr-add';
+            b.textContent = r.add.tipo === 'mo' ? 'Adicionar ' + r.add.valor + ' como pessoa nova' : 'Adicionar ' + r.add.valor + ' como equipamento novo';
+            b.onclick = () => { fecharQR(); provAbrir(r.add.tipo, r.add.valor); };
+            fb.appendChild(document.createElement('br')); fb.appendChild(b);
+            if (navigator.vibrate) { try { navigator.vibrate([60, 60, 60]); } catch (e) {} }
+          } }
         if (r.ok && navigator.vibrate) { try { navigator.vibrate(80); } catch (e) {} }
         return;
       }
@@ -1610,12 +1619,12 @@ function processarQR(texto, contexto) {
   if (contexto === 'ap') {
     if (ap.aba === 'mo') {
       const f = dadosCampo.funcionarios.find(x => String(x.mat) === String(mat||'') || x.id === (mat||''));
-      if (!f) return { ok:false, msg:'✗ Funcionário não encontrado: ' + (mat||texto) };
+      if (!f) return { ok:false, msg:'✗ Funcionário não encontrado: ' + (mat||texto), add:{ tipo:'mo', valor: String(mat||texto).trim() } };
       const ja = ap.mo.has(f.id); ap.mo.add(f.id); apRenderMO(); apGuardar(); if (!ja) qrLidosSessao++;
       return { ok:true, msg:(ja ? '• ' + f.nome + ' já estava marcado' : '✓ ' + f.nome) + ' — ' + ap.mo.size + ' na equipe' };
     } else {
       const e = dadosCampo.equipamentos.find(x => x.tag === (tag||'') || x.placa === (tag||'') || x.id === (tag||'')) || dadosCampo.equipamentos.find(x => _normId(tag) && (_normId(x.tag) === _normId(tag) || _normId(x.placa) === _normId(tag)));
-      if (!e) return { ok:false, msg:'✗ Equipamento não encontrado: ' + (tag||texto) };
+      if (!e) return { ok:false, msg:'✗ Equipamento não encontrado: ' + (tag||texto), add:{ tipo:'eq', valor: String(tag||texto).trim() } };
       const ja = ap.eq.has(e.id); if (!ja) apToggleEQ(e.id); else apRenderEQ(); if (!ja) qrLidosSessao++;
       return { ok:true, msg:(ja ? '• ' + (e.tag||e.placa) + ' já estava marcado' : '✓ ' + (e.tag||e.placa)) + ' — ' + ap.eq.size + ' equipamento(s)' };
     }
@@ -3050,19 +3059,20 @@ function _provAplicar() {
   dadosCampo.funcionarios = dadosCampo.funcionarios.filter(x => !x.provisorio).concat(p.mo);
   dadosCampo.equipamentos = dadosCampo.equipamentos.filter(x => !x.provisorio).concat(p.eq);
 }
-function provAbrir(tipo) {
+function provAbrir(tipo, valorQR) {
   const mo = tipo === 'mo', $ = id => document.getElementById(id);
   $('prov-tit').textContent = mo ? 'Pessoa que não está na lista' : 'Equipamento que não está na lista';
   $('prov-mo').style.display = mo ? '' : 'none'; $('prov-eq').style.display = mo ? 'none' : '';
   ['prov-nome', 'prov-mat', 'prov-tag', 'prov-placa'].forEach(id => $(id).value = '');
-  const busca = (document.getElementById(mo ? 'ap-mo-busca' : 'ap-eq-busca')?.value || '').trim();
+  const busca = (valorQR || document.getElementById(mo ? 'ap-mo-busca' : 'ap-eq-busca')?.value || '').trim();
   if (busca) { if (mo) { if (/^\d+$/.test(busca)) $('prov-mat').value = busca; else $('prov-nome').value = busca; } else $('prov-tag').value = busca.toUpperCase(); }
   const funcoes = [...new Set(dadosCampo.funcionarios.map(f => f.codFuncao || f.funcao).filter(Boolean))].sort();
   $('prov-funcao').innerHTML = '<option value="">Escolha…</option>' + funcoes.map(f => `<option>${_esc(f)}</option>`).join('');
   const fams = [...new Set(dadosCampo.equipamentos.map(e => e.familia || e.codFamilia).filter(Boolean))].sort();
   $('prov-familia').innerHTML = '<option value="">Escolha…</option>' + fams.map(f => `<option>${_esc(f)}</option>`).join('');
   $('prov-sheet').dataset.tipo = tipo; $('prov-sheet').classList.add('show');
-  setTimeout(() => (mo ? $('prov-nome') : $('prov-tag')).focus(), 200);
+  $('prov-sheet').dataset.qr = valorQR ? '1' : '';
+  setTimeout(() => (mo ? $('prov-nome') : (valorQR ? $('prov-familia') : $('prov-tag'))).focus(), 200);
 }
 function provSalvar() {
   const $ = id => document.getElementById(id), tipo = $('prov-sheet').dataset.tipo, p = _provLer();
