@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>ObraVexa — Controle de Mão de Obra e Equipamentos</title>
+<title>ObraKontrol — Controle de Mão de Obra e Equipamentos</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -532,7 +532,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
     <div class="lg-traco"></div>
     <svg class="lg-logo" style="" viewBox="0 0 312 60" role="img" aria-label="TENCO"><g fill="#E30613"><rect x="0" y="0" width="48" height="12"/><rect x="18" y="0" width="12" height="60"/><rect x="62" y="0" width="44" height="12"/><rect x="62" y="24" width="44" height="12"/><rect x="62" y="48" width="44" height="12"/><rect x="120" y="0" width="12" height="60"/><rect x="168" y="0" width="12" height="60"/><polygon points="120,0 133,0 180,60 167,60"/></g><g fill="none" stroke="#E30613" stroke-width="12"><path d="M240.4 14.6 A24 24 0 1 0 240.4 45.4"/><circle cx="282" cy="30" r="24"/></g></svg>
     <div class="lg-logo-sub">Engenharia e Construção</div>
-    <div class="lg-tit">ObraVexa</div>
+    <div class="lg-tit">ObraKontrol</div>
     <div class="lg-sub">Mão de obra e equipamentos</div>
     <div class="lg-aviso">Acesso restrito — identifique-se para continuar</div>
     <div id="login-erro" style="display:none;background:#FDECEC;border:1px solid #FDCBCB;border-radius:8px;padding:10px 14px;font-size:13px;color:#C0392B;margin-bottom:1rem"></div>
@@ -549,9 +549,9 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
         </button>
       </div>
     </div>
-    <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraVexa</button>
+    <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraVexa v2.55 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v2.56 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -570,7 +570,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
   <div class="logo" style="padding:0 12px 0 6px;border-bottom:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;gap:10px;height:var(--header-h)">
     <div style="display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding-right:12px;margin-right:2px;border-right:1px solid rgba(255,255,255,.14)"><svg class="" style="height:15px;width:auto;display:block" viewBox="0 0 312 60" role="img" aria-label="TENCO"><g fill="#E30613"><rect x="0" y="0" width="48" height="12"/><rect x="18" y="0" width="12" height="60"/><rect x="62" y="0" width="44" height="12"/><rect x="62" y="24" width="44" height="12"/><rect x="62" y="48" width="44" height="12"/><rect x="120" y="0" width="12" height="60"/><rect x="168" y="0" width="12" height="60"/><polygon points="120,0 133,0 180,60 167,60"/></g><g fill="none" stroke="#E30613" stroke-width="12"><path d="M240.4 14.6 A24 24 0 1 0 240.4 45.4"/><circle cx="282" cy="30" r="24"/></g></svg><div style="color:rgba(255,255,255,.55);font-size:6.5px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;white-space:nowrap">Engenharia e Construção</div></div>
     <div style="line-height:1.2">
-      <div style="color:white;font-weight:700;font-size:13px;letter-spacing:.3px">ObraVexa</div>
+      <div style="color:white;font-weight:700;font-size:13px;letter-spacing:.3px">ObraKontrol</div>
       <div style="color:rgba(255,255,255,.38);font-size:8px;letter-spacing:.6px;text-transform:uppercase">Controle de Mão de Obra e Equipamentos</div>
     </div>
   </div>
@@ -2478,7 +2478,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
       <div class="card-body">
         <div class="form-group" style="margin-bottom:1rem">
           <label class="form-label">Nome da empresa / sistema</label>
-          <input class="form-control" id="cfg-nome-sistema" value="ObraVexa"/>
+          <input class="form-control" id="cfg-nome-sistema" value="ObraKontrol"/>
           <div class="form-hint">Exibido na topbar e documentos exportados</div>
         </div>
         <div class="form-group" style="margin-bottom:1rem">
@@ -3787,7 +3787,7 @@ function fazerLogin() {
   const senha  = document.getElementById('login-senha')?.value||'';
   const erroEl = document.getElementById('login-erro');
   const btnEl  = document.querySelector('#login-screen button[onclick="fazerLogin()"]');
-  const erro = (msg) => { if (erroEl) { erroEl.textContent = msg; erroEl.style.display=''; } if (btnEl) btnEl.textContent = 'Entrar no ObraVexa'; };
+  const erro = (msg) => { if (erroEl) { erroEl.textContent = msg; erroEl.style.display=''; } if (btnEl) btnEl.textContent = 'Entrar no ObraKontrol'; };
 
   if (!digitado || !senha) { erro('Preencha usuário e senha.'); return; }
   // v2.2: não existe mais login "local" — sem Firebase não entra
@@ -3805,7 +3805,7 @@ function fazerLogin() {
       if (!usr) {
         // Só cria perfil Admin automático se ainda não existir nenhum administrador (primeira instalação)
         const temAdmin = (usrs||[]).some(u => u.perfil === 'Admin');
-        if (temAdmin) { auth.signOut(); erro('O acesso ' + emailAuth + ' entrou, mas não tem cadastro em Usuários do ObraVexa. Confira o e-mail cadastrado ou fale com o administrador.'); return; }
+        if (temAdmin) { auth.signOut(); erro('O acesso ' + emailAuth + ' entrou, mas não tem cadastro em Usuários do ObraKontrol. Confira o e-mail cadastrado ou fale com o administrador.'); return; }
         usr = { id: cred.user.uid, nome: email.split('@')[0], email, perfil:'Admin',
           empresa:'', cargo:'', tel:'', status:'Ativo', obra:'', master:true,
           perms:{ cadastros:true, apontamentos:true, relatorios:true, dashboards:true, qrcodes:true, config:true }};
@@ -3815,7 +3815,7 @@ function fazerLogin() {
       if (!digitado.includes('@')) _lembrarLogin(digitado, emailAuth);
       usuarioLogado = usr;
       if (erroEl) erroEl.style.display='none';
-      if (btnEl) btnEl.textContent = 'Entrar no ObraVexa';
+      if (btnEl) btnEl.textContent = 'Entrar no ObraKontrol';
       await sincronizarTudo();
       entrarNoApp();
     })
@@ -5082,7 +5082,7 @@ function gerarQRs() {
   const grid = document.getElementById('qr-gerados'); grid.innerHTML = '';
   lista.forEach(x => {
     const div = document.createElement('div'); div.className = 'qr-card';
-    div.innerHTML = `<div class="qr-canvas"></div><div class="qr-label">${_e(x.label||'')}</div><div class="qr-sub">${_e(x.sub||'')}</div><div class="qr-rodape">TENCO · ObraVexa</div>`;
+    div.innerHTML = `<div class="qr-canvas"></div><div class="qr-label">${_e(x.label||'')}</div><div class="qr-sub">${_e(x.sub||'')}</div><div class="qr-rodape">TENCO · ObraKontrol</div>`;
     div.title = 'Clique para ver grande'; div.onclick = () => qrAmpliar(x);
     grid.appendChild(div);
     try { new QRCode(div.querySelector('.qr-canvas'), { text:x.texto, width:120, height:120, colorDark:'#111111', colorLight:'#ffffff', correctLevel:QRCode.CorrectLevel.M }); } catch (e) {}
@@ -8184,7 +8184,7 @@ window.baixarTemplate = function (tipo) {
     XLSX.utils.book_append_sheet(wb, ws, def.rotulo.slice(0, 31));
   });
   if (!wb.SheetNames.length) { toast('Template não disponível para este cadastro.', 'error'); return; }
-  XLSX.writeFile(wb, tipo === 'pacote' ? 'ObraVexa_pacote_importacao.xlsx' : 'template_' + tipo + '.xlsx');
+  XLSX.writeFile(wb, tipo === 'pacote' ? 'ObraKontrol_pacote_importacao.xlsx' : 'template_' + tipo + '.xlsx');
   toast('Template baixado! Preencha e importe.');
 };
 
@@ -9319,7 +9319,7 @@ function dxTelaCheia(sair) {
 document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement) document.body.classList.remove('dx-full'); });
 function _dxNav(tipo) {
   const it = (id, pag, rot, ic) => `<a class="${tipo === id ? 'on' : ''}" onclick="showPage('${pag}')">${ic}${rot}</a>`;
-  return `<nav class="dx-nav"><div class="dx-nav-logo"><svg viewBox="0 0 312 60" style="width:96px"><g fill="#E30613"><rect x="0" y="0" width="48" height="12"/><rect x="18" y="0" width="12" height="60"/><rect x="62" y="0" width="44" height="12"/><rect x="62" y="24" width="44" height="12"/><rect x="62" y="48" width="44" height="12"/><rect x="120" y="0" width="12" height="60"/><rect x="168" y="0" width="12" height="60"/><polygon points="120,0 133,0 180,60 167,60"/></g><g fill="none" stroke="#E30613" stroke-width="12"><path d="M240.4 14.6 A24 24 0 1 0 240.4 45.4"/><circle cx="282" cy="30" r="24"/></g></svg><b>ObraVexa</b></div>
+  return `<nav class="dx-nav"><div class="dx-nav-logo"><svg viewBox="0 0 312 60" style="width:96px"><g fill="#E30613"><rect x="0" y="0" width="48" height="12"/><rect x="18" y="0" width="12" height="60"/><rect x="62" y="0" width="44" height="12"/><rect x="62" y="24" width="44" height="12"/><rect x="62" y="48" width="44" height="12"/><rect x="120" y="0" width="12" height="60"/><rect x="168" y="0" width="12" height="60"/><polygon points="120,0 133,0 180,60 167,60"/></g><g fill="none" stroke="#E30613" stroke-width="12"><path d="M240.4 14.6 A24 24 0 1 0 240.4 45.4"/><circle cx="282" cy="30" r="24"/></g></svg><b>ObraKontrol</b></div>
     ${it('geral', 'dashboard', 'Visão Geral', _ic.grid)}${it('mo', 'dash-mo', 'Mão de Obra', _ic.user)}${it('eq', 'dash-eq', 'Equipamentos', _ic.truck)}${it('abs', 'dash-abs', 'Abastecimento', _ic.fuel)}${it('dia', 'diario', 'Acompanhamento do dia', _ic.clock)}
     <a class="dx-nav-sair" onclick="dxTelaCheia(true)" style="margin-top:14px;color:#aaa;font-weight:500">← Sair da tela cheia</a>
     <div class="dx-nav-foto" style="background-image:url('${_DX_FOTOS[tipo] || _DX_FOTOS.geral}')"></div></nav>`;
@@ -9830,7 +9830,7 @@ renderDiario = function () {
       ${_kpi(_ic.truck, eqs.length ? (eqs.length - eqFalta.length) + ' / ' + eqs.length : '—', 'Equipamentos apontados', eqFalta.length ? eqFalta.length + ' mobilizado(s) faltando' : (eqs.length ? 'todos apontados' : ''), cor(eqs.length - eqFalta.length, eqs.length))}
       ${_kpi(_ic.alert || _ic.timer, esquecidos.length, 'Não encerrados', 'de dias anteriores', esquecidos.length ? '#FF5A60' : '', esquecidos.length > 0)}
     </div>`;
-  const msgAp = f => 'Olá ' + String(f.nome || '').split(' ')[0] + ', tudo bem? Ainda não apareceu o seu apontamento de hoje (' + dd + ') no ObraVexa. Consegue abrir o app e lançar?';
+  const msgAp = f => 'Olá ' + String(f.nome || '').split(' ')[0] + ', tudo bem? Ainda não apareceu o seu apontamento de hoje (' + dd + ') no ObraKontrol. Consegue abrir o app e lançar?';
   const listaAp = aprops.length ? `<div class="dd-l">${aprops.map(a => {
       const t0 = a.ts.slice().sort((x, y) => String(x.horaIni).localeCompare(String(y.horaIni)))[0];
       const st = a.ok ? `<div class="dd-st ok">✓ ${t0 ? 'Abriu ' + _e(t0.horaIni || '') : 'Lançou'}<div class="dd-s">${_e([...new Set(a.ts.map(t => t.frente))].join(', ') || '')}${a.ts.length > 1 ? ' · ' + a.ts.length + ' turnos' : ''}</div></div>` : `<div class="dd-st no">Ainda não abriu</div>`;
