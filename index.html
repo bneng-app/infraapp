@@ -302,6 +302,17 @@ body.dx-full .dx-main{padding-top:18px;min-width:0}
 .wa-btn.mini{padding:3px 6px;border-radius:6px;vertical-align:middle}
 .wa-btn.mini svg{width:12px;height:12px}
 .dd-r > .wa-btn{margin-left:auto}.dd-st + .wa-btn{margin-left:0}
+
+/* v2.49: notas de diesel — importação */
+.nf-import{display:flex;gap:12px;align-items:center;background:linear-gradient(135deg,#FFF5F5,#FFFFFF);border:1.5px dashed #E30613;border-radius:12px;padding:12px 14px;margin-bottom:10px}
+.nf-import.drag{background:#FFE4E6}
+.nf-import-ic{font-size:26px}
+.nf-msg{border-radius:10px;padding:10px 12px;font-size:12.5px;margin-bottom:12px;line-height:1.45}
+.nf-msg.ok{background:#F0FDF4;border:1px solid #86EFAC;color:#14532D}
+.nf-msg.warn{background:#FFFBEB;border:1px solid #FCD34D;color:#78350F}
+.nf-msg.err{background:#FEF2F2;border:1px solid #FCA5A5;color:#7F1D1D}
+.nf-msg.load{background:#EFF6FF;border:1px solid #93C5FD;color:#1E3A8A}
+.nf-auto{background:#FFFBEB!important;border-color:#F59E0B!important}
 /* v2.44: dois ambientes — Dashboards e Gestão */
 .amb-sw{display:flex;align-items:center;gap:2px;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.22);border-radius:20px;padding:3px}
 .amb-sw button{display:flex;align-items:center;gap:6px;border:none;background:none;color:rgba(255,255,255,.72);font-size:12.5px;font-weight:700;padding:5px 13px;border-radius:16px;cursor:pointer;white-space:nowrap}
@@ -523,7 +534,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraControl</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraControl v2.48 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraControl v2.49 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -2065,6 +2076,17 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
     </div>
     <div class="modal-body">
       <input type="hidden" id="nf-edit-id"/>
+      <input type="hidden" id="nf-origem"/>
+
+      <!-- v2.49: importar a nota -->
+      <div class="nf-import" id="nf-import">
+        <div class="nf-import-ic">📄</div>
+        <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14px">Importar a nota e preencher sozinho</div>
+          <div style="font-size:12px;color:var(--text-2);margin-top:2px">XML da NF-e (o mais confiável), PDF da DANFE ou foto / scan da nota. Depois é só conferir.</div></div>
+        <label class="btn btn-primary btn-sm" style="cursor:pointer;white-space:nowrap">Escolher arquivo<input type="file" accept=".xml,.pdf,image/*,text/xml,application/xml,application/pdf" style="display:none" onchange="nfImportar(this.files[0]);this.value=''"/></label>
+      </div>
+      <div id="nf-import-msg" style="display:none"></div>
+      <div id="nf-bar-reader" style="position:absolute;left:-9999px;width:600px;height:200px"></div>
 
       <!-- Bloco 1: Identificação da NF -->
       <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.75rem">Identificação da Nota Fiscal</div>
@@ -2084,6 +2106,14 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
         <div class="form-group">
           <label class="form-label">Hora de recebimento</label>
           <input type="time" class="form-control" id="nf-hora-recebimento"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Série</label>
+          <input class="form-control" id="nf-serie" placeholder="Ex.: 1" maxlength="5"/>
+        </div>
+        <div class="form-group form-full">
+          <label class="form-label">Chave de acesso (44 dígitos)</label>
+          <input class="form-control" id="nf-chave" placeholder="Fica embaixo do código de barras da DANFE" inputmode="numeric" maxlength="60" style="font-family:var(--mono);letter-spacing:.5px"/>
         </div>
       </div>
 
@@ -2160,6 +2190,10 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
         <div class="form-group">
           <label class="form-label">Saldo atual do tanque</label>
           <input class="form-control" id="nf-saldo-atual" readonly style="background:var(--bg);color:var(--text-2)"/>
+        </div>
+        <div class="form-group form-full">
+          <label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;cursor:pointer"><input type="checkbox" id="nf-atu-preco" checked style="margin-top:3px"/>
+            <span><strong>Atualizar o preço do litro do tanque</strong> com o valor unitário desta nota<br><span style="font-size:11px;color:var(--text-3)">É o preço usado no custo do diesel dos abastecimentos daqui para frente.</span></span></label>
         </div>
         <div class="form-group form-full">
           <label class="form-label">Observações</label>
@@ -9900,6 +9934,278 @@ function _diaMapaMontar(turnos, frentes) {
     return r;
   };
 })();
+
+// ═══════════════════════════════════════════════════════════════
+// v2.49: NOTAS FISCAIS DE DIESEL — o módulo não gravava (as funções não existiam).
+// Agora: gravar / editar / excluir / lista / filtros / Excel, entrada no saldo do tanque,
+// e IMPORTAÇÃO da nota: XML da NF-e, PDF da DANFE (texto) ou nota escaneada / foto (código de barras + leitura do texto).
+// ═══════════════════════════════════════════════════════════════
+const _nfLibs = {};
+function _nfScript(url, teste) {
+  if (teste()) return Promise.resolve();
+  if (_nfLibs[url]) return _nfLibs[url];
+  return _nfLibs[url] = new Promise((ok, falha) => { const s = document.createElement('script'); s.src = url; s.onload = () => ok(); s.onerror = () => { delete _nfLibs[url]; falha(new Error('Não consegui carregar ' + url.split('/').pop() + ' (sem internet?)')); }; document.head.appendChild(s); });
+}
+const _nfPdfJs = () => _nfScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js', () => !!window.pdfjsLib).then(() => { pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; return window.pdfjsLib; });
+const _nfBarJs = () => _nfScript('https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js', () => !!window.Html5Qrcode);
+const _nfOcrJs = () => _nfScript('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js', () => !!window.Tesseract);
+
+const _nfNum = v => { if (v == null || v === '') return 0; if (typeof v === 'number') return v; let t = String(v).trim().replace(/[R$\s]/g, ''); if (t.includes(',')) t = t.replace(/\./g, '').replace(',', '.'); return parseFloat(t) || 0; };
+const _nfFmtCnpj = c => { const d = String(c || '').replace(/\D/g, ''); return d.length === 14 ? d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : (c || ''); };
+const _nfChaveOk = k => { k = String(k || '').replace(/\D/g, ''); if (k.length !== 44) return false; let s = 0, p = 2; for (let i = 42; i >= 0; i--) { s += +k[i] * p; p = p === 9 ? 2 : p + 1; } let dv = 11 - (s % 11); if (dv >= 10) dv = 0; return dv === +k[43]; };
+function _nfDaChave(k) { k = String(k || '').replace(/\D/g, ''); if (!_nfChaveOk(k)) return null;
+  return { chave: k, cnpj: k.substr(6, 14), serie: String(+k.substr(22, 3)), numero: String(+k.substr(25, 9)), anoMes: '20' + k.substr(2, 2) + '-' + k.substr(4, 2) }; }
+function _nfProduto(txt) { const t = String(txt || '').toUpperCase();
+  if (/ARLA/.test(t)) return 'Arla 32'; if (/GASOLINA/.test(t)) return 'Gasolina Comum';
+  if (/S[\s-]?500/.test(t)) return 'Óleo Diesel S-500'; if (/DIESEL/.test(t)) return 'Óleo Diesel S-10'; return ''; }
+const _nfUnid = u => /M3|M³/i.test(String(u || '')) ? 'm³' : 'Litros';
+
+// ── XML da NF-e
+function _nfDoXml(txt) {
+  const doc = new DOMParser().parseFromString(txt, 'application/xml');
+  if (doc.getElementsByTagName('parsererror').length) throw new Error('XML inválido');
+  const q = (c, t) => c ? c.getElementsByTagNameNS('*', t)[0] : null, v = (c, t) => (q(c, t)?.textContent || '').trim();
+  const ide = q(doc, 'ide'), emit = q(doc, 'emit');
+  if (!ide || !emit) throw new Error('não parece um XML de NF-e');
+  const chave = v(doc, 'chNFe') || (q(doc, 'infNFe')?.getAttribute('Id') || '').replace(/^NFe/, '');
+  const dets = [...doc.getElementsByTagNameNS('*', 'det')].map(d => { const p = q(d, 'prod'); return { x: v(p, 'xProd'), u: v(p, 'uCom'), q: _nfNum(v(p, 'qCom')), vu: _nfNum(v(p, 'vUnCom')), vp: _nfNum(v(p, 'vProd')) }; });
+  const comb = dets.filter(d => _nfProduto(d.x)); const usar = comb.length ? comb : dets.slice(0, 1);
+  const qtd = usar.reduce((s, d) => s + d.q, 0), vprod = usar.reduce((s, d) => s + d.vp, 0);
+  const dh = v(ide, 'dhEmi') || v(ide, 'dEmi');
+  return { origem: 'xml', chave, numero: v(ide, 'nNF'), serie: v(ide, 'serie'), dtEmissao: dh.slice(0, 10), fornecedor: v(emit, 'xNome'), cnpj: _nfFmtCnpj(v(emit, 'CNPJ') || v(emit, 'CPF')),
+    placa: v(q(doc, 'veicTransp'), 'placa') || v(q(doc, 'transp'), 'placa'), produto: _nfProduto(usar.map(d => d.x).join(' ')) || 'Outro', produtoTxt: usar.map(d => d.x).join(' + '),
+    unidade: _nfUnid(usar[0] && usar[0].u), qtd, unit: qtd ? +(vprod / qtd).toFixed(4) : 0, total: _nfNum(v(q(doc, 'ICMSTot'), 'vNF')) || vprod, outros: dets.length - usar.length };
+}
+// ── texto da DANFE (PDF com texto ou leitura da imagem)
+function _nfDoTexto(raw, chaveBarras) {
+  const t = String(raw || '').replace(/[ \t]/g, ' ').replace(/[ ]{2,}/g, ' ');
+  const T = t.toUpperCase(), r = { origem: 'pdf' };
+  let ch = chaveBarras && _nfDaChave(chaveBarras);
+  if (!ch) { const m = T.replace(/[.\-\/]/g, ' ').match(/(?:\d{4}[ \n]?){10}\d{4}/g) || []; for (const c of m) { const k = _nfDaChave(c); if (k) { ch = k; break; } } }
+  if (!ch) { const so = T.replace(/[^\d\n]/g, ''); const m = so.match(/\d{44}/g) || []; for (const c of m) { const k = _nfDaChave(c); if (k) { ch = k; break; } } }
+  if (ch) Object.assign(r, { chave: ch.chave, cnpj: _nfFmtCnpj(ch.cnpj), serie: ch.serie, numero: ch.numero });
+  if (!r.numero) { const m = T.match(/N[º°O.]?\s*:?\s*(\d{3}\.\d{3}\.\d{3}|\d{6,9})/); if (m) r.numero = String(+m[1].replace(/\D/g, '')); }
+  if (!r.cnpj) { const m = t.match(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/); if (m) r.cnpj = m[0]; }
+  const dEm = T.match(/EMISS[ÃA]O[^0-9]{0,40}(\d{2})\/(\d{2})\/(\d{4})/) || T.match(/(\d{2})\/(\d{2})\/(20\d{2})/);
+  if (dEm) r.dtEmissao = dEm[3] + '-' + dEm[2] + '-' + dEm[1];
+  const forn = t.match(/RECEBEMOS DE\s+(.+?)\s+OS PRODUTOS/i); if (forn) r.fornecedor = forn[1].replace(/\s+/g, ' ').trim();
+  const tot = T.match(/VALOR TOTAL DA NOTA[^0-9]{0,40}([\d.]+,\d{2})/); if (tot) r.total = _nfNum(tot[1]);
+  { const iPl = T.indexOf('PLACA'); const pl = iPl >= 0 ? T.slice(iPl, iPl + 160).match(/\b([A-Z]{3}-?\d[A-Z0-9]\d{2})\b/) : null; if (pl) r.placa = pl[1]; }
+  // produto: procura quantidade × unitário = total perto de "DIESEL"
+  const iP = T.search(/DIESEL|ARLA|GASOLINA/);
+  if (iP >= 0) {
+    r.produto = _nfProduto(T.slice(iP, iP + 80));
+    const trecho = T.slice(iP, iP + 400), nums = (trecho.match(/\d{1,3}(?:\.\d{3})+(?:,\d{1,6})?|\d+,\d{1,6}|\b\d{3,6}\b/g) || []).map(_nfNum).filter(n => n > 0);
+    let melhor = null;
+    for (let a = 0; a < nums.length; a++) for (let b = a + 1; b < Math.min(nums.length, a + 6); b++) for (let c = b + 1; c < Math.min(nums.length, b + 6); c++) {
+      const q = nums[a], vu = nums[b], vt = nums[c];
+      if (q >= 10 && vu > 0.5 && vu < 50 && Math.abs(q * vu - vt) <= Math.max(0.05, vt * 0.003)) { const sc = (r.total && Math.abs(vt - r.total) < 1 ? 0 : 1) + (c - a) / 100; if (!melhor || sc < melhor.sc) melhor = { q, vu, vt, sc }; }
+    }
+    if (melhor) { r.qtd = melhor.q; r.unit = melhor.vu; if (!r.total) r.total = melhor.vt; r.unidade = /\bM3\b|M³/.test(trecho.slice(0, 120)) ? 'm³' : 'Litros'; }
+  }
+  return r;
+}
+async function _nfLerBarras(fonte) {
+  try {
+    await _nfBarJs();
+    const arq = fonte instanceof Blob ? fonte : await new Promise(ok => fonte.toBlob(ok, 'image/png'));
+    const file = arq instanceof File ? arq : new File([arq], 'nota.png', { type: 'image/png' });
+    const leitor = new Html5Qrcode('nf-bar-reader', { formatsToSupport: [Html5QrcodeSupportedFormats.CODE_128], verbose: false });
+    const txt = await leitor.scanFile(file, false); try { leitor.clear(); } catch (e) {}
+    return _nfChaveOk(txt) ? txt.replace(/\D/g, '') : '';
+  } catch (e) { return ''; }
+}
+async function _nfOcr(fonte, msg) {
+  await _nfOcrJs();
+  const r = await Tesseract.recognize(fonte, 'por', { logger: m => { if (m.status === 'recognizing text') msg('Lendo o texto da nota… ' + Math.round((m.progress || 0) * 100) + '%'); } });
+  return r.data.text || '';
+}
+function _nfImagemCanvas(file) {
+  return new Promise((ok, falha) => { const img = new Image(); img.onload = () => { const mx = 2600, k = Math.min(1, mx / Math.max(img.width, img.height)); const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(img.src); ok(c); }; img.onerror = () => falha(new Error('imagem inválida')); img.src = URL.createObjectURL(file); });
+}
+function _nfMsg(tipo, html) { const el = document.getElementById('nf-import-msg'); if (!el) return; el.className = 'nf-msg ' + tipo; el.innerHTML = html; el.style.display = html ? '' : 'none'; }
+async function nfImportar(file) {
+  if (!file) return;
+  const nome = file.name || '', ext = nome.split('.').pop().toLowerCase();
+  const passo = t => _nfMsg('load', '⏳ ' + t);
+  try {
+    let r;
+    if (ext === 'xml' || /xml/.test(file.type)) { passo('Lendo o XML…'); r = _nfDoXml(await file.text()); }
+    else if (ext === 'pdf' || file.type === 'application/pdf') {
+      passo('Abrindo o PDF…'); const pdfjs = await _nfPdfJs();
+      const pdf = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+      let texto = ''; for (let i = 1; i <= Math.min(pdf.numPages, 3); i++) { const pg = await pdf.getPage(i); const tc = await pg.getTextContent(); texto += tc.items.map(x => x.str + (x.hasEOL ? '\n' : ' ')).join('') + '\n'; }
+      const pg1 = await pdf.getPage(1), vp = pg1.getViewport({ scale: 2.5 }), cv = document.createElement('canvas'); cv.width = vp.width; cv.height = vp.height;
+      await pg1.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+      passo('Procurando o código de barras…'); const barras = await _nfLerBarras(cv);
+      if (texto.replace(/\s/g, '').length > 200) r = _nfDoTexto(texto, barras);
+      else { passo('PDF escaneado — lendo a imagem (pode levar até 1 minuto)…'); r = _nfDoTexto(await _nfOcr(cv, passo), barras); r.origem = 'scan'; }
+    } else if (/^image\//.test(file.type) || /^(jpe?g|png|heic|webp)$/.test(ext)) {
+      passo('Preparando a imagem…'); const cv = await _nfImagemCanvas(file);
+      passo('Procurando o código de barras…'); const barras = await _nfLerBarras(cv);
+      passo('Lendo o texto da nota (pode levar até 1 minuto)…'); r = _nfDoTexto(await _nfOcr(cv, passo), barras); r.origem = 'scan';
+    } else { _nfMsg('err', 'Formato não reconhecido. Use o XML da NF-e, o PDF da DANFE ou uma foto/scan da nota.'); return; }
+    _nfPreencher(r, nome);
+  } catch (e) { console.warn('importar nota', e); _nfMsg('err', '❌ Não consegui ler este arquivo: ' + _e(e.message || e) + '. Você pode preencher à mão normalmente.'); }
+}
+function _nfPreencher(r, nome) {
+  const $ = id => document.getElementById(id);
+  const set = (id, v) => { const el = $(id); if (!el || v === undefined || v === null || v === '' || (typeof v === 'number' && !v)) return false; el.value = v; el.classList.add('nf-auto'); return true; };
+  document.querySelectorAll('#modal-nova-nf .nf-auto').forEach(x => x.classList.remove('nf-auto'));
+  const campos = [['nf-numero', r.numero, 'número'], ['nf-serie', r.serie, 'série'], ['nf-chave', r.chave, 'chave'], ['nf-dt-emissao', r.dtEmissao, 'data de emissão'], ['nf-fornecedor', r.fornecedor, 'fornecedor'],
+    ['nf-cnpj', r.cnpj, 'CNPJ'], ['nf-placa-veiculo', r.placa, 'placa'], ['nf-unidade', r.unidade, 'unidade'], ['nf-quantidade', r.qtd, 'quantidade'], ['nf-unitario', r.unit, 'valor unitário'], ['nf-total', r.total ? +(+r.total).toFixed(2) : 0, 'total']];
+  const ok = [], falta = [];
+  campos.forEach(([id, v, rot]) => (set(id, v) ? ok : falta).push(rot));
+  if (r.produto) { $('nf-produto').value = r.produto; $('nf-produto').classList.add('nf-auto'); if (r.produto === 'Outro' && $('nf-produto-outro')) { $('nf-produto-outro').value = r.produtoTxt || ''; $('nf-produto-outro-wrap').style.display = ''; } }
+  else falta.push('produto');
+  $('nf-origem').value = r.origem;
+  try { calcularTotalNF(); } catch (e) {}
+  // nota já cadastrada?
+  const idEd = $('nf-edit-id')?.value || '';
+  const dup = r.chave ? (dados.notasFiscais || []).find(n => n.id !== idEd && String(n.chave || '').replace(/\D/g, '') === String(r.chave).replace(/\D/g, ''))
+                      : (dados.notasFiscais || []).find(n => n.id !== idEd && String(n.numero) === String(r.numero) && String(n.cnpj || '').replace(/\D/g, '') === String(r.cnpj || '').replace(/\D/g, ''));
+  const tit = { xml: '✅ Lido do XML da NF-e', pdf: '✅ Lido do PDF da DANFE', scan: '⚠ Lido da imagem da nota' }[r.origem] || '✅ Nota lida';
+  const conf = r.origem === 'scan' ? 'Leitura de imagem pode errar: <strong>confira principalmente quantidade, valor unitário e total</strong>.' : r.origem === 'pdf' ? 'Confira os campos em amarelo.' : 'Dados exatos da nota — confira e escolha o tanque.';
+  const chk = r.qtd && r.unit && r.total ? Math.abs(r.qtd * r.unit - r.total) / r.total : null;
+  _nfMsg(dup ? 'err' : (r.origem === 'scan' || falta.length > 2 ? 'warn' : 'ok'),
+    (dup ? `<strong>⛔ Esta nota já foi cadastrada</strong> (NF ${_e(dup.numero)} de ${_e(dup.fornecedor)}, ${fmtData(dup.dtEmissao)}). Não registre de novo.<br>` : '')
+    + `<strong>${tit}</strong>${nome ? ' · ' + _e(nome) : ''}<br>${conf}`
+    + (falta.length ? `<br>Não encontrei: <strong>${falta.join(', ')}</strong> — preencha à mão.` : '')
+    + (r.outros ? `<br>A nota tem mais ${r.outros} item(ns) que não são combustível — ficaram de fora.` : '')
+    + (chk !== null && chk > 0.02 ? `<br>⚠ Quantidade × unitário não bate com o total (diferença de ${(chk * 100).toFixed(1)}%). Pode haver outros itens ou impostos: confira.` : '')
+    + '<br>Falta você escolher o <strong>tanque de destino</strong> e a <strong>data de recebimento</strong>.');
+}
+// arrastar o arquivo para a janela
+(function () {
+  const z = document.getElementById('nf-import'), m = document.getElementById('modal-nova-nf'); if (!m || !z) return;
+  m.addEventListener('dragover', e => { e.preventDefault(); z.classList.add('drag'); });
+  m.addEventListener('drop', e => { e.preventDefault(); z.classList.remove('drag'); const f = e.dataTransfer?.files?.[0]; if (f) nfImportar(f); });
+  m.addEventListener('input', e => { if (e.target.classList) e.target.classList.remove('nf-auto'); });
+})();
+
+// ── formulário, gravação e lista
+function _nfTanques() { const ob = obraAtiva && obraAtiva.id !== 'todas' ? obraAtiva.id : ''; return (dados.tanques || []).filter(t => t.ativo !== false && (!ob || !t.obra || t.obra === ob)); }
+function _nfLitros(n) { return (n.unidade === 'm³' ? 1000 : 1) * (+n.qtd || 0); }
+window.calcularTotalNF = function () {
+  const $ = id => document.getElementById(id); const q = +($('nf-quantidade')?.value || 0), u = +($('nf-unitario')?.value || 0);
+  if (q && u && $('nf-total') && !$('nf-total').classList.contains('nf-auto')) $('nf-total').value = (q * u).toFixed(2);
+  mostrarSaldoTanqueNF();
+};
+window.mostrarSaldoTanqueNF = function () {
+  const $ = id => document.getElementById(id); const t = (dados.tanques || []).find(x => x.id === $('nf-tanque')?.value);
+  if ($('nf-saldo-atual')) $('nf-saldo-atual').value = t ? _n1(+t.saldo || 0) + ' L de ' + _n1(+t.cap || 0) + ' L' : '';
+  const q = +($('nf-quantidade')?.value || 0), un = $('nf-unidade')?.value, lit = (un === 'm³' ? 1000 : 1) * q, pv = $('nf-saldo-preview');
+  if (!pv) return; if (!t || !q) { pv.style.display = 'none'; return; }
+  const ed = (dados.notasFiscais || []).find(n => n.id === $('nf-edit-id')?.value), jaSomado = ed && ed.tanqueId === t.id ? _nfLitros(ed) : 0;
+  const depois = (+t.saldo || 0) - jaSomado + lit; pv.style.display = '';
+  $('nf-saldo-after').textContent = _n1(depois) + ' L' + (t.cap && depois > t.cap ? ' ⚠ acima da capacidade' : '');
+  $('nf-total-preview').textContent = _moeda(+($('nf-total')?.value || 0));
+};
+let _nfEditando = false;
+(function () {
+  const oOpen = window.openModal;
+  window.openModal = function (id) {
+    if (id === 'modal-nova-nf') {
+      const $ = x => document.getElementById(x);
+      $('nf-tanque').innerHTML = '<option value="">Selecione…</option>' + _nfTanques().map(t => `<option value="${_e(t.id)}">${_e(t.cod)} — ${_e(t.nome)}</option>`).join('');
+      if (!_nfEditando) {
+        ['nf-edit-id','nf-origem','nf-numero','nf-serie','nf-chave','nf-dt-emissao','nf-fornecedor','nf-cnpj','nf-placa-veiculo','nf-quantidade','nf-unitario','nf-total','nf-obs','nf-produto-outro'].forEach(x => { if ($(x)) $(x).value = ''; });
+        $('nf-produto').value = 'Óleo Diesel S-10'; $('nf-unidade').value = 'Litros'; $('nf-atu-preco').checked = true; $('nf-produto-outro-wrap').style.display = 'none';
+        $('nf-dt-recebimento').value = _hojeLocal(); $('nf-hora-recebimento').value = new Date().toTimeString().slice(0, 5);
+        if (_nfTanques().length === 1) $('nf-tanque').value = _nfTanques()[0].id;
+        $('modal-nf-titulo').textContent = 'Nova Nota Fiscal — Entrada de Diesel';
+        document.querySelectorAll('#modal-nova-nf .nf-auto').forEach(x => x.classList.remove('nf-auto')); _nfMsg('', '');
+      }
+    }
+    const r = oOpen.apply(this, arguments);
+    if (id === 'modal-nova-nf') mostrarSaldoTanqueNF();
+    return r;
+  };
+  document.getElementById('nf-produto')?.addEventListener('change', e => { document.getElementById('nf-produto-outro-wrap').style.display = e.target.value === 'Outro' ? '' : 'none'; });
+  ['nf-unidade', 'nf-tanque', 'nf-total'].forEach(id => document.getElementById(id)?.addEventListener('input', () => mostrarSaldoTanqueNF()));
+})();
+function _nfMovTanque(t, litros, ref, obs) {
+  const antes = +t.saldo || 0; t.saldo = +(antes + litros).toFixed(3);
+  const mv = { id: 'mv' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), tanqueId: t.id, obra: t.obra || '', dt: new Date().toISOString().slice(0, 16).replace('T', ' '), tipo: litros >= 0 ? 'entrada' : 'estorno', litros, saldoAntes: antes, saldoDepois: t.saldo, ref, obs, por: usuarioLogado?.nome || '' };
+  (dados.movTanques = dados.movTanques || []).push(mv);
+  if (db && _firebaseReady) { fbSave('tanques', t.id, t).catch(() => {}); fbSave('movTanques', mv.id, mv).catch(() => {}); }
+}
+window.salvarNotaFiscal = function () {
+  const $ = id => document.getElementById(id), v = id => ($(id)?.value || '').trim();
+  const idEd = v('nf-edit-id'), prod = v('nf-produto') === 'Outro' ? (v('nf-produto-outro') || 'Outro') : v('nf-produto');
+  const n = { numero: v('nf-numero').replace(/^0+(?=\d)/, ''), serie: v('nf-serie'), chave: v('nf-chave').replace(/\D/g, ''), dtEmissao: v('nf-dt-emissao'), dtReceb: v('nf-dt-recebimento'), horaReceb: v('nf-hora-recebimento'),
+    fornecedor: v('nf-fornecedor'), cnpj: v('nf-cnpj'), placa: v('nf-placa-veiculo').toUpperCase(), produto: prod, unidade: v('nf-unidade') || 'Litros',
+    qtd: +v('nf-quantidade') || 0, unit: +v('nf-unitario') || 0, total: +v('nf-total') || 0, tanqueId: v('nf-tanque'), obs: v('nf-obs'), origem: v('nf-origem') || 'manual' };
+  if (!n.numero || !n.dtEmissao || !n.dtReceb || !n.fornecedor || !n.qtd || !n.unit || !n.tanqueId) { toast('Preencha número, emissão, recebimento, fornecedor, quantidade, valor unitário e tanque.', 'error'); return; }
+  if (n.chave && !_nfChaveOk(n.chave)) { toast('A chave de acesso não confere (precisa ter 44 dígitos válidos). Corrija ou deixe em branco.', 'error'); return; }
+  if (!n.total) n.total = +(n.qtd * n.unit).toFixed(2);
+  const dup = (dados.notasFiscais || []).find(x => x.id !== idEd && ((n.chave && x.chave === n.chave) || (String(x.numero) === n.numero && String(x.cnpj || '').replace(/\D/g, '') === n.cnpj.replace(/\D/g, '') && (x.serie || '') === n.serie)));
+  if (dup) { toast('Esta nota já está cadastrada (NF ' + dup.numero + ' — ' + dup.fornecedor + ').', 'error'); return; }
+  const t = (dados.tanques || []).find(x => x.id === n.tanqueId); if (!t) { toast('Tanque não encontrado.', 'error'); return; }
+  const lista = dados.notasFiscais = dados.notasFiscais || [];
+  let nota = idEd ? lista.find(x => x.id === idEd) : null;
+  if (nota) {   // edição: desfaz a entrada antiga no tanque e lança a nova
+    const tAnt = (dados.tanques || []).find(x => x.id === nota.tanqueId);
+    if (tAnt) _nfMovTanque(tAnt, -_nfLitros(nota), nota.id, 'ajuste da NF ' + nota.numero);
+    Object.assign(nota, n, { editadoPor: usuarioLogado?.nome || '', editadoEm: new Date().toISOString() });
+  } else {
+    nota = { id: 'nf' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), ...n, obra: t.obra || (obraAtiva && obraAtiva.id !== 'todas' ? obraAtiva.id : ''), status: 'Recebida', lancadoPor: usuarioLogado?.nome || '', lancadoEm: new Date().toISOString() };
+    lista.push(nota);
+  }
+  _nfMovTanque(t, _nfLitros(nota), nota.id, 'NF ' + nota.numero + ' — ' + nota.fornecedor);
+  if ($('nf-atu-preco')?.checked) { t.preco = +((nota.unidade === 'm³' ? nota.unit / 1000 : nota.unit)).toFixed(4); if (db && _firebaseReady) fbSave('tanques', t.id, t).catch(() => {}); }
+  if (db && _firebaseReady) fbSave('notasFiscais', nota.id, nota).catch(() => toast('Nota salva aqui, mas não no servidor. Tente de novo.', 'error'));
+  closeModal('modal-nova-nf'); renderNotasFiscais(); try { renderTanques(); } catch (e) {}
+  toast((idEd ? 'Nota atualizada' : 'Nota registrada') + ': +' + _n1(_nfLitros(nota)) + ' L no ' + t.cod + (($('nf-atu-preco')?.checked) ? ' · preço do litro atualizado' : ''));
+};
+window.editarNF = function (id) {
+  const n = (dados.notasFiscais || []).find(x => x.id === id); if (!n) return;
+  _nfEditando = true; openModal('modal-nova-nf'); _nfEditando = false;
+  const $ = x => document.getElementById(x), set = (x, v) => { if ($(x)) $(x).value = v ?? ''; };
+  set('nf-edit-id', n.id); set('nf-origem', n.origem); set('nf-numero', n.numero); set('nf-serie', n.serie); set('nf-chave', n.chave); set('nf-dt-emissao', n.dtEmissao); set('nf-dt-recebimento', n.dtReceb); set('nf-hora-recebimento', n.horaReceb);
+  set('nf-fornecedor', n.fornecedor); set('nf-cnpj', n.cnpj); set('nf-placa-veiculo', n.placa); set('nf-unidade', n.unidade || 'Litros'); set('nf-quantidade', n.qtd); set('nf-unitario', n.unit); set('nf-total', n.total); set('nf-tanque', n.tanqueId); set('nf-obs', n.obs);
+  const prods = [...$('nf-produto').options].map(o => o.value); if (prods.includes(n.produto)) { set('nf-produto', n.produto); $('nf-produto-outro-wrap').style.display = 'none'; } else { set('nf-produto', 'Outro'); set('nf-produto-outro', n.produto); $('nf-produto-outro-wrap').style.display = ''; }
+  $('nf-atu-preco').checked = false; $('modal-nf-titulo').textContent = 'Editar Nota Fiscal ' + n.numero; _nfMsg('', ''); mostrarSaldoTanqueNF();
+};
+window.excluirNF = function (id) {
+  const n = (dados.notasFiscais || []).find(x => x.id === id); if (!n) return;
+  if (!confirm('Excluir a NF ' + n.numero + ' de ' + n.fornecedor + '? Os ' + _n1(_nfLitros(n)) + ' L saem do saldo do tanque.')) return;
+  const t = (dados.tanques || []).find(x => x.id === n.tanqueId); if (t) _nfMovTanque(t, -_nfLitros(n), n.id, 'exclusão da NF ' + n.numero);
+  dados.notasFiscais = dados.notasFiscais.filter(x => x.id !== id); if (db && _firebaseReady) fbDelete('notasFiscais', id);
+  renderNotasFiscais(); try { renderTanques(); } catch (e) {} toast('Nota excluída.');
+};
+function _nfFiltradas() {
+  const $ = id => document.getElementById(id), ob = obraAtiva && obraAtiva.id !== 'todas' ? obraAtiva.id : '';
+  const ini = $('filtro-nf-ini')?.value || '', fim = $('filtro-nf-fim')?.value || '', tq = $('filtro-nf-tanque')?.value || '', fo = ($('filtro-nf-fornecedor')?.value || '').toLowerCase();
+  return (dados.notasFiscais || []).filter(n => (!ob || !n.obra || n.obra === ob) && (!ini || (n.dtEmissao || '') >= ini) && (!fim || (n.dtEmissao || '') <= fim) && (!tq || n.tanqueId === tq) && (!fo || String(n.fornecedor || '').toLowerCase().includes(fo)))
+    .sort((a, b) => String(b.dtEmissao).localeCompare(String(a.dtEmissao)) || String(b.numero).localeCompare(String(a.numero)));
+}
+window.renderNotasFiscais = function () {
+  const $ = id => document.getElementById(id); const tb = $('tbody-nf'); if (!tb) return;
+  const ft = $('filtro-nf-tanque'); if (ft) { const v = ft.value; ft.innerHTML = '<option value="">Todos</option>' + _nfTanques().map(t => `<option value="${_e(t.id)}">${_e(t.cod)} — ${_e(t.nome)}</option>`).join(''); ft.value = v; }
+  const l = _nfFiltradas(), tqNome = id => { const t = (dados.tanques || []).find(x => x.id === id); return t ? t.cod : '—'; };
+  const ic = { xml: '<span title="Importada do XML" style="font-size:10px;color:#16A34A;font-weight:700">XML</span>', pdf: '<span title="Importada do PDF" style="font-size:10px;color:#2563EB;font-weight:700">PDF</span>', scan: '<span title="Lida de foto/scan" style="font-size:10px;color:#B45309;font-weight:700">SCAN</span>' };
+  tb.innerHTML = l.length ? l.map(n => `<tr>
+      <td class="td-mono"><strong>${_e(n.numero)}</strong>${n.serie ? '<span style="color:var(--text-3)">/' + _e(n.serie) + '</span>' : ''}</td><td class="td-mono">${n.dtEmissao ? fmtData(n.dtEmissao) : '—'}</td>
+      <td>${_e(n.fornecedor)}</td><td class="td-mono" style="font-size:11px">${_e(n.cnpj || '—')}</td><td>${_e(n.produto)}</td><td>${_e(n.unidade === 'm³' ? 'm³' : 'L')}</td>
+      <td class="td-mono" style="text-align:right">${_n1(n.qtd)}</td><td class="td-mono" style="text-align:right">${_moeda(n.unit).replace('R$', 'R$ ')}</td><td class="td-mono" style="text-align:right;font-weight:700">${_moeda(n.total)}</td>
+      <td class="td-mono">${_e(tqNome(n.tanqueId))}</td><td class="td-mono">${n.dtReceb ? fmtData(n.dtReceb) : '—'}${n.horaReceb ? ' ' + _e(n.horaReceb) : ''}</td><td style="font-size:12px">${_e(n.lancadoPor || '—')}</td>
+      <td>${tag(n.status || 'Recebida', 'green')} ${ic[n.origem] || ''}</td>
+      <td style="white-space:nowrap"><button class="btn btn-outline btn-sm" onclick="editarNF('${_e(n.id)}')">Editar</button> <button class="btn btn-sm" style="background:var(--red-light);color:var(--red);border:1px solid var(--red-light)" onclick="excluirNF('${_e(n.id)}')">Excluir</button></td></tr>`).join('')
+    : '<tr><td colspan="14" class="empty-row" style="text-align:center;padding:2rem;color:var(--text-3)">Nenhuma nota no filtro. Use <strong>+ Nova Nota Fiscal</strong> — dá para importar o XML, o PDF ou uma foto da nota.</td></tr>';
+  const lit = l.reduce((s, n) => s + _nfLitros(n), 0), val = l.reduce((s, n) => s + (+n.total || 0), 0);
+  if ($('nf-kpi-qtd')) $('nf-kpi-qtd').textContent = l.length; if ($('nf-kpi-vol')) $('nf-kpi-vol').textContent = _n1(lit) + ' L';
+  if ($('nf-kpi-valor')) $('nf-kpi-valor').textContent = _moeda(val); if ($('nf-kpi-preco')) $('nf-kpi-preco').textContent = lit ? _moeda(val / lit) : '—';
+};
+window.limparFiltrosNF = function () { ['filtro-nf-ini', 'filtro-nf-fim', 'filtro-nf-tanque', 'filtro-nf-fornecedor'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; }); renderNotasFiscais(); };
+window.exportarNFExcel = function () {
+  if (typeof XLSX === 'undefined') { toast('Aguarde o carregamento do Excel e tente de novo.', 'error'); return; }
+  const tq = id => ((dados.tanques || []).find(x => x.id === id) || {}).cod || '';
+  const rows = [['Nº NF', 'Série', 'Chave de acesso', 'Emissão', 'Fornecedor', 'CNPJ', 'Produto', 'Unidade', 'Quantidade', 'Valor unitário', 'Total NF', 'Tanque', 'Recebimento', 'Placa', 'Lançado por', 'Origem', 'Observações']]
+    .concat(_nfFiltradas().map(n => [n.numero, n.serie || '', n.chave || '', n.dtEmissao ? fmtData(n.dtEmissao) : '', n.fornecedor, n.cnpj || '', n.produto, n.unidade, +n.qtd || 0, +n.unit || 0, +n.total || 0, tq(n.tanqueId), (n.dtReceb ? fmtData(n.dtReceb) : '') + (n.horaReceb ? ' ' + n.horaReceb : ''), n.placa || '', n.lancadoPor || '', n.origem || 'manual', n.obs || '']));
+  const ws = XLSX.utils.aoa_to_sheet(rows); ws['!cols'] = rows[0].map((h, i) => ({ wch: i === 2 ? 48 : Math.max(12, h.length + 2) }));
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Notas de diesel'); XLSX.writeFile(wb, 'Notas_diesel_' + _hojeLocal() + '.xlsx');
+};
 
 // Apply configs on load
 setTimeout(applyConfigs, 200);
