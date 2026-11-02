@@ -636,6 +636,10 @@ select.form-control,select.form-control:focus{background-image:url("data:image/s
 .par-it .a button.ok{background:#16A34A;border-color:#16A34A;color:#fff}
 .ap-aberto .par-mini{margin-left:auto;background:#F59E0B;color:#fff;border:none;border-radius:10px;padding:8px 10px;font-weight:800;font-size:12px;cursor:pointer;flex:0 0 auto}
 .ap-eq-campos .form-group:has(select){display:none}
+
+/* v2.36: QR da frente de serviço */
+.ap-qr-frente{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:8px;padding:11px;border-radius:12px;border:1.5px dashed var(--red);background:rgba(227,6,19,.06);color:var(--red);font-weight:800;font-size:14px;cursor:pointer}
+.ap-qr-frente svg{width:18px;height:18px}
 /* v2.26: cadastro provisório */
 .ap-prov-btn{display:block;margin:8px 14px 0;width:calc(100% - 28px);background:none;border:1.5px dashed #9A9CA5;border-radius:12px;padding:10px;font-size:13.5px;font-weight:700;color:var(--text2);cursor:pointer}
 .ap-prov-tag{display:inline-block;font-size:10px;font-weight:800;color:#9A3412;background:#FFEDD5;border-radius:6px;padding:1px 6px;margin-left:6px}
@@ -807,7 +811,7 @@ select.form-control,select.form-control:focus{background-image:url("data:image/s
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.35</div>
+  <div class="login-versao">ObraKontrol Campo · v2.36</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -907,6 +911,7 @@ select.form-control,select.form-control:focus{background-image:url("data:image/s
       <div class="form-group">
         <label class="form-label">Frente de serviço *</label>
         <div class="fld"><svg class="fld-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg><select class="form-control" id="ap-frente" onchange="apGuardar()"><option value="">Selecione a frente…</option></select></div>
+        <button type="button" class="ap-qr-frente" onclick="abrirQR('frente')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/></svg>Ler QR Code da frente</button>
       </div>
       <div class="form-group">
         <label class="form-label">Tipo de serviço</label>
@@ -3465,6 +3470,41 @@ function parFimConfirmar() {
       b.onclick = ev => { ev.stopPropagation(); apAbrir(x.uid); setTimeout(() => parAbrir(), 150); };
       const seta = el.lastElementChild; el.insertBefore(b, seta); });
     return r;
+  };
+})();
+
+// ══════════════════════════════════════════════════════════════
+// v2.36: QR CODE DA FRENTE DE SERVIÇO (placa no local) — "frente:<código>"
+// ══════════════════════════════════════════════════════════════
+function _apFrenteQR(cod) {
+  const sel = document.getElementById('ap-frente'); if (!sel) return;
+  const op = [...sel.options].find(o => o.value && o.value.toLowerCase() === String(cod).toLowerCase());
+  if (!op) { toast('Frente ' + cod + ' não encontrada nesta obra.', 'err'); if (navigator.vibrate) { try { navigator.vibrate([60, 60, 60]); } catch (e) {} } return; }
+  // se o app perguntou "repetir de ontem?", a placa responde
+  if (ap.frentePend && typeof _repOpcoes === 'function') {
+    const i = _repOpcoes().findIndex(o => String(o.frente).toLowerCase() === op.value.toLowerCase());
+    if (i >= 0) { _repEscolher(i); if (navigator.vibrate) { try { navigator.vibrate(80); } catch (e) {} } return; }
+    if (typeof _repOutra === 'function') _repOutra();
+  }
+  sel.value = op.value; ap.frentePend = false; ap.frenteQR = op.value;
+  const box = document.getElementById('ap-mesma'); if (box) box.style.display = 'none';
+  document.getElementById('ap-panel-frente')?.classList.remove('ap-pend');
+  try { sel.dispatchEvent(new Event('change')); } catch (e) { apGuardar(); }
+  if (navigator.vibrate) { try { navigator.vibrate(80); } catch (e) {} }
+  toast('✓ Frente ' + op.textContent.trim() + ' (pelo QR Code)', 'ok');
+}
+(function () {
+  const oProc = processarQR;
+  processarQR = function (texto, contexto) {
+    const m = /^frente:\s*(.+)$/i.exec(String(texto || '').trim());
+    if (m) {
+      const cod = m[1].trim();
+      if (contexto === 'frente') { _apFrenteQR(cod); return { ok: true }; }
+      if (contexto === 'ap') return { ok: false, msg: 'Este é o QR da frente ' + cod + '. Leia na etapa da frente (botão "Ler QR Code da frente").' };
+      toast('QR da frente ' + cod + ': use na etapa da frente do apontamento.', 'err'); return;
+    }
+    if (contexto === 'frente') { toast('Esse QR não é de frente de serviço.', 'err'); return; }
+    return oProc.apply(this, arguments);
   };
 })();
 
