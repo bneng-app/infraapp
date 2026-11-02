@@ -838,7 +838,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.40</div>
+  <div class="login-versao">ObraKontrol Campo · v2.41</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -1350,10 +1350,14 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
         <div class="form-group">
           <label class="form-label">Litros abastecidos</label>
           <input type="number" class="form-control" id="fuel-litros" placeholder="0" step="0.1" style="font-size:28px;font-weight:800;text-align:center;padding:20px"/>
+          <div class="hor-linha" style="margin-top:8px"><img class="hor-thumb" id="fuel-thumb-total" style="display:none" onclick="fuelFotoVer('total')"/>
+            <label class="hor-foto-btn" id="fuel-btn-total" style="display:flex;align-items:center;justify-content:center;flex:1;min-height:48px">📷 Foto do total abastecido (obrigatória)<input type="file" accept="image/*" capture="environment" style="display:none" onchange="fuelFoto('total', this)"/></label></div>
         </div>
         <div class="form-group">
           <label class="form-label">Horímetro / Km atual</label>
           <input type="number" class="form-control" id="fuel-horimetro" placeholder="Ex.: 1245"/>
+          <div class="hor-linha" style="margin-top:8px"><img class="hor-thumb" id="fuel-thumb-hor" style="display:none" onclick="fuelFotoVer('hor')"/>
+            <label class="hor-foto-btn" id="fuel-btn-hor" style="display:flex;align-items:center;justify-content:center;flex:1;min-height:48px">📷 Foto do horímetro (obrigatória)<input type="file" accept="image/*" capture="environment" style="display:none" onchange="fuelFoto('hor', this)"/></label></div>
         </div>
         <div class="form-group">
           <label class="form-label">Observações</label>
@@ -2708,6 +2712,7 @@ async function salvarFuel() {
     precoL: +((dadosCampo.tanques || []).find(t => t.id === tanqId) || {}).preco || 0,   // v2.18: preço do litro no dia
     litros, hor: horim,
     obs,
+    ...(window._fuelExtra || {}),   // v2.41: ids das fotos do horímetro e do total
     obra: usuarioCampo.obra || '',
     lancadoPor: usuarioCampo.nome,
     status: 'campo',
@@ -3591,6 +3596,53 @@ function _apFrenteQR(cod) {
     }
     conf = ''; av.style.display = 'none';
     return oS.apply(this, arguments);
+  };
+})();
+
+// ══════════════════════════════════════════════════════════════
+// v2.41: FOTOS OBRIGATÓRIAS NO ABASTECIMENTO — horímetro e total abastecido (vão para a coleção "fotos")
+// ══════════════════════════════════════════════════════════════
+const _fuelFotos = { hor: null, total: null };
+async function fuelFoto(k, input) {
+  const f = input.files && input.files[0]; if (!f) return;
+  try { _fuelFotos[k] = { img: await _reduzirFoto(f), em: new Date().toISOString() }; _fuelFotosRender(); toast(k === 'hor' ? 'Foto do horímetro registrada' : 'Foto do total abastecido registrada', 'ok'); }
+  catch (e) { toast('Não consegui usar essa foto. Tente de novo.', 'err'); }
+  input.value = '';
+}
+function _fuelFotosRender() {
+  ['hor', 'total'].forEach(k => { const v = _fuelFotos[k], th = document.getElementById('fuel-thumb-' + k), b = document.getElementById('fuel-btn-' + k); if (!th || !b) return;
+    th.style.display = v ? '' : 'none'; if (v) th.src = v.img; b.classList.toggle('ok', !!v);
+    b.firstChild.textContent = v ? '📷 Trocar foto' : (k === 'hor' ? '📷 Foto do horímetro (obrigatória)' : '📷 Foto do total abastecido (obrigatória)'); });
+}
+function fuelFotoVer(k) {
+  const v = _fuelFotos[k]; if (!v) return;
+  const ov = document.createElement('div'); ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:2000;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.innerHTML = `<img src="${v.img}" style="max-width:100%;max-height:100%;border-radius:10px"/>`; ov.onclick = () => ov.remove(); document.body.appendChild(ov);
+}
+(function () {
+  const oS = salvarFuel;
+  salvarFuel = async function () {
+    const equipId = document.getElementById('fuel-equip').value, litros = parseFloat(document.getElementById('fuel-litros').value) || 0, horim = String(document.getElementById('fuel-horimetro').value || '').trim();
+    if (equipId && litros) {
+      const falta = [];
+      if (!horim) falta.push('o horímetro / km');
+      if (!_fuelFotos.total) falta.push('a foto do total abastecido');
+      if (!_fuelFotos.hor) falta.push('a foto do horímetro');
+      if (falta.length) { toast('Falta ' + falta.join(', ') + '.', 'err'); if (navigator.vibrate) { try { navigator.vibrate([60, 60, 60]); } catch (e) {} } return; }
+    }
+    const suf = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const ids = { fotoHor: 'fa' + suf + 'h', fotoTotal: 'fa' + suf + 't' };
+    window._fuelExtra = ids;
+    let r; try { r = await oS.apply(this, arguments); } finally { window._fuelExtra = null; }
+    // gravou? (o formulário limpa os litros depois de salvar)
+    if (!document.getElementById('fuel-litros').value && _fuelFotos.hor && _fuelFotos.total) {
+      const eq = (dadosCampo.equipamentos || []).find(e => e.id === equipId) || {};
+      const base = { equipId, equip: eq.tag || eq.placa || equipId, obra: usuarioCampo.obra || '', lancadoPor: usuarioCampo.nome, litros, hor: parseFloat(horim.replace(',', '.')) || horim, data: document.getElementById('fuel-data').value };
+      try { await fbSalvar('fotos', { ...base, id: ids.fotoHor, tipo: 'abastecimento_horimetro', tiradaEm: _fuelFotos.hor.em, img: _fuelFotos.hor.img }); } catch (e) {}
+      try { await fbSalvar('fotos', { ...base, id: ids.fotoTotal, tipo: 'abastecimento_total', tiradaEm: _fuelFotos.total.em, img: _fuelFotos.total.img }); } catch (e) {}
+      _fuelFotos.hor = _fuelFotos.total = null; _fuelFotosRender();
+    }
+    return r;
   };
 })();
 

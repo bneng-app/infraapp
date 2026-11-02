@@ -581,7 +581,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v2.79 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v2.80 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -7709,7 +7709,7 @@ renderDiesel = function() {
         <td class="td-mono">${d.dt}</td>
         <td><strong>${d.equip}</strong></td>
         <td class="td-mono">${d.litros.toLocaleString('pt-BR')} L</td>
-        <td>${d.hor}</td>
+        <td style="white-space:nowrap">${d.hor ?? '—'}${d.fotoHor ? ` <button class="btn btn-outline btn-sm" style="padding:3px 8px;font-size:12px" onclick="verFotoHorimetro('${d.fotoHor}','${_e(d.equip)}')" title="Foto do horímetro">📷</button>` : ''}${d.fotoTotal ? ` <button class="btn btn-outline btn-sm" style="padding:3px 8px;font-size:12px" onclick="verFotoHorimetro('${d.fotoTotal}','${_e(d.equip)}')" title="Foto do total abastecido">⛽</button>` : ''}</td>
         <td>${d.lancadoPor||'Escritório'}</td>
         <td>${d.obs||'—'}</td>
         <td style="max-width:260px">${_absAlertaHtml(d)}</td>
@@ -8879,7 +8879,7 @@ async function verFotoHorimetro(id, equip) {
     const d = await db.collection('fotos').doc(id).get(); const f = d.exists ? d.data() : null;
     if (!f || !f.img) { ov.innerHTML = '<div style="color:white;font-size:14px">Foto ainda não chegou ao servidor (o celular pode estar sem internet).</div>'; return; }
     ov.innerHTML = `<div style="background:#fff;border-radius:14px;padding:14px;max-width:92vw;max-height:92vh;display:flex;flex-direction:column;gap:8px">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:16px"><strong>${_e(equip || f.equip || '')} · horímetro ${_e(Number(f.hor).toLocaleString('pt-BR'))}</strong>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:16px"><strong>${_e(equip || f.equip || '')} · ${f.tipo === 'abastecimento_total' ? 'total abastecido ' + _e(Number(f.litros).toLocaleString('pt-BR')) + ' L' : 'horímetro ' + _e(Number(f.hor).toLocaleString('pt-BR'))}</strong>
       <button class="btn btn-outline btn-sm" onclick="document.getElementById('foto-hor').remove()">Fechar</button></div>
       <img src="${f.img}" style="max-width:88vw;max-height:76vh;object-fit:contain;border-radius:8px"/>
       <div style="font-size:12px;color:var(--text-3)">${_e(f.lancadoPor || '')}${f.tiradaEm ? ' · foto de ' + _e(new Date(f.tiradaEm).toLocaleString('pt-BR')) : ''}</div></div>`;
