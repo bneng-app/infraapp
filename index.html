@@ -554,7 +554,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v2.66 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v2.67 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -755,7 +755,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
   </div>
 
   <div class="nav-group" id="grp-almoxarifado">
-    <div class="nav-section" onclick="toggleNavGroup('grp-almoxarifado')">Almoxarifado <span class="nav-chevron">▾</span></div>
+    <div class="nav-section" onclick="toggleNavGroup('grp-almoxarifado')">Setor Manutenção EQ <span class="nav-chevron">▾</span></div>
     <div class="nav-group-items">
       <div class="nav-item" onclick="showPage('produtos',this)" title="Cadastro de Produtos">
         <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
@@ -915,6 +915,8 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
     <div class="btn-group">
       <button class="btn btn-outline btn-sm" onclick="abrirImportacao('pacote')" title="Um arquivo Excel com uma aba por cadastro">↑ Importar pacote completo</button>
       <button class="btn btn-outline btn-sm" onclick="baixarTemplate('pacote')">↓ Template do pacote</button>
+      <button class="btn btn-outline btn-sm" onclick="abrirImportacao('historico')" title="Apontamentos e abastecimentos de datas passadas">↑ Importar histórico</button>
+      <button class="btn btn-outline btn-sm" onclick="baixarTemplate('historico')">↓ Template do histórico</button>
       <button class="btn btn-outline btn-sm" onclick="abrirImportacao('obras')">↑ Importar</button>
       <button class="btn btn-outline btn-sm" onclick="baixarTemplate('obras')">↓ Template</button>
       <button class="btn btn-primary" onclick="openModal('modal-nova-obra')">+ Nova obra</button>
@@ -2834,7 +2836,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
         <div class="form-group"><label class="form-label">Cód. Modelo</label><select class="form-control" id="equip-modelo"><option value="">Selecione…</option></select></div>
         <div class="form-group form-full"><label class="form-label">Nome / Placa / Série</label><input class="form-control" id="equip-placa" placeholder="ABC-1234 ou número série"/></div>
         <div class="form-group"><label class="form-label">Família</label><select class="form-control" id="equip-familia"><option value="">Selecione…</option></select></div>
-        <div class="form-group"><label class="form-label">Proprietário</label><select class="form-control" id="equip-prop"><option value="">Selecione…</option></select></div>
+        <div class="form-group"><label class="form-label">Empresa proprietária *</label><select class="form-control" id="equip-prop"><option value="">Selecione…</option></select></div>
         <div class="form-group"><label class="form-label">Status</label>
           <select class="form-control" id="equip-status">
             <option value="Mobilizado">Mobilizado</option>
@@ -3267,7 +3269,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="perm-dashboards" checked/> Dashboards</label>
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="perm-qrcodes"/> QR Codes</label>
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="perm-config"/> Configurações ADM</label>
-        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="perm-almoxarifado"/> Almoxarifado (diesel e notas)</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="perm-almoxarifado"/> Setor Manutenção EQ (diesel e notas)</label>
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="perm-aprovacao"/> Aprovar apontamentos</label>
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="perm-abastecimento"/> Abastecimento no app de campo</label>
       </div>
@@ -4407,6 +4409,14 @@ function popularSelects() {
     el.insertAdjacentHTML('beforeend', (dados.cargos||[]).map(c => `<option value="${c.cod}">${c.cod} — ${c.nome}</option>`).join(''));
     el.value = val;
   });
+  // v2.67: empresa proprietária do equipamento = empresas cadastradas
+  ['equip-prop'].forEach(id => {
+    const el = document.getElementById(id); if (!el) return;
+    const val = el.value;
+    el.innerHTML = '<option value="">Selecione…</option>' + (dados.empresas||[]).map(e => `<option value="${_e(e.nome)}">${_e(e.cod ? e.cod + ' — ' : '')}${_e(e.nome)}</option>`).join('');
+    if (val && ![...el.options].some(o => o.value === val)) el.insertAdjacentHTML('beforeend', `<option value="${_e(val)}">${_e(val)} (não cadastrada)</option>`);
+    el.value = val;
+  });
   // Famílias
   ['equip-familia'].forEach(id => {
     const el = document.getElementById(id); if (!el) return;
@@ -4991,6 +5001,7 @@ function salvarEquipamento() {
   const prop      = document.getElementById('equip-prop').value;
   if (!tag_eq)    { toast('TAG é obrigatória', 'error'); return; }
   if (!codModelo||!placa||!familia) { toast('Preencha Modelo, Placa/Série e Família', 'error'); return; }
+  if (!prop) { toast('Escolha a empresa proprietária (cadastre em Cadastros → Empresas, se não estiver na lista)', 'error'); return; }
   // verificar TAG duplicada
   if (dados.equipamentos.some(e=>e.tag&&e.tag.toLowerCase()===tag_eq.toLowerCase())) {
     toast(`TAG "${tag_eq}" já está em uso por outro equipamento`, 'error'); return;
@@ -6229,7 +6240,7 @@ function editarEquipamento(id) {
   popularSelects();
   el('equip-modelo')  && (el('equip-modelo').value=e.modelo||'');
   el('equip-familia') && (el('equip-familia').value=e.familia||'');
-  el('equip-prop')    && (el('equip-prop').value=e.prop||'');
+  if (el('equip-prop')) { const sp = el('equip-prop'); if (e.prop && ![...sp.options].some(o => o.value === e.prop)) sp.insertAdjacentHTML('beforeend', `<option value="${_e(e.prop)}">${_e(e.prop)} (não cadastrada)</option>`); sp.value = e.prop || ''; }
   openModal('modal-novo-equip');
 }
 
@@ -7787,7 +7798,7 @@ const MODULOS = [
   ['dashboards',   'Dashboards',                 ['grp-dashboards']],
   ['cadastros',    'Cadastros',                  ['grp-cadastros','grp-mo','grp-equipamentos','grp-frentes']],
   ['apontamentos', 'Apontamentos',               ['grp-apontamentos']],
-  ['almoxarifado', 'Almoxarifado (diesel e notas)', ['grp-almoxarifado']],
+  ['almoxarifado', 'Setor Manutenção EQ (diesel e notas)', ['grp-almoxarifado']],
   ['relatorios',   'Relatórios',                 ['grp-analise']],
   ['aprovacao',    'Aprovar apontamentos',       []],
   ['qrcodes',      'QR Codes',                   []],
@@ -8043,35 +8054,35 @@ async function testarAcessoCampo() {
 // v2.13: IMPORTAÇÃO — todos os cadastros, e "pacote completo" (um Excel com uma aba por cadastro)
 // ═══════════════════════════════════════════════════════════════
 const IMPORT_DEF = {
-  obras:        { rotulo:'Obras', porObra:false, chave:'cod', col:['Código','Nome da Obra','Local/Município','Status'],
+  obras:        { rotulo:'Obras', porObra:false, chave:'cod', col:['Código','Nome da Obra','Local/Município'],
                   map:g=>({ cod:g(['código','codigo','cod']), nome:g(['nome da obra','nome']), local:g(['local','município','municipio']), status:g(['status'])||'Ativa' }), ok:x=>x.cod&&x.nome },
-  empresas:     { rotulo:'Empresas', porObra:true, chave:'cod', col:['Código','Razão Social','CNPJ','Tipo','Responsável'],
+  empresas:     { rotulo:'Empresas', porObra:true, chave:'cod', col:['Código','Razão Social','CNPJ','Tipo (Própria / Locadora / Empreiteira…)','Responsável'],
                   map:g=>({ cod:g(['código','codigo','cod']), nome:g(['razão','razao','nome']), cnpj:g(['cnpj']), tipo:g(['tipo'])||'Empreiteira', resp:g(['responsável','responsavel']) }), ok:x=>x.cod&&x.nome },
   ua:           { rotulo:'UA', porObra:true, chave:'cod', col:['Código UA','Descrição','Tipo (MO/EQ)'],
                   map:g=>({ cod:g(['código ua','codigo ua','código','cod']), desc:g(['descrição','descricao','desc']), tipo:(g(['tipo'])||'MO').toUpperCase() }), ok:x=>x.cod&&x.desc },
-  cargos:       { rotulo:'Cargos', porObra:true, chave:'cod', col:['Cód. Função','Nome da Função','Cód. Recurso (UA)','Direto (Sim/Não)','Operador (Sim/Não)','Custo/hora (R$)','Adicional HE (%)','Adicional domingo/feriado (%)'],
+  cargos:       { rotulo:'Cargos', porObra:true, chave:'cod', col:['Cód. Função','Nome da Função','Cód. Recurso (UA)','Direto (Sim/Não)','Operador (Sim/Não)','Custo/hora (R$)'],
                   map:g=>({ cod:g(['cód. função','cod. função','cód','cod']), nome:g(['nome da função','nome da funcao','nome']), recurso:g(['recurso']), direto:g(['direto'])||'Sim', operador:g(['operador'])||'Não',
                             custoHora:_numImport(g(['custo'])), adicHE:(v => v === '' ? 50 : _numImport(v))(g(['adicional he','% he','hora extra'])), adicDF:(v => v === '' ? 100 : _numImport(v))(g(['domingo','feriado'])) }), ok:x=>x.cod&&x.nome },
   familias:     { rotulo:'Famílias', porObra:true, chave:'cod', col:['Código','Descrição'],
                   map:g=>({ cod:g(['código','codigo','cod']), desc:g(['descrição','descricao','desc']) }), ok:x=>x.cod&&x.desc },
   modelos:      { rotulo:'Modelos', porObra:true, chave:'cod', col:['Código','Nome do Modelo','Família'],
                   map:g=>({ cod:g(['código','codigo','cod']), nome:g(['nome do modelo','modelo']), familia:g(['família','familia']) }), ok:x=>x.cod&&x.nome },
-  frentes:      { rotulo:'Frentes de serviço', porObra:true, chave:'cod', col:['Código','Descrição','Responsável','Observações'],
+  frentes:      { rotulo:'Frentes de serviço', porObra:true, chave:'cod', col:['Código','Descrição'],
                   map:g=>({ cod:g(['código','codigo','cod']), desc:g(['descrição','descricao','desc']), resp:g(['responsável','responsavel']), obs:g(['observ']) }), ok:x=>x.cod&&x.desc },
-  tiposServico: { rotulo:'Tipos de serviço', porObra:false, chave:'cod', col:['Código','Nome do Serviço','Unidade','Meta diária'],
+  tiposServico: { rotulo:'Tipos de serviço', porObra:false, chave:'cod', col:['Código','Nome do Serviço','Unidade'],
                   map:g=>({ cod:g(['código','codigo','cod']), nome:g(['nome do serviço','nome do servico','serviço','servico','nome']), unidade:g(['unidade','un']), meta:parseFloat(String(g(['meta'])).replace(',','.'))||0 }), ok:x=>x.cod&&x.nome },
   turnos:       { rotulo:'Turnos', porObra:false, chave:'cod', col:['Código','Nome','Início (HH:MM)','Fim (HH:MM)'],
                   map:g=>({ cod:g(['código','codigo','cod']).toUpperCase(), nome:g(['nome']), inicio:_horaImport(g(['início','inicio'])), fim:_horaImport(g(['fim'])) }), ok:x=>x.cod&&x.nome&&x.inicio&&x.fim },
   tiposPerdas:  { rotulo:'Tipos de perda', porObra:false, chave:'cod', col:['Código','Nome','Aplica a (MO/EQ/Ambos)'],
                   map:g=>({ cod:g(['código','codigo','cod']).toUpperCase(), nome:g(['nome']), aplica:g(['aplica'])||'Ambos', cor:'gray' }), ok:x=>x.cod&&x.nome },
-  funcionarios: { rotulo:'Funcionários', porObra:true, chave:'mat', col:['Matrícula','Nome Completo','Cód. Função','Empresa (código)','Direto (Sim/Não)','Data Admissão (DD/MM/AAAA)','Matr. Líder','Cód. Equipe','Gera apontamento (Sim/Não)','Apropriador (Sim/Não)','Telefone (WhatsApp)'],
-                  map:g=>{ const direto = g(['direto'])||'Sim', ga = String(g(['gera apont']) || '');
+  funcionarios: { rotulo:'Funcionários', porObra:true, chave:'mat', col:['Matrícula','Nome Completo','Cód. Função','Gera apontamento (Sim/Não)','Apropriador (Sim/Não)','Telefone (WhatsApp)'],
+                  map:g=>{ const direto = g(['direto'])||'', ga = String(g(['gera apont']) || '');
                     return { mat:g(['matrícula','matricula','mat']), nome:g(['nome completo','nome']), codFuncao:g(['cód. função','cod. função','função','funcao']), _emp:g(['empresa']),
                             direto, admissao:excelDataParaISO(g(['admissão','admissao'])), demissao:excelDataParaISO(g(['demissão','demissao']))||'', lider:g(['matr. líder','matr. lider','matrícula do líder','matricula do lider','matrícula líder','matricula lider']), equipe:g(['cód. equipe','cod. equipe','equipe']),
-                            geraApont: ga ? (/^n/i.test(ga) ? 'Não' : 'Sim') : (/^n/i.test(direto) ? 'Não' : 'Sim'),
+                            _ga: ga,
                             apropriador: /^s/i.test(String(g(['apropriador']) || '')) ? 'Sim' : 'Não', tel:String(g(['telefone','whatsapp','celular']) || '') }; }, ok:x=>x.mat&&x.nome },
-  equipamentos: { rotulo:'Equipamentos', porObra:true, chave:'tag', col:['TAG','Placa/Série','Cód. Modelo','Família','Proprietário (empresa)','Status','Data Mobilização (DD/MM/AAAA)','Custo/hora (R$)'],
-                  map:g=>({ tag:g(['tag']), placa:g(['placa','série','serie']), codModelo:g(['cód. modelo','cod. modelo','modelo']), familia:g(['família','familia']), prop:g(['proprietário','proprietario']),
+  equipamentos: { rotulo:'Equipamentos', porObra:true, chave:'tag', col:['TAG','Placa/Série','Família','Modelo','Empresa proprietária (código)','Status','Custo/hora (R$)'],
+                  map:g=>({ tag:g(['tag']), placa:g(['placa','série','serie']), codModelo:g(['cód. modelo','cod. modelo','modelo']), familia:g(['família','familia']), prop:g(['propriet','empresa']),
                             status:g(['status'])||'Mobilizado', dataMob:excelDataParaISO(g(['mobiliza'])), custoHora:_numImport(g(['custo'])) }), ok:x=>x.tag },
 };
 IMPORT_DEF.aponMO = { rotulo:'Apontamentos MO', porObra:true, chave:'_chave', col:['Data (DD/MM/AAAA)','Matrícula','Frente (código)','Serviço','Entrada (HH:MM)','Saída (HH:MM)','H. normais','H. extras','Equipe (nº)','Produção da equipe','Unidade','Apontador','Status (Aprovado/Pendente)'],
@@ -8087,6 +8098,32 @@ IMPORT_DEF.tanques = { rotulo:'Tanques', porObra:true, chave:'cod', col:['Códig
 IMPORT_DEF.diesel = { rotulo:'Abastecimentos', porObra:true, chave:'_chave', col:['Data (DD/MM/AAAA)','Hora (HH:MM)','TAG','Tanque (código)','Litros','Horímetro / Km','Apontador'],
   map:g=>({ _data:excelDataParaISO(g(['data'])), _hora:_horaImport(g(['hora'])) || '07:00', equip:g(['tag']), _tq:g(['tanque']), litros:_numImport(g(['litros'])), hor:g(['horímetro','horimetro','km']), lancadoPor:g(['apontador'])||'Importação', status:'aprovado' }), ok:x=>x._data&&x.equip&&x.litros };
 const IMPORT_ORDEM = ['obras','empresas','ua','cargos','familias','modelos','frentes','tiposServico','turnos','tiposPerdas','funcionarios','equipamentos','tanques','aponMO','aponEQ','diesel'];
+// v2.67: o pacote da obra traz só cadastros; histórico (apontamentos e abastecimentos antigos) vem num arquivo à parte.
+// Tipos de perda e tanques são cadastrados no painel (não entram na importação). Famílias e modelos vêm dentro de Equipamentos.
+const IMPORT_PACOTE = ['obras','empresas','ua','cargos','familias','modelos','frentes','tiposServico','turnos','funcionarios','equipamentos'];
+const IMPORT_PACOTE_MODELO = ['obras','empresas','ua','cargos','frentes','tiposServico','turnos','funcionarios','equipamentos'];
+const IMPORT_HISTORICO = ['aponMO','aponEQ','diesel'];
+function _impCodigo(txt, lista, campo) {
+  let base = String(txt).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3) || 'X', cod = base, n = 2;
+  while (lista.some(x => String(x[campo] || '').toUpperCase() === cod)) cod = base + n++;
+  return cod;
+}
+function _impFamilia(txt, obraId) {
+  const t = String(txt || '').trim(); if (!t) return null; const tl = t.toLowerCase();
+  const l = dados.familias || (dados.familias = []);
+  let f = l.find(x => (!x.obra || x.obra === obraId) && ((x.cod||'').toLowerCase() === tl || (x.desc||'').toLowerCase() === tl));
+  if (!f) { f = { id: 'fam' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), obra: obraId, cod: t.length <= 6 && !/\s/.test(t) ? t.toUpperCase() : _impCodigo(t, l, 'cod'), desc: t };
+    l.push(f); (window.__impCriados = window.__impCriados || []).push(['familias', f]); }
+  return f;
+}
+function _impModelo(txt, famCod, obraId) {
+  const t = String(txt || '').trim(); if (!t) return null; const tl = t.toLowerCase();
+  const l = dados.modelos || (dados.modelos = []);
+  let m = l.find(x => (!x.obra || x.obra === obraId) && ((x.cod||'').toLowerCase() === tl || (x.nome||'').toLowerCase() === tl));
+  if (!m) { m = { id: 'mod' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), obra: obraId, cod: t.length <= 10 && !/\s/.test(t) ? t.toUpperCase() : _impCodigo(t, l, 'cod'), nome: t, familia: famCod || '' };
+    l.push(m); (window.__impCriados = window.__impCriados || []).push(['modelos', m]); }
+  return m;
+}
 function _numImport(v) {
   if (v === undefined || v === null || v === '') return 0;
   if (typeof v === 'number') return v;
@@ -8119,15 +8156,29 @@ function _importarLinhas(tipo, rows, resumo) {
     if (def.porObra || idxObra >= 0) {
       const v = idxObra >= 0 ? String(row[idxObra] ?? '').trim().toLowerCase() : '';
       const ob = v ? (dados.obras||[]).find(o => (o.cod||'').toLowerCase() === v || (o.nome||'').toLowerCase() === v) || (dados.obras||[]).find(o => (o.nome||'').toLowerCase().includes(v)) : null;
-      obraId = ob ? ob.id : ((obraAtiva && obraAtiva.id !== 'todas') ? obraAtiva.id : '');
-      if (def.porObra && !obraId) { r.erro++; if (r.avisos.length < 3) r.avisos.push('linha ' + (i+2) + ': obra "' + (row[idxObra]||'') + '" não encontrada'); return; }
+      obraId = ob ? ob.id : (window.__obraPacote || ((obraAtiva && obraAtiva.id !== 'todas') ? obraAtiva.id : ''));
+      if (def.porObra && !obraId) { r.erro++; if (r.avisos.length < 3) r.avisos.push(idxObra >= 0 && row[idxObra] ? 'linha ' + (i+2) + ': obra "' + row[idxObra] + '" não encontrada' : 'escolha a obra no topo do painel antes de importar'); return; }
     }
     const item = def.map(g);
     if (!def.ok(item)) { r.erro++; if (r.avisos.length < 3) r.avisos.push('linha ' + (i+2) + ': campos obrigatórios vazios'); return; }
     if (obraId) item.obra = obraId;
     if (tipo === 'funcionarios') {
-      const e = (dados.empresas||[]).find(x => (x.obra === obraId || !x.obra) && ((x.cod||'').toLowerCase() === String(item._emp).toLowerCase() || (x.nome||'').toLowerCase() === String(item._emp).toLowerCase()));
+      const daObra = x => x.obra === obraId || !x.obra;
+      const e = item._emp ? (dados.empresas||[]).find(x => daObra(x) && ((x.cod||'').toLowerCase() === String(item._emp).toLowerCase() || (x.nome||'').toLowerCase() === String(item._emp).toLowerCase()))
+                          : (dados.empresas||[]).find(x => daObra(x) && /pr[oó]pria/i.test(x.tipo || ''));   // v2.67: mão de obra é sempre própria
       item.empresa = e ? e.nome : (item._emp || ''); item.empresaId = e ? e.id : ''; delete item._emp;
+      if (!item.direto) { const c = (dados.cargos||[]).find(x => daObra(x) && String(x.cod||'').toLowerCase() === String(item.codFuncao||'').toLowerCase()); item.direto = (c && c.direto) || 'Sim'; }
+      item.geraApont = item._ga ? (/^n/i.test(item._ga) ? 'Não' : 'Sim') : (/^n/i.test(item.direto) ? 'Não' : 'Sim'); delete item._ga;
+    }
+    if (tipo === 'equipamentos') {
+      // v2.67: empresa proprietária é obrigatória e precisa estar cadastrada
+      const daObra = x => x.obra === obraId || !x.obra, t = String(item.prop || '').trim().toLowerCase();
+      const emp = t && (dados.empresas||[]).find(x => daObra(x) && ((x.cod||'').toLowerCase() === t || (x.nome||'').toLowerCase() === t));
+      if (!emp) { r.erro++; if (r.avisos.length < 3) r.avisos.push('linha ' + (i+2) + ': ' + (t ? 'empresa "' + item.prop + '" não cadastrada (cadastre na aba Empresas)' : 'falta a empresa proprietária')); return; }
+      item.prop = emp.nome; item.propId = emp.id;
+      // família e modelo por código ou nome; se não existirem, são criados
+      const f = _impFamilia(item.familia, obraId); item.familia = f ? f.cod : '';
+      const m = _impModelo(item.codModelo, item.familia, obraId); item.codModelo = m ? m.cod : '';
     }
     if (tipo === 'aponMO') {
       const f = (dados.funcionarios||[]).find(x => String(x.mat) === String(item.mat) && (!x.obra || x.obra === obraId)) || (dados.funcionarios||[]).find(x => String(x.mat) === String(item.mat));
@@ -8206,28 +8257,30 @@ async function _gravarImportados(tipo, novos) {
 window.baixarTemplate = function (tipo) {
   if (typeof XLSX === 'undefined') { toast('Aguarde o carregamento do Excel e tente novamente.', 'error'); return; }
   const wb = XLSX.utils.book_new();
-  const tipos = tipo === 'pacote' ? IMPORT_ORDEM : [tipo];
+  const tipos = tipo === 'pacote' ? IMPORT_PACOTE_MODELO : tipo === 'historico' ? IMPORT_HISTORICO : [tipo];
   tipos.forEach(t => {
     const def = IMPORT_DEF[t]; if (!def) return;
-    const cab = (def.porObra ? ['Obra (código ou nome)'] : []).concat(def.col);
+    const cab = def.col.slice();   // v2.67: sem coluna "Obra" — vale a obra do pacote ou a escolhida no topo
     const ws = XLSX.utils.aoa_to_sheet([cab]);
     ws['!cols'] = cab.map(h => ({ wch: Math.max(h.length + 4, 16) }));
     XLSX.utils.book_append_sheet(wb, ws, def.rotulo.slice(0, 31));
   });
   if (!wb.SheetNames.length) { toast('Template não disponível para este cadastro.', 'error'); return; }
-  XLSX.writeFile(wb, tipo === 'pacote' ? 'ObraKontrol_pacote_importacao.xlsx' : 'template_' + tipo + '.xlsx');
+  XLSX.writeFile(wb, tipo === 'pacote' ? 'ObraKontrol_pacote_importacao.xlsx' : tipo === 'historico' ? 'ObraKontrol_historico_importacao.xlsx' : 'template_' + tipo + '.xlsx');
   toast('Template baixado! Preencha e importe.');
 };
 
 window.abrirImportacao = function (tipo) {
   const $ = k => document.getElementById(k);
-  if ($('import-titulo')) $('import-titulo').textContent = tipo === 'pacote' ? 'Importar pacote completo' : 'Importar ' + (IMPORT_DEF[tipo]?.rotulo || tipo);
+  if ($('import-titulo')) $('import-titulo').textContent = tipo === 'pacote' ? 'Importar pacote completo' : tipo === 'historico' ? 'Importar histórico (apontamentos e abastecimentos antigos)' : 'Importar ' + (IMPORT_DEF[tipo]?.rotulo || tipo);
   if ($('import-tipo')) $('import-tipo').value = tipo;
   if ($('import-custo-wrap')) { $('import-custo-wrap').style.display = ['pacote','cargos','equipamentos'].includes(tipo) ? 'flex' : 'none'; $('import-atualizar-custo').checked = false; }
   const f = $('import-file'); if (f) { f.value = ''; f.onchange = function () { previewImport(this); }; }
   const pv = $('import-preview'); if (pv) { pv.innerHTML = tipo === 'pacote'
-    ? 'Um arquivo Excel com <strong>uma aba por cadastro</strong> (Obras, Empresas, UA, Cargos, Famílias, Modelos, Frentes, Tipos de serviço, Turnos, Tipos de perda, Funcionários, Equipamentos e, opcional, Tanques, Apontamentos MO / EQ e Abastecimentos). A importação segue essa ordem. Registros com código que já existe são ignorados.'
-    : 'Registros com código que já existe são ignorados.'; pv.style.display = 'block'; }
+    ? 'Um arquivo Excel com <strong>uma aba por cadastro</strong>: Obras, Empresas, UA, Cargos, Frentes, Tipos de serviço, Turnos, Funcionários e Equipamentos (com família e modelo). Não precisa de coluna "Obra": vale a obra da aba Obras ou a escolhida no topo. Registros com código que já existe são ignorados.<br><span style="color:var(--text-3)">Apontamentos e abastecimentos antigos vão no arquivo de <strong>histórico</strong>. Tipos de perda e tanques são cadastrados no painel.</span>'
+    : tipo === 'historico'
+    ? 'Um arquivo com as abas <strong>Apontamentos MO</strong>, <strong>Apontamentos EQ</strong> e/ou <strong>Abastecimentos</strong>. Os funcionários, equipamentos e frentes já precisam estar cadastrados. Escolha a obra no topo antes de importar.'
+    : 'Registros com código que já existe são ignorados.' + (IMPORT_DEF[tipo]?.porObra ? ' Vale a obra escolhida no topo.' : ''); pv.style.display = 'block'; }
   openModal('modal-importacao');
 };
 
@@ -8239,10 +8292,12 @@ window.previewImport = function (input) {
     const wb = XLSX.read(e.target.result, { type:'binary', cellDates:true });
     const pv = document.getElementById('import-preview'); pv.style.display = 'block';
     const conta = n => XLSX.utils.sheet_to_json(wb.Sheets[n], { header:1 }).slice(1).filter(r => r.some(c => c !== undefined && String(c).trim() !== '')).length;
-    if (tipo === 'pacote') {
+    if (tipo === 'pacote' || tipo === 'historico') {
+      const vale = tipo === 'pacote' ? IMPORT_PACOTE : IMPORT_HISTORICO;
       pv.innerHTML = '<strong style="color:var(--green-dark)">Abas encontradas:</strong><br>' + wb.SheetNames.map(n => {
         const t = _ABA_TIPO[_normAba(n)];
-        return t ? '✅ ' + n + ' → ' + IMPORT_DEF[t].rotulo + ' (' + conta(n) + ' linhas)' : '⚪ ' + n + ' (ignorada)';
+        return t && vale.includes(t) ? '✅ ' + n + ' → ' + IMPORT_DEF[t].rotulo + ' (' + conta(n) + ' linhas)'
+          : '⚪ ' + n + ' (ignorada' + (t && IMPORT_HISTORICO.includes(t) ? ' — use Importar histórico' : t === 'tiposPerdas' || t === 'tanques' ? ' — cadastre no painel' : t ? ' — use o Importar pacote' : '') + ')';
       }).join('<br>');
     } else pv.innerHTML = '<strong style="color:var(--green-dark)">✅ ' + conta(wb.SheetNames[0]) + ' linha(s) encontrada(s)</strong>';
   };
@@ -8261,14 +8316,23 @@ window.confirmarImportacao = async function () {
     try {
       const wb = XLSX.read(e.target.result, { type:'binary', cellDates:true });
       const abas = {};
-      if (tipo === 'pacote') wb.SheetNames.forEach(n => { const t = _ABA_TIPO[_normAba(n)]; if (t && !abas[t]) abas[t] = n; });
+      if (tipo === 'pacote' || tipo === 'historico') { const vale = tipo === 'pacote' ? IMPORT_PACOTE : IMPORT_HISTORICO; wb.SheetNames.forEach(n => { const t = _ABA_TIPO[_normAba(n)]; if (t && vale.includes(t) && !abas[t]) abas[t] = n; }); }
       else abas[tipo] = wb.SheetNames[0];
-      window.__impAtualizados = [];
+      window.__impAtualizados = []; window.__impCriados = []; window.__obraPacote = '';
+      // v2.67: sem coluna "Obra", vale a obra da aba Obras (se for uma só)
+      if (abas.obras) { const ro = XLSX.utils.sheet_to_json(wb.Sheets[abas.obras], { header:1, defval:'' }); const h = (ro[0]||[]).map(x => String(x).toLowerCase()); const ic = h.findIndex(x => x.includes('cód') || x.includes('cod'));
+        const cods = ro.slice(1).map(r => String(r[ic] ?? '').trim()).filter(Boolean); if (cods.length === 1) window.__obraPacote = '#' + cods[0]; }
       for (const t of IMPORT_ORDEM) {
         if (!abas[t]) continue;
         const rows = XLSX.utils.sheet_to_json(wb.Sheets[abas[t]], { header:1, defval:'' });
         const novos = _importarLinhas(t, rows, resumo);
         falhas += await _gravarImportados(t, novos);
+        if (t === 'obras' && String(window.__obraPacote || '').startsWith('#')) { const c = window.__obraPacote.slice(1).toLowerCase(); const o = (dados.obras||[]).find(x => (x.cod||'').toLowerCase() === c); window.__obraPacote = o ? o.id : ''; }
+      }
+      window.__obraPacote = '';
+      if (db && _firebaseReady && window.__impCriados.length) {
+        const rs = await Promise.allSettled(window.__impCriados.map(([t, x]) => fbSave(t, x.id, x)));
+        falhas += rs.filter(x => x.status === 'rejected').length;
       }
       if (db && _firebaseReady && window.__impAtualizados.length) {
         const rs = await Promise.allSettled(window.__impAtualizados.map(([t, x]) => fbSave(t, x.id, x)));
@@ -8279,6 +8343,8 @@ window.confirmarImportacao = async function () {
         .forEach(fn => { try { if (typeof window[fn] === 'function') window[fn](); } catch (x) {} });
       try { popularSelects(); } catch (x) {}
       const linhas = Object.entries(resumo).map(([t, r]) => '<strong>' + IMPORT_DEF[t].rotulo + ':</strong> ' + r.ok + ' importado(s)' + (r.atual ? ', <strong>' + r.atual + ' atualizado(s)</strong>' : '') + (r.dup ? ', ' + r.dup + ' já existiam' : '') + (r.erro ? ', <span style="color:var(--red)">' + r.erro + ' com erro</span> (' + r.avisos.join('; ') + ')' : ''));
+      const nf = (window.__impCriados||[]).filter(x => x[0] === 'familias').length, nm = (window.__impCriados||[]).filter(x => x[0] === 'modelos').length;
+      if (nf || nm) linhas.push('<strong>Famílias e modelos:</strong> ' + nf + ' família(s) e ' + nm + ' modelo(s) criados a partir de Equipamentos');
       const total = Object.values(resumo).reduce((a, r) => a + r.ok, 0);
       const pv = document.getElementById('import-preview');
       pv.style.display = 'block';
