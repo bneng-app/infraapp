@@ -807,7 +807,7 @@ select.form-control,select.form-control:focus{background-image:url("data:image/s
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.34</div>
+  <div class="login-versao">ObraKontrol Campo · v2.35</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -2207,7 +2207,7 @@ function _apEu() { const m = String(usuarioCampo?.mat || '').replace(/\s+/g, '')
 function _apGera(f) { return f.geraApont ? f.geraApont !== 'Não' : !/^n/i.test(String(f.direto || '')); }
 function _normId(v) { return String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); }
 function _apFuncs() { const o = _apObra(), eu = _apEu(), hj = _hojeISO(); return dadosCampo.funcionarios.filter(f => (!o || !f.obra || f.obra === o) && f.status !== 'Desligado' && (!f.demissao || f.demissao > hj) && (!f.admissao || f.admissao <= hj) && (_apGera(f) || (eu && f.id === eu.id) || ap.mo.has(f.id))); }
-function _apEquips() { const o = _apObra(); return dadosCampo.equipamentos.filter(e => !o || !e.obra || e.obra === o); }
+function _apEquips() { const o = _apObra(), hj = _hojeISO(); return dadosCampo.equipamentos.filter(e => (!o || !e.obra || e.obra === o) && !/desmob/i.test(e.status || '') && (!e.dataDesmob || e.dataDesmob > hj) && (!e.dataMob || e.dataMob <= hj)); }
 function _apTurno() { const id = document.getElementById('ap-turno').value; return dadosCampo.turnos.find(t => (t.id || t.cod) === id); }
 function _apHorasTurno(t) {
   if (!t) return null;

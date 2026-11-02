@@ -554,7 +554,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v2.70 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v2.72 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -2843,12 +2843,19 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
         <div class="form-group"><label class="form-label">Status</label>
           <select class="form-control" id="equip-status">
             <option value="Mobilizado">Mobilizado</option>
+            <option value="Em manutenção">Em manutenção</option>
             <option value="Desmobilizado">Desmobilizado</option>
-            <option value="Manutenção">Manutenção</option>
           </select>
         </div>
-        <div class="form-group"><label class="form-label">Data mobilização</label><input type="date" class="form-control" id="equip-mob"/></div>
-        <div class="form-group"><label class="form-label">Custo por hora (R$)</label><input class="form-control" id="equip-custo" type="number" step="0.01" min="0" placeholder="Ex.: 180,00"/>
+        <div class="form-group"><label class="form-label">Data mobilização</label><input type="date" class="form-control" id="equip-mob"/>
+          <div style="font-size:11px;color:var(--text-3);margin-top:3px">A partir dela a máquina deve ser apontada.</div></div>
+        <div class="form-group"><label class="form-label">Data desmobilização</label><input type="date" class="form-control" id="equip-desmob"/>
+          <div style="font-size:11px;color:var(--text-3);margin-top:3px">A partir dela sai do app e do "faltando apontar".</div></div>
+        <div class="form-group form-full" style="border-top:1px solid var(--border);padding-top:10px;margin-top:4px"><label class="form-label">Locação (equipamento de terceiro)</label>
+          <select class="form-control" id="equip-cobranca" onchange="_equipLocVer()"><option value="">Não se aplica</option><option value="Mês">Mensal com franquia de horas</option><option value="Hora">Por hora</option></select></div>
+        <div class="form-group equip-loc-x" style="display:none"><label class="form-label" id="equip-valor-lbl">Valor mensal (R$)</label><input class="form-control" id="equip-valor" type="number" step="0.01" min="0"/></div>
+        <div class="form-group equip-loc-x" style="display:none"><label class="form-label">Franquia (h/mês)</label><input class="form-control" id="equip-franquia" type="number" step="1" min="0" placeholder="Ex.: 200"/></div>
+        <div class="form-group"><label class="form-label">Custo por hora sem diesel (R$)</label><input class="form-control" id="equip-custo" type="number" step="0.01" min="0" placeholder="Ex.: 180,00"/>
           <div style="font-size:11px;color:var(--text-3);margin-top:3px">Vale para horas produtivas e paradas.</div></div>
       </div>
     </div>
@@ -2894,6 +2901,8 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
         <div class="form-group"><label class="form-label">Código *</label><input class="form-control" id="obra-cod" placeholder="Ex.: SP-280"/></div>
         <div class="form-group form-full"><label class="form-label">Nome da obra *</label><input class="form-control" id="obra-nome" placeholder="Ex.: Rodovia SP-280 Km 34"/></div>
         <div class="form-group form-full"><label class="form-label">Local / Município</label><input class="form-control" id="obra-local" placeholder="Ex.: Sorocaba – SP"/></div>
+        <div class="form-group"><label class="form-label">Taxa de encargos (%)</label><input class="form-control" id="obra-encargos" type="number" step="0.01" min="0" placeholder="Ex.: 82,5"/>
+          <div style="font-size:11px;color:var(--text-3);margin-top:3px">Aplicada sobre o salário ÷ 220 no custo real da mão de obra.</div></div>
         <div class="form-group"><label class="form-label">Status</label><select class="form-control" id="obra-status"><option>Ativa</option><option>Encerrada</option><option>Suspensa</option></select></div>
         <div class="form-group form-full"><label class="form-label">Feriados locais (municipais/estaduais)</label><input class="form-control" id="obra-feriados" placeholder="Ex.: 20/01, 09/07, 25/01/2027"/>
           <div style="font-size:11px;color:var(--text-3);margin-top:3px">Separe por vírgula. DD/MM repete todo ano; DD/MM/AAAA vale só naquele ano. Os feriados nacionais já são automáticos.</div></div>
@@ -4865,7 +4874,7 @@ function renderFuncionarios(pagina) {
         <td class="td-mono">${f.codFuncao}</td>
         <td>${nomeFunc}</td>
         <td>${tag(f.direto === 'Não' ? 'Indireto' : 'Direto', f.direto === 'Não' ? 'gray' : 'green')}</td>
-        <td class="td-mono" style="text-align:right;white-space:nowrap">${f.salario ? 'R$ ' + Number(f.salario).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '<span style="color:var(--text-3)">—</span>'}</td>
+        <td class="td-mono" style="text-align:right;white-space:nowrap">${f.salario ? 'R$ ' + Number(f.salario).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + (() => { const p = _salPrev(f.obra, f.codFuncao); if (!p) return ''; const d = (f.salario / p - 1) * 100; return `<div style="font-size:10.5px;color:${Math.abs(d) < 0.5 ? 'var(--green-dark)' : d > 0 ? 'var(--red)' : 'var(--green-dark)'}" title="Previsto no orçamento: R$ ${Number(p).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}">${_pctTxt(d)} vs previsto</div>`; })() : '<span style="color:var(--text-3)">—</span>'}</td>
         <td class="td-mono" style="white-space:nowrap" title="CPF completo no Editar">${f.cpf ? _cpfMask(f.cpf) : '<span style="color:var(--text-3)">—</span>'}</td>
         <td class="td-mono" style="white-space:nowrap">${f.admissao ? fmtData(f.admissao) : '—'}</td>
         <td style="white-space:nowrap">${f.demissao && f.demissao <= _hojeLocal() ? tag('Desligado ' + fmtData(f.demissao), 'red') : f.demissao ? tag('Sai em ' + fmtData(f.demissao), 'amber') : tag('Ativo', 'green')}</td>
@@ -4982,7 +4991,7 @@ function renderEquipamentos() {
         const modelo = dados.modelos.find(m=>m.cod===e.codModelo);
         const modNome = modelo?.nome || '—';
         const famDesc = dados.familias.find(f=>f.cod===e.familia)?.desc || e.familia;
-        const stCls = e.status==='Mobilizado'?'green':e.status==='Manutenção'?'amber':'gray';
+        const stCls = _stEq(e.status)==='Mobilizado'?'green':_stEq(e.status)==='Em manutenção'?'amber':'gray';
         return `<tr>${cbTD('equipamentos',e.id)}<td style='font-size:11px;color:var(--text-3)'>${getNomeObra(e.obra)}</td><td class="td-mono"><strong style="color:var(--green-dark)">${e.tag||'—'}</strong></td>
           <td class="td-mono">${e.codModelo}</td>
           <td>${modNome}</td>
@@ -7403,7 +7412,7 @@ function renderDashEQ() {
   const byEquipStatus = {};
   dados.equipamentos.forEach(e=>{ byEquipStatus[e.tag||e.placa]={status:e.status,mob:e.dataMob}; });
   document.getElementById('eq-status-chart').innerHTML = Object.entries(byEquipStatus).slice(0,8).map(([t,v])=>{
-    const stCls=v.status==='Mobilizado'?'green':v.status==='Manutenção'?'amber':'gray';
+    const stCls=_stEq(v.status)==='Mobilizado'?'green':_stEq(v.status)==='Em manutenção'?'amber':'gray';
     return `<div class="mo-list-item" style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
       <strong style="font-size:12px;color:var(--green-dark)">${t}</strong>
       ${tag(v.status, stCls)}
@@ -8075,8 +8084,8 @@ async function testarAcessoCampo() {
 // v2.13: IMPORTAÇÃO — todos os cadastros, e "pacote completo" (um Excel com uma aba por cadastro)
 // ═══════════════════════════════════════════════════════════════
 const IMPORT_DEF = {
-  obras:        { rotulo:'Obras', porObra:false, chave:'cod', col:['Código','Nome da Obra','Local/Município'],
-                  map:g=>({ cod:g(['código','codigo','cod']), nome:g(['nome da obra','nome']), local:g(['local','município','municipio']), status:g(['status'])||'Ativa' }), ok:x=>x.cod&&x.nome },
+  obras:        { rotulo:'Obras', porObra:false, chave:'cod', col:['Código','Nome da Obra','Local/Município','Encargos (%)'],
+                  map:g=>({ cod:g(['código','codigo','cod']), nome:g(['nome da obra','nome']), local:g(['local','município','municipio']), status:g(['status'])||'Ativa', encargos:_numImport(g(['encargo'])) }), ok:x=>x.cod&&x.nome },
   empresas:     { rotulo:'Empresas', porObra:true, chave:'cod', col:['Código','Razão Social','CNPJ','Tipo (Própria / Locadora / Empreiteira…)','Responsável'],
                   map:g=>({ cod:g(['código','codigo','cod']), nome:g(['razão','razao','nome']), cnpj:g(['cnpj']), tipo:g(['tipo'])||'Empreiteira', resp:g(['responsável','responsavel']) }), ok:x=>x.cod&&x.nome },
   ua:           { rotulo:'UA', porObra:true, chave:'cod', col:['Código UA','Descrição','Tipo (MO/EQ)'],
@@ -8103,9 +8112,10 @@ const IMPORT_DEF = {
                             direto, admissao:excelDataParaISO(g(['admissão','admissao'])), demissao:excelDataParaISO(g(['demissão','demissao']))||'', lider:g(['matr. líder','matr. lider','matrícula do líder','matricula do lider','matrícula líder','matricula lider']), equipe:g(['cód. equipe','cod. equipe','equipe']),
                             _ga: ga,
                             apropriador: /^s/i.test(String(g(['apropriador']) || '')) ? 'Sim' : 'Não', tel:String(g(['telefone','whatsapp','celular']) || '') }; }, ok:x=>x.mat&&x.nome },
-  equipamentos: { rotulo:'Equipamentos', porObra:true, chave:'tag', col:['TAG','Placa/Série','Família','Modelo','Empresa proprietária (código)','Status','Custo/hora (R$)'],
+  equipamentos: { rotulo:'Equipamentos', porObra:true, chave:'tag', col:['TAG','Placa/Série','Família','Modelo','Empresa proprietária (código)','Status (Mobilizado / Em manutenção / Desmobilizado)','Data Mobilização (DD/MM/AAAA)','Data Desmobilização (DD/MM/AAAA)','Custo/hora sem diesel (R$)','Tipo de cobrança (Hora/Mês)','Valor da locação (R$)','Franquia (h/mês)'],
                   map:g=>({ tag:g(['tag']), placa:g(['placa','série','serie']), codModelo:g(['cód. modelo','cod. modelo','modelo']), familia:g(['família','familia']), prop:g(['propriet','empresa']),
-                            status:g(['status'])||'Mobilizado', dataMob:excelDataParaISO(g(['mobiliza'])), custoHora:_numImport(g(['custo'])) }), ok:x=>x.tag },
+                            _st:g(['status']), dataMob:excelDataParaISO(g(['data mobiliza','dt. mobiliza','dt mobiliza','mobilização (','mobilizacao (','mobiliza'])), dataDesmob:excelDataParaISO(g(['desmobiliza'])), custoHora:_numImport(g(['custo'])),
+                            _cob:g(['cobran']), valorLoc:_numImport(g(['valor da loca','valor loca','valor'])), franquiaH:_numImport(g(['franquia'])) }), ok:x=>x.tag },
 };
 IMPORT_DEF.aponMO = { rotulo:'Apontamentos MO', porObra:true, chave:'_chave', col:['Data (DD/MM/AAAA)','Matrícula','Frente (código)','Serviço','Entrada (HH:MM)','Saída (HH:MM)','H. normais','H. extras','Equipe (nº)','Produção da equipe','Unidade','Apontador','Status (Aprovado/Pendente)'],
   map:g=>({ data:excelDataParaISO(g(['data'])), mat:g(['matrícula','matricula','mat']), frente:g(['frente']), servico:g(['serviço','servico'])||'—', horaIni:_horaImport(g(['entrada'])), horaFim:_horaImport(g(['saída','saida'])),
@@ -8152,6 +8162,13 @@ function _cpfMask(v) { const c = _cpfFmt(v); return c ? '***.' + c.slice(4, 11) 
 function _cpfValido(v) { const d = String(v || '').replace(/\D/g, ''); if (d.length !== 11 || /^(\d)\1+$/.test(d)) return false;
   const dv = n => { let s = 0; for (let i = 0; i < n; i++) s += +d[i] * (n + 1 - i); const r = s * 10 % 11; return r === 10 ? 0 : r; };
   return dv(9) === +d[9] && dv(10) === +d[10]; }
+// v2.71: status do equipamento padronizado ('' = em branco; null = não reconhecido)
+function _stEq(s) { const t = String(s || '').trim(); if (!t) return ''; if (/desmob/i.test(t)) return 'Desmobilizado'; if (/manut|oficina/i.test(t)) return 'Em manutenção'; if (/mobiliz|ativo|operando|em obra/i.test(t)) return 'Mobilizado'; return null; }
+// deve ser apontado na data: status Mobilizado e dentro do período mobilizado
+function _eqDeveApontar(e, d) { const st = _stEq(e.status) || 'Mobilizado';
+  if (st === 'Em manutenção') return false;
+  if (st === 'Desmobilizado' && !e.dataDesmob) return false;   // desmobilizado sem data: fora
+  return (!e.dataMob || e.dataMob <= d) && (!e.dataDesmob || e.dataDesmob > d); }
 function _numImport(v) {
   if (v === undefined || v === null || v === '') return 0;
   if (typeof v === 'number') return v;
@@ -8210,6 +8227,13 @@ function _importarLinhas(tipo, rows, resumo) {
       const emp = t && (dados.empresas||[]).find(x => daObra(x) && ((x.cod||'').toLowerCase() === t || (x.nome||'').toLowerCase() === t));
       if (!emp) { r.erro++; if (r.avisos.length < 3) r.avisos.push('linha ' + (i+2) + ': ' + (t ? 'empresa "' + item.prop + '" não cadastrada (cadastre na aba Empresas)' : 'falta a empresa proprietária')); return; }
       item.prop = emp.nome; item.propId = emp.id;
+      // v2.71: status padronizado; datas e locação
+      const stTxt = item._st, st = _stEq(item._st); delete item._st; item.status = stTxt;
+      if (st === null) { r.erro++; if (r.avisos.length < 3) r.avisos.push('linha ' + (i+2) + ': status "' + item.status + '" não reconhecido (use Mobilizado, Em manutenção ou Desmobilizado)'); return; }
+      item.status = st || (item.dataDesmob && item.dataDesmob <= _hojeLocal() ? 'Desmobilizado' : 'Mobilizado');
+      const cb = String(item._cob || '').trim(); delete item._cob;
+      item.cobranca = /^h/i.test(cb) ? 'Hora' : /^m/i.test(cb) ? 'Mês' : '';
+      if (!item.cobranca) { delete item.valorLoc; delete item.franquiaH; }
       // família e modelo por código ou nome; se não existirem, são criados
       const f = _impFamilia(item.familia, obraId); item.familia = f ? f.cod : '';
       const m = _impModelo(item.codModelo, item.familia, obraId); item.codModelo = m ? m.cod : '';
@@ -8262,6 +8286,17 @@ function _importarLinhas(tipo, rows, resumo) {
         if (temCol2(['demiss'])) mud.demissao = item.demissao;
         if (temCol2(['tipo de custo','direto'])) mud.direto = item.direto;
         if (x && Object.keys(mud).some(k => String(x[k] || '') !== String(mud[k] || ''))) { Object.assign(x, mud); (window.__impAtualizados = window.__impAtualizados || []).push([tipo, x]); r.atual = (r.atual||0) + 1; return; }
+      }
+      if (document.getElementById('import-atualizar-custo')?.checked && tipo === 'equipamentos') {
+        const x = lista.find(y => String(y.tag||'').toLowerCase() === chave);
+        const tem = kws => headers.some((h, j) => j !== idxObra && kws.some(k => h.includes(k)) && row[j] !== undefined && row[j] !== null && String(row[j]).trim() !== '');
+        const mud = {};
+        if (tem(['custo'])) mud.custoHora = item.custoHora;
+        if (tem(['status'])) mud.status = item.status;
+        if (tem(['desmobiliza'])) mud.dataDesmob = item.dataDesmob;
+        if (headers.some((h, j) => /mobiliza/.test(h) && !/desmobiliza/.test(h) && row[j] !== '' && row[j] != null)) mud.dataMob = item.dataMob;
+        if (tem(['cobran'])) { mud.cobranca = item.cobranca; mud.valorLoc = item.valorLoc || 0; mud.franquiaH = item.franquiaH || 0; }
+        if (x && Object.keys(mud).some(k => String(x[k] ?? '') !== String(mud[k] ?? ''))) { Object.assign(x, mud); (window.__impAtualizados = window.__impAtualizados || []).push([tipo, x]); r.atual = (r.atual||0) + 1; return; }
       }
       if (document.getElementById('import-atualizar-custo')?.checked && (tipo === 'cargos' || tipo === 'equipamentos')) {
         const x = lista.find(y => String(chaveDe(y)||'').toLowerCase() === chave && (!def.porObra || (y.obra||'') === obraId));
@@ -9947,7 +9982,7 @@ renderDiario = function () {
   const devem = funcs.filter(f => _geraApont(f) === 'Sim');
   const apontado = f => moIds.has(f.id) || moMats.has(String(f.mat));
   const faltam = devem.filter(f => !apontado(f));
-  const eqs = (dados.equipamentos || []).filter(e => (!ob || !e.obra || e.obra === ob) && /mobiliz/i.test(e.status || 'Mobilizado'));
+  const eqs = (dados.equipamentos || []).filter(e => (!ob || !e.obra || e.obra === ob) && _eqDeveApontar(e, dataSel));
   const eqFalta = eqs.filter(e => !(eqIds.has(e.id) || eqTags.has(String(e.tag || '').toLowerCase()) || (e.placa && eqTags.has(String(e.placa).toLowerCase()))));
   const aprops = funcs.filter(f => f.apropriador === 'Sim').map(f => {
     const u = USUARIOS.find(x => String(x.mat || x.matricula || '').replace(/\s+/g, '') === String(f.mat || '').replace(/\s+/g, ''));
@@ -10537,7 +10572,7 @@ function agHoras() {
 }
 function agEqDefault() { const hn = _agV('ag-hn'); _ag.eq.forEach(v => { if (v.auto) v.hp = hn; }); agRender(); }
 function _agFuncs() { const ob = _agV('ag-obra'), d = _agV('ag-data') || _hojeLocal(); return (dados.funcionarios || []).filter(f => (!f.obra || f.obra === ob) && f.status !== 'Desligado' && (!f.demissao || f.demissao > d) && (typeof _geraApont !== 'function' || _geraApont(f) === 'Sim')).sort((a, b) => String(a.nome).localeCompare(String(b.nome))); }
-function _agEquips() { const ob = _agV('ag-obra'); return (dados.equipamentos || []).filter(e => (!e.obra || e.obra === ob) && /mobiliz/i.test(e.status || 'Mobilizado')).sort((a, b) => String(a.tag || a.placa).localeCompare(String(b.tag || b.placa))); }
+function _agEquips() { const ob = _agV('ag-obra'), d = _agV('ag-data') || _hojeLocal(); return (dados.equipamentos || []).filter(e => (!e.obra || e.obra === ob) && _eqDeveApontar(e, d)).sort((a, b) => String(a.tag || a.placa).localeCompare(String(b.tag || b.placa))); }
 function agRender() {
   const n = v => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
   const bm = _agV('ag-busca-mo').toLowerCase(), be = n(_agV('ag-busca-eq'));
@@ -10881,6 +10916,217 @@ async function _efAplicar() {
   closeModal('modal-efetivo');
   toast(`Efetivo aplicado: ${nN} novo(s), ${nM} atualizado(s), ${nD} desligado(s)` + (semCod ? ` · ${semCod} novo(s) ficaram de fora por falta de função` : '') + '.');
 }
+
+// ═══════════════════════════════════════════════════════════════
+// v2.71: EQUIPAMENTO — STATUS PADRÃO, MOBILIZAÇÃO/DESMOBILIZAÇÃO E LOCAÇÃO DE TERCEIROS
+// ═══════════════════════════════════════════════════════════════
+(function () {
+  const $ = id => document.getElementById(id);
+  const oEd = window.editarEquipamento;
+  window.editarEquipamento = function (id) {
+    const r = oEd.apply(this, arguments);
+    const e = (dados.equipamentos || []).find(x => x.id === id);
+    if (e) { if ($('equip-status')) $('equip-status').value = _stEq(e.status) || 'Mobilizado'; if ($('equip-mob')) $('equip-mob').value = e.dataMob || e.mob || '';
+      if ($('equip-desmob')) $('equip-desmob').value = e.dataDesmob || ''; if ($('equip-cobranca')) $('equip-cobranca').value = e.cobranca || '';
+      if ($('equip-valor')) $('equip-valor').value = e.valorLoc || ''; if ($('equip-franquia')) $('equip-franquia').value = e.franquiaH || ''; _equipLocVer(); }
+    return r;
+  };
+  const oSave = window.salvarEquipamento;
+  window.salvarEquipamento = function () {
+    const v = id => ($(id)?.value || '').trim();
+    const extra = { status: v('equip-status') || 'Mobilizado', dataMob: v('equip-mob'), dataDesmob: v('equip-desmob'), cobranca: v('equip-cobranca'), valorLoc: parseFloat(v('equip-valor')) || 0, franquiaH: parseFloat(v('equip-franquia')) || 0 };
+    if (extra.dataDesmob && extra.dataMob && extra.dataDesmob < extra.dataMob) { toast('A desmobilização não pode ser antes da mobilização.', 'error'); return; }
+    if (extra.cobranca === 'Mês' && !extra.franquiaH) { toast('Para cobrança mensal, informe a franquia de horas do mês.', 'error'); return; }
+    const tag = v('equip-tag'), idEd = v('equip-edit-id');
+    const r = oSave.apply(this, arguments);
+    if ($('modal-novo-equip')?.classList.contains('open')) return r;   // não salvou
+    const e = idEd ? (dados.equipamentos || []).find(x => x.id === idEd) : [...(dados.equipamentos || [])].reverse().find(x => String(x.tag || '').toLowerCase() === tag.toLowerCase());
+    if (!e) return r;
+    if (extra.dataDesmob && extra.dataDesmob <= _hojeLocal() && extra.status === 'Mobilizado') extra.status = 'Desmobilizado';
+    Object.assign(e, extra); delete e.mob;
+    if (db && _firebaseReady) fbSave('equipamentos', e.id, e).catch(() => {});
+    try { renderEquipamentos(); } catch (x) {}
+    ['equip-desmob', 'equip-valor', 'equip-franquia'].forEach(i => { if ($(i)) $(i).value = ''; }); if ($('equip-cobranca')) $('equip-cobranca').value = ''; _equipLocVer();
+    return r;
+  };
+  // painel de locação na dashboard de equipamentos
+  const oEQ = window.dxRenderEQ;
+  if (typeof oEQ === 'function') window.dxRenderEQ = function () { const r = oEQ.apply(this, arguments); try { _dxLocacao(); } catch (e) { console.warn('locação', e); } return r; };
+})();
+function _equipLocVer() { const c = document.getElementById('equip-cobranca')?.value || ''; document.querySelectorAll('.equip-loc-x').forEach(el => el.style.display = c ? '' : 'none');
+  const f = document.getElementById('equip-franquia')?.closest('.form-group'); if (f) f.style.display = c === 'Mês' ? '' : 'none';
+  const l = document.getElementById('equip-valor-lbl'); if (l) l.textContent = c === 'Hora' ? 'Valor por hora (R$)' : 'Valor mensal (R$)'; }
+// medição de locação: horas produtivas apontadas × franquia, por locadora e mês
+function _locMedicao(eqAps) {
+  const porEq = new Map();
+  eqAps.forEach(a => { const e = (dados.equipamentos || []).find(x => x.id === a.equipId || x.tag === a.equip || x.placa === a.equip); if (!e || !e.cobranca || !e.valorLoc) return;
+    const k = e.id + '|' + String(a.data || '').slice(0, 7); const x = porEq.get(k) || { e, mes: String(a.data || '').slice(0, 7), hp: 0, hpar: 0 }; x.hp += +a.hp || 0; x.hpar += +a.hpar || 0; porEq.set(k, x); });
+  return [...porEq.values()].map(x => { const e = x.e;
+    let valor = 0, exc = 0;
+    if (e.cobranca === 'Hora') valor = x.hp * e.valorLoc;
+    else { exc = e.franquiaH ? Math.max(0, x.hp - e.franquiaH) : 0; valor = e.valorLoc + (e.franquiaH ? exc * e.valorLoc / e.franquiaH : 0); }
+    return { ...x, loc: e.prop || '—', exc, falta: e.cobranca === 'Mês' && e.franquiaH ? Math.max(0, e.franquiaH - x.hp) : 0, valor }; })
+    .sort((a, b) => a.loc.localeCompare(b.loc) || b.mes.localeCompare(a.mes) || String(a.e.tag).localeCompare(String(b.e.tag)));
+}
+function _dxLocacao() {
+  const main = document.querySelector('#page-dash-eq .dx-main'); if (!main) return;
+  main.querySelector('.dx-loc')?.remove();
+  const { eq } = _dxBase('eq'); const ls = _locMedicao(eq);
+  const tem = (dados.equipamentos || []).some(e => e.cobranca && e.valorLoc);
+  const mesTxt = m => { const [a, b] = m.split('-'); return ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'][+b - 1] + '/' + a.slice(2); };
+  let corpo;
+  if (!tem) corpo = `<div class="dx-vazio">Nenhum equipamento com locação cadastrada. Em Equipamentos → Editar, informe o tipo de cobrança (hora ou mês), o valor e a franquia.</div>`;
+  else {
+    const linhas = []; let loc = null, sub = 0;
+    const fecha = () => { if (loc !== null) linhas.push(`<tr style="font-weight:800">${_td('Total ' + _e(loc))}${_td('')}${_td('')}${_td('')}${_td('')}${_td('')}${_td(_moeda(sub), 'n')}</tr>`); };
+    ls.forEach(x => { if (x.loc !== loc) { fecha(); loc = x.loc; sub = 0; } sub += x.valor;
+      const fr = x.e.cobranca === 'Mês' ? _h(x.e.franquiaH) : '—';
+      const sit = x.e.cobranca === 'Hora' ? '<span style="color:var(--mu)">por hora</span>' : x.exc ? `<b style="color:#F87171">+${_h(x.exc)} excedente</b>` : x.falta ? `<span style="color:#FBBF24">${_h(x.falta)} abaixo da franquia</span>` : '<span style="color:#4ADE80">na franquia</span>';
+      linhas.push(`<tr>${_td('<b>' + _e(x.loc) + '</b>')}${_td('<b>' + _e(x.e.tag || x.e.placa || '') + '</b>')}${_td(mesTxt(x.mes))}${_td(_h(x.hp), 'n')}${_td(fr, 'n')}${_td(sit)}${_td(_moeda(x.valor), 'n')}</tr>`); });
+    fecha();
+    corpo = `<div class="dx-scroll">${_tb(['Locadora', 'TAG', 'Mês', 'Horas produtivas', 'Franquia', 'Situação', 'Valor estimado'], linhas, ['', '', '', 'n', 'n', '', 'n'])}</div>
+      <div style="font-size:11px;color:var(--mu);margin-top:8px">Mensal: valor do mês + horas além da franquia × (valor ÷ franquia). Por hora: horas produtivas × valor. Só apontamentos aprovados. Use para conferir a medição da locadora.</div>`;
+  }
+  main.insertAdjacentHTML('beforeend', `<div class="dx-loc" style="margin-top:12px">${_pn(_ic.grid, 'Locação de terceiros — medição do período', corpo)}</div>`);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// v2.72: CUSTO REAL PELO SALÁRIO + ENCARGOS DA OBRA; PREVISTO NO ORÇAMENTO (salário por função e diesel por família)
+// Hora real = salário ÷ 220 × (1 + encargos da obra). Sem salário: custo/hora do cargo (estimado), também com encargos.
+// O custo/hora do equipamento é sem diesel; o diesel real vem dos abastecimentos.
+// ═══════════════════════════════════════════════════════════════
+const _HORAS_MES = 220;
+function _encObra(obraId) { const o = (dados.obras || []).find(x => x.id === obraId); return parseFloat(o && o.encargos) || 0; }
+function _funcDe(a) {
+  const l = dados.funcionarios || [], ob = a.obra;
+  const porMat = a.mat ? l.filter(f => String(f.mat) === String(a.mat)) : [];
+  if (porMat.length) return porMat.find(f => !ob || !f.obra || f.obra === ob) || porMat[0];
+  return a.func ? (l.find(f => f.nome === a.func && (!ob || !f.obra || f.obra === ob)) || l.find(f => f.nome === a.func)) : null;
+}
+function _horaBaseMO(a) {   // { base (R$/h sem encargo), estimado }
+  const f = _funcDe(a), sal = parseFloat(f && f.salario) || 0;
+  if (sal) return { base: sal / _HORAS_MES, estimado: false };
+  const c = _cargoDe(a); return { base: parseFloat(c && c.custoHora) || 0, estimado: true };
+}
+custoMO = function (a) {
+  const c = _cargoDe(a), hb = _horaBaseMO(a), ob = _obraDoApont(a);
+  const ch = hb.base * (1 + _encObra(ob) / 100);
+  const ad = c && c.adicHE !== undefined && c.adicHE !== '' ? parseFloat(c.adicHE) : 50;
+  const adf = c && c.adicDF !== undefined && c.adicDF !== '' ? parseFloat(c.adicDF) : 100;
+  const hn = parseFloat(a.hn) || 0, he = parseFloat(a.he) || 0;
+  const td = tipoDia(a.data, ob);
+  if (td) return { normal: 0, extra: 0, domFer: ch * (1 + adf / 100) * (hn + he), tipoDia: td, semCusto: !ch, estimado: hb.estimado && !!ch };
+  return { normal: ch * hn, extra: ch * (1 + ad / 100) * he, domFer: 0, tipoDia: '', semCusto: !ch, estimado: hb.estimado && !!ch };
+};
+// previsto do orçamento vigente
+function _salPrev(obraId, cod) { const v = obraId && orcVigente(obraId); const x = v && (v.salarios || []).find(s => s.funcao === cod); return x ? (+x.salario || 0) : 0; }
+function _dieselPrev(obraId, fam) { const v = obraId && orcVigente(obraId); return v && (v.diesel || []).find(s => s.familia === fam) || null; }
+function _pctTxt(p) { return (p > 0 ? '+' : '') + p.toFixed(1).replace('.', ',') + '%'; }
+
+// ── Obra: taxa de encargos
+(function () {
+  const $ = id => document.getElementById(id);
+  const oEd = window.editarObra;
+  window.editarObra = function (id) { const r = oEd.apply(this, arguments); const o = (dados.obras || []).find(x => x.id === id); if ($('obra-encargos')) $('obra-encargos').value = o && o.encargos !== undefined ? o.encargos : ''; return r; };
+  const oSv = window.salvarObra;
+  window.salvarObra = function () {
+    const enc = $('obra-encargos')?.value ?? '', cod = ($('obra-cod')?.value || '').trim(), idEd = $('obra-edit-id')?.value || '';
+    const r = oSv.apply(this, arguments);
+    if ($('modal-nova-obra')?.classList.contains('open')) return r;
+    const o = idEd ? (dados.obras || []).find(x => x.id === idEd) : [...(dados.obras || [])].reverse().find(x => (x.cod || '') === cod);
+    if (o) { o.encargos = enc === '' ? 0 : (parseFloat(enc) || 0); if (db && _firebaseReady) fbSave('obras', o.id, o).catch(() => {}); try { renderObras(); } catch (e) {} }
+    if ($('obra-encargos')) $('obra-encargos').value = '';
+    return r;
+  };
+})();
+
+// ── Orçamento: premissas de custo (salário previsto por função, diesel previsto por família)
+function _orcPremHtml(v, editavel) {
+  const obra = v.obra, enc = _encObra(obra);
+  const cs = (dados.cargos || []).filter(c => !c.obra || c.obra === obra), fs = (dados.familias || []).filter(f => !f.obra || f.obra === obra);
+  const realMedio = cod => { const l = (dados.funcionarios || []).filter(f => (!f.obra || f.obra === obra) && f.codFuncao === cod && +f.salario && !(f.demissao && f.demissao <= _hojeLocal())); return l.length ? l.reduce((s, f) => s + (+f.salario), 0) / l.length : 0; };
+  const inp = (tipo, k, campo, val, w, step) => editavel ? `<input class="form-control" type="number" step="${step || '0.01'}" min="0" style="width:${w || 120}px;padding:4px 8px" value="${val === '' || val == null ? '' : val}" onchange="_orcPremSet('${tipo}',${k},'${campo}',this.value)"/>` : (val ? _fmtN(val) : '—');
+  const sel = (tipo, k, campo, val, ops) => editavel ? `<select class="form-control" style="min-width:190px;padding:4px 8px" onchange="_orcPremSet('${tipo}',${k},'${campo}',this.value)"><option value="">Escolha…</option>${ops.map(([c, n]) => `<option value="${_e(c)}" ${c === val ? 'selected' : ''}>${_e(c)} — ${_e(n)}</option>`).join('')}</select>` : _e(val + ' — ' + ((ops.find(o => o[0] === val) || [])[1] || ''));
+  const del = (tipo, k) => editavel ? `<td><button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="_orcPremDel('${tipo}',${k})">✕</button></td>` : '';
+  const sal = v.salarios || [], die = v.diesel || [];
+  const tS = sal.map((s, k) => { const hp = (+s.salario || 0) / _HORAS_MES * (1 + enc / 100), rm = realMedio(s.funcao), dif = rm && +s.salario ? (rm / s.salario - 1) * 100 : null;
+    return `<tr><td>${sel('salarios', k, 'funcao', s.funcao || '', cs.map(c => [c.cod, c.nome]))}</td><td>${inp('salarios', k, 'salario', s.salario)}</td><td class="td-mono">${hp ? _moeda(hp) + '/h' : '—'}</td>
+      <td class="td-mono">${rm ? _moeda(rm) : '—'}</td><td class="td-mono" style="color:${dif === null ? 'var(--text-3)' : Math.abs(dif) < 0.5 ? 'var(--green-dark)' : dif > 0 ? 'var(--red)' : 'var(--green-dark)'}">${dif === null ? '—' : _pctTxt(dif)}</td>${del('salarios', k)}</tr>`; }).join('');
+  const tD = die.map((d, k) => { const rh = (+d.lh || 0) * (+d.precoL || 0);
+    return `<tr><td>${sel('diesel', k, 'familia', d.familia || '', fs.map(f => [f.cod, f.desc || f.cod]))}</td><td>${inp('diesel', k, 'lh', d.lh, 100, '0.1')}</td><td>${inp('diesel', k, 'precoL', d.precoL, 100)}</td><td class="td-mono">${rh ? _moeda(rh) + '/h' : '—'}</td>${del('diesel', k)}</tr>`; }).join('');
+  const vazio = (n, t) => `<tr><td colspan="${n}" style="text-align:center;color:var(--text-3);padding:1rem">${t}</td></tr>`;
+  return `<div class="card orc-prem" style="margin-top:14px"><div class="card-header"><span class="card-title">Premissas de custo desta versão</span>
+      <div style="font-size:12px;color:var(--text-3);margin-top:4px">Base para o "previsto × real": hora = salário ÷ ${_HORAS_MES} × (1 + encargos da obra: <strong>${_n1(enc)}%</strong>${enc ? '' : ' — informe em Obras → Editar'}). O custo/hora dos equipamentos é sem diesel; o diesel previsto fica aqui.</div></div>
+    <div class="card-body" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:18px">
+      <div><div style="font-weight:700;margin-bottom:6px">Salário previsto por função</div><div class="table-wrap"><table style="font-size:12px"><thead><tr><th>Função</th><th>Salário previsto (R$)</th><th>Hora prevista</th><th>Real médio hoje</th><th>Real × previsto</th>${editavel ? '<th></th>' : ''}</tr></thead>
+        <tbody>${tS || vazio(editavel ? 6 : 5, 'Nenhuma função' + (editavel ? ' — clique em + Função' : ''))}</tbody></table></div>${editavel ? `<button class="btn btn-outline btn-sm" style="margin-top:8px" onclick="_orcPremAdd('salarios')">+ Função</button>` : ''}</div>
+      <div><div style="font-weight:700;margin-bottom:6px">Diesel previsto por família de equipamento</div><div class="table-wrap"><table style="font-size:12px"><thead><tr><th>Família</th><th>Consumo (L/h)</th><th>Preço (R$/L)</th><th>Diesel por hora</th>${editavel ? '<th></th>' : ''}</tr></thead>
+        <tbody>${tD || vazio(editavel ? 5 : 4, 'Nenhuma família' + (editavel ? ' — clique em + Família' : ''))}</tbody></table></div>${editavel ? `<button class="btn btn-outline btn-sm" style="margin-top:8px" onclick="_orcPremAdd('diesel')">+ Família</button>` : ''}</div>
+    </div></div>`;
+}
+async function _orcPremSet(tipo, k, campo, val) { const v = _orcAtual(); if (!v) return; const l = v[tipo] || (v[tipo] = []); if (!l[k]) return;
+  l[k][campo] = ['funcao', 'familia'].includes(campo) ? val : (val === '' ? '' : parseFloat(val) || 0); await _orcGravar(v); renderOrcamento(); }
+async function _orcPremAdd(tipo) { const v = _orcAtual(); if (!v) return; (v[tipo] = v[tipo] || []).push(tipo === 'salarios' ? { funcao: '', salario: '' } : { familia: '', lh: '', precoL: '' }); await _orcGravar(v); renderOrcamento(); }
+async function _orcPremDel(tipo, k) { const v = _orcAtual(); if (!v) return; (v[tipo] || []).splice(k, 1); await _orcGravar(v); renderOrcamento(); }
+(function () {
+  const oR = window.renderOrcamento;
+  window.renderOrcamento = function () { const r = oR.apply(this, arguments); try { const v = _orcAtual(), corpo = document.getElementById('orc-corpo'); if (v && corpo && v.obra === _orcObraSel()) { corpo.querySelector('.orc-prem')?.remove(); corpo.insertAdjacentHTML('beforeend', _orcPremHtml(v, _ehAdmin() && v.status !== 'validada')); } } catch (e) { console.warn('premissas', e); } return r; };
+  const oC = window.orcCriarVersao;
+  window.orcCriarVersao = async function () {
+    const obra = _orcObraSel(), copiar = document.getElementById('orc-v-copiar')?.checked, base = copiar ? orcVigente(obra) : null, antes = new Set((dados.orcamentos || []).map(o => o.id));
+    const r = await oC.apply(this, arguments);
+    const nova = (dados.orcamentos || []).find(o => !antes.has(o.id));
+    if (nova && base) { nova.salarios = JSON.parse(JSON.stringify(base.salarios || [])); nova.diesel = JSON.parse(JSON.stringify(base.diesel || [])); await _orcGravar(nova); renderOrcamento(); }
+    return r;
+  };
+})();
+
+// ── Dashboard MO: salário real × previsto por função
+function _dxSalarios() {
+  const main = document.querySelector('#page-dash-mo .dx-main'); if (!main) return;
+  main.querySelector('.dx-sal')?.remove();
+  const hj = _hojeLocal(), g = {};
+  (dados.funcionarios || []).filter(f => (!_dx.obra || !f.obra || f.obra === _dx.obra) && !(f.demissao && f.demissao <= hj) && f.codFuncao).forEach(f => {
+    const k = (f.obra || '') + '|' + f.codFuncao; const x = g[k] = g[k] || { obra: f.obra || '', cod: f.codFuncao, n: 0, ns: 0, soma: 0 }; x.n++; if (+f.salario) { x.ns++; x.soma += +f.salario; } });
+  const ls = Object.values(g).map(x => ({ ...x, real: x.ns ? x.soma / x.ns : 0, prev: _salPrev(x.obra, x.cod) })).filter(x => x.real || x.prev).sort((a, b) => (a.obra || '').localeCompare(b.obra || '') || a.cod.localeCompare(b.cod));
+  const temPrev = ls.some(x => x.prev);
+  const nomeOb = id => { const o = (dados.obras || []).find(x => x.id === id); return o ? (o.cod || o.nome) : '—'; };
+  const linhas = ls.map(x => { const d = x.real && x.prev ? x.real - x.prev : null, p = d !== null ? d / x.prev * 100 : null, cor = p === null ? 'var(--mu)' : Math.abs(p) < 0.5 ? '#4ADE80' : p > 0 ? '#F87171' : '#4ADE80';
+    return `<tr>${_dx.obra ? '' : _td('<b>' + _e(nomeOb(x.obra)) + '</b>')}${_td('<b>' + _e(x.cod) + '</b> <span style="color:var(--mu)">' + _e(_nomeFuncao(x.cod)) + '</span>')}${_td(x.n + (x.ns < x.n ? ' <span style="color:var(--mu)">(' + (x.n - x.ns) + ' sem salário)</span>' : ''), 'n')}${_td(x.real ? _moeda(x.real) : '—', 'n')}${_td(x.prev ? _moeda(x.prev) : '—', 'n')}${_td(d === null ? '—' : (d > 0 ? '+' : '') + _moeda(d), 'n')}${_td(p === null ? '—' : `<b style="color:${cor}">${_pctTxt(p)}</b>`, 'n')}</tr>`; });
+  const cab = (_dx.obra ? [] : ['Obra']).concat(['Função', 'Pessoas', 'Salário médio real', 'Previsto (orçamento)', 'Diferença', '%']);
+  const corpo = ls.length ? `<div class="dx-scroll">${_tb(cab, linhas, cab.map(c => /Pessoas|Salário|Previsto|Diferença|%/.test(c) ? 'n' : ''))}</div>
+      <div style="font-size:11px;color:var(--mu);margin-top:8px">Funcionários ativos hoje. Previsto = "Salário previsto por função" da versão vigente do Orçamento${temPrev ? '' : ' (ainda não preenchido)'}. O custo da mão de obra nas dashboards usa o salário ÷ ${_HORAS_MES} + encargos da obra; quem está sem salário usa o custo/hora do cargo (estimado).</div>`
+    : `<div class="dx-vazio">Cadastre o salário dos funcionários (Funcionários → Editar, ou pela importação) e o salário previsto por função no Orçamento.</div>`;
+  main.insertAdjacentHTML('beforeend', `<div class="dx-sal" style="margin-top:12px">${_pn(_ic.users, 'Salário real × previsto, por função', corpo)}</div>`);
+}
+// ── Dashboard Abastecimento: diesel real × previsto por família
+function _dxDieselPrev() {
+  const main = document.querySelector('#page-dash-abs .dx-main'); if (!main) return;
+  main.querySelector('.dx-dprev')?.remove();
+  let corpo;
+  if (!_dx.obra) corpo = `<div class="dx-vazio">Escolha uma obra no filtro para comparar com o diesel previsto no orçamento.</div>`;
+  else {
+    const ok = x => !_dx.mes || String(x).slice(0, 7) === _dx.mes;
+    const lista = (dados.diesel || []).filter(d => d.status !== 'rejeitado' && (!d.obra || d.obra === _dx.obra) && ok(d.dt));
+    const eqAp = (dados.aponEQ || []).filter(a => _ehAprovado(a) && _dxObraDe(a) === _dx.obra && ok(a.data));
+    const g = {}; const it = f => g[f] = g[f] || { l: 0, r: 0, h: 0 };
+    lista.forEach(d => { const x = it(_famDe(d.equip) || '—'); x.l += +d.litros || 0; x.r += (+d.litros || 0) * precoDiesel(d); });
+    eqAp.forEach(a => { it(_famDe(a.equip) || '—').h += +a.hp || 0; });
+    const nomeFam = c => ((dados.familias || []).find(f => f.cod === c) || {}).desc || c;
+    const ls = Object.entries(g).filter(([, x]) => x.l || x.h).sort((a, b) => b[1].r - a[1].r);
+    const temPrev = ls.some(([f]) => _dieselPrev(_dx.obra, f));
+    const linhas = ls.map(([f, x]) => { const p = _dieselPrev(_dx.obra, f), lhR = x.h ? x.l / x.h : 0, lhP = p ? +p.lh || 0 : 0, rP = p ? x.h * lhP * (+p.precoL || 0) : 0, lP = x.h * lhP, dif = x.r && rP ? (x.r / rP - 1) * 100 : lP ? (x.l / lP - 1) * 100 : null, cor = dif === null ? 'var(--mu)' : Math.abs(dif) < 0.5 ? '#4ADE80' : dif > 0 ? '#F87171' : '#4ADE80';
+      return `<tr>${_td('<b>' + _e(f) + '</b> <span style="color:var(--mu)">' + _e(nomeFam(f)) + '</span>')}${_td(_h(x.h), 'n')}${_td(_n1(x.l) + ' L', 'n')}${_td(lhR ? _n1(lhR) + ' L/h' : '—', 'n')}${_td(lhP ? _n1(lhP) + ' L/h' : '—', 'n')}${_td(x.r ? _moeda(x.r) : '<span style="color:var(--mu)" title="Cadastre o preço do litro no tanque">sem preço</span>', 'n')}${_td(rP ? _moeda(rP) : '—', 'n')}${_td(dif === null ? '—' : `<b style="color:${cor}">${_pctTxt(dif)}</b>`, 'n')}</tr>`; });
+    corpo = ls.length ? `<div class="dx-scroll">${_tb(['Família', 'Horas produtivas', 'Litros', 'Consumo real', 'Consumo previsto', 'Custo real', 'Custo previsto', 'Real × previsto'], linhas, ['', 'n', 'n', 'n', 'n', 'n', 'n', 'n'])}</div>
+      <div style="font-size:11px;color:var(--mu);margin-top:8px">Custo previsto = horas produtivas apontadas × consumo previsto × preço previsto (Orçamento vigente → Premissas de custo). Sem preço real nos tanques, a comparação é feita pelos litros${temPrev ? '' : ' — ainda não preenchido'}.</div>`
+      : `<div class="dx-vazio">Sem abastecimentos ou horas no período.</div>`;
+  }
+  main.insertAdjacentHTML('beforeend', `<div class="dx-dprev" style="margin-top:12px">${_pn(_ic.drop || _ic.fuel, 'Diesel real × previsto, por família', corpo)}</div>`);
+}
+(function () {
+  const oMO = window.dxRenderMO; if (typeof oMO === 'function') window.dxRenderMO = function () { const r = oMO.apply(this, arguments); try { _dxSalarios(); } catch (e) { console.warn('salários', e); } return r; };
+  const oAB = window.dxRenderAbs; if (typeof oAB === 'function') window.dxRenderAbs = function () { const r = oAB.apply(this, arguments); try { _dxDieselPrev(); } catch (e) { console.warn('diesel previsto', e); } return r; };
+})();
 
 // Apply configs on load
 setTimeout(applyConfigs, 200);
