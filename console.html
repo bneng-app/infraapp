@@ -76,6 +76,15 @@ input:disabled{opacity:.7}
 #login .err{color:#FF6B74;font-size:13px;margin-bottom:10px;display:none}
 #login .ver{text-align:center;color:#6B6C72;font-size:11px;margin-top:16px}
 .prog{height:6px;background:var(--gray-l);border-radius:4px;overflow:hidden;margin-top:10px}.prog div{height:6px;background:var(--red);width:0}
+.abas{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:20px;overflow-x:auto}
+.abas button{background:none;border:0;border-bottom:3px solid transparent;color:var(--text-3);font-weight:700;font-size:14px;padding:10px 14px;min-height:44px;white-space:nowrap}
+.abas button.on{color:var(--text);border-bottom-color:var(--red)}
+.sit{border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:8px;padding:6px 8px;min-height:34px;font-weight:600;width:auto}
+.lib{display:flex;flex-wrap:wrap;gap:4px}.lib span{font-size:11.5px;border-radius:6px;padding:2px 8px;background:var(--gray-l);color:var(--text-2)}
+.lib span.on{background:var(--green-l);color:var(--green)}
+#amb-frame{width:100%;height:calc(100vh - 230px);min-height:520px;border:1px solid var(--border);border-radius:14px;background:#000;display:block}
+.cli-lib{border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:10px}
+.cli-lib .obras{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 12px;margin:8px 0 0 28px}
 @media (max-width:640px){.grid,.chk{grid-template-columns:1fr}.top .tit{display:none}}
 </style>
 </head>
@@ -91,7 +100,7 @@ input:disabled{opacity:.7}
     <input id="lg-senha" type="password" autocomplete="current-password">
     <div class="err" id="lg-err"></div>
     <button class="btn btn-p" style="width:100%" id="lg-btn">Entrar</button>
-    <div class="ver">ObraKontrol Console · v1.0</div>
+    <div class="ver">ObraKontrol Console · v1.1</div>
   </form>
 </div>
 
@@ -105,6 +114,12 @@ input:disabled{opacity:.7}
     <button onclick="sair()">Sair</button>
   </div>
   <div class="wrap">
+    <div class="abas" role="tablist">
+      <button class="on" data-aba="clientes" onclick="aba('clientes')" role="tab">Clientes</button>
+      <button data-aba="modulos" onclick="aba('modulos')" role="tab">Módulos</button>
+      <button data-aba="ambiente" onclick="aba('ambiente')" role="tab">Ambiente de desenvolvimento</button>
+    </div>
+    <section id="sec-clientes">
     <div class="card aviso" id="aviso-migrar" style="display:none">
       <div><b>Dados atuais ainda estão no formato antigo (sem cliente)</b>
         <p>Para o ObraKontrol atender vários clientes, os dados de hoje vão para a "gaveta" do cliente <b>TENCO</b>. Nada é apagado: a cópia antiga fica guardada até você conferir. Depois disso, cada usuário passa a enxergar só os dados da empresa dele.</p>
@@ -130,6 +145,26 @@ input:disabled{opacity:.7}
         <tbody id="tb"><tr><td colspan="7" style="text-align:center;color:var(--text-3);padding:28px">Carregando…</td></tr></tbody>
       </table>
     </div>
+    </section>
+
+    <section id="sec-modulos" style="display:none">
+      <div class="head"><div><h1>Módulos</h1><div class="sub">Tudo o que o ObraKontrol tem. Em desenvolvimento: só aparece no ambiente DEMO. Em teste: só onde você liberar. Disponível: pronto para os clientes.</div></div></div>
+      <div class="card tw"><table><thead><tr><th>Módulo</th><th>Situação</th><th>Liberado para</th><th style="text-align:right">Ações</th></tr></thead><tbody id="tb-mod"></tbody></table></div>
+    </section>
+
+    <section id="sec-ambiente" style="display:none">
+      <div class="head"><div><h1>Ambiente de desenvolvimento</h1><div class="sub">O painel completo do cliente DEMO, com todos os módulos ligados, inclusive os que estão em desenvolvimento. Os dados daqui não aparecem para nenhum cliente.</div></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap" id="amb-botoes"></div></div>
+      <div id="amb-corpo"></div>
+    </section>
+  </div>
+</div>
+
+<div class="ov" id="ov-lib" onclick="if(event.target===this)fecharLib()">
+  <div class="card modal" role="dialog" aria-modal="true" aria-labelledby="lib-tit">
+    <div class="mh"><b id="lib-tit">Liberar módulo</b><button class="btn btn-sm" onclick="fecharLib()" aria-label="Fechar">✕</button></div>
+    <div class="mb"><div class="sub" style="margin-bottom:12px" id="lib-sub"></div><div id="lib-corpo">Carregando…</div></div>
+    <div class="mf"><button class="btn" onclick="fecharLib()">Cancelar</button><button class="btn btn-p" id="btn-lib" onclick="salvarLib()">Salvar liberação</button></div>
   </div>
 </div>
 
@@ -179,7 +214,7 @@ input:disabled{opacity:.7}
 </div>
 
 <script>
-const VERSAO = 'v1.0';
+const VERSAO = 'v1.1';
 const firebaseConfig = {
   apiKey: "AIzaSyBShR-XvPrUiFtnndFXJV7IYrrTG90BS5o",
   authDomain: "obrakontrol-205c4.firebaseapp.com",
@@ -190,7 +225,38 @@ const firebaseConfig = {
 };
 // quem pode usar o Console (o mesmo nome tem que estar nas regras do Firebase)
 const DEVS = ['karine.loch@tencoengenharia.com.br', 'kavaloch@gmail.com'];
-const MODULOS = [['maoDeObra','Mão de obra'],['equipamentos','Equipamentos'],['abastecimento','Abastecimento'],['frentesQR','Frentes e QR (Lean)'],['efetivoRH','Efetivo do RH'],['locacao','Locação de equipamentos'],['orcamento','Orçamento previsto']];
+
+// ══════ CATÁLOGO DE MÓDULOS (a situação e a liberação vêm do Console) ══════
+// situacao: dev = em desenvolvimento (só no DEMO) · teste = piloto (só onde for ligado) · disponivel
+// padrao: liga sozinho para o cliente que não marcou nada
+const OK_MOD_PADRAO = {
+  maoDeObra:     { nome: 'Mão de obra', situacao: 'disponivel', padrao: true },
+  equipamentos:  { nome: 'Equipamentos', situacao: 'disponivel', padrao: true },
+  abastecimento: { nome: 'Abastecimento', situacao: 'disponivel', padrao: true },
+  frentesQR:     { nome: 'Frentes e QR (Lean)', situacao: 'disponivel', padrao: true },
+  efetivoRH:     { nome: 'Efetivo do RH', situacao: 'disponivel', padrao: true },
+  locacao:       { nome: 'Locação de equipamentos', situacao: 'disponivel', padrao: true },
+  orcamento:     { nome: 'Orçamento previsto', situacao: 'disponivel', padrao: true },
+  republicas:    { nome: 'Repúblicas e alojamentos', situacao: 'dev', padrao: false, desc: 'Cadastro de repúblicas e alojamentos, vagas, moradores e custo por pessoa' },
+};
+window.OK_MODULOS = JSON.parse(JSON.stringify(OK_MOD_PADRAO));
+async function _okCarregarModulos() {
+  try { const s = await db.collection('modulos').get(); s.docs.forEach(d => { window.OK_MODULOS[d.id] = { ...(window.OK_MODULOS[d.id] || {}), ...d.data() }; }); window._okModsOk = true; } catch (e) {}
+}
+// o módulo está ligado para este cliente (e esta obra)?
+function okModuloAtivo(k, obraId) {
+  const cat = window.OK_MODULOS[k] || { situacao: 'disponivel', padrao: true }, cfg = window.OK_CLIENTE_CFG || {};
+  if (window.OK_CLIENTE === 'demo' || cfg.demo) return true;          // ambiente de desenvolvimento vê tudo
+  if (cat.situacao === 'dev') return false;
+  const lig = cfg.modulos && cfg.modulos[k] !== undefined ? cfg.modulos[k] : (cat.situacao === 'teste' ? false : cat.padrao);
+  if (!lig) return false;
+  const lim = cfg.modulosObra && cfg.modulosObra[k];
+  if (lim && lim.length && obraId && obraId !== 'todas' && !lim.includes(obraId)) return false;
+  return true;
+}
+
+const MODULOS = Object.entries(OK_MOD_PADRAO).map(([k, v]) => [k, v.nome]);
+const SIT = { dev: ['🔧 Em desenvolvimento', 't-gray'], teste: ['🧪 Em teste', 't-amber'], disponivel: ['✅ Disponível', 't-green'] };
 // coleções que vão para a gaveta do cliente na migração
 const COLS = ['obras','empresas','ua','cargos','turnos','equipes','funcionarios','familias','modelos','equipamentos','frentes','tiposServico','tiposPerdas',
   'aponMO','aponEQ','diesel','perdas','tanques','movTanques','notasFiscais','produtos','perfis','orcamentos','usuarios','turnosAbertos','fotos','_sistema','configs'];
@@ -233,11 +299,12 @@ function sair() { auth.signOut(); }
 // ── lista de clientes
 async function carregar() {
   try {
+    await _okCarregarModulos();
     const [cs, acs] = await Promise.all([db.collection('clientes').get(), db.collection('acessos').get()]);
     const usu = {}; acs.docs.forEach(d => { const c = d.data().cliente; if (c) usu[c] = (usu[c] || 0) + 1; });
     CLIENTES = cs.docs.map(d => ({ id: d.id, ...d.data(), _usu: usu[d.id] || 0 }));
     await Promise.all(CLIENTES.map(async c => { try { c._obras = (await db.collection('clientes').doc(c.id).collection('obras').get()).size; } catch (e) { c._obras = 0; } }));
-    render();
+    render(); renderModulos(); renderAmbiente();
     const raiz = await db.collection('usuarios').limit(1).get().catch(() => null);
     const tenco = CLIENTES.find(c => c.id === 'tenco');
     $('aviso-migrar').style.display = raiz && !raiz.empty && !(tenco && tenco.migradoEm) ? '' : 'none';
@@ -245,19 +312,22 @@ async function carregar() {
     $('tb').innerHTML = `<tr><td colspan="7" style="padding:24px;color:var(--red)">Não consegui ler os clientes (${esc(e.code || e.message)}). Confira se as regras novas do Firebase foram publicadas.</td></tr>`;
   }
 }
+function clientesReais() { return CLIENTES.filter(c => !c.demo && c.id !== 'demo'); }
 function render() {
+  const CLIENTES = clientesReais();
   const st = s => s === 'Suspenso' ? 't-red' : s === 'Em teste' ? 't-amber' : 't-green';
   $('k-ativos').textContent = CLIENTES.filter(c => (c.status || 'Ativo') === 'Ativo').length;
   $('k-teste').textContent = CLIENTES.filter(c => c.status === 'Em teste').length;
   $('k-usu').textContent = CLIENTES.reduce((s, c) => s + c._usu, 0);
   $('k-obras').textContent = CLIENTES.reduce((s, c) => s + (c._obras || 0), 0);
   $('tb').innerHTML = CLIENTES.length ? CLIENTES.sort((a, b) => String(a.nomeCurto || a.nome).localeCompare(String(b.nomeCurto || b.nome))).map((c, i) => {
-    const mods = MODULOS.filter(([k]) => !c.modulos || c.modulos[k] !== false);
+    const disp = MODULOS.filter(([k]) => (OK_MODULOS[k] || {}).situacao !== 'dev');
+    const mods = disp.filter(([k]) => modLigado(c, k));
     return `<tr>
       <td><div style="display:flex;gap:10px;align-items:center"><div class="av" style="background:${CORES[i % CORES.length]}">${esc(String(c.nomeCurto || c.nome || c.id).slice(0, 2).toUpperCase())}</div>
         <div><b>${esc(c.nomeCurto || c.nome || c.id)}</b><div class="sub">${esc(c.nome || '')} · código <b>${esc(c.id)}</b></div></div></div></td>
       <td><span class="tag ${st(c.status || 'Ativo')}">${esc(c.status || 'Ativo')}</span></td>
-      <td><div class="mods">${mods.length === MODULOS.length ? '<span>Todos</span>' : mods.map(([, l]) => `<span>${esc(l)}</span>`).join('') || '<span>Nenhum</span>'}</div></td>
+      <td><div class="mods">${mods.length === disp.length ? '<span>Todos</span>' : mods.map(([, l]) => `<span>${esc(l)}</span>`).join('') || '<span>Nenhum</span>'}</div></td>
       <td style="text-align:right;font-variant-numeric:tabular-nums">${c._usu}</td>
       <td style="text-align:right;font-variant-numeric:tabular-nums">${c._obras || 0}</td>
       <td class="sub">${c.inicio ? esc(c.inicio.split('-').reverse().join('/')) : '—'}</td>
@@ -279,7 +349,8 @@ function abrirCliente(id) {
   set('c-inicio', c?.inicio || (c ? '' : new Date().toISOString().slice(0, 10))); set('c-contato', c?.contato); set('c-tel', c?.tel); set('c-email', c?.email);
   set('c-tol', c?.config?.tolConsumo ?? ''); set('c-obs', c?.obs);
   $('c-id').disabled = !!c; $('c-id-ex').textContent = c?.id || 'codigo';
-  $('c-mods').innerHTML = MODULOS.map(([k, l]) => `<label><input type="checkbox" data-m="${k}" ${!c || !c.modulos || c.modulos[k] !== false ? 'checked' : ''}> ${esc(l)}</label>`).join('');
+  $('c-mods').innerHTML = MODULOS.map(([k, l]) => { const dev = (OK_MODULOS[k] || {}).situacao === 'dev';
+    return `<label style="${dev ? 'opacity:.6' : ''}"><input type="checkbox" data-m="${k}" ${dev ? 'disabled' : ''} ${!dev && (c ? modLigado(c, k) : (OK_MODULOS[k] || {}).padrao) ? 'checked' : ''}> ${esc(l)}${dev ? ' <span class="tag t-gray" style="font-size:10px">em desenvolvimento</span>' : ''}</label>`; }).join('');
   ['a-nome', 'a-email', 'a-senha'].forEach(k => $(k).value = '');
   $('c-admin-bloco').style.display = c && c._usu ? 'none' : '';
   $('c-links').style.display = c ? '' : 'none';
@@ -294,7 +365,7 @@ async function salvarCliente() {
   if (!editando && CLIENTES.some(c => c.id === id)) { toast('Já existe um cliente com o código "' + id + '".', true); return; }
   const aNome = $('a-nome').value.trim(), aEmail = $('a-email').value.trim().toLowerCase(), aSenha = $('a-senha').value;
   if (aEmail && aSenha.length < 6) { toast('A senha do administrador precisa ter pelo menos 6 caracteres.', true); return; }
-  const modulos = {}; document.querySelectorAll('#c-mods input').forEach(i => modulos[i.dataset.m] = i.checked);
+  const modulos = {}; document.querySelectorAll('#c-mods input:not(:disabled)').forEach(i => modulos[i.dataset.m] = i.checked);
   const obj = { nome, nomeCurto: curto.toUpperCase(), status: $('c-status').value, cnpj: $('c-cnpj').value.trim(), inicio: $('c-inicio').value, contato: $('c-contato').value.trim(),
     tel: $('c-tel').value.trim(), email: $('c-email').value.trim(), modulos, config: { tolConsumo: $('c-tol').value === '' ? 20 : +$('c-tol').value }, obs: $('c-obs').value.trim(), atualizadoEm: new Date().toISOString() };
   if (!editando) obj.criadoEm = new Date().toISOString();
@@ -344,13 +415,107 @@ async function migrar() {
       await batch.commit();
     }
     await destino.set({ nome: 'Tenco Engenharia e Construção', nomeCurto: 'TENCO', status: 'Ativo', inicio: new Date().toISOString().slice(0, 10),
-      modulos: Object.fromEntries(MODULOS.map(([k]) => [k, true])), config: { tolConsumo: 20 }, migradoEm: new Date().toISOString(), migrados: feitos, criadoEm: new Date().toISOString() }, { merge: true });
+      modulos: Object.fromEntries(MODULOS.filter(([k]) => OK_MOD_PADRAO[k].situacao !== 'dev').map(([k]) => [k, true])), config: { tolConsumo: 20 }, migradoEm: new Date().toISOString(), migrados: feitos, criadoEm: new Date().toISOString() }, { merge: true });
     bar.style.width = '100%'; txt.textContent = 'Pronto: ' + feitos + ' registros e ' + usu.length + ' acessos copiados para a TENCO.';
     toast('Migração concluída'); carregar();
   } catch (e) { txt.textContent = 'Parou com erro: ' + (e.code || e.message) + '. Pode clicar de novo: o que já foi copiado é só regravado.'; toast('Erro na migração', true); }
   b.disabled = false;
 }
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('ov').classList.contains('open')) fechar(); });
+
+// ── abas
+function aba(n) {
+  document.querySelectorAll('.abas button').forEach(b => b.classList.toggle('on', b.dataset.aba === n));
+  ['clientes', 'modulos', 'ambiente'].forEach(x => $('sec-' + x).style.display = x === n ? '' : 'none');
+  if (n === 'ambiente') renderAmbiente(true);
+  try { localStorage.setItem('ok_console_aba', n); } catch (e) {}
+}
+// o módulo está ligado para o cliente (sem olhar obra)?
+function modLigado(c, k) { const cat = OK_MODULOS[k] || {}; if (cat.situacao === 'dev') return false; const v = c.modulos && c.modulos[k];
+  return v !== undefined ? !!v : (cat.situacao === 'teste' ? false : !!cat.padrao); }
+
+// ── MÓDULOS: situação e liberação
+function renderModulos() {
+  const tb = $('tb-mod'); if (!tb) return;
+  tb.innerHTML = MODULOS.map(([k, l]) => { const m = OK_MODULOS[k] || {}, sit = m.situacao || 'disponivel';
+    const libs = clientesReais().map(c => { const on = modLigado(c, k), lim = (c.modulosObra || {})[k];
+      return `<span class="${on ? 'on' : ''}">${esc(c.nomeCurto || c.id)}${on && lim && lim.length ? ' · ' + lim.length + ' obra(s)' : ''}${on ? '' : ' · desligado'}</span>`; }).join('');
+    return `<tr><td><b>${esc(l)}</b>${m.desc ? `<div class="sub">${esc(m.desc)}</div>` : ''}</td>
+      <td><select class="sit" aria-label="Situação de ${esc(l)}" onchange="mudarSituacao('${k}', this.value)">${Object.entries(SIT).map(([v, [t]]) => `<option value="${v}" ${v === sit ? 'selected' : ''}>${t}</option>`).join('')}</select></td>
+      <td>${sit === 'dev' ? '<span class="sub">Só no ambiente DEMO</span>' : `<div class="lib">${libs || '<span>nenhum cliente</span>'}</div>`}</td>
+      <td style="text-align:right;white-space:nowrap">${sit === 'dev' ? `<button class="btn btn-sm" onclick="aba('ambiente')">Testar no DEMO</button>` : `<button class="btn btn-sm btn-p" onclick="abrirLib('${k}')">Liberar para clientes e obras</button>`}</td></tr>`; }).join('');
+}
+async function mudarSituacao(k, v) {
+  const nome = (OK_MODULOS[k] || {}).nome || k;
+  if (v === 'disponivel' && (OK_MODULOS[k] || {}).situacao === 'dev' && !confirm(nome + ' vai sair do desenvolvimento.\n\nEle só aparece para os clientes que você ligar em "Liberar para clientes e obras". Continuar?')) { renderModulos(); return; }
+  try { await db.collection('modulos').doc(k).set({ situacao: v, atualizadoEm: new Date().toISOString(), ...(v === 'disponivel' ? { liberadoEm: new Date().toISOString().slice(0, 10) } : {}) }, { merge: true });
+    OK_MODULOS[k] = { ...OK_MODULOS[k], situacao: v }; toast(nome + ': ' + SIT[v][0]); renderModulos(); render(); }
+  catch (e) { toast('Não consegui salvar: ' + (e.code || e.message) + '. Publique as regras novas do Firebase.', true); renderModulos(); }
+}
+let LIB = null;
+async function abrirLib(k) {
+  LIB = k; const m = OK_MODULOS[k] || {};
+  $('lib-tit').textContent = 'Liberar · ' + (m.nome || k);
+  $('lib-sub').textContent = 'Marque os clientes que recebem o módulo. Para testar numa obra piloto, escolha "Só nestas obras".';
+  $('lib-corpo').innerHTML = 'Carregando obras…'; $('ov-lib').classList.add('open');
+  const cs = clientesReais();
+  const obras = await Promise.all(cs.map(c => db.collection('clientes').doc(c.id).collection('obras').get().then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => [])));
+  $('lib-corpo').innerHTML = cs.length ? cs.map((c, i) => { const on = modLigado(c, k), lim = (c.modulosObra || {})[k] || [], so = lim.length > 0;
+    return `<div class="cli-lib" data-c="${esc(c.id)}">
+      <label style="display:flex;gap:10px;align-items:center;font-weight:700;cursor:pointer"><input type="checkbox" class="lib-on" style="width:18px;height:18px;min-height:0;accent-color:var(--red)" ${on ? 'checked' : ''}> ${esc(c.nomeCurto || c.id)} <span class="sub" style="font-weight:400">${esc(c.nome || '')}</span></label>
+      <div style="display:flex;gap:16px;margin:8px 0 0 28px;flex-wrap:wrap;font-size:13px">
+        <label style="cursor:pointer"><input type="radio" name="lib-r-${i}" value="todas" style="width:auto;min-height:0" ${so ? '' : 'checked'} onchange="this.closest('.cli-lib').querySelector('.obras').style.display='none'"> Todas as obras</label>
+        <label style="cursor:pointer"><input type="radio" name="lib-r-${i}" value="algumas" style="width:auto;min-height:0" ${so ? 'checked' : ''} onchange="this.closest('.cli-lib').querySelector('.obras').style.display=''"> Só nestas obras</label></div>
+      <div class="obras" style="${so ? '' : 'display:none'}">${obras[i].length ? obras[i].map(o => `<label style="display:flex;gap:8px;align-items:center;font-size:13px;cursor:pointer"><input type="checkbox" class="lib-obra" value="${esc(o.id)}" style="width:16px;height:16px;min-height:0;accent-color:var(--red)" ${lim.includes(o.id) ? 'checked' : ''}> ${esc(o.cod || '')} ${esc(o.nome || '')}</label>`).join('') : '<span class="sub">Cliente sem obras cadastradas.</span>'}</div>
+    </div>`; }).join('') : '<div class="sub">Nenhum cliente cadastrado.</div>';
+}
+function fecharLib() { $('ov-lib').classList.remove('open'); LIB = null; }
+async function salvarLib() {
+  const k = LIB; if (!k) return; const b = $('btn-lib'); b.disabled = true; b.textContent = 'Salvando…';
+  try {
+    for (const el of document.querySelectorAll('#lib-corpo .cli-lib')) {
+      const c = el.dataset.c, on = el.querySelector('.lib-on').checked, algumas = el.querySelector('input[value="algumas"]').checked;
+      const obras = algumas ? [...el.querySelectorAll('.lib-obra:checked')].map(x => x.value) : [];
+      if (on && algumas && !obras.length) { toast('Marque pelo menos uma obra para ' + c.toUpperCase() + ', ou escolha "Todas as obras".', true); b.disabled = false; b.textContent = 'Salvar liberação'; return; }
+      await db.collection('clientes').doc(c).set({ modulos: { [k]: on }, modulosObra: { [k]: obras }, atualizadoEm: new Date().toISOString() }, { merge: true });
+      const cl = CLIENTES.find(x => x.id === c); if (cl) { cl.modulos = { ...(cl.modulos || {}), [k]: on }; cl.modulosObra = { ...(cl.modulosObra || {}), [k]: obras }; }
+    }
+    toast('Liberação salva. Os usuários veem a mudança ao entrar de novo ou apertar Atualizar.'); fecharLib(); renderModulos(); render();
+  } catch (e) { toast('Não consegui salvar: ' + (e.code || e.message), true); }
+  b.disabled = false; b.textContent = 'Salvar liberação';
+}
+
+// ── AMBIENTE DE DESENVOLVIMENTO (cliente DEMO)
+function renderAmbiente(abrir) {
+  const demo = CLIENTES.find(c => c.id === 'demo'), bt = $('amb-botoes'), corpo = $('amb-corpo'); if (!bt || !corpo) return;
+  if (!demo) { bt.innerHTML = ''; corpo.innerHTML = `<div class="card" style="padding:28px;text-align:center"><b style="font-size:16px">O ambiente DEMO ainda não existe</b><p class="sub" style="max-width:520px;margin:8px auto 16px">Ele é um cliente de mentira, só seu, com todos os módulos ligados. É onde você testa o que está desenvolvendo antes de liberar para as obras.</p><button class="btn btn-p" onclick="criarDemo()">Criar ambiente DEMO</button></div>`; return; }
+  const outros = clientesReais();
+  bt.innerHTML = `${outros.length ? `<select class="sit" id="amb-origem" aria-label="Copiar dados de">${outros.map(c => `<option value="${esc(c.id)}">${esc(c.nomeCurto || c.id)}</option>`).join('')}</select><button class="btn" onclick="copiarParaDemo()">Copiar dados de teste para o DEMO</button>` : ''}
+    <button class="btn" onclick="window.open(base() + 'index.html?c=demo', '_blank')">Abrir em nova aba ↗</button>`;
+  if (abrir && !$('amb-frame')) corpo.innerHTML = `<iframe id="amb-frame" title="Painel do ambiente DEMO" src="${base()}index.html?c=demo"></iframe>`;
+  else if (!$('amb-frame')) corpo.innerHTML = '';
+}
+async function criarDemo() {
+  try {
+    await db.collection('clientes').doc('demo').set({ nome: 'Ambiente de desenvolvimento', nomeCurto: 'DEMO', status: 'Em teste', demo: true, modulos: Object.fromEntries(MODULOS.map(([k]) => [k, true])), config: { tolConsumo: 20 }, criadoEm: new Date().toISOString() });
+    await db.collection('clientes').doc('demo').collection('_sistema').doc('init').set({ criadoEm: new Date().toISOString(), versao: '1.0' });
+    toast('Ambiente DEMO criado'); await carregar(); renderAmbiente(true);
+  } catch (e) { toast('Não consegui criar: ' + (e.code || e.message), true); }
+}
+async function copiarParaDemo() {
+  const de = $('amb-origem') && $('amb-origem').value; if (!de) return;
+  if (!confirm('Copiar obras, cadastros, apontamentos e abastecimentos de ' + de.toUpperCase() + ' para o DEMO?\n\nUsuários e fotos não são copiados. O cliente ' + de.toUpperCase() + ' não é alterado.')) return;
+  const cols = COLS.filter(c => !['usuarios', 'fotos', 'turnosAbertos', '_sistema'].includes(c)).concat(['republicas']);
+  let n = 0; toast('Copiando… pode levar um minuto');
+  try {
+    for (const col of cols) {
+      const s = await db.collection('clientes').doc(de).collection(col).get().catch(() => null); if (!s || s.empty) continue;
+      for (let i = 0; i < s.docs.length; i += 150) { const b = db.batch(); s.docs.slice(i, i + 150).forEach(d => b.set(db.collection('clientes').doc('demo').collection(col).doc(d.id), d.data())); await b.commit(); n += Math.min(150, s.docs.length - i); }
+    }
+    toast(n + ' registros copiados para o DEMO'); const f = $('amb-frame'); if (f) f.src = f.src;
+  } catch (e) { toast('Parou com erro: ' + (e.code || e.message), true); }
+}
+try { const a = localStorage.getItem('ok_console_aba'); if (a && a !== 'clientes') setTimeout(() => aba(a), 0); } catch (e) {}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { if ($('ov').classList.contains('open')) fechar(); if ($('ov-lib').classList.contains('open')) fecharLib(); } });
 </script>
 </body>
 </html>

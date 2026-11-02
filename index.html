@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v2.84 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v2.85 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -792,6 +792,16 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
       <div class="nav-item" onclick="showPage('orcamento',this)" title="Orçamento previsto">
         <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/></svg>
         <span>Orçamento previsto</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="nav-group" id="grp-alojamento">
+    <div class="nav-section" onclick="toggleNavGroup('grp-alojamento')">Alojamento <span class="nav-chevron">▾</span></div>
+    <div class="nav-group-items">
+      <div class="nav-item" onclick="showPage('republicas',this)" title="Repúblicas e alojamentos">
+        <svg viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M5 21V9l7-5 7 5v12"/><path d="M10 21v-5h4v5"/><path d="M9 11h.01M15 11h.01"/></svg>
+        <span>Repúblicas</span>
       </div>
     </div>
   </div>
@@ -1269,6 +1279,19 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
 </div>
 
 <!-- ═══════════════ FRENTES DE SERVIÇO ═══════════════ -->
+<div class="page" id="page-republicas">
+  <div class="page-header">
+    <div><div class="page-title">Repúblicas e alojamentos</div><div class="page-sub">Onde o pessoal da obra mora, quantas vagas tem e quanto custa por pessoa</div></div>
+    <div class="btn-group"><button class="btn btn-primary" onclick="repNova()">+ Nova república</button></div>
+  </div>
+  <div class="stats-grid" id="rep-kpis" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:.875rem"></div>
+  <div class="card"><div class="card-body">
+    <div class="search-wrap"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="search-rep" placeholder="Buscar república, endereço ou morador…" oninput="renderRepublicas()"/></div>
+    <div class="table-wrap"><table><thead><tr><th>República</th><th>Obra</th><th>Ocupação</th><th style="text-align:right">Custo mensal</th><th style="text-align:right">Por pessoa</th><th style="text-align:right">Por vaga</th><th>Situação</th><th></th></tr></thead>
+      <tbody id="tbody-republicas"></tbody></table></div>
+  </div></div>
+</div>
+
 <div class="page" id="page-frentes">
   <div class="page-header">
     <div><div class="page-title">Frentes de Serviço</div><div class="page-sub">Locais ou trechos de trabalho da obra</div></div>
@@ -1297,6 +1320,55 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
 </div>
 
 <!-- MODAL: NOVA FRENTE -->
+<!-- ═══ MODAL: REPÚBLICA ═══ -->
+<div class="modal-overlay" id="modal-republica">
+  <div class="modal" style="max-width:680px">
+    <div class="modal-header"><span class="modal-title" id="rep-titulo">Nova república</span><button class="modal-close" onclick="closeModal('modal-republica')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="rep-id"/>
+      <div class="form-grid">
+        <div class="form-group form-full" style="background:var(--blue-light);border:1px solid #B5D4F4;border-radius:8px;padding:10px 12px"><label class="form-label" style="font-weight:600;color:var(--blue)" for="rep-obra">🏗️ Obra *</label><select class="form-control" id="rep-obra"><option value="">Selecione a obra…</option></select></div>
+        <div class="form-group"><label class="form-label" for="rep-cod">Código <span style="font-size:10px;color:var(--text-3)">(gerado)</span></label><input class="form-control td-mono" id="rep-cod" readonly style="background:var(--bg);font-weight:700"/></div>
+        <div class="form-group"><label class="form-label" for="rep-tipo">Tipo</label><select class="form-control" id="rep-tipo"><option>República</option><option>Alojamento</option><option>Hotel / pousada</option><option>Outro</option></select></div>
+        <div class="form-group form-full"><label class="form-label" for="rep-nome">Nome *</label><input class="form-control" id="rep-nome" placeholder="Ex.: República Rua das Flores"/></div>
+        <div class="form-group form-full"><label class="form-label" for="rep-endereco">Endereço</label><input class="form-control" id="rep-endereco" placeholder="Rua, número, bairro – cidade"/></div>
+        <div class="form-group"><label class="form-label" for="rep-vagas">Vagas *</label><input class="form-control" type="number" min="1" step="1" id="rep-vagas" oninput="_repTotal()" placeholder="Ex.: 8"/></div>
+        <div class="form-group"><label class="form-label" for="rep-status">Situação</label><select class="form-control" id="rep-status"><option>Ativa</option><option>Encerrada</option></select></div>
+        <div class="form-group"><label class="form-label" for="rep-responsavel">Proprietário / contato</label><input class="form-control" id="rep-responsavel"/></div>
+        <div class="form-group"><label class="form-label" for="rep-tel">Telefone</label><input class="form-control" id="rep-tel"/></div>
+        <div class="form-group"><label class="form-label" for="rep-inicio">Início do contrato</label><input class="form-control" type="date" id="rep-inicio"/></div>
+        <div class="form-group"><label class="form-label" for="rep-fim">Fim do contrato</label><input class="form-control" type="date" id="rep-fim"/></div>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;margin:14px 0 8px">Custos mensais</div>
+      <div class="form-grid"><div class="form-group"><label class="form-label" for="rep-aluguel">Aluguel (R$/mês)</label><input class="form-control" type="number" step="0.01" min="0" id="rep-aluguel" oninput="_repTotal()"/></div><div class="form-group"><label class="form-label" for="rep-agua">Água (R$/mês)</label><input class="form-control" type="number" step="0.01" min="0" id="rep-agua" oninput="_repTotal()"/></div><div class="form-group"><label class="form-label" for="rep-luz">Luz (R$/mês)</label><input class="form-control" type="number" step="0.01" min="0" id="rep-luz" oninput="_repTotal()"/></div><div class="form-group"><label class="form-label" for="rep-internet">Internet (R$/mês)</label><input class="form-control" type="number" step="0.01" min="0" id="rep-internet" oninput="_repTotal()"/></div></div>
+      <div style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;margin:10px 0 6px">Outros custos do mês</div>
+      <div id="rep-extras"></div>
+      <button class="btn btn-outline btn-sm" type="button" onclick="(_repExtras=_repExtras||[]).push({desc:'',valor:0});_repExtrasRender()">+ Adicionar custo</button>
+      <div id="rep-total" style="margin-top:12px;padding:10px 12px;border-radius:8px;background:var(--bg);font-size:13px"></div>
+      <div class="form-group" style="margin-top:12px"><label class="form-label" for="rep-obs">Observações</label><input class="form-control" id="rep-obs" placeholder="Opcional…"/></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-republica')">Cancelar</button><button class="btn btn-primary" onclick="salvarRepublica()">Salvar</button></div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: MORADORES ═══ -->
+<div class="modal-overlay" id="modal-moradores">
+  <div class="modal" style="max-width:680px">
+    <div class="modal-header"><span class="modal-title" id="mor-titulo">Moradores</span><button class="modal-close" onclick="closeModal('modal-moradores')">×</button></div>
+    <div class="modal-body">
+      <div id="mor-resumo" style="font-size:13px;color:var(--text-2);margin-bottom:12px"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px;padding:12px;border:1px dashed var(--border);border-radius:10px">
+        <div class="form-group" style="flex:1;min-width:220px;margin:0"><label class="form-label" for="mor-func">Colocar morador</label><select class="form-control" id="mor-func"></select></div>
+        <div class="form-group" style="margin:0"><label class="form-label" for="mor-entrada">Entrada</label><input class="form-control" type="date" id="mor-entrada"/></div>
+        <button class="btn btn-primary" onclick="repEntrada()">+ Entrar</button>
+      </div>
+      <div class="table-wrap"><table><thead><tr><th>Morador</th><th>Entrada</th><th style="text-align:right">Saída</th></tr></thead><tbody id="mor-lista"></tbody></table></div>
+      <div id="mor-hist"></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-primary" onclick="closeModal('modal-moradores')">Fechar</button></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-nova-frente">
   <div class="modal" style="max-width:520px">
     <div class="modal-header">
@@ -3480,7 +3552,7 @@ function _okCli() { return window.OK_CLIENTE; }
 // Sem cliente definido (dados antigos, antes da migração) tudo continua na raiz, como antes.
 // ══════════════════════════════════════════════════════════════
 const _OK_DEVS = ['karine.loch@tencoengenharia.com.br', 'kavaloch@gmail.com'];
-const _OK_GLOBAIS = ['acessos', 'clientes'];
+const _OK_GLOBAIS = ['acessos', 'clientes', 'modulos'];
 window.OK_CLIENTE = null;
 function _okEhDev(email) { return _OK_DEVS.includes(String(email || '').toLowerCase()); }
 if (db) {
@@ -3511,7 +3583,7 @@ async function _definirCliente(email) {
   if (window.OK_CLIENTE_CFG && window.OK_CLIENTE_CFG.status === 'Suspenso' && !dev) { window._okMsg = 'O acesso desta empresa ao ObraKontrol está suspenso. Fale com o suporte.'; return false; }
   return true;
 }
-function _usrDev(email) { return { id: 'dev-' + email, nome: 'Desenvolvedor (ObraKontrol)', email, perfil: 'Admin', status: 'Ativo', obra: '', perms: {}, dev: true }; }
+function _usrDev(email) { return { id: 'dev-' + email, nome: 'Desenvolvedor ObraKontrol', email, perfil: 'Admin', status: 'Ativo', obra: '', perms: {}, dev: true }; }
 function _okFaixaDev() {
   let f = document.getElementById('ok-faixa-dev'); if (f) f.remove();
   if (!window._okDevComo) return;
@@ -3733,7 +3805,7 @@ async function sincronizarTudo() {
   if (!db || !_firebaseReady) return;
   const colecoes = ['obras','empresas','ua','cargos','turnos','equipes','funcionarios',
     'familias','modelos','equipamentos','frentes','tiposServico','tiposPerdas',
-    'aponMO','aponEQ','diesel','perdas','tanques','movTanques','notasFiscais','produtos','perfis','orcamentos'];
+    'aponMO','aponEQ','diesel','perdas','tanques','movTanques','notasFiscais','produtos','perfis','orcamentos','republicas'];
 
   // Check if Firebase was ever initialized
   let fbInicializado = false;
@@ -11665,6 +11737,194 @@ const TK_CSS_TXT = `
 .tk .tk-av{color:#B91C1C;font-weight:700;text-align:center;margin-top:6px}
 .tk .tk-rod{text-align:center;color:#666;font-size:10.5px;margin-top:10px}
 `;
+
+// ═══════════════════════════════════════════════════════════════
+// v2.85: MÓDULOS LIGADOS POR CLIENTE E OBRA (Console) + MÓDULO REPÚBLICAS
+// ═══════════════════════════════════════════════════════════════
+
+// ══════ CATÁLOGO DE MÓDULOS (a situação e a liberação vêm do Console) ══════
+// situacao: dev = em desenvolvimento (só no DEMO) · teste = piloto (só onde for ligado) · disponivel
+// padrao: liga sozinho para o cliente que não marcou nada
+const OK_MOD_PADRAO = {
+  maoDeObra:     { nome: 'Mão de obra', situacao: 'disponivel', padrao: true },
+  equipamentos:  { nome: 'Equipamentos', situacao: 'disponivel', padrao: true },
+  abastecimento: { nome: 'Abastecimento', situacao: 'disponivel', padrao: true },
+  frentesQR:     { nome: 'Frentes e QR (Lean)', situacao: 'disponivel', padrao: true },
+  efetivoRH:     { nome: 'Efetivo do RH', situacao: 'disponivel', padrao: true },
+  locacao:       { nome: 'Locação de equipamentos', situacao: 'disponivel', padrao: true },
+  orcamento:     { nome: 'Orçamento previsto', situacao: 'disponivel', padrao: true },
+  republicas:    { nome: 'Repúblicas e alojamentos', situacao: 'dev', padrao: false, desc: 'Cadastro de repúblicas e alojamentos, vagas, moradores e custo por pessoa' },
+};
+window.OK_MODULOS = JSON.parse(JSON.stringify(OK_MOD_PADRAO));
+async function _okCarregarModulos() {
+  try { const s = await db.collection('modulos').get(); s.docs.forEach(d => { window.OK_MODULOS[d.id] = { ...(window.OK_MODULOS[d.id] || {}), ...d.data() }; }); window._okModsOk = true; } catch (e) {}
+}
+// o módulo está ligado para este cliente (e esta obra)?
+function okModuloAtivo(k, obraId) {
+  const cat = window.OK_MODULOS[k] || { situacao: 'disponivel', padrao: true }, cfg = window.OK_CLIENTE_CFG || {};
+  if (window.OK_CLIENTE === 'demo' || cfg.demo) return true;          // ambiente de desenvolvimento vê tudo
+  if (cat.situacao === 'dev') return false;
+  const lig = cfg.modulos && cfg.modulos[k] !== undefined ? cfg.modulos[k] : (cat.situacao === 'teste' ? false : cat.padrao);
+  if (!lig) return false;
+  const lim = cfg.modulosObra && cfg.modulosObra[k];
+  if (lim && lim.length && obraId && obraId !== 'todas' && !lim.includes(obraId)) return false;
+  return true;
+}
+
+const OK_MOD_PAGINAS = {
+  maoDeObra: ['apon-mo', 'funcionarios', 'equipes', 'cargos', 'dash-mo', 'perdas', 'tipos-perdas'],
+  equipamentos: ['apon-eq', 'familias', 'modelos', 'equipamentos', 'dash-eq'],
+  abastecimento: ['apon-diesel', 'produtos', 'notas-diesel', 'tanques', 'dash-abs'],
+  orcamento: ['orcamento'], republicas: ['republicas'],
+};
+function _okModDaPagina(p) { for (const k in OK_MOD_PAGINAS) if (OK_MOD_PAGINAS[k].includes(p)) return k; return null; }
+function _okObraAtual() { return (typeof obraAtiva !== 'undefined' && obraAtiva && obraAtiva.id) || 'todas'; }
+(function () {
+  // carrega o catálogo junto com o cliente
+  const oDef = window._definirCliente || _definirCliente;
+  _definirCliente = async function () { const r = await oDef.apply(this, arguments); await _okCarregarModulos(); return r; };
+  const oP = window.podeVerPagina;
+  window.podeVerPagina = function (pag) { const k = _okModDaPagina(pag); if (k && !okModuloAtivo(k, _okObraAtual())) return false; return oP.apply(this, arguments); };
+  const oA = window.aplicarPermissoes;
+  window.aplicarPermissoes = function () {
+    const r = oA.apply(this, arguments);
+    if (!usuarioLogado) return r;
+    document.querySelectorAll('.sidebar .nav-group').forEach(g => {
+      let mexeu = false;
+      g.querySelectorAll('[onclick*="showPage("]').forEach(el => { const m = (el.getAttribute('onclick') || '').match(/showPage\('([^']+)'/); if (!m) return; const k = _okModDaPagina(m[1]);
+        if (k && !okModuloAtivo(k, _okObraAtual())) { el.style.display = 'none'; mexeu = true; } else if (k && el.style.display === 'none' && podeVerPagina(m[1])) el.style.display = ''; });
+      const algum = [...g.querySelectorAll('[onclick*="showPage("]')].some(el => el.style.display !== 'none');
+      if (!algum) g.style.display = 'none'; else if (g.id === 'grp-alojamento') g.style.display = '';
+    });
+    // botões de módulos que não são tela
+    document.querySelectorAll('[onclick*="efetivoAbrir()"]').forEach(b => { if (!b.closest('#modal-efetivo')) b.style.display = okModuloAtivo('efetivoRH', _okObraAtual()) ? '' : 'none'; });
+    document.querySelectorAll(`[onclick*="showQRTab('qr-frente'"]`).forEach(b => b.style.display = okModuloAtivo('frentesQR', _okObraAtual()) ? '' : 'none');
+    const ativa = document.querySelector('.page.active')?.id?.replace('page-', '');
+    if (ativa && !podeVerPagina(ativa)) { const alvo = ['dashboard', 'obras', 'frentes'].find(p => podeVerPagina(p)); if (alvo) showPage(alvo); }
+    return r;
+  };
+  const oSel = window.selecionarObra || selecionarObra;
+  window.selecionarObra = function () { const r = oSel.apply(this, arguments); try { aplicarPermissoes(); if (document.getElementById('page-republicas')?.classList.contains('active')) renderRepublicas(); } catch (e) {} return r; };
+  try { const oLoc = _dxLocacao; _dxLocacao = function () { return okModuloAtivo('locacao', _okObraAtual()) ? oLoc.apply(this, arguments) : ''; }; } catch (e) {}
+  const oInit = window.pageInit;
+  window.pageInit = function (id) { const r = oInit.apply(this, arguments); if (id === 'republicas') renderRepublicas(); return r; };
+})();
+
+// ── REPÚBLICAS E ALOJAMENTOS ─────────────────────────────────────
+const _REP_CUSTOS = [['aluguel', 'Aluguel'], ['agua', 'Água'], ['luz', 'Luz'], ['internet', 'Internet']];
+function _repMoeda(v) { return (+v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
+function repCusto(r) { return _REP_CUSTOS.reduce((s, [k]) => s + (+r[k] || 0), 0) + (r.extras || []).reduce((s, x) => s + (+x.valor || 0), 0); }
+function repMoradores(r) { return (r.moradores || []).filter(m => !m.saida); }
+function _repLista() { const o = _okObraAtual(); return (dados.republicas || []).filter(r => (o === 'todas' || r.obra === o) && okModuloAtivo('republicas', r.obra)); }
+function renderRepublicas() {
+  const busca = (document.getElementById('search-rep')?.value || '').toLowerCase();
+  const todas = _repLista(), ativas = todas.filter(r => r.status !== 'Encerrada');
+  const vagas = ativas.reduce((s, r) => s + (+r.vagas || 0), 0), ocup = ativas.reduce((s, r) => s + repMoradores(r).length, 0), custo = ativas.reduce((s, r) => s + repCusto(r), 0);
+  const vazio = ativas.reduce((s, r) => { const v = +r.vagas || 0, o = repMoradores(r).length; return s + (v > o && v ? repCusto(r) / v * (v - o) : 0); }, 0);
+  const kpi = (l, v, sub, cor) => `<div class="stat-card"><div class="stat-label">${l}</div><div class="stat-value" style="${cor ? 'color:' + cor : ''}">${v}</div><div class="stat-sub">${sub}</div></div>`;
+  const kp = document.getElementById('rep-kpis');
+  if (kp) kp.innerHTML = kpi('Repúblicas ativas', ativas.length, todas.length - ativas.length ? (todas.length - ativas.length) + ' encerrada(s)' : 'em uso')
+    + kpi('Ocupação', ocup + ' / ' + vagas, vagas ? Math.round(ocup / vagas * 100) + '% das vagas' : 'sem vagas cadastradas')
+    + kpi('Custo mensal', _repMoeda(custo), 'aluguel, contas e extras')
+    + kpi('Custo por pessoa', ocup ? _repMoeda(custo / ocup) : '—', 'média do mês')
+    + kpi('Custo das vagas vazias', _repMoeda(vazio), (vagas - ocup) + ' vaga(s) livre(s)', vazio ? 'var(--amber)' : '');
+  const lista = todas.filter(r => !busca || [r.nome, r.cod, r.endereco, ...(repMoradores(r).map(m => m.nome))].some(x => String(x || '').toLowerCase().includes(busca)))
+    .sort((a, b) => (a.status === 'Encerrada') - (b.status === 'Encerrada') || String(a.cod).localeCompare(String(b.cod), 'pt-BR', { numeric: true }));
+  const tb = document.getElementById('tbody-republicas'); if (!tb) return;
+  tb.innerHTML = lista.length ? lista.map(r => {
+    const c = repCusto(r), m = repMoradores(r).length, v = +r.vagas || 0, pc = v ? Math.min(100, m / v * 100) : 0;
+    return `<tr>
+      <td><div style="font-weight:700">${_e(r.nome)}</div><div style="font-size:11.5px;color:var(--text-3)">${_e(r.cod)}${r.tipo ? ' · ' + _e(r.tipo) : ''}${r.endereco ? ' · ' + _e(r.endereco) : ''}</div></td>
+      <td style="font-size:12px">${_e(getNomeObra(r.obra) || '—')}</td>
+      <td style="min-width:150px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><b>${m} de ${v}</b><span style="color:var(--text-3)">${v - m > 0 ? (v - m) + ' livre(s)' : v ? 'lotada' : ''}</span></div>
+        <div style="height:7px;border-radius:4px;background:var(--border);overflow:hidden"><div style="height:7px;width:${pc}%;background:${m > v ? 'var(--red)' : 'var(--blue, #2563EB)'}"></div></div></td>
+      <td class="td-mono" style="text-align:right">${_repMoeda(c)}</td>
+      <td class="td-mono" style="text-align:right;font-weight:700">${m ? _repMoeda(c / m) : '—'}</td>
+      <td class="td-mono" style="text-align:right;color:var(--text-2)">${v ? _repMoeda(c / v) : '—'}</td>
+      <td>${tag(r.status || 'Ativa', r.status === 'Encerrada' ? 'gray' : 'green')}</td>
+      <td style="white-space:nowrap;text-align:right"><button class="btn btn-outline btn-sm" onclick="repMoradoresAbrir('${r.id}')">👥 Moradores</button> <button class="btn btn-outline btn-sm" onclick="repEditar('${r.id}')">✎ Editar</button></td></tr>`; }).join('')
+    : '<tr><td colspan="8" style="text-align:center;color:var(--text-3);padding:2rem">Nenhuma república cadastrada' + (_okObraAtual() !== 'todas' ? ' nesta obra' : '') + '. Clique em <b>+ Nova república</b>.</td></tr>';
+}
+function _repProxCod() { let mx = 0; (dados.republicas || []).forEach(r => { const m = /^REP-(\d+)$/i.exec(r.cod || ''); if (m) mx = Math.max(mx, +m[1]); }); return 'REP-' + String(mx + 1).padStart(3, '0'); }
+function repNova() { repEditar(null); }
+function repEditar(id) {
+  const r = id ? (dados.republicas || []).find(x => x.id === id) : null, $ = k => document.getElementById(k);
+  $('rep-titulo').textContent = r ? 'Editar república · ' + r.cod : 'Nova república';
+  $('rep-id').value = r ? r.id : '';
+  popularSelectObra('rep-obra', r ? r.obra : (_okObraAtual() !== 'todas' ? _okObraAtual() : ''));
+  $('rep-cod').value = r ? r.cod : _repProxCod();
+  ['nome', 'endereco', 'responsavel', 'tel', 'obs'].forEach(k => $('rep-' + k).value = r ? (r[k] || '') : '');
+  $('rep-tipo').value = r ? (r.tipo || 'República') : 'República'; $('rep-status').value = r ? (r.status || 'Ativa') : 'Ativa';
+  $('rep-vagas').value = r ? (r.vagas || '') : ''; $('rep-inicio').value = r ? (r.inicio || '') : ''; $('rep-fim').value = r ? (r.fim || '') : '';
+  _REP_CUSTOS.forEach(([k]) => $('rep-' + k).value = r && +r[k] ? r[k] : '');
+  window._repExtras = r ? JSON.parse(JSON.stringify(r.extras || [])) : [];
+  _repExtrasRender(); openModal('modal-republica');
+}
+function _repExtrasRender() {
+  const box = document.getElementById('rep-extras'); if (!box) return;
+  box.innerHTML = (window._repExtras || []).map((x, i) => `<div style="display:flex;gap:8px;margin-bottom:6px"><input class="form-control" placeholder="Ex.: gás, limpeza, manutenção" value="${_e(x.desc || '')}" oninput="_repExtras[${i}].desc=this.value"/>
+      <input class="form-control" type="number" step="0.01" min="0" style="max-width:130px" placeholder="R$/mês" value="${x.valor || ''}" oninput="_repExtras[${i}].valor=+this.value||0;_repTotal()"/>
+      <button class="btn btn-outline btn-sm" type="button" onclick="_repExtras.splice(${i},1);_repExtrasRender()" aria-label="Remover custo">✕</button></div>`).join('');
+  _repTotal();
+}
+function _repTotal() {
+  const $ = k => document.getElementById(k), t = _REP_CUSTOS.reduce((s, [k]) => s + (+$('rep-' + k).value || 0), 0) + (window._repExtras || []).reduce((s, x) => s + (+x.valor || 0), 0), v = +$('rep-vagas').value || 0;
+  const el = $('rep-total'); if (el) el.innerHTML = `Custo mensal: <b>${_repMoeda(t)}</b>${v ? ' · por vaga: <b>' + _repMoeda(t / v) + '</b>' : ''}`;
+}
+function salvarRepublica() {
+  const $ = k => document.getElementById(k), id = $('rep-id').value;
+  const nome = $('rep-nome').value.trim(), obra = $('rep-obra').value, vagas = parseInt($('rep-vagas').value) || 0;
+  if (!obra) { toast('Escolha a obra da república.', 'error'); return; }
+  if (!nome) { toast('Informe o nome da república.', 'error'); return; }
+  if (!vagas) { toast('Informe a quantidade de vagas.', 'error'); return; }
+  const lista = dados.republicas || (dados.republicas = []);
+  const r = id ? lista.find(x => x.id === id) : { id: 'rp' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), moradores: [], criadoEm: new Date().toISOString() };
+  Object.assign(r, { obra, cod: $('rep-cod').value || _repProxCod(), nome, tipo: $('rep-tipo').value, endereco: $('rep-endereco').value.trim(), vagas, responsavel: $('rep-responsavel').value.trim(), tel: $('rep-tel').value.trim(),
+    inicio: $('rep-inicio').value, fim: $('rep-fim').value, status: $('rep-status').value, obs: $('rep-obs').value.trim(), extras: (window._repExtras || []).filter(x => x.desc || +x.valor), atualizadoEm: new Date().toISOString() });
+  _REP_CUSTOS.forEach(([k]) => r[k] = +$('rep-' + k).value || 0);
+  if (!id) lista.push(r);
+  if (repMoradores(r).length > vagas) toast('Atenção: ' + repMoradores(r).length + ' moradores para ' + vagas + ' vagas.', 'error');
+  if (db && _firebaseReady) fbSave('republicas', r.id, r).catch(() => toast('Salvo aqui, mas não no servidor. Tente de novo.', 'error'));
+  closeModal('modal-republica'); renderRepublicas(); toast('República ' + r.cod + ' salva!');
+}
+function repMoradoresAbrir(id) { window._repAtual = id; _repMoradoresRender(); openModal('modal-moradores'); }
+function _repMoradoresRender() {
+  const r = (dados.republicas || []).find(x => x.id === window._repAtual); if (!r) return;
+  const $ = k => document.getElementById(k), atuais = repMoradores(r), hist = (r.moradores || []).filter(m => m.saida), c = repCusto(r);
+  $('mor-titulo').textContent = r.nome + ' · ' + atuais.length + ' de ' + (r.vagas || 0) + ' vagas';
+  $('mor-resumo').innerHTML = `Custo mensal ${_repMoeda(c)} · <b>${atuais.length ? _repMoeda(c / atuais.length) + ' por pessoa' : 'sem moradores'}</b>`;
+  const ocupados = new Set((dados.republicas || []).flatMap(x => repMoradores(x).map(m => m.func)));
+  const funcs = (dados.funcionarios || []).filter(f => (!r.obra || !f.obra || f.obra === r.obra) && !ocupados.has(f.id) && !(f.demissao && f.demissao <= _hojeLocal()))
+    .sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
+  $('mor-func').innerHTML = '<option value="">Escolha o funcionário…</option>' + funcs.map(f => `<option value="${f.id}">${_e(f.nome)} · Mat. ${_e(f.mat || '—')}${f.funcao ? ' · ' + _e(f.funcao) : ''}</option>`).join('');
+  $('mor-entrada').value = _hojeLocal();
+  $('mor-lista').innerHTML = atuais.length ? atuais.map(m => `<tr><td><b>${_e(m.nome)}</b><div style="font-size:11px;color:var(--text-3)">Mat. ${_e(m.mat || '—')}${m.funcao ? ' · ' + _e(m.funcao) : ''}</div></td>
+      <td style="font-size:12px">${_e(String(m.entrada || '').split('-').reverse().join('/'))}</td>
+      <td style="text-align:right;white-space:nowrap"><input type="date" class="form-control" id="sai-${m.id}" value="${_hojeLocal()}" style="display:inline-block;width:150px;padding:4px 8px"/> <button class="btn btn-outline btn-sm" onclick="repSaida('${m.id}')">Dar saída</button></td></tr>`).join('')
+    : '<tr><td colspan="3" style="text-align:center;color:var(--text-3);padding:1rem">Ninguém morando aqui no momento.</td></tr>';
+  $('mor-hist').innerHTML = hist.length ? '<div style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;margin:14px 0 6px">Já moraram aqui</div>'
+    + hist.slice().reverse().map(m => `<div style="font-size:12.5px;padding:3px 0;color:var(--text-2)">${_e(m.nome)} · ${_e(String(m.entrada || '').split('-').reverse().join('/'))} → ${_e(String(m.saida).split('-').reverse().join('/'))}</div>`).join('') : '';
+}
+function repEntrada() {
+  const r = (dados.republicas || []).find(x => x.id === window._repAtual); if (!r) return;
+  const fid = document.getElementById('mor-func').value, ent = document.getElementById('mor-entrada').value;
+  if (!fid) { toast('Escolha o funcionário.', 'error'); return; }
+  const f = (dados.funcionarios || []).find(x => x.id === fid); if (!f) return;
+  const outra = (dados.republicas || []).find(x => x.id !== r.id && repMoradores(x).some(m => m.func === fid));
+  if (outra) { toast(f.nome + ' já está em ' + outra.nome + '. Dê saída lá primeiro.', 'error'); return; }
+  if (repMoradores(r).length >= (+r.vagas || 0) && !confirm('A república já está com todas as vagas ocupadas. Colocar mesmo assim?')) return;
+  (r.moradores = r.moradores || []).push({ id: 'm' + Date.now().toString(36), func: fid, mat: f.mat || '', nome: f.nome, funcao: f.funcao || '', entrada: ent || _hojeLocal() });
+  if (db && _firebaseReady) fbSave('republicas', r.id, r).catch(() => {});
+  _repMoradoresRender(); renderRepublicas(); toast(f.nome + ' entrou em ' + r.nome);
+}
+function repSaida(mid) {
+  const r = (dados.republicas || []).find(x => x.id === window._repAtual); if (!r) return;
+  const m = (r.moradores || []).find(x => x.id === mid); if (!m) return;
+  m.saida = document.getElementById('sai-' + mid)?.value || _hojeLocal();
+  if (m.saida < (m.entrada || '')) { m.saida = ''; delete m.saida; toast('A saída não pode ser antes da entrada.', 'error'); return; }
+  if (db && _firebaseReady) fbSave('republicas', r.id, r).catch(() => {});
+  _repMoradoresRender(); renderRepublicas(); toast(m.nome + ' saiu de ' + r.nome);
+}
 
 // Apply configs on load
 setTimeout(applyConfigs, 200);

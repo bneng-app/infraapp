@@ -648,6 +648,7 @@ select.form-control,select.form-control:focus{background-image:url("data:image/s
 /* v2.36: QR da frente de serviço */
 .ap-qr-frente{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:8px;padding:11px;border-radius:12px;border:1.5px dashed var(--red);background:rgba(227,6,19,.06);color:var(--red);font-weight:800;font-size:14px;cursor:pointer}
 .ap-qr-frente svg{width:18px;height:18px}
+.ok-sem-frenteqr .ap-qr-frente{display:none!important}
 /* v2.42: ticket de abastecimento */
 .tk{background:#fff;color:#111;width:300px;max-width:100%;margin:0 auto;padding:18px 18px 22px;font-family:'Courier New',ui-monospace,monospace;font-size:12.5px;line-height:1.45;box-shadow:0 10px 30px rgba(0,0,0,.25);position:relative;
   -webkit-mask:radial-gradient(circle 6px at 50% 100%,transparent 98%,#000) bottom/14px 100% repeat-x;mask:radial-gradient(circle 6px at 50% 100%,transparent 98%,#000) bottom/14px 100% repeat-x}
@@ -861,7 +862,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.45</div>
+  <div class="login-versao">ObraKontrol Campo · v2.46</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -1437,7 +1438,7 @@ function _okClienteLink() { try { return localStorage.getItem('ok_cliente_link')
 // Sem cliente definido (dados antigos, antes da migração) tudo continua na raiz, como antes.
 // ══════════════════════════════════════════════════════════════
 const _OK_DEVS = ['karine.loch@tencoengenharia.com.br', 'kavaloch@gmail.com'];
-const _OK_GLOBAIS = ['acessos', 'clientes'];
+const _OK_GLOBAIS = ['acessos', 'clientes', 'modulos'];
 window.OK_CLIENTE = null;
 function _okEhDev(email) { return _OK_DEVS.includes(String(email || '').toLowerCase()); }
 if (db) {
@@ -1585,7 +1586,8 @@ async function fazerLoginCampo() {
   const emailAuth = (cred.user.email || '').toLowerCase();
   const _ac = await _okAcesso(emailAuth);
   window.OK_CLIENTE = (_ac && _ac.cliente) || null;
-  if (window.OK_CLIENTE) { const cfg = await _okCarregarCliente(window.OK_CLIENTE); if (cfg.status === 'Suspenso') { try { await auth.signOut(); } catch (_) {} erro('O acesso desta empresa está suspenso. Fale com o escritório.'); return; } }
+  window.OK_CLIENTE_CFG = null;
+  if (window.OK_CLIENTE) { const cfg = await _okCarregarCliente(window.OK_CLIENTE); window.OK_CLIENTE_CFG = cfg; if (cfg.status === 'Suspenso') { try { await auth.signOut(); } catch (_) {} erro('O acesso desta empresa está suspenso. Fale com o escritório.'); return; } }
   let usr = null;
   try {
     let snap = await db.collection('usuarios').where('email', '==', emailAuth).limit(1).get();
@@ -3756,6 +3758,56 @@ function tkCompartilhar() {
   if (navigator.share) navigator.share({ title: 'Ticket ' + d.ticket, text: txt }).catch(() => {});
   else { try { navigator.clipboard.writeText(txt); toast('Ticket copiado', 'ok'); } catch (e) {} }
 }
+
+// ══════════════════════════════════════════════════════════════
+// v2.46: MÓDULOS LIGADOS POR CLIENTE E OBRA (Console)
+// ══════════════════════════════════════════════════════════════
+
+// ══════ CATÁLOGO DE MÓDULOS (a situação e a liberação vêm do Console) ══════
+// situacao: dev = em desenvolvimento (só no DEMO) · teste = piloto (só onde for ligado) · disponivel
+// padrao: liga sozinho para o cliente que não marcou nada
+const OK_MOD_PADRAO = {
+  maoDeObra:     { nome: 'Mão de obra', situacao: 'disponivel', padrao: true },
+  equipamentos:  { nome: 'Equipamentos', situacao: 'disponivel', padrao: true },
+  abastecimento: { nome: 'Abastecimento', situacao: 'disponivel', padrao: true },
+  frentesQR:     { nome: 'Frentes e QR (Lean)', situacao: 'disponivel', padrao: true },
+  efetivoRH:     { nome: 'Efetivo do RH', situacao: 'disponivel', padrao: true },
+  locacao:       { nome: 'Locação de equipamentos', situacao: 'disponivel', padrao: true },
+  orcamento:     { nome: 'Orçamento previsto', situacao: 'disponivel', padrao: true },
+  republicas:    { nome: 'Repúblicas e alojamentos', situacao: 'dev', padrao: false, desc: 'Cadastro de repúblicas e alojamentos, vagas, moradores e custo por pessoa' },
+};
+window.OK_MODULOS = JSON.parse(JSON.stringify(OK_MOD_PADRAO));
+async function _okCarregarModulos() {
+  try { const s = await db.collection('modulos').get(); s.docs.forEach(d => { window.OK_MODULOS[d.id] = { ...(window.OK_MODULOS[d.id] || {}), ...d.data() }; }); window._okModsOk = true; } catch (e) {}
+}
+// o módulo está ligado para este cliente (e esta obra)?
+function okModuloAtivo(k, obraId) {
+  const cat = window.OK_MODULOS[k] || { situacao: 'disponivel', padrao: true }, cfg = window.OK_CLIENTE_CFG || {};
+  if (window.OK_CLIENTE === 'demo' || cfg.demo) return true;          // ambiente de desenvolvimento vê tudo
+  if (cat.situacao === 'dev') return false;
+  const lig = cfg.modulos && cfg.modulos[k] !== undefined ? cfg.modulos[k] : (cat.situacao === 'teste' ? false : cat.padrao);
+  if (!lig) return false;
+  const lim = cfg.modulosObra && cfg.modulosObra[k];
+  if (lim && lim.length && obraId && obraId !== 'todas' && !lim.includes(obraId)) return false;
+  return true;
+}
+
+function _okAplicarModulosCampo() {
+  const o = usuarioCampo && usuarioCampo.obra;
+  document.body.classList.toggle('ok-sem-frenteqr', !okModuloAtivo('frentesQR', o));
+  try { if (typeof _modulosAplicar === 'function') _modulosAplicar(); } catch (e) {}
+}
+(function () {
+  const oCDC = carregarDadosCampo;
+  carregarDadosCampo = async function () {
+    try { const c = _okCli(); if (c && (!window.OK_CLIENTE_CFG || window.OK_CLIENTE_CFG.id !== c)) window.OK_CLIENTE_CFG = await _okCarregarCliente(c); if (!window._okModsOk) await _okCarregarModulos(); } catch (e) {}
+    const r = await oCDC.apply(this, arguments);
+    _okAplicarModulosCampo();
+    return r;
+  };
+  const oPM = podeModulo;
+  podeModulo = function (k) { if (k === 'abastecimento' && !okModuloAtivo('abastecimento', usuarioCampo && usuarioCampo.obra)) return false; return oPM.apply(this, arguments); };
+})();
 
 // Salvar sessão ao entrar
 const _origEntrar = entrarNoCampo;

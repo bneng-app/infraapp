@@ -18,6 +18,12 @@ service cloud.firestore {
       allow delete: if dev() || (temAcesso() && resource.data.cliente == meuCliente());
     }
 
+    // catálogo de módulos: todos leem, só o desenvolvedor muda a situação
+    match /modulos/{m} {
+      allow read: if logado();
+      allow write: if dev();
+    }
+
     // cadastro do cliente (só o desenvolvedor altera) e a "gaveta" de dados de cada cliente
     match /clientes/{c} {
       allow read: if dev() || (temAcesso() && meuCliente() == c);
@@ -30,7 +36,7 @@ service cloud.firestore {
     // TRANSIÇÃO: dados antigos (antes da migração para clientes/tenco).
     // Depois de conferir a migração, apague este bloco e publique de novo.
     match /{col}/{doc=**} {
-      allow read, write: if logado() && !(col in ['acessos', 'clientes']);
+      allow read, write: if logado() && !(col in ['acessos', 'clientes', 'modulos']);
     }
   }
 }
