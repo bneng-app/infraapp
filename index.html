@@ -554,7 +554,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v2.77 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v2.78 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -3430,10 +3430,59 @@ try {
 }
 
 // ─── Firebase helpers ────────────────────────────────────────────
+function _okCli() { return window.OK_CLIENTE; }
+// ══════════════════════════════════════════════════════════════
+// MULTI-CLIENTE (Painel v2.78 / Campo v2.38 / Console v1.0)
+// Os dados de cada cliente ficam em clientes/<id>/<coleção>. acessos/<e-mail> diz de qual cliente é cada login.
+// Sem cliente definido (dados antigos, antes da migração) tudo continua na raiz, como antes.
+// ══════════════════════════════════════════════════════════════
+const _OK_DEVS = ['karine.loch@tencoengenharia.com.br', 'kavaloch@gmail.com'];
+const _OK_GLOBAIS = ['acessos', 'clientes'];
+window.OK_CLIENTE = null;
+function _okEhDev(email) { return _OK_DEVS.includes(String(email || '').toLowerCase()); }
+if (db) {
+  const _colRaiz = db.collection.bind(db);
+  db.collection = function (nome) {
+    const c = _okCli();
+    return (c && !_OK_GLOBAIS.includes(nome)) ? _colRaiz('clientes').doc(c).collection(nome) : _colRaiz(nome);
+  };
+}
+async function _okAcesso(email) {
+  try { const d = await db.collection('acessos').doc(String(email || '').toLowerCase()).get(); return d.exists ? d.data() : null; } catch (e) { return null; }
+}
+async function _okCarregarCliente(id) {
+  try { const d = await db.collection('clientes').doc(id).get(); return d.exists ? { id, ...d.data() } : { id }; } catch (e) { return { id }; }
+}
+
+// login interno do pessoal de campo: na Tenco (1º cliente) é matrícula@…; nos outros clientes, cliente-matrícula@…
+function _preCampo() { const c = window.OK_CLIENTE; return c && c !== 'tenco' ? c + '-' : ''; }
+// define o cliente de quem entrou. false = não pode entrar (cliente suspenso)
+async function _definirCliente(email) {
+  email = String(email || '').toLowerCase();
+  const dev = _okEhDev(email), pedido = new URLSearchParams(location.search).get('c');
+  const ac = await _okAcesso(email);
+  window._okDevComo = false;
+  if (dev && pedido && (!ac || ac.cliente !== pedido)) { window.OK_CLIENTE = pedido; window._okDevComo = true; }
+  else window.OK_CLIENTE = (ac && ac.cliente) || (dev && pedido) || null;
+  window.OK_CLIENTE_CFG = window.OK_CLIENTE ? await _okCarregarCliente(window.OK_CLIENTE) : null;
+  if (window.OK_CLIENTE_CFG && window.OK_CLIENTE_CFG.status === 'Suspenso' && !dev) { window._okMsg = 'O acesso desta empresa ao ObraKontrol está suspenso. Fale com o suporte.'; return false; }
+  return true;
+}
+function _usrDev(email) { return { id: 'dev-' + email, nome: 'Desenvolvedor (ObraKontrol)', email, perfil: 'Admin', status: 'Ativo', obra: '', perms: {}, dev: true }; }
+function _okFaixaDev() {
+  let f = document.getElementById('ok-faixa-dev'); if (f) f.remove();
+  if (!window._okDevComo) return;
+  f = document.createElement('div'); f.id = 'ok-faixa-dev';
+  f.style.cssText = 'position:fixed;left:50%;bottom:12px;transform:translateX(-50%);z-index:9999;background:#141414;color:#fff;border:1px solid #E30613;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;box-shadow:0 6px 20px rgba(0,0,0,.3)';
+  f.textContent = 'Modo desenvolvedor · cliente ' + ((window.OK_CLIENTE_CFG && (window.OK_CLIENTE_CFG.nomeCurto || window.OK_CLIENTE_CFG.nome)) || window.OK_CLIENTE);
+  document.body.appendChild(f);
+}
 async function fbSave(colecao, id, dados) {
   if (!db || !_firebaseReady) return;
   try {
     await db.collection(colecao).doc(id).set(dados, { merge: true });
+    if (colecao === 'usuarios' && window.OK_CLIENTE && dados && dados.email && !String(id).startsWith('dev-'))
+      await db.collection('acessos').doc(String(dados.email).toLowerCase()).set({ cliente: window.OK_CLIENTE, nome: dados.nome || '', perfil: dados.perfil || '', atualizadoEm: new Date().toISOString() }, { merge: true });
   } catch(e) { console.warn('Erro ao salvar '+colecao+':', e.message); }
 }
 
@@ -3442,7 +3491,10 @@ async function fbDelete(colecao, id) {
   if (!_firebaseReady) { console.warn('fbDelete: firebase not ready'); throw new Error('Firebase não pronto'); }
   const user = auth ? auth.currentUser : null;
   if (!user) { console.warn('fbDelete: user not authenticated'); throw new Error('Usuário não autenticado no Firebase'); }
+  let emailAc = '';
+  if (colecao === 'usuarios' && window.OK_CLIENTE) { try { const d = await db.collection('usuarios').doc(id).get(); emailAc = d.exists ? String(d.data().email || '').toLowerCase() : ''; } catch (e) {} }
   await db.collection(colecao).doc(id).delete();
+  if (emailAc) { try { await db.collection('acessos').doc(emailAc).delete(); } catch (e) {} }
   console.log('Deleted from Firebase:', colecao, id);
 }
 
@@ -3835,10 +3887,12 @@ function fazerLogin() {
   entrarComCandidatos(digitado, senha)
     .then(async cred => {
       email = ((cred.user && cred.user.email) || digitado).toLowerCase();
+      if (!(await _definirCliente(email))) { auth.signOut(); erro(window._okMsg); return; }
       const usrs = await fbLoadAll('usuarios');
       if (usrs && usrs.length > 0) USUARIOS = usrs;
       const emailAuth = ((cred.user && cred.user.email) || email).toLowerCase();
       let usr = USUARIOS.find(u => (u.email||'').toLowerCase() === emailAuth) || USUARIOS.find(u => u.id === (cred.user && cred.user.uid));
+      if (!usr && window._okDevComo) usr = _usrDev(emailAuth);
       if (!usr) {
         // Só cria perfil Admin automático se ainda não existir nenhum administrador (primeira instalação)
         const temAdmin = (usrs||[]).some(u => u.perfil === 'Admin');
@@ -4045,7 +4099,7 @@ async function salvarUsuario() {
   // v2.2: pessoal de campo sem e-mail ganha um login interno a partir da matrícula
   // v2.6: na edição, mantém o login interno atual (ele muda quando a senha é redefinida)
   if (!email && existente && (existente.email||'').endsWith('@' + _DOMINIO_CAMPO) && (existente.mat||existente.matricula||'') === mat) email = existente.email;
-  if (!email && mat) email = mat.replace(/\s+/g,'') + '@' + _DOMINIO_CAMPO;
+  if (!email && mat) email = _preCampo() + mat.replace(/\s+/g,'') + '@' + _DOMINIO_CAMPO;
   const ehCampo = email.endsWith('@' + _DOMINIO_CAMPO);
   let login = gerarLogin(document.getElementById('usr-login')?.value || '') || (ehCampo ? '' : gerarLogin(email));
   if (login) {
@@ -4107,7 +4161,7 @@ async function salvarUsuario() {
           avisoAcesso = ' Este login já existia, então a senha antiga dele continua valendo.';
         } else if (email.endsWith('@' + _DOMINIO_CAMPO)) {
           // v2.9: o app de campo testa matrícula, matrícula.2, ... matrícula.6 — por isso a sequência
-          const baseMat = (mat || 'campo').replace(/\s+/g,'');
+          const baseMat = _preCampo() + (mat || 'campo').replace(/\s+/g,'');
           const atual = (email.match(/\.(\d+)@/) || [0, 1])[1] * 1;
           let ok = false;
           for (let n = Math.max(2, atual + 1); n <= 6 && !ok; n++) {
@@ -8090,7 +8144,7 @@ async function testarAcessoCampo() {
   res.textContent = 'Testando…'; res.style.color = 'var(--text-3)';
   let app = firebase.apps.find(a => a.name === 'teste-campo'); if (!app) app = firebase.initializeApp(firebaseConfig, 'teste-campo');
   const a = app.auth();
-  const cands = [mat + '@' + _DOMINIO_CAMPO, ...[2,3,4,5,6].map(n => mat + '.' + n + '@' + _DOMINIO_CAMPO)];
+  const cands = [_preCampo() + mat + '@' + _DOMINIO_CAMPO, ...[2,3,4,5,6].map(n => _preCampo() + mat + '.' + n + '@' + _DOMINIO_CAMPO)];
   let ok = null, cod = '';
   for (const em of cands) {
     try { await a.signInWithEmailAndPassword(em, senha); ok = em; break; }
@@ -8557,7 +8611,7 @@ async function atualizarDados() {
 
 (function () {
   const oEntrar = window.entrarNoApp;
-  window.entrarNoApp = function () { const r = oEntrar.apply(this, arguments); setTimeout(iniciarAoVivo, 1500); return r; };
+  window.entrarNoApp = function () { const r = oEntrar.apply(this, arguments); setTimeout(iniciarAoVivo, 1500); try { _okFaixaDev(); } catch (e) {} return r; };
   const oLogin = window.fazerLogin;
   window.fazerLogin = function () { window.__logando = true; setTimeout(() => window.__logando = false, 20000); return oLogin.apply(this, arguments); };
   const oSair = window.logout;
@@ -8571,9 +8625,10 @@ async function atualizarDados() {
       if (!ehPrimeiro || !user || usuarioLogado || window.__logando) return;
       const lbl = document.getElementById('sync-label'); if (lbl) lbl.textContent = 'Retomando sessão…';
       try {
-        const usrs = await fbLoadAll('usuarios'); if (usrs && usrs.length) USUARIOS = usrs;
         const em = (user.email || '').toLowerCase();
-        const usr = USUARIOS.find(u => (u.email||'').toLowerCase() === em) || USUARIOS.find(u => u.id === user.uid);
+        if (!(await _definirCliente(em))) { auth.signOut(); if (lbl) lbl.textContent = ''; return; }
+        const usrs = await fbLoadAll('usuarios'); if (usrs && usrs.length) USUARIOS = usrs;
+        const usr = USUARIOS.find(u => (u.email||'').toLowerCase() === em) || USUARIOS.find(u => u.id === user.uid) || (window._okDevComo ? _usrDev(em) : null);
         // apontador de campo no mesmo aparelho: não mexe na sessão dele, só pede o login do painel
         if (!usr || usr.status === 'Inativo' || _perfilEhCampo(usr.perfil)) { if (lbl) lbl.textContent = ''; return; }
         usuarioLogado = usr;

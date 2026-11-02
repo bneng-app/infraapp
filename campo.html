@@ -811,7 +811,7 @@ select.form-control,select.form-control:focus{background-image:url("data:image/s
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.37</div>
+  <div class="login-versao">ObraKontrol Campo · v2.38</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -1372,6 +1372,34 @@ try {
   auth = firebase.auth();
   _fbReady = true;
 } catch(e) { console.warn('Firebase offline:', e.message); }
+// cliente do link (campo.html?c=<cliente>) fica guardado no aparelho
+try { const _cUrl = new URLSearchParams(location.search).get('c'); if (_cUrl) localStorage.setItem('ok_cliente_link', _cUrl.toLowerCase()); } catch (e) {}
+function _okCli() { return window.OK_CLIENTE || (typeof usuarioCampo !== 'undefined' && usuarioCampo && usuarioCampo.cliente) || null; }
+function _okClienteLink() { try { return localStorage.getItem('ok_cliente_link') || ''; } catch (e) { return ''; } }
+
+// ══════════════════════════════════════════════════════════════
+// MULTI-CLIENTE (Painel v2.78 / Campo v2.38 / Console v1.0)
+// Os dados de cada cliente ficam em clientes/<id>/<coleção>. acessos/<e-mail> diz de qual cliente é cada login.
+// Sem cliente definido (dados antigos, antes da migração) tudo continua na raiz, como antes.
+// ══════════════════════════════════════════════════════════════
+const _OK_DEVS = ['karine.loch@tencoengenharia.com.br', 'kavaloch@gmail.com'];
+const _OK_GLOBAIS = ['acessos', 'clientes'];
+window.OK_CLIENTE = null;
+function _okEhDev(email) { return _OK_DEVS.includes(String(email || '').toLowerCase()); }
+if (db) {
+  const _colRaiz = db.collection.bind(db);
+  db.collection = function (nome) {
+    const c = _okCli();
+    return (c && !_OK_GLOBAIS.includes(nome)) ? _colRaiz('clientes').doc(c).collection(nome) : _colRaiz(nome);
+  };
+}
+async function _okAcesso(email) {
+  try { const d = await db.collection('acessos').doc(String(email || '').toLowerCase()).get(); return d.exists ? d.data() : null; } catch (e) { return null; }
+}
+async function _okCarregarCliente(id) {
+  try { const d = await db.collection('clientes').doc(id).get(); return d.exists ? { id, ...d.data() } : { id }; } catch (e) { return { id }; }
+}
+
 
 // ══════════════════════════════════════════════════════════════
 // STATE
@@ -1483,7 +1511,7 @@ async function fazerLoginCampo() {
   let candidatos;
   if (digitado.includes('@')) candidatos = [digitado.toLowerCase()];
   else {
-    const m = digitado.replace(/\s+/g, '');
+    const cl = _okClienteLink(), m = (cl && cl !== 'tenco' ? cl + '-' : '') + digitado.replace(/\s+/g, '');
     candidatos = [mapa[m], m + '@' + DOM, ...[2,3,4,5,6].map(n => m + '.' + n + '@' + DOM)].filter(Boolean);
     candidatos = [...new Set(candidatos)];
   }
@@ -1501,6 +1529,9 @@ async function fazerLoginCampo() {
   }
 
   const emailAuth = (cred.user.email || '').toLowerCase();
+  const _ac = await _okAcesso(emailAuth);
+  window.OK_CLIENTE = (_ac && _ac.cliente) || null;
+  if (window.OK_CLIENTE) { const cfg = await _okCarregarCliente(window.OK_CLIENTE); if (cfg.status === 'Suspenso') { try { await auth.signOut(); } catch (_) {} erro('O acesso desta empresa está suspenso. Fale com o escritório.'); return; } }
   let usr = null;
   try {
     let snap = await db.collection('usuarios').where('email', '==', emailAuth).limit(1).get();
@@ -1512,7 +1543,7 @@ async function fazerLoginCampo() {
   if (usr.status === 'Inativo') { try { await auth.signOut(); } catch (_) {} erro('Acesso desativado. Fale com o escritório.'); return; }
 
   if (!digitado.includes('@')) { mapa[digitado.replace(/\s+/g, '')] = emailAuth; try { localStorage.setItem('campo_login_map', JSON.stringify(mapa)); } catch (e) {} }
-  usuarioCampo = { id: usr.id, nome: usr.nome || digitado, perfil: usr.perfil || 'Colaborador', mat: usr.mat || digitado, obra: usr.obra || '', empresa: usr.empresa || '', perms: usr.perms || null };
+  usuarioCampo = { id: usr.id, nome: usr.nome || digitado, perfil: usr.perfil || 'Colaborador', mat: usr.mat || digitado, obra: usr.obra || '', empresa: usr.empresa || '', perms: usr.perms || null, cliente: window.OK_CLIENTE || '' };
   btn.textContent = 'Entrar'; btn.disabled = false;
   document.getElementById('login-senha').value = '';
   await carregarDadosCampo();

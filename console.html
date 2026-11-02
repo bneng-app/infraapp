@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ObraKontrol · Console do Desenvolvedor</title>
+<link rel="icon" href="marca/obrakontrol_simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<style>
+:root{--bg:#F4F4F5;--card:#FFFFFF;--text:#141414;--text-2:#45464B;--text-3:#6B6C72;--border:#E2E2E6;--red:#E30613;--red-2:#B8000E;--red-l:#FDE8EA;--green:#15803D;--green-l:#DCFCE7;--amber:#B45309;--amber-l:#FEF3C7;--gray-l:#ECECEF;--shadow:0 1px 3px rgba(0,0,0,.06),0 6px 20px rgba(0,0,0,.05)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0E0E10;--card:#18181B;--text:#F4F4F5;--text-2:#C9C9CE;--text-3:#9A9AA2;--border:#2A2A30;--red-l:#3A1013;--green:#4ADE80;--green-l:#11301C;--amber:#FBBF24;--amber-l:#3A2A0A;--gray-l:#26262B;--shadow:none}}
+:root[data-theme="dark"]{--bg:#0E0E10;--card:#18181B;--text:#F4F4F5;--text-2:#C9C9CE;--text-3:#9A9AA2;--border:#2A2A30;--red-l:#3A1013;--green:#4ADE80;--green-l:#11301C;--amber:#FBBF24;--amber-l:#3A2A0A;--gray-l:#26262B;--shadow:none}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+button{font-family:inherit;cursor:pointer}
+.top{background:#000;color:#fff;display:flex;align-items:center;gap:16px;padding:12px 24px;flex-wrap:wrap}
+.top img{height:34px;display:block}
+.top .tit{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#BDBDBD;border-left:1px solid #333;padding-left:16px}
+.top .esp{flex:1}
+.top button{background:transparent;color:#fff;border:1px solid #3A3A3A;border-radius:8px;padding:7px 12px;font-size:13px}
+.top button:hover{border-color:#777}
+.wrap{max-width:1200px;margin:0 auto;padding:24px 16px 60px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow)}
+.btn{border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:9px;padding:9px 14px;font-size:13px;font-weight:600;min-height:38px}
+.btn:hover{border-color:var(--text-3)}
+.btn-p{background:var(--red);border-color:var(--red);color:#fff}
+.btn-p:hover{background:var(--red-2);border-color:var(--red-2)}
+.btn-sm{padding:6px 10px;min-height:32px;font-size:12px}
+.btn:disabled{opacity:.6;cursor:default}
+h1{font-size:22px;margin:0 0 4px}
+.sub{color:var(--text-3);font-size:13px}
+.head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:18px}
+.kpi{padding:16px 18px}.kpi b{display:block;font-size:26px;font-weight:800}.kpi span{color:var(--text-3);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);padding:12px 14px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:12px 14px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+.tag{display:inline-block;border-radius:20px;padding:3px 10px;font-size:11.5px;font-weight:700;white-space:nowrap}
+.t-green{background:var(--green-l);color:var(--green)}.t-amber{background:var(--amber-l);color:var(--amber)}.t-red{background:var(--red-l);color:var(--red)}.t-gray{background:var(--gray-l);color:var(--text-2)}
+.av{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-weight:800;color:#fff;flex:none;font-size:13px}
+.mods{display:flex;flex-wrap:wrap;gap:4px;max-width:330px}.mods span{font-size:11px;background:var(--gray-l);color:var(--text-2);border-radius:6px;padding:2px 7px}
+.aviso{padding:16px 18px;border-color:var(--red);display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:18px}
+.aviso p{margin:4px 0 0;color:var(--text-2);font-size:13px;max-width:720px}
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:flex-start;justify-content:center;padding:30px 12px;overflow:auto;z-index:50}
+.ov.open{display:flex}
+.modal{width:100%;max-width:760px}
+.mh{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border)}
+.mh b{font-size:17px}
+.mb{padding:18px 20px}.mf{padding:14px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 14px}
+.full{grid-column:1/-1}
+label.l{display:block;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);margin-bottom:5px}
+input,select,textarea{width:100%;font-family:inherit;font-size:14px;color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:9px 11px;min-height:40px}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-offset:-1px}
+input:disabled{opacity:.7}
+.sec{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);margin:18px 0 8px}
+.chk{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 14px}
+.chk label{display:flex;gap:8px;align-items:center;font-size:13.5px;cursor:pointer;min-height:30px}
+.chk input{width:18px;height:18px;min-height:0;accent-color:var(--red)}
+.box{border:1px dashed var(--border);border-radius:12px;padding:14px;margin-top:6px}
+.hint{font-size:12px;color:var(--text-3);margin-top:4px}
+.toast{position:fixed;right:16px;bottom:16px;background:#141414;color:#fff;border-left:4px solid var(--green);border-radius:10px;padding:12px 16px;font-size:13px;font-weight:600;z-index:99;box-shadow:0 8px 24px rgba(0,0,0,.3);max-width:360px}
+.toast.err{border-left-color:var(--red)}
+#login{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#000;padding:16px}
+#login .card{width:100%;max-width:400px;padding:28px;background:#141416;border-color:#26262B;color:#fff}
+#login img{width:100%;max-width:300px;display:block;margin:0 auto 6px}
+#login .k{text-align:center;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#9A9AA2;margin-bottom:22px}
+#login input{background:#0E0E10;border-color:#2A2A30;color:#fff;margin-bottom:12px}
+#login label.l{color:#9A9AA2}
+#login .err{color:#FF6B74;font-size:13px;margin-bottom:10px;display:none}
+#login .ver{text-align:center;color:#6B6C72;font-size:11px;margin-top:16px}
+.prog{height:6px;background:var(--gray-l);border-radius:4px;overflow:hidden;margin-top:10px}.prog div{height:6px;background:var(--red);width:0}
+@media (max-width:640px){.grid,.chk{grid-template-columns:1fr}.top .tit{display:none}}
+</style>
+</head>
+<body>
+
+<div id="login">
+  <form class="card" onsubmit="entrar(event)">
+    <img src="marca/obrakontrol_logo.svg" alt="ObraKontrol — Gestão operacional de obras">
+    <div class="k">Console do desenvolvedor</div>
+    <label class="l" for="lg-email">E-mail ou login</label>
+    <input id="lg-email" autocomplete="username" placeholder="karine.loch">
+    <label class="l" for="lg-senha">Senha</label>
+    <input id="lg-senha" type="password" autocomplete="current-password">
+    <div class="err" id="lg-err"></div>
+    <button class="btn btn-p" style="width:100%" id="lg-btn">Entrar</button>
+    <div class="ver">ObraKontrol Console · v1.0</div>
+  </form>
+</div>
+
+<div id="app" style="display:none">
+  <div class="top">
+    <img src="marca/obrakontrol_logo.svg" alt="ObraKontrol">
+    <div class="tit">Console do desenvolvedor</div>
+    <div class="esp"></div>
+    <span id="quem" style="font-size:12px;color:#BDBDBD"></span>
+    <button onclick="trocarTema()" aria-label="Modo claro ou escuro" title="Modo claro / escuro">◐ Tema</button>
+    <button onclick="sair()">Sair</button>
+  </div>
+  <div class="wrap">
+    <div class="card aviso" id="aviso-migrar" style="display:none">
+      <div><b>Dados atuais ainda estão no formato antigo (sem cliente)</b>
+        <p>Para o ObraKontrol atender vários clientes, os dados de hoje vão para a "gaveta" do cliente <b>TENCO</b>. Nada é apagado: a cópia antiga fica guardada até você conferir. Depois disso, cada usuário passa a enxergar só os dados da empresa dele.</p>
+        <div class="prog" id="mig-prog" style="display:none"><div></div></div>
+        <div class="hint" id="mig-txt"></div>
+      </div>
+      <button class="btn btn-p" id="btn-migrar" onclick="migrar()">Migrar para o cliente TENCO</button>
+    </div>
+
+    <div class="head">
+      <div><h1>Clientes</h1><div class="sub">Cada construtora que usa o ObraKontrol. Os dados de um cliente não aparecem para os outros.</div></div>
+      <button class="btn btn-p" onclick="abrirCliente()">+ Novo cliente</button>
+    </div>
+    <div class="kpis">
+      <div class="card kpi"><span>Clientes ativos</span><b id="k-ativos">—</b></div>
+      <div class="card kpi"><span>Em teste</span><b id="k-teste">—</b></div>
+      <div class="card kpi"><span>Usuários</span><b id="k-usu">—</b></div>
+      <div class="card kpi"><span>Obras</span><b id="k-obras">—</b></div>
+    </div>
+    <div class="card tw">
+      <table>
+        <thead><tr><th>Cliente</th><th>Situação</th><th>Módulos</th><th style="text-align:right">Usuários</th><th style="text-align:right">Obras</th><th>Desde</th><th style="text-align:right">Ações</th></tr></thead>
+        <tbody id="tb"><tr><td colspan="7" style="text-align:center;color:var(--text-3);padding:28px">Carregando…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="ov" id="ov" onclick="if(event.target===this)fechar()">
+  <div class="card modal" role="dialog" aria-modal="true" aria-labelledby="m-tit">
+    <div class="mh"><b id="m-tit">Novo cliente</b><button class="btn btn-sm" onclick="fechar()" aria-label="Fechar">✕</button></div>
+    <div class="mb">
+      <div class="grid">
+        <div><label class="l" for="c-nome">Razão social / nome *</label><input id="c-nome" placeholder="Tenco Engenharia e Construção" oninput="sugerirId()"></div>
+        <div><label class="l" for="c-curto">Nome curto (aparece no app) *</label><input id="c-curto" placeholder="TENCO" oninput="sugerirId()"></div>
+        <div><label class="l" for="c-id">Código do cliente *</label><input id="c-id" placeholder="tenco"><div class="hint">Vai no link do app (campo.html?c=<b id="c-id-ex">tenco</b>). Não muda depois de criado.</div></div>
+        <div><label class="l" for="c-status">Situação</label><select id="c-status"><option>Ativo</option><option>Em teste</option><option>Suspenso</option></select><div class="hint">Suspenso: ninguém do cliente consegue entrar.</div></div>
+        <div><label class="l" for="c-cnpj">CNPJ</label><input id="c-cnpj" placeholder="00.000.000/0000-00"></div>
+        <div><label class="l" for="c-inicio">Cliente desde</label><input id="c-inicio" type="date"></div>
+        <div><label class="l" for="c-contato">Contato</label><input id="c-contato" placeholder="Nome de quem responde pelo cliente"></div>
+        <div><label class="l" for="c-tel">Telefone</label><input id="c-tel" placeholder="(00) 00000-0000"></div>
+        <div class="full"><label class="l" for="c-email">E-mail do contato</label><input id="c-email" type="email"></div>
+      </div>
+      <div class="sec">Módulos liberados</div>
+      <div class="chk" id="c-mods"></div>
+      <div class="sec">Configurações</div>
+      <div class="grid">
+        <div><label class="l" for="c-tol">Tolerância de consumo de diesel (%)</label><input id="c-tol" type="number" min="0" max="200" step="1" placeholder="20"></div>
+        <div class="full"><label class="l" for="c-obs">Observações</label><textarea id="c-obs" rows="2" placeholder="Pedidos do cliente, combinados, etc."></textarea></div>
+      </div>
+      <div id="c-admin-bloco">
+        <div class="sec">Primeiro administrador do cliente</div>
+        <div class="box">
+          <div class="grid">
+            <div><label class="l" for="a-nome">Nome</label><input id="a-nome"></div>
+            <div><label class="l" for="a-email">E-mail (login no painel)</label><input id="a-email" type="email"></div>
+            <div><label class="l" for="a-senha">Senha inicial</label><input id="a-senha" type="text" placeholder="mínimo 6 caracteres"></div>
+          </div>
+          <div class="hint">Ele entra no painel com este e-mail e cadastra a equipe dele. Pode deixar em branco e criar depois.</div>
+        </div>
+      </div>
+      <div id="c-links" style="display:none">
+        <div class="sec">Links do cliente</div>
+        <div class="box" style="display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:200px;font-size:13px">App de campo: <b id="lk-campo"></b></span><button class="btn btn-sm" onclick="copiar('lk-campo')">Copiar</button></div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:200px;font-size:13px">Painel: <b id="lk-painel"></b></span><button class="btn btn-sm" onclick="copiar('lk-painel')">Copiar</button></div>
+        </div>
+      </div>
+    </div>
+    <div class="mf"><button class="btn" onclick="fechar()">Cancelar</button><button class="btn btn-p" id="btn-salvar" onclick="salvarCliente()">Salvar cliente</button></div>
+  </div>
+</div>
+
+<script>
+const VERSAO = 'v1.0';
+const firebaseConfig = {
+  apiKey: "AIzaSyBShR-XvPrUiFtnndFXJV7IYrrTG90BS5o",
+  authDomain: "obrakontrol-205c4.firebaseapp.com",
+  projectId: "obrakontrol-205c4",
+  storageBucket: "obrakontrol-205c4.firebasestorage.app",
+  messagingSenderId: "358934542972",
+  appId: "1:358934542972:web:50fe905586582de99527f9"
+};
+// quem pode usar o Console (o mesmo nome tem que estar nas regras do Firebase)
+const DEVS = ['karine.loch@tencoengenharia.com.br', 'kavaloch@gmail.com'];
+const MODULOS = [['maoDeObra','Mão de obra'],['equipamentos','Equipamentos'],['abastecimento','Abastecimento'],['frentesQR','Frentes e QR (Lean)'],['efetivoRH','Efetivo do RH'],['locacao','Locação de equipamentos'],['orcamento','Orçamento previsto']];
+// coleções que vão para a gaveta do cliente na migração
+const COLS = ['obras','empresas','ua','cargos','turnos','equipes','funcionarios','familias','modelos','equipamentos','frentes','tiposServico','tiposPerdas',
+  'aponMO','aponEQ','diesel','perdas','tanques','movTanques','notasFiscais','produtos','perfis','orcamentos','usuarios','turnosAbertos','fotos','_sistema','configs'];
+const CORES = ['#E30613','#1D4ED8','#15803D','#B45309','#7C3AED','#0F766E','#BE185D'];
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore(), auth = firebase.auth();
+let CLIENTES = [], editando = null;
+const $ = id => document.getElementById(id);
+const esc = t => String(t ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function toast(t, err) { const d = document.createElement('div'); d.className = 'toast' + (err ? ' err' : ''); d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 4200); }
+
+// ── tema claro / escuro
+(function () { try { const t = localStorage.getItem('ok_console_tema'); if (t) document.documentElement.dataset.theme = t; } catch (e) {} })();
+function trocarTema() {
+  const atual = document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  const novo = atual === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = novo; try { localStorage.setItem('ok_console_tema', novo); } catch (e) {}
+}
+
+// ── login
+async function entrar(ev) {
+  ev.preventDefault();
+  let em = $('lg-email').value.trim().toLowerCase(); const senha = $('lg-senha').value, err = $('lg-err');
+  if (!em || !senha) return;
+  if (!em.includes('@')) em += '@tencoengenharia.com.br';
+  err.style.display = 'none'; $('lg-btn').disabled = true; $('lg-btn').textContent = 'Entrando…';
+  try { await auth.signInWithEmailAndPassword(em, senha); }
+  catch (e) { err.textContent = /invalid|wrong|not-found/.test(e.code || '') ? 'E-mail ou senha incorretos.' : 'Não consegui entrar (' + (e.code || e.message) + ').'; err.style.display = 'block'; }
+  $('lg-btn').disabled = false; $('lg-btn').textContent = 'Entrar';
+}
+auth.onAuthStateChanged(async u => {
+  if (!u) { $('login').style.display = ''; $('app').style.display = 'none'; return; }
+  const em = (u.email || '').toLowerCase();
+  if (!DEVS.includes(em)) { await auth.signOut(); $('lg-err').textContent = 'Este acesso não é de desenvolvedor.'; $('lg-err').style.display = 'block'; return; }
+  $('login').style.display = 'none'; $('app').style.display = ''; $('quem').textContent = em;
+  carregar();
+});
+function sair() { auth.signOut(); }
+
+// ── lista de clientes
+async function carregar() {
+  try {
+    const [cs, acs] = await Promise.all([db.collection('clientes').get(), db.collection('acessos').get()]);
+    const usu = {}; acs.docs.forEach(d => { const c = d.data().cliente; if (c) usu[c] = (usu[c] || 0) + 1; });
+    CLIENTES = cs.docs.map(d => ({ id: d.id, ...d.data(), _usu: usu[d.id] || 0 }));
+    await Promise.all(CLIENTES.map(async c => { try { c._obras = (await db.collection('clientes').doc(c.id).collection('obras').get()).size; } catch (e) { c._obras = 0; } }));
+    render();
+    const raiz = await db.collection('usuarios').limit(1).get().catch(() => null);
+    const tenco = CLIENTES.find(c => c.id === 'tenco');
+    $('aviso-migrar').style.display = raiz && !raiz.empty && !(tenco && tenco.migradoEm) ? '' : 'none';
+  } catch (e) {
+    $('tb').innerHTML = `<tr><td colspan="7" style="padding:24px;color:var(--red)">Não consegui ler os clientes (${esc(e.code || e.message)}). Confira se as regras novas do Firebase foram publicadas.</td></tr>`;
+  }
+}
+function render() {
+  const st = s => s === 'Suspenso' ? 't-red' : s === 'Em teste' ? 't-amber' : 't-green';
+  $('k-ativos').textContent = CLIENTES.filter(c => (c.status || 'Ativo') === 'Ativo').length;
+  $('k-teste').textContent = CLIENTES.filter(c => c.status === 'Em teste').length;
+  $('k-usu').textContent = CLIENTES.reduce((s, c) => s + c._usu, 0);
+  $('k-obras').textContent = CLIENTES.reduce((s, c) => s + (c._obras || 0), 0);
+  $('tb').innerHTML = CLIENTES.length ? CLIENTES.sort((a, b) => String(a.nomeCurto || a.nome).localeCompare(String(b.nomeCurto || b.nome))).map((c, i) => {
+    const mods = MODULOS.filter(([k]) => !c.modulos || c.modulos[k] !== false);
+    return `<tr>
+      <td><div style="display:flex;gap:10px;align-items:center"><div class="av" style="background:${CORES[i % CORES.length]}">${esc(String(c.nomeCurto || c.nome || c.id).slice(0, 2).toUpperCase())}</div>
+        <div><b>${esc(c.nomeCurto || c.nome || c.id)}</b><div class="sub">${esc(c.nome || '')} · código <b>${esc(c.id)}</b></div></div></div></td>
+      <td><span class="tag ${st(c.status || 'Ativo')}">${esc(c.status || 'Ativo')}</span></td>
+      <td><div class="mods">${mods.length === MODULOS.length ? '<span>Todos</span>' : mods.map(([, l]) => `<span>${esc(l)}</span>`).join('') || '<span>Nenhum</span>'}</div></td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">${c._usu}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">${c._obras || 0}</td>
+      <td class="sub">${c.inicio ? esc(c.inicio.split('-').reverse().join('/')) : '—'}</td>
+      <td style="text-align:right;white-space:nowrap"><button class="btn btn-sm" onclick="abrirCliente('${esc(c.id)}')">Editar</button>
+        <button class="btn btn-sm btn-p" onclick="entrarComo('${esc(c.id)}')">Entrar no painel ↗</button></td></tr>`; }).join('')
+    : '<tr><td colspan="7" style="text-align:center;color:var(--text-3);padding:28px">Nenhum cliente ainda.</td></tr>';
+}
+function base() { return location.href.replace(/[^/]*([?#].*)?$/, ''); }
+function entrarComo(id) { window.open(base() + 'index.html?c=' + encodeURIComponent(id), '_blank'); }
+
+// ── cadastro do cliente
+function slug(t) { return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 24); }
+function sugerirId() { if (editando) return; const v = slug($('c-curto').value || $('c-nome').value); $('c-id').value = v; $('c-id-ex').textContent = v || 'codigo'; }
+function abrirCliente(id) {
+  const c = id ? CLIENTES.find(x => x.id === id) : null; editando = c ? c.id : null;
+  $('m-tit').textContent = c ? 'Editar cliente · ' + (c.nomeCurto || c.nome) : 'Novo cliente';
+  const set = (k, v) => $(k).value = v ?? '';
+  set('c-nome', c?.nome); set('c-curto', c?.nomeCurto); set('c-id', c?.id); set('c-status', c?.status || 'Ativo'); set('c-cnpj', c?.cnpj);
+  set('c-inicio', c?.inicio || (c ? '' : new Date().toISOString().slice(0, 10))); set('c-contato', c?.contato); set('c-tel', c?.tel); set('c-email', c?.email);
+  set('c-tol', c?.config?.tolConsumo ?? ''); set('c-obs', c?.obs);
+  $('c-id').disabled = !!c; $('c-id-ex').textContent = c?.id || 'codigo';
+  $('c-mods').innerHTML = MODULOS.map(([k, l]) => `<label><input type="checkbox" data-m="${k}" ${!c || !c.modulos || c.modulos[k] !== false ? 'checked' : ''}> ${esc(l)}</label>`).join('');
+  ['a-nome', 'a-email', 'a-senha'].forEach(k => $(k).value = '');
+  $('c-admin-bloco').style.display = c && c._usu ? 'none' : '';
+  $('c-links').style.display = c ? '' : 'none';
+  if (c) { $('lk-campo').textContent = base() + 'campo.html?c=' + c.id; $('lk-painel').textContent = base() + 'index.html'; }
+  $('ov').classList.add('open'); setTimeout(() => $('c-nome').focus(), 50);
+}
+function fechar() { $('ov').classList.remove('open'); editando = null; }
+function copiar(id) { navigator.clipboard.writeText($(id).textContent).then(() => toast('Link copiado'), () => toast('Não consegui copiar', true)); }
+async function salvarCliente() {
+  const id = editando || slug($('c-id').value), nome = $('c-nome').value.trim(), curto = $('c-curto').value.trim();
+  if (!nome || !curto || !id) { toast('Preencha nome, nome curto e código.', true); return; }
+  if (!editando && CLIENTES.some(c => c.id === id)) { toast('Já existe um cliente com o código "' + id + '".', true); return; }
+  const aNome = $('a-nome').value.trim(), aEmail = $('a-email').value.trim().toLowerCase(), aSenha = $('a-senha').value;
+  if (aEmail && aSenha.length < 6) { toast('A senha do administrador precisa ter pelo menos 6 caracteres.', true); return; }
+  const modulos = {}; document.querySelectorAll('#c-mods input').forEach(i => modulos[i.dataset.m] = i.checked);
+  const obj = { nome, nomeCurto: curto.toUpperCase(), status: $('c-status').value, cnpj: $('c-cnpj').value.trim(), inicio: $('c-inicio').value, contato: $('c-contato').value.trim(),
+    tel: $('c-tel').value.trim(), email: $('c-email').value.trim(), modulos, config: { tolConsumo: $('c-tol').value === '' ? 20 : +$('c-tol').value }, obs: $('c-obs').value.trim(), atualizadoEm: new Date().toISOString() };
+  if (!editando) obj.criadoEm = new Date().toISOString();
+  const b = $('btn-salvar'); b.disabled = true; b.textContent = 'Salvando…';
+  try {
+    await db.collection('clientes').doc(id).set(obj, { merge: true });
+    if (aEmail) await criarAdmin(id, aNome || aEmail.split('@')[0], aEmail, aSenha);
+    toast('Cliente ' + obj.nomeCurto + ' salvo' + (aEmail ? ' com o administrador ' + aEmail : '') + '.');
+    fechar(); carregar();
+  } catch (e) { toast('Não consegui salvar: ' + (e.code || e.message), true); }
+  b.disabled = false; b.textContent = 'Salvar cliente';
+}
+async function criarAdmin(cliente, nome, email, senha) {
+  let sec = firebase.apps.find(a => a.name === 'cadastro'); if (!sec) sec = firebase.initializeApp(firebaseConfig, 'cadastro');
+  let uid = 'u' + Date.now();
+  try { const cr = await sec.auth().createUserWithEmailAndPassword(email, senha); uid = cr.user.uid; }
+  catch (e) { if (e.code !== 'auth/email-already-in-use') throw e; toast('Esse e-mail já tinha acesso: a senha antiga dele continua valendo.'); }
+  finally { try { await sec.auth().signOut(); } catch (e) {} }
+  await db.collection('clientes').doc(cliente).collection('usuarios').doc(uid).set({ id: uid, nome, email, perfil: 'Admin', status: 'Ativo', obra: '', master: true, perms: {}, criadoEm: new Date().toISOString() });
+  await db.collection('acessos').doc(email).set({ cliente, nome, perfil: 'Admin', atualizadoEm: new Date().toISOString() });
+}
+
+// ── migração dos dados de hoje (raiz) para o cliente TENCO — copia, não apaga
+async function migrar() {
+  if (!confirm('Copiar todos os dados atuais para o cliente TENCO?\n\nNada é apagado. Pode levar alguns minutos se tiver muitas fotos.')) return;
+  const b = $('btn-migrar'), pr = $('mig-prog'), bar = pr.firstElementChild, txt = $('mig-txt');
+  b.disabled = true; pr.style.display = ''; let feitos = 0, total = 0;
+  try {
+    const snaps = {};
+    for (const col of COLS) { txt.textContent = 'Lendo ' + col + '…'; snaps[col] = await db.collection(col).get().catch(() => null); total += snaps[col] ? snaps[col].size : 0; }
+    const destino = db.collection('clientes').doc('tenco');
+    for (const col of COLS) {
+      const s = snaps[col]; if (!s || s.empty) continue;
+      const lote = col === 'fotos' ? 5 : 150;
+      for (let i = 0; i < s.docs.length; i += lote) {
+        const batch = db.batch();
+        s.docs.slice(i, i + lote).forEach(d => batch.set(destino.collection(col).doc(d.id), d.data()));
+        await batch.commit(); feitos += Math.min(lote, s.docs.length - i);
+        bar.style.width = Math.round(feitos / total * 100) + '%'; txt.textContent = 'Copiando ' + col + '… ' + feitos + ' de ' + total;
+      }
+    }
+    txt.textContent = 'Criando os acessos…';
+    const usu = snaps.usuarios ? snaps.usuarios.docs.map(d => d.data()).filter(u => u.email) : [];
+    for (let i = 0; i < usu.length; i += 200) {
+      const batch = db.batch();
+      usu.slice(i, i + 200).forEach(u => batch.set(db.collection('acessos').doc(String(u.email).toLowerCase()), { cliente: 'tenco', nome: u.nome || '', perfil: u.perfil || '', atualizadoEm: new Date().toISOString() }));
+      await batch.commit();
+    }
+    await destino.set({ nome: 'Tenco Engenharia e Construção', nomeCurto: 'TENCO', status: 'Ativo', inicio: new Date().toISOString().slice(0, 10),
+      modulos: Object.fromEntries(MODULOS.map(([k]) => [k, true])), config: { tolConsumo: 20 }, migradoEm: new Date().toISOString(), migrados: feitos, criadoEm: new Date().toISOString() }, { merge: true });
+    bar.style.width = '100%'; txt.textContent = 'Pronto: ' + feitos + ' registros e ' + usu.length + ' acessos copiados para a TENCO.';
+    toast('Migração concluída'); carregar();
+  } catch (e) { txt.textContent = 'Parou com erro: ' + (e.code || e.message) + '. Pode clicar de novo: o que já foi copiado é só regravado.'; toast('Erro na migração', true); }
+  b.disabled = false;
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('ov').classList.contains('open')) fechar(); });
+</script>
+</body>
+</html>

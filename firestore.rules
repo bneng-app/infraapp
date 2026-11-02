@@ -1,0 +1,36 @@
+rules_version = '2';
+// ObraKontrol — regras do Firestore (multi-cliente)
+// Cole este texto em: Firebase → Firestore Database → Regras → Publicar
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function logado() { return request.auth != null && request.auth.token.email != null; }
+    function email() { return request.auth.token.email.lower(); }
+    // quem é desenvolvedor (o mesmo nome está no Console)
+    function dev() { return logado() && email() in ['karine.loch@tencoengenharia.com.br', 'kavaloch@gmail.com']; }
+    function temAcesso() { return logado() && exists(/databases/$(database)/documents/acessos/$(email())); }
+    function meuCliente() { return get(/databases/$(database)/documents/acessos/$(email())).data.cliente; }
+
+    // de qual cliente é cada login
+    match /acessos/{em} {
+      allow read: if logado() && (em == email() || dev() || (temAcesso() && resource.data.cliente == meuCliente()));
+      allow create, update: if dev() || (temAcesso() && request.resource.data.cliente == meuCliente());
+      allow delete: if dev() || (temAcesso() && resource.data.cliente == meuCliente());
+    }
+
+    // cadastro do cliente (só o desenvolvedor altera) e a "gaveta" de dados de cada cliente
+    match /clientes/{c} {
+      allow read: if dev() || (temAcesso() && meuCliente() == c);
+      allow write: if dev();
+      match /{col}/{doc=**} {
+        allow read, write: if dev() || (temAcesso() && meuCliente() == c);
+      }
+    }
+
+    // TRANSIÇÃO: dados antigos (antes da migração para clientes/tenco).
+    // Depois de conferir a migração, apague este bloco e publique de novo.
+    match /{col}/{doc=**} {
+      allow read, write: if logado() && !(col in ['acessos', 'clientes']);
+    }
+  }
+}
