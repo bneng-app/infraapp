@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v2.85 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v2.86 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -802,6 +802,10 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
       <div class="nav-item" onclick="showPage('republicas',this)" title="Repúblicas e alojamentos">
         <svg viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M5 21V9l7-5 7 5v12"/><path d="M10 21v-5h4v5"/><path d="M9 11h.01M15 11h.01"/></svg>
         <span>Repúblicas</span>
+      </div>
+      <div class="nav-item" onclick="showPage('alojados',this)" title="Lista de alojados">
+        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" y1="8" x2="23" y2="8"/><line x1="17" y1="12" x2="23" y2="12"/><line x1="19" y1="16" x2="23" y2="16"/></svg>
+        <span>Alojados</span>
       </div>
     </div>
   </div>
@@ -1289,6 +1293,22 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <div class="search-wrap"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="search-rep" placeholder="Buscar república, endereço ou morador…" oninput="renderRepublicas()"/></div>
     <div class="table-wrap"><table><thead><tr><th>República</th><th>Obra</th><th>Ocupação</th><th style="text-align:right">Custo mensal</th><th style="text-align:right">Por pessoa</th><th style="text-align:right">Por vaga</th><th>Situação</th><th></th></tr></thead>
       <tbody id="tbody-republicas"></tbody></table></div>
+  </div></div>
+</div>
+
+<div class="page" id="page-alojados">
+  <div class="page-header">
+    <div><div class="page-title">Alojados</div><div class="page-sub">Todos que estão morando nas repúblicas e alojamentos agora</div></div>
+    <div class="btn-group"><button class="btn btn-outline btn-sm" onclick="exportarAlojados()">↓ Exportar Excel</button></div>
+  </div>
+  <div class="card"><div class="card-body">
+    <div style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:flex-end;margin-bottom:.75rem">
+      <div class="search-wrap" style="flex:1;min-width:240px;margin:0"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="search-aloj" placeholder="Buscar nome, matrícula ou função…" oninput="renderAlojados()"/></div>
+      <div class="form-group" style="min-width:220px;margin:0"><label class="form-label" for="filtro-aloj-rep">República</label><select class="form-control" id="filtro-aloj-rep" onchange="renderAlojados()"><option value="">Todas</option></select></div>
+    </div>
+    <div id="aloj-resumo" style="font-size:12.5px;color:var(--text-3);margin-bottom:.5rem"></div>
+    <div class="table-wrap"><table><thead><tr><th>Nome</th><th>Matrícula</th><th>Função</th><th>República</th><th>Obra</th><th>Entrada</th><th style="text-align:right">Dias</th><th style="text-align:right">Custo/mês</th><th></th></tr></thead>
+      <tbody id="tbody-alojados"></tbody></table></div>
   </div></div>
 </div>
 
@@ -11775,7 +11795,7 @@ const OK_MOD_PAGINAS = {
   maoDeObra: ['apon-mo', 'funcionarios', 'equipes', 'cargos', 'dash-mo', 'perdas', 'tipos-perdas'],
   equipamentos: ['apon-eq', 'familias', 'modelos', 'equipamentos', 'dash-eq'],
   abastecimento: ['apon-diesel', 'produtos', 'notas-diesel', 'tanques', 'dash-abs'],
-  orcamento: ['orcamento'], republicas: ['republicas'],
+  orcamento: ['orcamento'], republicas: ['republicas', 'alojados'],
 };
 function _okModDaPagina(p) { for (const k in OK_MOD_PAGINAS) if (OK_MOD_PAGINAS[k].includes(p)) return k; return null; }
 function _okObraAtual() { return (typeof obraAtiva !== 'undefined' && obraAtiva && obraAtiva.id) || 'todas'; }
@@ -11804,10 +11824,10 @@ function _okObraAtual() { return (typeof obraAtiva !== 'undefined' && obraAtiva 
     return r;
   };
   const oSel = window.selecionarObra || selecionarObra;
-  window.selecionarObra = function () { const r = oSel.apply(this, arguments); try { aplicarPermissoes(); if (document.getElementById('page-republicas')?.classList.contains('active')) renderRepublicas(); } catch (e) {} return r; };
+  window.selecionarObra = function () { const r = oSel.apply(this, arguments); try { aplicarPermissoes(); if (document.getElementById('page-republicas')?.classList.contains('active')) renderRepublicas(); if (document.getElementById('page-alojados')?.classList.contains('active')) renderAlojados(); } catch (e) {} return r; };
   try { const oLoc = _dxLocacao; _dxLocacao = function () { return okModuloAtivo('locacao', _okObraAtual()) ? oLoc.apply(this, arguments) : ''; }; } catch (e) {}
   const oInit = window.pageInit;
-  window.pageInit = function (id) { const r = oInit.apply(this, arguments); if (id === 'republicas') renderRepublicas(); return r; };
+  window.pageInit = function (id) { const r = oInit.apply(this, arguments); if (id === 'republicas') renderRepublicas(); if (id === 'alojados') renderAlojados(); return r; };
 })();
 
 // ── REPÚBLICAS E ALOJAMENTOS ─────────────────────────────────────
@@ -11905,6 +11925,42 @@ function _repMoradoresRender() {
   $('mor-hist').innerHTML = hist.length ? '<div style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;margin:14px 0 6px">Já moraram aqui</div>'
     + hist.slice().reverse().map(m => `<div style="font-size:12.5px;padding:3px 0;color:var(--text-2)">${_e(m.nome)} · ${_e(String(m.entrada || '').split('-').reverse().join('/'))} → ${_e(String(m.saida).split('-').reverse().join('/'))}</div>`).join('') : '';
 }
+// ── lista de todos os alojados
+function _alojLista() {
+  const out = [];
+  _repLista().filter(r => r.status !== 'Encerrada').forEach(r => { const ms = repMoradores(r), cp = ms.length ? repCusto(r) / ms.length : 0;
+    ms.forEach(m => { const f = (dados.funcionarios || []).find(x => x.id === m.func) || {};
+      out.push({ m, r, nome: f.nome || m.nome, mat: f.mat || m.mat || '', funcao: f.funcao || m.funcao || '', custo: cp,
+        dias: m.entrada ? Math.max(0, Math.round((new Date(_hojeLocal() + 'T12:00') - new Date(m.entrada + 'T12:00')) / 864e5)) : 0 }); }); });
+  return out;
+}
+function renderAlojados() {
+  const sel = document.getElementById('filtro-aloj-rep'); if (!sel) return;
+  const v = sel.value; sel.innerHTML = '<option value="">Todas</option>' + _repLista().filter(r => r.status !== 'Encerrada').map(r => `<option value="${r.id}">${_e(r.cod)} · ${_e(r.nome)}</option>`).join(''); sel.value = v;
+  const busca = (document.getElementById('search-aloj')?.value || '').toLowerCase();
+  const l = _alojLista().filter(x => (!v || x.r.id === v) && (!busca || [x.nome, x.mat, x.funcao].some(t => String(t).toLowerCase().includes(busca))))
+    .sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
+  const tot = l.reduce((s, x) => s + x.custo, 0);
+  document.getElementById('aloj-resumo').textContent = l.length + ' alojado(s)' + (l.length ? ' · custo do mês ' + _repMoeda(tot) + ' · média ' + _repMoeda(tot / l.length) + ' por pessoa' : '');
+  document.getElementById('tbody-alojados').innerHTML = l.length ? l.map(x => `<tr>
+      <td><b>${_e(x.nome)}</b></td><td class="td-mono">${_e(x.mat || '—')}</td><td style="font-size:12.5px">${_e(x.funcao || '—')}</td>
+      <td><div style="font-weight:600">${_e(x.r.nome)}</div><div style="font-size:11px;color:var(--text-3)">${_e(x.r.cod)} · ${_e(x.r.tipo || '')}</div></td>
+      <td style="font-size:12px">${_e(getNomeObra(x.r.obra) || '—')}</td>
+      <td class="td-mono">${_e(String(x.m.entrada || '').split('-').reverse().join('/'))}</td>
+      <td class="td-mono" style="text-align:right">${x.dias}</td>
+      <td class="td-mono" style="text-align:right">${_repMoeda(x.custo)}</td>
+      <td style="text-align:right"><button class="btn btn-outline btn-sm" onclick="repMoradoresAbrir('${x.r.id}')">👥 República</button></td></tr>`).join('')
+    : '<tr><td colspan="9" style="text-align:center;color:var(--text-3);padding:2rem">Ninguém alojado' + (busca || v ? ' com esse filtro' : '') + '. Coloque os moradores em <b>Repúblicas → 👥 Moradores</b>.</td></tr>';
+}
+function exportarAlojados() {
+  if (typeof XLSX === 'undefined') { toast('Aguarde o carregamento do Excel e tente novamente.', 'error'); return; }
+  const l = _alojLista().sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
+  if (!l.length) { toast('Ninguém alojado para exportar.', 'error'); return; }
+  const ws = XLSX.utils.aoa_to_sheet([['Nome', 'Matrícula', 'Função', 'República', 'Código', 'Tipo', 'Endereço', 'Obra', 'Data de entrada', 'Dias alojado', 'Custo/mês (R$)'],
+    ...l.map(x => [x.nome, x.mat, x.funcao, x.r.nome, x.r.cod, x.r.tipo || '', x.r.endereco || '', getNomeObra(x.r.obra) || '', String(x.m.entrada || '').split('-').reverse().join('/'), x.dias, Math.round(x.custo * 100) / 100])]);
+  ws['!cols'] = [28, 12, 22, 28, 10, 14, 36, 24, 14, 12, 14].map(w => ({ wch: w }));
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Alojados'); XLSX.writeFile(wb, 'ObraKontrol_alojados_' + _hojeLocal() + '.xlsx');
+}
 function repEntrada() {
   const r = (dados.republicas || []).find(x => x.id === window._repAtual); if (!r) return;
   const fid = document.getElementById('mor-func').value, ent = document.getElementById('mor-entrada').value;
@@ -11915,7 +11971,7 @@ function repEntrada() {
   if (repMoradores(r).length >= (+r.vagas || 0) && !confirm('A república já está com todas as vagas ocupadas. Colocar mesmo assim?')) return;
   (r.moradores = r.moradores || []).push({ id: 'm' + Date.now().toString(36), func: fid, mat: f.mat || '', nome: f.nome, funcao: f.funcao || '', entrada: ent || _hojeLocal() });
   if (db && _firebaseReady) fbSave('republicas', r.id, r).catch(() => {});
-  _repMoradoresRender(); renderRepublicas(); toast(f.nome + ' entrou em ' + r.nome);
+  _repMoradoresRender(); renderRepublicas(); try { renderAlojados(); } catch (e) {} toast(f.nome + ' entrou em ' + r.nome);
 }
 function repSaida(mid) {
   const r = (dados.republicas || []).find(x => x.id === window._repAtual); if (!r) return;
@@ -11923,7 +11979,7 @@ function repSaida(mid) {
   m.saida = document.getElementById('sai-' + mid)?.value || _hojeLocal();
   if (m.saida < (m.entrada || '')) { m.saida = ''; delete m.saida; toast('A saída não pode ser antes da entrada.', 'error'); return; }
   if (db && _firebaseReady) fbSave('republicas', r.id, r).catch(() => {});
-  _repMoradoresRender(); renderRepublicas(); toast(m.nome + ' saiu de ' + r.nome);
+  _repMoradoresRender(); renderRepublicas(); try { renderAlojados(); } catch (e) {} toast(m.nome + ' saiu de ' + r.nome);
 }
 
 // Apply configs on load
