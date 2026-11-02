@@ -554,7 +554,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v2.69 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v2.70 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -1145,6 +1145,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
   <div class="page-header">
     <div><div class="page-title">Funcionários</div><div class="page-sub">Mão de obra — cadastro completo</div></div>
     <div class="btn-group">
+      <button class="btn btn-outline btn-sm" onclick="efetivoAbrir()" title="Compara a planilha de efetivo do RH com a lista da obra">↻ Atualizar efetivo (RH)</button>
       <button class="btn btn-outline btn-sm" onclick="abrirImportacao('funcionarios')">↑ Importar</button>
       <button class="btn btn-outline btn-sm" onclick="baixarTemplate('funcionarios')">↓ Template Excel</button>
       <button class="btn btn-primary" onclick="openModal('modal-novo-func')">+ Novo funcionário</button>
@@ -1154,7 +1155,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
     <div class="search-wrap"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="busca-func" placeholder="Buscar por matrícula, nome ou cargo…" oninput="renderFuncionarios(0)"/></div>
     <div class="table-wrap">
       <table id="tabela-func">
-        <thead><tr><th style="width:36px"><input type="checkbox" class="cb-row-check" id="cb-master-funcionarios" onchange="toggleSelectAll('funcionarios',this)" title="Selecionar todos"></th><th>Obra</th><th>Matrícula</th><th>Nome</th><th>Cód. Função</th><th>Função</th><th style="text-align:right">Salário</th><th>CPF</th><th>Gera apont.</th><th>Apropriador</th><th>Telefone</th><th></th></tr></thead>
+        <thead><tr><th style="width:36px"><input type="checkbox" class="cb-row-check" id="cb-master-funcionarios" onchange="toggleSelectAll('funcionarios',this)" title="Selecionar todos"></th><th>Obra</th><th>Matrícula</th><th>Nome</th><th>Cód. Função</th><th>Função</th><th>Tipo de custo</th><th style="text-align:right">Salário</th><th>CPF</th><th>Admissão</th><th>Situação</th><th>Gera apont.</th><th>Apropriador</th><th>Telefone</th><th></th></tr></thead>
         <tbody id="tbody-func"><tr><td colspan="10" class="empty-row">Carregando…</td></tr></tbody>
       </table>
     </div>
@@ -2760,8 +2761,8 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
         <div class="form-group"><label class="form-label">Matrícula *</label><input class="form-control" id="func-mat" placeholder="0001"/></div>
         <div class="form-group"><label class="form-label">Cód. Função *</label><select class="form-control" id="func-funcao"><option value="">Selecione…</option></select></div>
         <div class="form-group form-full"><label class="form-label">Nome completo *</label><input class="form-control" id="func-nome" placeholder="Nome do funcionário"/></div>
-        <div class="form-group"><label class="form-label">Direto</label>
-          <select class="form-control" id="func-direto" onchange="const g=document.getElementById('func-gera'); if(g) g.value=this.value==='Não'?'Não':'Sim'"><option value="Sim">Sim</option><option value="Não">Não</option></select>
+        <div class="form-group"><label class="form-label">Tipo de custo</label>
+          <select class="form-control" id="func-direto" onchange="const g=document.getElementById('func-gera'); if(g) g.value=this.value==='Não'?'Não':'Sim'"><option value="Sim">Direto</option><option value="Não">Indireto</option></select>
         </div>
         <div class="form-group"><label class="form-label">Gera apontamento</label>
           <select class="form-control" id="func-gera"><option value="Sim">Sim — precisa ser apontado todo dia</option><option value="Não">Não — indireto, administrativo…</option></select>
@@ -4320,6 +4321,8 @@ function tagStatus(s) {
 function fmtData(d) { if (!d) return '—'; const [y,m,dd]=d.split('-'); return `${dd}/${m}/${y}`; }
 function excelDataParaISO(val) {
   if (!val) return '';
+  // v2.70: célula de data do Excel (lida como data) — meio-dia evita virar o dia por fuso
+  if (val instanceof Date && !isNaN(val)) { const d = new Date(val.getTime() + 12 * 3600e3); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
   const s = String(val).trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
   if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(s)) {
@@ -4861,14 +4864,17 @@ function renderFuncionarios(pagina) {
         <td>${f.nome}</td>
         <td class="td-mono">${f.codFuncao}</td>
         <td>${nomeFunc}</td>
+        <td>${tag(f.direto === 'Não' ? 'Indireto' : 'Direto', f.direto === 'Não' ? 'gray' : 'green')}</td>
         <td class="td-mono" style="text-align:right;white-space:nowrap">${f.salario ? 'R$ ' + Number(f.salario).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '<span style="color:var(--text-3)">—</span>'}</td>
         <td class="td-mono" style="white-space:nowrap" title="CPF completo no Editar">${f.cpf ? _cpfMask(f.cpf) : '<span style="color:var(--text-3)">—</span>'}</td>
+        <td class="td-mono" style="white-space:nowrap">${f.admissao ? fmtData(f.admissao) : '—'}</td>
+        <td style="white-space:nowrap">${f.demissao && f.demissao <= _hojeLocal() ? tag('Desligado ' + fmtData(f.demissao), 'red') : f.demissao ? tag('Sai em ' + fmtData(f.demissao), 'amber') : tag('Ativo', 'green')}</td>
         <td>${tag(_geraApont(f), _geraApont(f)==='Sim'?'blue':'gray')}</td>
         <td>${f.apropriador==='Sim' ? tag('Apropriador','red') : '<span style="color:var(--text-3)">—</span>'}</td>
         <td style="white-space:nowrap">${f.tel ? _e(f.tel) + ' ' + _waBotao(f.tel, '', 'mini') : '<span style="color:var(--text-3)">—</span>'}</td>
         <td>${acoesCell(`editarFuncionario('${f.id}')`,`deletar('funcionarios','${f.id}')`)}</td>
       </tr>`;}).join('')
-    : '<tr><td colspan="11" style="text-align:center;color:var(--text-3);padding:2rem">Nenhum funcionário cadastrado</td></tr>';
+    : '<tr><td colspan="14" style="text-align:center;color:var(--text-3);padding:2rem">Nenhum funcionário cadastrado</td></tr>';
 
   // Paginação
   const pgBar = document.getElementById('pag-func');
@@ -8090,8 +8096,8 @@ const IMPORT_DEF = {
                   map:g=>({ cod:g(['código','codigo','cod']).toUpperCase(), nome:g(['nome']), inicio:_horaImport(g(['início','inicio'])), fim:_horaImport(g(['fim'])) }), ok:x=>x.cod&&x.nome&&x.inicio&&x.fim },
   tiposPerdas:  { rotulo:'Tipos de perda', porObra:false, chave:'cod', col:['Código','Nome','Aplica a (MO/EQ/Ambos)'],
                   map:g=>({ cod:g(['código','codigo','cod']).toUpperCase(), nome:g(['nome']), aplica:g(['aplica'])||'Ambos', cor:'gray' }), ok:x=>x.cod&&x.nome },
-  funcionarios: { rotulo:'Funcionários', porObra:true, chave:'mat', col:['Matrícula','Nome Completo','Função','Cód. Função','Salário (R$)','CPF','Gera apontamento (Sim/Não)','Apropriador (Sim/Não)','Telefone (WhatsApp)'],
-                  map:g=>{ const direto = g(['direto'])||'', ga = String(g(['gera apont']) || '');
+  funcionarios: { rotulo:'Funcionários', porObra:true, chave:'mat', col:['Matrícula','Nome Completo','Função','Cód. Função','Tipo de custo (Direto/Indireto)','Salário (R$)','CPF','Data Admissão (DD/MM/AAAA)','Data Demissão (DD/MM/AAAA)','Gera apontamento (Sim/Não)','Apropriador (Sim/Não)','Telefone (WhatsApp)'],
+                  map:g=>{ const tc = String(g(['tipo de custo','direto']) || ''), direto = /^(ind|n)/i.test(tc) ? 'Não' : /^(d|s)/i.test(tc) ? 'Sim' : '', ga = String(g(['gera apont']) || '');
                     return { mat:g(['matrícula','matricula','mat']), nome:g(['nome completo','nome']), codFuncao:g(['cód. função','cod. função','cód função','cod funcao','cód. funcao','cod. funcao']), _fnome:g(['nome da função','função','funcao']), _emp:g(['empresa']),
                             salario:_numImport(g(['salár','salar'])), cpf:_cpfFmt(g(['cpf'])),
                             direto, admissao:excelDataParaISO(g(['admissão','admissao'])), demissao:excelDataParaISO(g(['demissão','demissao']))||'', lider:g(['matr. líder','matr. lider','matrícula do líder','matricula do lider','matrícula líder','matricula lider']), equipe:g(['cód. equipe','cod. equipe','equipe']),
@@ -8252,6 +8258,9 @@ function _importarLinhas(tipo, rows, resumo) {
         if (temCol2(['telefone','whatsapp','celular'])) mud.tel = item.tel;
         if (temCol2(['salár','salar'])) mud.salario = item.salario;
         if (temCol2(['cpf'])) mud.cpf = item.cpf;
+        if (temCol2(['admiss'])) mud.admissao = item.admissao;
+        if (temCol2(['demiss'])) mud.demissao = item.demissao;
+        if (temCol2(['tipo de custo','direto'])) mud.direto = item.direto;
         if (x && Object.keys(mud).some(k => String(x[k] || '') !== String(mud[k] || ''))) { Object.assign(x, mud); (window.__impAtualizados = window.__impAtualizados || []).push([tipo, x]); r.atual = (r.atual||0) + 1; return; }
       }
       if (document.getElementById('import-atualizar-custo')?.checked && (tipo === 'cargos' || tipo === 'equipamentos')) {
@@ -10725,6 +10734,153 @@ function _impDestino() {
   const oSel = window.selecionarObra;
   if (typeof oSel === 'function') window.selecionarObra = function () { const r = oSel.apply(this, arguments); if (document.getElementById('modal-importacao')?.classList.contains('open')) _impDestino(); return r; };
 })();
+
+// ═══════════════════════════════════════════════════════════════
+// v2.70: ATUALIZAR EFETIVO DO RH
+// Lê o efetivo que o RH manda (colunas variam por obra) e compara com a lista da obra:
+// novos → você completa função / tipo de custo e inclui; mudanças e desligamentos → aplica; quem não veio → só avisa.
+// ═══════════════════════════════════════════════════════════════
+let _ef = null;
+const _EF_CAMPOS = [['mat', 'Matrícula / cód. colaborador *'], ['nome', 'Nome *'], ['funcao', 'Função (nome)'], ['codf', 'Cód. função'], ['cpf', 'CPF'], ['adm', 'Data de admissão'], ['dem', 'Data de demissão']];
+const _efNorm = t => String(t ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+const _efMat = m => String(m ?? '').trim().replace(/\.0+$/, '').replace(/^0+(?=\d)/, '');
+function _efDetectar(h) {
+  const H = h.map(_efNorm), acha = fn => H.findIndex(fn);
+  const ix = {};
+  ix.mat = acha(x => /matr|chapa|registro/.test(x) || (/colab|func/.test(x) && /cod|cód|id\b|numero|n[ºo°]/.test(x) && !/fun[cç][aã]o|cargo/.test(x)));
+  ix.nome = acha((x, i) => /nome/.test(x) && !/fun[cç]|cargo|mae|pai|social|empresa|setor|obra/.test(x) && i !== ix.mat);
+  ix.codf = acha(x => /(cod|cód).*(fun[cç]|cargo)/.test(x));
+  ix.funcao = acha((x, i) => /fun[cç][aã]o|cargo/.test(x) && i !== ix.codf);
+  ix.cpf = acha(x => /cpf/.test(x));
+  ix.adm = acha(x => /admiss/.test(x));
+  ix.dem = acha(x => /demiss|deslig|rescis/.test(x));
+  return ix;
+}
+function _efHtml() {
+  if (document.getElementById('modal-efetivo')) return;
+  document.body.insertAdjacentHTML('beforeend', `<div class="modal-overlay" id="modal-efetivo"><div class="modal" style="max-width:1080px;width:96vw">
+    <div class="modal-header"><span class="modal-title">Atualizar efetivo do RH</span><button class="modal-close" onclick="closeModal('modal-efetivo')">×</button></div>
+    <div class="modal-body" id="ef-corpo" style="max-height:72vh;overflow:auto"></div>
+    <div class="modal-footer" id="ef-rodape"></div></div></div>`);
+}
+function efetivoAbrir() {
+  if (!obraAtiva || obraAtiva.id === 'todas') { toast('Escolha a obra no topo antes de atualizar o efetivo.', 'error'); return; }
+  _efHtml(); _ef = { obra: obraAtiva.id };
+  const o = (dados.obras || []).find(x => x.id === obraAtiva.id) || obraAtiva;
+  document.getElementById('ef-corpo').innerHTML = `
+    <div style="border:1.5px solid #E30613;background:rgba(227,6,19,.06);border-radius:10px;padding:10px 14px;margin-bottom:14px"><span style="font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--text-3)">OBRA</span><div style="font-weight:800">${_e(o.cod || '')}${o.cod ? ' — ' : ''}${_e(o.nome || '')}</div></div>
+    <p style="margin:0 0 10px">Escolha a planilha de efetivo que o RH mandou (do jeito que veio). O painel encontra as colunas sozinho; confira na próxima tela.</p>
+    <input type="file" id="ef-arquivo" class="form-control" accept=".xlsx,.xls,.csv" style="padding:6px" onchange="_efLer(this)"/>`;
+  document.getElementById('ef-rodape').innerHTML = `<button class="btn btn-outline" onclick="closeModal('modal-efetivo')">Cancelar</button>`;
+  openModal('modal-efetivo');
+}
+function _efLer(inp) {
+  const f = inp.files && inp.files[0]; if (!f || typeof XLSX === 'undefined') return;
+  const rd = new FileReader();
+  rd.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'binary', cellDates: true });
+      let best = null;
+      wb.SheetNames.forEach(n => { const rows = XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, defval: '' });
+        for (let i = 0; i < Math.min(15, rows.length); i++) { const ix = _efDetectar(rows[i] || []); const sc = Object.values(ix).filter(v => v >= 0).length + (ix.mat >= 0 && ix.nome >= 0 ? 10 : 0);
+          if (!best || sc > best.sc) best = { sc, rows, hi: i, ix }; } });
+      if (!best || best.ix.mat < 0 && best.ix.nome < 0) { toast('Não encontrei as colunas de matrícula e nome nessa planilha.', 'error'); return; }
+      _ef.headers = (best.rows[best.hi] || []).map(x => String(x ?? '').trim());
+      _ef.rows = best.rows.slice(best.hi + 1).filter(r => r && r.some(c => String(c ?? '').trim() !== ''));
+      _ef.ix = best.ix; _ef.arquivo = f.name;
+      _efMapa();
+    } catch (x) { toast('Não consegui ler a planilha: ' + x.message, 'error'); }
+  };
+  rd.readAsBinaryString(f);
+}
+function _efMapa() {
+  const op = sel => '<option value="-1">(não tem)</option>' + _ef.headers.map((h, i) => `<option value="${i}" ${i === sel ? 'selected' : ''}>${_e(h || '(coluna ' + (i + 1) + ')')}</option>`).join('');
+  document.getElementById('ef-corpo').innerHTML = `<p style="margin:0 0 12px"><strong>${_e(_ef.arquivo)}</strong> · ${_ef.rows.length} linha(s). Confira de qual coluna vem cada informação:</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px">${_EF_CAMPOS.map(([k, l]) => `<div class="form-group" style="margin:0"><label class="form-label">${l}</label><select class="form-control" id="ef-c-${k}">${op(_ef.ix[k])}</select></div>`).join('')}</div>`;
+  document.getElementById('ef-rodape').innerHTML = `<button class="btn btn-outline" onclick="efetivoAbrir()">← Outra planilha</button><button class="btn btn-primary" onclick="_efComparar()">Comparar com a lista da obra →</button>`;
+}
+function _efCargoPor(cod, nome) {
+  const cs = (dados.cargos || []).filter(c => !c.obra || c.obra === _ef.obra);
+  if (cod) { const c = cs.find(x => _efNorm(x.cod) === _efNorm(cod)); if (c) return c; }
+  if (nome) { const n = _efNorm(nome); return cs.find(x => _efNorm(x.nome) === n) || cs.find(x => _efNorm(x.cod) === n) || null; }
+  return null;
+}
+function _efComparar() {
+  _EF_CAMPOS.forEach(([k]) => _ef.ix[k] = +document.getElementById('ef-c-' + k).value);
+  if (_ef.ix.mat < 0 || _ef.ix.nome < 0) { toast('Indique as colunas de matrícula e nome.', 'error'); return; }
+  const v = (r, k) => _ef.ix[k] >= 0 ? r[_ef.ix[k]] : '';
+  const data = x => { if (x === '' || x === null || x === undefined) return ''; try { return excelDataParaISO(x) || ''; } catch (e) { return ''; } };
+  const lista = (dados.funcionarios || []).filter(f => !f.obra || f.obra === _ef.obra);
+  const hoje = _hojeLocal ? _hojeLocal() : new Date().toISOString().slice(0, 10);
+  const vistos = new Set();
+  _ef.novos = []; _ef.mud = []; _ef.desl = []; _ef.semFuncao = [];
+  _ef.rows.forEach(r => {
+    const mat = _efMat(v(r, 'mat')), nome = String(v(r, 'nome') ?? '').trim(); if (!mat || !nome) return;
+    const cpf = _cpfFmt(v(r, 'cpf')), adm = data(v(r, 'adm')), dem = data(v(r, 'dem')), fnome = String(v(r, 'funcao') ?? '').trim(), fcod = String(v(r, 'codf') ?? '').trim();
+    const c = _efCargoPor(fcod, fnome);
+    const ex = lista.find(f => _efMat(f.mat) === mat) || (cpf && lista.find(f => f.cpf && f.cpf === cpf));
+    if (!ex) { if (dem && dem <= hoje) return; _ef.novos.push({ mat, nome, cpf, adm, dem, fnome: fnome || fcod, cod: c ? c.cod : '', direto: c ? (c.direto || 'Sim') : 'Sim' }); return; }
+    vistos.add(ex.id);
+    const ch = {}, txt = [];
+    if (nome && _efNorm(nome) !== _efNorm(ex.nome)) { ch.nome = nome; txt.push('Nome: ' + (ex.nome || '—') + ' → ' + nome); }
+    if (cpf && cpf !== (ex.cpf || '')) { ch.cpf = cpf; txt.push('CPF: ' + (ex.cpf ? _cpfMask(ex.cpf) : '—') + ' → ' + _cpfMask(cpf)); }
+    if (adm && adm !== (ex.admissao || '')) { ch.admissao = adm; txt.push('Admissão: ' + (ex.admissao ? fmtData(ex.admissao) : '—') + ' → ' + fmtData(adm)); }
+    if (c && c.cod !== ex.codFuncao) { ch.codFuncao = c.cod; ch.funcao = c.nome; txt.push('Função: ' + (ex.codFuncao || '—') + ' → ' + c.cod + ' (' + c.nome + ')'); }
+    else if (!c && (fnome || fcod) && _efNorm(fnome || fcod) !== _efNorm(ex.funcao || '') && _efNorm(fcod || fnome) !== _efNorm(ex.codFuncao || '')) _ef.semFuncao.push({ f: ex, txt: fnome || fcod });
+    if (dem && dem !== (ex.demissao || '')) _ef.desl.push({ f: ex, dem });
+    if (txt.length) _ef.mud.push({ f: ex, ch, txt });
+  });
+  _ef.ausentes = lista.filter(f => !vistos.has(f.id) && !f.demissao && f.status !== 'Desligado' && !f.provisorio);
+  _efResultado();
+}
+function _efResultado() {
+  const cs = (dados.cargos || []).filter(c => !c.obra || c.obra === _ef.obra);
+  const optC = sel => '<option value="">Escolha…</option>' + cs.map(c => `<option value="${_e(c.cod)}" ${c.cod === sel ? 'selected' : ''}>${_e(c.cod)} — ${_e(c.nome)}</option>`).join('');
+  const card = (n, l, cor) => `<div style="flex:1;min-width:140px;border:1px solid var(--border);border-radius:10px;padding:10px 12px"><div style="font-size:22px;font-weight:800;color:${cor}">${n}</div><div style="font-size:12px;color:var(--text-3)">${l}</div></div>`;
+  const sec = (t, sub, corpo) => `<h4 style="margin:18px 0 4px">${t}</h4><div style="font-size:12px;color:var(--text-3);margin-bottom:8px">${sub}</div>${corpo}`;
+  const tb = (cab, linhas) => `<div class="table-wrap"><table><thead><tr>${cab.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>${linhas}</tbody></table></div>`;
+  let h = `<div style="display:flex;gap:10px;flex-wrap:wrap">${card(_ef.novos.length, 'novos para cadastrar', '#16A34A')}${card(_ef.mud.length, 'com mudança', '#2563EB')}${card(_ef.desl.length, 'desligados', '#E30613')}${card(_ef.ausentes.length, 'não vieram no efetivo', '#F59E0B')}</div>`;
+  if (_ef.novos.length) h += sec('Novos — complete e inclua na lista', 'A função vem do efetivo; se não achar no cadastro de Cargos, escolha. Telefone, salário e apropriador você completa depois em Editar.',
+    tb(['', 'Matrícula', 'Nome', 'Função no RH', 'Cód. função *', 'Tipo de custo', 'Gera apont.', 'Admissão'], _ef.novos.map((n, i) => `<tr>
+      <td><input type="checkbox" id="ef-n-ok-${i}" ${n.cod ? 'checked' : ''}/></td><td class="td-mono">${_e(n.mat)}</td><td>${_e(n.nome)}</td><td>${_e(n.fnome || '—')}</td>
+      <td><select class="form-control" style="min-width:170px" id="ef-n-cod-${i}" onchange="_efNovoCargo(${i})">${optC(n.cod)}</select></td>
+      <td><select class="form-control" id="ef-n-dir-${i}" onchange="document.getElementById('ef-n-ga-${i}').value=this.value==='Não'?'Não':'Sim'"><option value="Sim" ${n.direto !== 'Não' ? 'selected' : ''}>Direto</option><option value="Não" ${n.direto === 'Não' ? 'selected' : ''}>Indireto</option></select></td>
+      <td><select class="form-control" id="ef-n-ga-${i}"><option value="Sim" ${n.direto !== 'Não' ? 'selected' : ''}>Sim</option><option value="Não" ${n.direto === 'Não' ? 'selected' : ''}>Não</option></select></td>
+      <td class="td-mono">${n.adm ? fmtData(n.adm) : '—'}</td></tr>`).join('')));
+  if (_ef.mud.length) h += sec('Mudanças', 'Dados que estão diferentes do cadastro atual.', tb(['', 'Matrícula', 'Nome', 'O que muda'], _ef.mud.map((m, i) => `<tr><td><input type="checkbox" id="ef-m-ok-${i}" checked/></td><td class="td-mono">${_e(m.f.mat)}</td><td>${_e(m.f.nome)}</td><td style="font-size:12.5px">${m.txt.map(_e).join('<br>')}</td></tr>`).join('')));
+  if (_ef.desl.length) h += sec('Desligados', 'Ao aplicar, a data de demissão é gravada: a partir dela o funcionário sai do app de campo e do "faltando apontar".', tb(['', 'Matrícula', 'Nome', 'Demissão'], _ef.desl.map((d, i) => `<tr><td><input type="checkbox" id="ef-d-ok-${i}" checked/></td><td class="td-mono">${_e(d.f.mat)}</td><td>${_e(d.f.nome)}</td><td class="td-mono">${fmtData(d.dem)}</td></tr>`).join('')));
+  if (_ef.semFuncao.length) h += sec('Função não encontrada', 'O efetivo traz uma função que não está no cadastro de Cargos; a função atual foi mantida.', tb(['Matrícula', 'Nome', 'Função no RH', 'Função atual'], _ef.semFuncao.map(s => `<tr><td class="td-mono">${_e(s.f.mat)}</td><td>${_e(s.f.nome)}</td><td>${_e(s.txt)}</td><td>${_e(s.f.codFuncao || '—')}</td></tr>`).join('')));
+  if (_ef.ausentes.length) h += sec('Não vieram no efetivo', 'Estão ativos na lista, mas não aparecem na planilha do RH. Confira com o RH; se saíram, edite e informe a data de demissão.', tb(['Matrícula', 'Nome', 'Função'], _ef.ausentes.map(f => `<tr><td class="td-mono">${_e(f.mat)}</td><td>${_e(f.nome)}</td><td>${_e(f.codFuncao || '—')}</td></tr>`).join('')));
+  if (!_ef.novos.length && !_ef.mud.length && !_ef.desl.length) h += `<p style="margin-top:16px;color:var(--text-3)">Nada a atualizar: a lista da obra já está igual ao efetivo.</p>`;
+  document.getElementById('ef-corpo').innerHTML = h;
+  document.getElementById('ef-rodape').innerHTML = `<button class="btn btn-outline" onclick="_efMapa()">← Colunas</button><button class="btn btn-primary" onclick="_efAplicar()" ${_ef.novos.length || _ef.mud.length || _ef.desl.length ? '' : 'disabled'}>Aplicar na lista</button>`;
+}
+function _efNovoCargo(i) {
+  const c = _efCargoPor(document.getElementById('ef-n-cod-' + i).value, '');
+  const d = c ? (c.direto || 'Sim') : 'Sim'; document.getElementById('ef-n-dir-' + i).value = d; document.getElementById('ef-n-ga-' + i).value = d === 'Não' ? 'Não' : 'Sim';
+  if (c) document.getElementById('ef-n-ok-' + i).checked = true;
+}
+async function _efAplicar() {
+  const salvar = [], emp = (dados.empresas || []).find(x => (!x.obra || x.obra === _ef.obra) && /pr[oó]pria/i.test(x.tipo || ''));
+  let nN = 0, semCod = 0, nM = 0, nD = 0;
+  _ef.novos.forEach((n, i) => {
+    if (!document.getElementById('ef-n-ok-' + i)?.checked) return;
+    const cod = document.getElementById('ef-n-cod-' + i).value; if (!cod) { semCod++; return; }
+    const c = _efCargoPor(cod, ''), direto = document.getElementById('ef-n-dir-' + i).value;
+    const f = { id: 'fun' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), obra: _ef.obra, mat: n.mat, nome: n.nome, codFuncao: cod, funcao: c ? c.nome : '', direto,
+      geraApont: document.getElementById('ef-n-ga-' + i).value, apropriador: 'Não', tel: '', cpf: n.cpf || '', admissao: n.adm || '', demissao: n.dem || '', lider: '', equipe: '',
+      empresa: emp ? emp.nome : '', empresaId: emp ? emp.id : '', origem: 'efetivo' };
+    if (!f.cpf) delete f.cpf;
+    (dados.funcionarios = dados.funcionarios || []).push(f); salvar.push(f); nN++;
+  });
+  _ef.mud.forEach((m, i) => { if (!document.getElementById('ef-m-ok-' + i)?.checked) return; Object.assign(m.f, m.ch); if (!salvar.includes(m.f)) salvar.push(m.f); nM++; });
+  _ef.desl.forEach((d, i) => { if (!document.getElementById('ef-d-ok-' + i)?.checked) return; d.f.demissao = d.dem; if (!salvar.includes(d.f)) salvar.push(d.f); nD++; });
+  if (semCod && !nN && !nM && !nD) { toast('Escolha o cód. função dos novos marcados.', 'error'); return; }
+  if (db && _firebaseReady) { const rs = await Promise.allSettled(salvar.map(f => fbSave('funcionarios', f.id, f))); const fl = rs.filter(x => x.status === 'rejected').length; if (fl) toast(fl + ' não foram gravados no servidor. Tente de novo.', 'error'); }
+  try { renderFuncionarios(); } catch (e) {} try { popularSelects(); } catch (e) {}
+  closeModal('modal-efetivo');
+  toast(`Efetivo aplicado: ${nN} novo(s), ${nM} atualizado(s), ${nD} desligado(s)` + (semCod ? ` · ${semCod} novo(s) ficaram de fora por falta de função` : '') + '.');
+}
 
 // Apply configs on load
 setTimeout(applyConfigs, 200);
