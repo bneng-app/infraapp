@@ -811,7 +811,7 @@ select.form-control,select.form-control:focus{background-image:url("data:image/s
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.36</div>
+  <div class="login-versao">ObraKontrol Campo · v2.37</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -1520,7 +1520,7 @@ async function fazerLoginCampo() {
 }
 
 async function carregarDadosCampo() {
-  const cols = ['funcionarios','equipamentos','frentes','tiposServico','tiposPerdas','empresas','turnos','tanques'];
+  const cols = ['funcionarios','equipamentos','frentes','tiposServico','tiposPerdas','empresas','turnos','tanques','modelos'];
   // v2.9: carrega todos os cadastros ao mesmo tempo (antes era um de cada vez — login demorava)
   const resultados = await Promise.all(cols.map(c => fbCarregar(c)));
   for (const [i, col] of cols.entries()) {
@@ -3505,6 +3505,33 @@ function _apFrenteQR(cod) {
     }
     if (contexto === 'frente') { toast('Esse QR não é de frente de serviço.', 'err'); return; }
     return oProc.apply(this, arguments);
+  };
+})();
+
+// ══════════════════════════════════════════════════════════════
+// v2.37: AVISO DE ABASTECIMENTO ACIMA DA CAPACIDADE DO TANQUE DO MODELO
+// ══════════════════════════════════════════════════════════════
+(function () {
+  let conf = '';
+  const oS = salvarFuel;
+  salvarFuel = async function () {
+    const equipId = document.getElementById('fuel-equip').value, litros = parseFloat(document.getElementById('fuel-litros').value) || 0;
+    const eq = (dadosCampo.equipamentos || []).find(e => e.id === equipId);
+    const k = String((eq && (eq.codModelo || eq.modelo)) || '').toLowerCase();
+    const ms = k ? (dadosCampo.modelos || []).filter(m => String(m.cod || '').toLowerCase() === k || String(m.nome || '').toLowerCase() === k) : [];
+    const mod = ms.find(m => (m.obra || '') === (eq.obra || '')) || ms[0];
+    const cap = +(mod && mod.capTanque) || 0;
+    let av = document.getElementById('fuel-aviso');
+    if (!av) { av = document.createElement('div'); av.id = 'fuel-aviso'; av.style.cssText = 'display:none;margin-top:8px;padding:10px 12px;border-radius:10px;background:rgba(227,6,19,.1);color:var(--red);font-weight:700;font-size:13px;line-height:1.35'; document.getElementById('fuel-litros').insertAdjacentElement('afterend', av); }
+    const chave = equipId + '|' + litros;
+    if (cap && litros > cap && conf !== chave) {
+      conf = chave;
+      av.innerHTML = '⚠ ' + litros.toLocaleString('pt-BR') + ' L é mais que o tanque do ' + (eq.tag || 'equipamento') + ' (' + cap.toLocaleString('pt-BR') + ' L).<br><span style="font-weight:500">Confira os litros. Se estiver certo, toque em Salvar de novo.</span>';
+      av.style.display = 'block'; if (navigator.vibrate) { try { navigator.vibrate([60, 60, 60]); } catch (e) {} }
+      return;
+    }
+    conf = ''; av.style.display = 'none';
+    return oS.apply(this, arguments);
   };
 })();
 

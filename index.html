@@ -554,7 +554,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v2.76 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v2.77 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -1198,7 +1198,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
     <div class="search-wrap"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="search-modelos" placeholder="Buscar código ou modelo…" oninput="filtrarTabela('tabela-modelos','search-modelos',0)"/></div>
     <div class="table-wrap">
       <table id="tabela-modelos">
-        <thead><tr><th style="width:36px"><input type="checkbox" class="cb-row-check" id="cb-master-modelos" onchange="toggleSelectAll('modelos',this)" title="Selecionar todos"></th><th>Obra</th><th>Cód. Modelo</th><th>Modelo</th><th></th></tr></thead>
+        <thead><tr><th style="width:36px"><input type="checkbox" class="cb-row-check" id="cb-master-modelos" onchange="toggleSelectAll('modelos',this)" title="Selecionar todos"></th><th>Obra</th><th>Cód. Modelo</th><th>Modelo</th><th>Família</th><th style="text-align:right">Tanque (L)</th><th style="text-align:right">Consumo previsto (L/h)</th><th></th></tr></thead>
         <tbody id="tbody-modelos"><tr><td colspan="3" class="empty-row">Carregando…</td></tr></tbody>
       </table>
     </div>
@@ -1677,6 +1677,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
     <span class="tag tag-amber" style="cursor:pointer;padding:4px 12px;font-size:11px" onclick="filtroRapidoAbs('campo')">● Pendentes <span id="abs-cnt-pend">0</span></span>
     <span class="tag tag-green" style="cursor:pointer;padding:4px 12px;font-size:11px" onclick="filtroRapidoAbs('corrigido')">● Processados</span>
     <span class="tag tag-blue" style="cursor:pointer;padding:4px 12px;font-size:11px" onclick="filtroRapidoAbs('')">● Todos</span>
+    <span class="tag tag-red" id="abs-pill-alerta" style="cursor:pointer;padding:4px 12px;font-size:11px" onclick="absSoAlertas()">⚠ Com alerta <span id="abs-cnt-alerta">0</span></span>
   </div>
 
   <!-- KPI Cards -->
@@ -1689,8 +1690,8 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
   <div class="card">
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Data/Hora</th><th>Equipamento</th><th>Litros</th><th>Horímetro/Km</th><th>Apontador</th><th>Obs.</th><th>Status</th><th></th></tr></thead>
-        <tbody id="tbody-diesel"><tr><td colspan="8" class="empty-row">Carregando…</td></tr></tbody>
+        <thead><tr><th>Data/Hora</th><th>Equipamento</th><th>Litros</th><th>Horímetro/Km</th><th>Apontador</th><th>Obs.</th><th>Alerta</th><th>Status</th><th></th></tr></thead>
+        <tbody id="tbody-diesel"><tr><td colspan="9" class="empty-row">Carregando…</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -2821,6 +2822,9 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
         <div class="form-group"><label class="form-label">Código *</label><input class="form-control" id="mod-cod" placeholder="MOD-001"/></div>
         <div class="form-group"><label class="form-label">Família</label><select class="form-control" id="mod-familia"><option value="">Selecione…</option></select></div>
         <div class="form-group form-full"><label class="form-label">Nome do modelo *</label><input class="form-control" id="mod-nome" placeholder="Ex.: Cat 320, Volvo L60H"/></div>
+        <div class="form-group"><label class="form-label">Capacidade do tanque (L)</label><input class="form-control" type="number" min="0" step="1" id="mod-cap" placeholder="Ex.: 400"/></div>
+        <div class="form-group"><label class="form-label">Consumo previsto (L/h)</label><input class="form-control" type="number" min="0" step="0.1" id="mod-consumo" placeholder="Ex.: 18"/></div>
+        <div class="form-group form-full" style="font-size:11.5px;color:var(--text-3);margin-top:-4px">Vale para todos os equipamentos deste modelo. O abastecimento acima do tanque ou com consumo mais de 20% acima do previsto vira alerta.</div>
       </div>
     </div>
     <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-novo-modelo')">Cancelar</button><button class="btn btn-primary" onclick="salvarModelo()">Salvar</button></div>
@@ -3163,7 +3167,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
       </div>
       <label id="import-custo-wrap" style="display:flex;gap:8px;align-items:flex-start;font-size:13px;cursor:pointer;margin-top:4px">
         <input type="checkbox" id="import-atualizar-custo" style="margin-top:3px"/>
-        <span><strong>Atualizar cadastros que já existem</strong><br><span style="font-size:11px;color:var(--text-3)">Cargos: custo/hora, adicional HE e adicional domingo/feriado. Equipamentos: custo/hora. Tanques: preço do litro. Funcionários: gera apontamento, apropriador e telefone. Frentes: coordenada e responsável. Nada mais é alterado, e célula em branco não apaga o valor atual.</span></span>
+        <span><strong>Atualizar cadastros que já existem</strong><br><span style="font-size:11px;color:var(--text-3)">Cargos: custo/hora, adicional HE e adicional domingo/feriado. Equipamentos: custo/hora. Tanques: preço do litro. Funcionários: gera apontamento, apropriador e telefone. Frentes: coordenada e responsável. Modelos: tanque e consumo previsto. Nada mais é alterado, e célula em branco não apaga o valor atual.</span></span>
       </label>
       <div id="import-preview" style="margin-top:1rem;font-size:12px;color:var(--text-3);background:var(--bg);padding:10px;border-radius:6px;display:none"></div>
       <input type="hidden" id="import-tipo"/>
@@ -4968,9 +4972,12 @@ function renderModelos() {
   document.getElementById('tbody-modelos').innerHTML = dados.modelos.length
     ? dados.modelos.map(m=>`<tr>${cbTD('modelos',m.id)}<td style='font-size:11px;color:var(--text-3)'>${getNomeObra(m.obra)}</td><td class="td-mono"><strong>${m.cod}</strong></td>
         <td>${m.nome}</td>
+        <td style="font-size:12px;color:var(--text-2)">${((dados.familias||[]).find(f=>f.cod===m.familia)||{}).desc || m.familia || '—'}</td>
+        <td class="td-mono" style="text-align:right">${+m.capTanque ? (+m.capTanque).toLocaleString('pt-BR') : '<span style="color:var(--amber)">preencher</span>'}</td>
+        <td class="td-mono" style="text-align:right">${+m.consumoPrev ? (+m.consumoPrev).toLocaleString('pt-BR') : '<span style="color:var(--amber)">preencher</span>'}</td>
         <td>${acoesCell(`editarModelo('${m.id}')`,`deletar('modelos','${m.id}')`)}</td>
       </tr>`).join('')
-    : '<tr><td colspan="3" style="text-align:center;color:var(--text-3);padding:2rem">Nenhum modelo cadastrado</td></tr>';
+    : '<tr><td colspan="8" style="text-align:center;color:var(--text-3);padding:2rem">Nenhum modelo cadastrado</td></tr>';
 }
 function salvarModelo() {
   const obra = document.getElementById('mod-obra')?.value||'';
@@ -4978,7 +4985,8 @@ function salvarModelo() {
   const cod  = document.getElementById('mod-cod').value.trim();
   const nome = document.getElementById('mod-nome').value.trim();
   if (!cod||!nome) { toast('Preencha Cód. Modelo e Modelo', 'error'); return; }
-  dados.modelos.push({ id:'md'+Date.now(), obra, cod, nome });
+  const capTanque = parseFloat(document.getElementById('mod-cap')?.value) || 0, consumoPrev = parseFloat(String(document.getElementById('mod-consumo')?.value || '').replace(',', '.')) || 0;
+  dados.modelos.push({ id:'md'+Date.now(), obra, cod, nome, familia: document.getElementById('mod-familia')?.value || '', capTanque, consumoPrev });
     // Save to Firebase
   if (db && _firebaseReady) {
     const _last = (dados.modelos||[]).slice(-1)[0];
@@ -4987,7 +4995,7 @@ function salvarModelo() {
   closeModal('modal-novo-modelo');
   renderModelos(); popularSelects();
   toast('Modelo salvo!');
-  ['mod-cod','mod-nome'].forEach(id=>document.getElementById(id).value='');
+  ['mod-cod','mod-nome','mod-cap','mod-consumo'].forEach(id=>{ const el=document.getElementById(id); if (el) el.value=''; });
 }
 
 // ───── EQUIPAMENTOS ─────
@@ -7622,10 +7630,11 @@ renderDiesel = function() {
         <td>${d.hor}</td>
         <td>${d.lancadoPor||'Escritório'}</td>
         <td>${d.obs||'—'}</td>
+        <td style="max-width:260px">${_absAlertaHtml(d)}</td>
         <td>${tagStatus(d.status)}</td>
         <td>${acoesCell(`corrigirDiesel('${d.id}')`,`deletar('diesel','${d.id}')`)}</td>
-      </tr>`, 8, 'renderDiesel')
-    : '<tr><td colspan="8" style="text-align:center;color:var(--text-3);padding:2rem">Nenhum registro</td></tr>';
+      </tr>`, 9, 'renderDiesel')
+    : '<tr><td colspan="9" style="text-align:center;color:var(--text-3);padding:2rem">Nenhum registro</td></tr>';
 };
 
 // v2.2: funções que o app chama mas que não existem mais no arquivo (sumiram em alguma versão anterior).
@@ -8116,8 +8125,8 @@ const IMPORT_DEF = {
                             custoHora:_numImport(g(['custo'])), adicHE:(v => v === '' ? 50 : _numImport(v))(g(['adicional he','% he','hora extra'])), adicDF:(v => v === '' ? 100 : _numImport(v))(g(['domingo','feriado'])) }), ok:x=>x.cod&&x.nome },
   familias:     { rotulo:'Famílias', porObra:true, chave:'cod', col:['Código','Descrição'],
                   map:g=>({ cod:g(['código','codigo','cod']), desc:g(['descrição','descricao','desc']) }), ok:x=>x.cod&&x.desc },
-  modelos:      { rotulo:'Modelos', porObra:true, chave:'cod', col:['Código','Nome do Modelo','Família'],
-                  map:g=>({ cod:g(['código','codigo','cod']), nome:g(['nome do modelo','modelo']), familia:g(['família','familia']) }), ok:x=>x.cod&&x.nome },
+  modelos:      { rotulo:'Modelos', porObra:true, chave:'cod', col:['Código','Nome do Modelo','Família','Capacidade do tanque (L)','Consumo previsto (L/h)'],
+                  map:g=>({ cod:g(['código','codigo','cod']), nome:g(['nome do modelo','modelo']), familia:g(['família','familia']), capTanque:_numImport(g(['capacidade','tanque'])), consumoPrev:_numImport(g(['consumo'])) }), ok:x=>x.cod&&x.nome },
   frentes:      { rotulo:'Frentes de serviço', porObra:true, chave:'cod', col:['Descrição','Código (deixe em branco: o sistema gera)','Responsável','Coordenada (lat, long)'],
                   map:g=>({ cod:g(['código','codigo','cod']), desc:g(['descrição','descricao','desc']), resp:g(['responsável','responsavel']), obs:g(['observ']), coord:_coordNorm(g(['coordenada','coord']), g(['latitude','lat']), g(['longitude','long','lng'])) }), ok:x=>x.desc },
   tiposServico: { rotulo:'Tipos de serviço', porObra:false, chave:'cod', col:['Código','Nome do Serviço','Unidade'],
@@ -8154,7 +8163,7 @@ const IMPORT_ORDEM = ['obras','empresas','ua','cargos','familias','modelos','fre
 // v2.67: o pacote da obra traz só cadastros; histórico (apontamentos e abastecimentos antigos) vem num arquivo à parte.
 // Tipos de perda e tanques são cadastrados no painel (não entram na importação). Famílias e modelos vêm dentro de Equipamentos.
 const IMPORT_PACOTE = ['obras','empresas','ua','cargos','familias','modelos','frentes','tiposServico','turnos','funcionarios','equipamentos'];
-const IMPORT_PACOTE_MODELO = ['obras','empresas','ua','cargos','frentes','tiposServico','turnos','funcionarios','equipamentos'];
+const IMPORT_PACOTE_MODELO = ['obras','empresas','ua','cargos','frentes','tiposServico','turnos','funcionarios','modelos','equipamentos'];
 const IMPORT_HISTORICO = ['aponMO','aponEQ','diesel'];
 function _impCodigo(txt, lista, campo) {
   let base = String(txt).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3) || 'X', cod = base, n = 2;
@@ -8319,6 +8328,12 @@ function _importarLinhas(tipo, rows, resumo) {
         const mud = {}; if (item.coord) mud.coord = item.coord; if (item.resp) mud.resp = item.resp;
         if (x && Object.keys(mud).some(k => String(x[k] || '') !== String(mud[k]))) { Object.assign(x, mud); (window.__impAtualizados = window.__impAtualizados || []).push([tipo, x]); r.atual = (r.atual||0) + 1; return; }
       }
+      // v2.77: modelo que já existe ganha capacidade do tanque / consumo previsto
+      if (document.getElementById('import-atualizar-custo')?.checked && tipo === 'modelos') {
+        const x = lista.find(y => String(y.cod||'').toLowerCase() === chave && (y.obra||'') === obraId);
+        const mud = {}; if (item.capTanque) mud.capTanque = item.capTanque; if (item.consumoPrev) mud.consumoPrev = item.consumoPrev; if (item.familia && !x?.familia) mud.familia = item.familia;
+        if (x && Object.keys(mud).some(k => String(x[k] || '') !== String(mud[k]))) { Object.assign(x, mud); (window.__impAtualizados = window.__impAtualizados || []).push([tipo, x]); r.atual = (r.atual||0) + 1; return; }
+      }
       if (document.getElementById('import-atualizar-custo')?.checked && tipo === 'tanques') {
         const x = lista.find(y => String(y.cod||'').toLowerCase() === chave && (y.obra||'') === obraId);
         if (x && item.preco && Number(x.preco) !== Number(item.preco)) { x.preco = item.preco; (window.__impAtualizados = window.__impAtualizados || []).push([tipo, x]); r.atual = (r.atual||0) + 1; return; }
@@ -8398,10 +8413,10 @@ window.abrirImportacao = function (tipo) {
   const $ = k => document.getElementById(k);
   if ($('import-titulo')) $('import-titulo').textContent = tipo === 'pacote' ? 'Importar pacote completo' : tipo === 'historico' ? 'Importar histórico (apontamentos e abastecimentos antigos)' : 'Importar ' + (IMPORT_DEF[tipo]?.rotulo || tipo);
   if ($('import-tipo')) $('import-tipo').value = tipo;
-  if ($('import-custo-wrap')) { $('import-custo-wrap').style.display = ['pacote','cargos','equipamentos','funcionarios','tanques','frentes'].includes(tipo) ? 'flex' : 'none'; $('import-atualizar-custo').checked = false; }
+  if ($('import-custo-wrap')) { $('import-custo-wrap').style.display = ['pacote','cargos','equipamentos','funcionarios','tanques','frentes','modelos'].includes(tipo) ? 'flex' : 'none'; $('import-atualizar-custo').checked = false; }
   const f = $('import-file'); if (f) { f.value = ''; f.onchange = function () { previewImport(this); }; }
   const pv = $('import-preview'); if (pv) { pv.innerHTML = tipo === 'pacote'
-    ? 'Um arquivo Excel com <strong>uma aba por cadastro</strong>: Obras, Empresas, UA, Cargos, Frentes, Tipos de serviço, Turnos, Funcionários e Equipamentos (com família e modelo). Não precisa de coluna "Obra": vale a obra da aba Obras ou a escolhida no topo. Registros com código que já existe são ignorados.<br><span style="color:var(--text-3)">Apontamentos e abastecimentos antigos vão no arquivo de <strong>histórico</strong>. Tipos de perda e tanques são cadastrados no painel.</span>'
+    ? 'Um arquivo Excel com <strong>uma aba por cadastro</strong>: Obras, Empresas, UA, Cargos, Frentes, Tipos de serviço, Turnos, Funcionários, Modelos (tanque e consumo previsto) e Equipamentos (com família e modelo). Não precisa de coluna "Obra": vale a obra da aba Obras ou a escolhida no topo. Registros com código que já existe são ignorados.<br><span style="color:var(--text-3)">Apontamentos e abastecimentos antigos vão no arquivo de <strong>histórico</strong>. Tipos de perda e tanques são cadastrados no painel.</span>'
     : tipo === 'historico'
     ? 'Um arquivo com as abas <strong>Apontamentos MO</strong>, <strong>Apontamentos EQ</strong> e/ou <strong>Abastecimentos</strong>. Os funcionários, equipamentos e frentes já precisam estar cadastrados. Escolha a obra no topo antes de importar.'
     : 'Registros com código que já existe são ignorados.' + (IMPORT_DEF[tipo]?.porObra ? ' Vale a obra escolhida no topo.' : ''); pv.style.display = 'block'; }
@@ -9825,10 +9840,11 @@ function dxRenderAbs() {
           return `<div><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><b>${_e(t.cod)} — ${_e(t.nome)}</b><span style="font-family:var(--mono)">${_n1(t.saldo)} / ${_n1(t.cap)} L · <b style="color:${cor}">${Math.round(pc)}%</b></span></div><div style="height:12px;border-radius:6px;background:rgba(127,127,127,.18);overflow:hidden"><div style="width:${pc}%;height:12px;background:${cor}"></div></div></div>`; }).join('')}</div>` : '<div class="dx-vazio">Nenhum tanque cadastrado nesta obra</div>')}
     </div>
     ${semPreco ? `<div style="font-size:12px;color:#F59E0B;margin:-4px 0 10px">⚠ ${semPreco} abastecimento(s) sem preço — cadastre o <b>preço médio do litro</b> no tanque (Abastecimento → Tanques).</div>` : ''}
-    ${_pn(_ic.cal, 'Abastecimento por Equipamento', `<div class="dx-scroll">${_tb(['Equipamento','Família','Abastecimentos','Litros','Custo (R$)','Horas trabalhadas','Consumo (L/h)','R$/h','Horímetro/Km inicial → final'],
+    <div style="margin-bottom:12px">${_absPainelAlertas(lista)}</div>
+    ${_pn(_ic.cal, 'Abastecimento por Equipamento', `<div class="dx-scroll">${_tb(['Equipamento','Família','Abastecimentos','Litros','Custo (R$)','Horas trabalhadas','Consumo (L/h)','Previsto (L/h)','R$/h','Horímetro/Km inicial → final'],
         Object.entries(byEq).sort((a, b) => a[0].localeCompare(b[0])).map(([k, x]) => { const h = horasEq[k] || 0;
-          return `<tr>${_td('<b>' + _e(k) + '</b>')}${_td(_e(nomeFam(_famDe(k)) || '—'), 'mu')}${_td(x.n, 'n')}${_td(_n1(x.l) + ' L', 'n')}${_td(x.r ? _moeda(x.r) : '—', 'n')}${_td(h ? _h(h) : '—', 'n')}${_td(h ? '<b>' + _n1(x.l / h) + '</b>' : '—', 'n')}${_td(h && x.r ? _moeda(x.r / h) : '—', 'n')}${_td(x.hor.length ? _n1(Math.min(...x.hor)) + ' → ' + _n1(Math.max(...x.hor)) : '—', 'n')}</tr>`; })
-        .concat(Object.keys(byEq).length ? [`<tr class="sub">${_td('Total')}${_td('')}${_td(lista.length, 'n')}${_td(_n1(L) + ' L', 'n')}${_td(_moeda(R), 'n')}${_td(_h(horasTot), 'n')}${_td(lph ? _n1(lph) : '—', 'n')}${_td('')}${_td('')}</tr>`] : []), ['','','n','n','n','n','n','n','n'])}</div>`)}`;
+          return `<tr>${_td('<b>' + _e(k) + '</b>')}${_td(_e(nomeFam(_famDe(k)) || '—'), 'mu')}${_td(x.n, 'n')}${_td(_n1(x.l) + ' L', 'n')}${_td(x.r ? _moeda(x.r) : '—', 'n')}${_td(h ? _h(h) : '—', 'n')}${_td(h ? '<b>' + _n1(x.l / h) + '</b>' : '—', 'n')}${_td(_absPrevTxt(k, h ? x.l / h : 0), 'n')}${_td(h && x.r ? _moeda(x.r / h) : '—', 'n')}${_td(x.hor.length ? _n1(Math.min(...x.hor)) + ' → ' + _n1(Math.max(...x.hor)) : '—', 'n')}</tr>`; })
+        .concat(Object.keys(byEq).length ? [`<tr class="sub">${_td('Total')}${_td('')}${_td(lista.length, 'n')}${_td(_n1(L) + ' L', 'n')}${_td(_moeda(R), 'n')}${_td(_h(horasTot), 'n')}${_td(lph ? _n1(lph) : '—', 'n')}${_td('')}${_td('')}${_td('')}</tr>`] : []), ['','','n','n','n','n','n','n','n','n'])}</div>`)}`;
   _dxMontar('abs', 'page-dash-abs', 'Dashboard – Abastecimento', 'Consumo de diesel, estoque dos tanques e eficiência por equipamento · ' + _sufPeriodo(), corpo);
 }
 function dxRender() {
@@ -11352,6 +11368,93 @@ function _pfGrupoSync() { document.querySelectorAll('#pf-telas .pf-tg').forEach(
     return oSv.apply(this, arguments);
   };
 })();
+
+// ═══════════════════════════════════════════════════════════════
+// v2.77: TANQUE E CONSUMO PREVISTO POR MODELO + ALERTAS DE ABASTECIMENTO
+//  · acima da capacidade do tanque do modelo
+//  · consumo (litros ÷ horas do horímetro desde o abastecimento anterior) acima do previsto + tolerância
+//  · horímetro que não avançou
+// ═══════════════════════════════════════════════════════════════
+const _ABS_TOL = 0.20;   // tolerância sobre o consumo previsto (20%)
+function _modeloDe(tag) {
+  const e = (dados.equipamentos || []).find(x => x.tag === tag || x.placa === tag || x.id === tag); if (!e) return null;
+  const k = String(e.codModelo || e.modelo || '').toLowerCase(); if (!k) return null;
+  const ms = (dados.modelos || []).filter(m => String(m.cod || '').toLowerCase() === k || String(m.nome || '').toLowerCase() === k);
+  return ms.find(m => (m.obra || '') === (e.obra || '')) || ms[0] || null;
+}
+function _horNum(v) { let t = String(v ?? '').trim(); if (!t) return NaN; if (t.includes(',')) t = t.replace(/\./g, '').replace(',', '.'); return parseFloat(t); }
+let _absCache = { k: '', m: {} };
+function _absMapa() {
+  const ds = window._absBase || dados.diesel || [];
+  const k = ds.length + '|' + ds.reduce((s, d) => s + (+d.litros || 0) + (_horNum(d.hor) || 0), 0) + '|' + (dados.modelos || []).map(m => m.cod + ':' + (m.capTanque || '') + ':' + (m.consumoPrev || '')).join(',') + '|' + (dados.equipamentos || []).length;
+  if (_absCache.k === k) return _absCache.m;
+  const m = {}, porEq = {};
+  ds.filter(d => d.status !== 'rejeitado').forEach(d => { (porEq[d.equip] = porEq[d.equip] || []).push(d); });
+  Object.entries(porEq).forEach(([tag, l]) => {
+    const mod = _modeloDe(tag), cap = +(mod && mod.capTanque) || 0, prev = +(mod && mod.consumoPrev) || 0;
+    l.sort((a, b) => String(a.dt).localeCompare(String(b.dt)));
+    let ant = null;
+    l.forEach(d => {
+      const r = m[d.id] = { cap, prev, lph: 0, alertas: [] };
+      const lt = +d.litros || 0, h = _horNum(d.hor);
+      if (cap && lt > cap) r.alertas.push({ t: 'cap', txt: 'Acima do tanque: ' + _fmtL(lt) + ' (máx. ' + _fmtL(cap) + ')' });
+      if (!isNaN(h) && ant) {
+        const dh = h - ant.h;
+        if (dh <= 0) r.alertas.push({ t: 'hor', txt: 'Horímetro não avançou (' + _fmtN(h) + ' · anterior ' + _fmtN(ant.h) + ')' });
+        else {
+          r.lph = lt / dh; r.dh = dh;
+          if (prev && r.lph > prev * (1 + _ABS_TOL)) r.alertas.push({ t: 'consumo', txt: 'Consumo ' + _fmtN(r.lph) + ' L/h — previsto ' + _fmtN(prev) + ' (+' + Math.round((r.lph / prev - 1) * 100) + '%)' });
+        }
+      }
+      if (!isNaN(h)) ant = { h };
+    });
+  });
+  _absCache = { k, m };
+  return m;
+}
+function _fmtN(v) { return (Math.round(v * 10) / 10).toLocaleString('pt-BR'); }
+function _fmtL(v) { return _fmtN(v) + ' L'; }
+function _absAlertas(d) { return (_absMapa()[d.id] || {}).alertas || []; }
+function _absAlertaHtml(d) {
+  const a = _absAlertas(d);
+  return a.length ? a.map(x => `<span class="tag tag-red" style="font-size:10.5px;display:inline-block;margin:1px 0;white-space:normal">⚠ ${_e(x.txt)}</span>`).join('<br>') : '<span style="color:var(--text-3)">—</span>';
+}
+function absSoAlertas() { window._absSoAlerta = !window._absSoAlerta; renderDiesel(); }
+(function () {
+  // tela Abastecimento: filtro "com alerta" e contador
+  const oR = renderDiesel;
+  renderDiesel = function () {
+    const ds = dados.diesel; let r;
+    if (window._absSoAlerta) { window._absBase = ds; dados.diesel = ds.filter(d => _absAlertas(d).length); try { r = oR.apply(this, arguments); } finally { dados.diesel = ds; window._absBase = null; } }
+    if (window._absSoAlerta) { const hj = hoje(), set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };   // os totais continuam sendo do geral
+      set('diesel-hoje', ds.filter(d => d.dt.startsWith(hj)).reduce((s, d) => s + d.litros, 0).toLocaleString('pt-BR') + 'L'); set('diesel-mes', ds.reduce((s, d) => s + d.litros, 0).toLocaleString('pt-BR') + 'L'); set('diesel-reg', ds.filter(d => d.dt.startsWith(hj)).length); }
+    else r = oR.apply(this, arguments);
+    const n = ds.filter(d => _absAlertas(d).length).length, el = document.getElementById('abs-cnt-alerta'); if (el) el.textContent = n;
+    const pill = document.getElementById('abs-pill-alerta'); if (pill) pill.style.outline = window._absSoAlerta ? '2px solid var(--red)' : '';
+    return r;
+  };
+  window.renderDiesel = renderDiesel;
+  const oF = window.filtroRapidoAbs;
+  window.filtroRapidoAbs = function () { window._absSoAlerta = false; return oF.apply(this, arguments); };
+  // cadastro do modelo: campos novos
+  const oEd = window.editarModelo;
+  window.editarModelo = function (id) { const r = oEd.apply(this, arguments); const m = (dados.modelos || []).find(x => x.id === id) || {};
+    const $ = k => document.getElementById(k); if ($('mod-cap')) $('mod-cap').value = m.capTanque || ''; if ($('mod-consumo')) $('mod-consumo').value = m.consumoPrev || ''; return r; };
+})();
+function _absPrevTxt(tag, lph) {
+  const mod = _modeloDe(tag), p = +(mod && mod.consumoPrev) || 0; if (!p) return '<span style="color:var(--mu)">—</span>';
+  const alto = lph && lph > p * (1 + _ABS_TOL);
+  return _n1(p) + (lph ? ` <b style="color:${alto ? '#E30613' : '#22C55E'}">${lph > p ? '+' : ''}${Math.round((lph / p - 1) * 100)}%</b>` : '');
+}
+function _absPainelAlertas(lista) {
+  const al = lista.map(d => ({ d, a: _absAlertas(d) })).filter(x => x.a.length).sort((x, y) => String(y.d.dt).localeCompare(String(x.d.dt)));
+  const semCad = [...new Set(lista.map(d => d.equip))].filter(t => { const m = _modeloDe(t); return !m || !(+m.capTanque); });
+  const corpo = al.length ? `<div class="dx-scroll" style="max-height:300px">${_tb(['Data', 'Equipamento', 'Litros', 'Horímetro', 'Alerta'],
+      al.slice(0, 80).map(({ d, a }) => `<tr>${_td(_e(String(d.dt).slice(0, 16)), 'mu')}${_td('<b>' + _e(d.equip) + '</b>')}${_td(_n1(+d.litros || 0) + ' L', 'n')}${_td(_e(d.hor || '—'), 'n')}${_td(a.map(x => '<span style="color:#FF3B45;font-weight:700">⚠</span> ' + _e(x.txt)).join('<br>'))}</tr>`), ['', '', 'n', 'n', ''])}</div>`
+    : '<div style="padding:14px 4px;color:var(--mu)">Nenhum alerta no período.</div>';
+  const rod = `<div style="font-size:11px;color:var(--mu);margin-top:8px">Consumo = litros do abastecimento ÷ horas do horímetro desde o abastecimento anterior (tanque completado). Alerta acima de ${Math.round(_ABS_TOL * 100)}% do previsto do modelo ou acima da capacidade do tanque.${semCad.length ? ` <b style="color:#F59E0B">Sem capacidade do tanque no modelo: ${semCad.slice(0, 8).map(_e).join(', ')}${semCad.length > 8 ? '…' : ''}</b> — preencha em Equipamentos → Modelos.` : ''}</div>`;
+  return _pn(_ic.gauge2, 'Alertas de abastecimento' + (al.length ? ` <span style="background:#E30613;color:#fff;border-radius:10px;padding:1px 8px;font-size:11px;margin-left:6px">${al.length}</span>` : ''), corpo + rod);
+}
 
 // Apply configs on load
 setTimeout(applyConfigs, 200);
