@@ -554,7 +554,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v2.68 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v2.69 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -1154,7 +1154,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
     <div class="search-wrap"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="busca-func" placeholder="Buscar por matrícula, nome ou cargo…" oninput="renderFuncionarios(0)"/></div>
     <div class="table-wrap">
       <table id="tabela-func">
-        <thead><tr><th style="width:36px"><input type="checkbox" class="cb-row-check" id="cb-master-funcionarios" onchange="toggleSelectAll('funcionarios',this)" title="Selecionar todos"></th><th>Obra</th><th>Matrícula</th><th>Nome</th><th>Cód. Função</th><th>Função</th><th>Direto</th><th>Gera apont.</th><th>Apropriador</th><th>Telefone</th><th>Admissão</th><th>Demissão</th><th>Matr. Líder</th><th>Cód. Equipe</th><th></th></tr></thead>
+        <thead><tr><th style="width:36px"><input type="checkbox" class="cb-row-check" id="cb-master-funcionarios" onchange="toggleSelectAll('funcionarios',this)" title="Selecionar todos"></th><th>Obra</th><th>Matrícula</th><th>Nome</th><th>Cód. Função</th><th>Função</th><th style="text-align:right">Salário</th><th>CPF</th><th>Gera apont.</th><th>Apropriador</th><th>Telefone</th><th></th></tr></thead>
         <tbody id="tbody-func"><tr><td colspan="10" class="empty-row">Carregando…</td></tr></tbody>
       </table>
     </div>
@@ -2771,6 +2771,8 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
           <div id="func-aprop-dica" style="display:none;font-size:11px;color:var(--blue);margin-top:4px">Ao salvar, o acesso ao app de campo é criado: login = matrícula, senha <b>Tenco@2026</b>.</div>
         </div>
         <div class="form-group"><label class="form-label">Telefone (WhatsApp)</label><input class="form-control" id="func-tel" placeholder="(11) 99999-9999" inputmode="tel"/></div>
+        <div class="form-group"><label class="form-label">Salário (R$)</label><input class="form-control" id="func-salario" type="number" step="0.01" min="0" placeholder="0,00"/></div>
+        <div class="form-group"><label class="form-label">CPF</label><input class="form-control" id="func-cpf" placeholder="000.000.000-00" inputmode="numeric" onblur="this.value=_cpfFmt(this.value)"/></div>
         <div class="form-group"><label class="form-label">Empresa</label><select class="form-control" id="func-empresa"><option value="">Selecione…</option></select></div>
         <div class="form-group"><label class="form-label">Data admissão</label><input type="date" class="form-control" id="func-admissao"/></div>
         <div class="form-group"><label class="form-label">Matrícula líder</label><input class="form-control" id="func-lider" placeholder="Matrícula do líder"/></div>
@@ -4837,7 +4839,8 @@ function renderFuncionarios(pagina) {
   const _funcs = busca ? _funcsAll.filter(f =>
     (f.mat||'').toLowerCase().includes(busca) ||
     (f.nome||'').toLowerCase().includes(busca) ||
-    (f.codFuncao||'').toLowerCase().includes(busca)
+    (f.codFuncao||'').toLowerCase().includes(busca) ||
+    String(f.cpf||'').replace(/\D/g,'').includes(busca.replace(/\D/g,'') || '§')
   ) : _funcsAll;
 
   const total = _funcs.length;
@@ -4858,17 +4861,14 @@ function renderFuncionarios(pagina) {
         <td>${f.nome}</td>
         <td class="td-mono">${f.codFuncao}</td>
         <td>${nomeFunc}</td>
-        <td>${tag(f.direto, f.direto==='Sim'?'green':'gray')}</td>
+        <td class="td-mono" style="text-align:right;white-space:nowrap">${f.salario ? 'R$ ' + Number(f.salario).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '<span style="color:var(--text-3)">—</span>'}</td>
+        <td class="td-mono" style="white-space:nowrap" title="CPF completo no Editar">${f.cpf ? _cpfMask(f.cpf) : '<span style="color:var(--text-3)">—</span>'}</td>
         <td>${tag(_geraApont(f), _geraApont(f)==='Sim'?'blue':'gray')}</td>
         <td>${f.apropriador==='Sim' ? tag('Apropriador','red') : '<span style="color:var(--text-3)">—</span>'}</td>
         <td style="white-space:nowrap">${f.tel ? _e(f.tel) + ' ' + _waBotao(f.tel, '', 'mini') : '<span style="color:var(--text-3)">—</span>'}</td>
-        <td class="td-mono">${f.admissao?fmtData(f.admissao):'—'}</td>
-        <td class="td-mono">${f.demissao?fmtData(f.demissao):'—'}</td>
-        <td class="td-mono">${f.lider||'—'}</td>
-        <td class="td-mono">${f.equipe||'—'}</td>
         <td>${acoesCell(`editarFuncionario('${f.id}')`,`deletar('funcionarios','${f.id}')`)}</td>
       </tr>`;}).join('')
-    : '<tr><td colspan="15" style="text-align:center;color:var(--text-3);padding:2rem">Nenhum funcionário cadastrado</td></tr>';
+    : '<tr><td colspan="11" style="text-align:center;color:var(--text-3);padding:2rem">Nenhum funcionário cadastrado</td></tr>';
 
   // Paginação
   const pgBar = document.getElementById('pag-func');
@@ -8090,9 +8090,10 @@ const IMPORT_DEF = {
                   map:g=>({ cod:g(['código','codigo','cod']).toUpperCase(), nome:g(['nome']), inicio:_horaImport(g(['início','inicio'])), fim:_horaImport(g(['fim'])) }), ok:x=>x.cod&&x.nome&&x.inicio&&x.fim },
   tiposPerdas:  { rotulo:'Tipos de perda', porObra:false, chave:'cod', col:['Código','Nome','Aplica a (MO/EQ/Ambos)'],
                   map:g=>({ cod:g(['código','codigo','cod']).toUpperCase(), nome:g(['nome']), aplica:g(['aplica'])||'Ambos', cor:'gray' }), ok:x=>x.cod&&x.nome },
-  funcionarios: { rotulo:'Funcionários', porObra:true, chave:'mat', col:['Matrícula','Nome Completo','Cód. Função','Gera apontamento (Sim/Não)','Apropriador (Sim/Não)','Telefone (WhatsApp)'],
+  funcionarios: { rotulo:'Funcionários', porObra:true, chave:'mat', col:['Matrícula','Nome Completo','Função','Cód. Função','Salário (R$)','CPF','Gera apontamento (Sim/Não)','Apropriador (Sim/Não)','Telefone (WhatsApp)'],
                   map:g=>{ const direto = g(['direto'])||'', ga = String(g(['gera apont']) || '');
-                    return { mat:g(['matrícula','matricula','mat']), nome:g(['nome completo','nome']), codFuncao:g(['cód. função','cod. função','função','funcao']), _emp:g(['empresa']),
+                    return { mat:g(['matrícula','matricula','mat']), nome:g(['nome completo','nome']), codFuncao:g(['cód. função','cod. função','cód função','cod funcao','cód. funcao','cod. funcao']), _fnome:g(['nome da função','função','funcao']), _emp:g(['empresa']),
+                            salario:_numImport(g(['salár','salar'])), cpf:_cpfFmt(g(['cpf'])),
                             direto, admissao:excelDataParaISO(g(['admissão','admissao'])), demissao:excelDataParaISO(g(['demissão','demissao']))||'', lider:g(['matr. líder','matr. lider','matrícula do líder','matricula do lider','matrícula líder','matricula lider']), equipe:g(['cód. equipe','cod. equipe','equipe']),
                             _ga: ga,
                             apropriador: /^s/i.test(String(g(['apropriador']) || '')) ? 'Sim' : 'Não', tel:String(g(['telefone','whatsapp','celular']) || '') }; }, ok:x=>x.mat&&x.nome },
@@ -8139,6 +8140,12 @@ function _impModelo(txt, famCod, obraId) {
     l.push(m); (window.__impCriados = window.__impCriados || []).push(['modelos', m]); }
   return m;
 }
+// v2.69: CPF guardado só com dígitos formatados (000.000.000-00); na lista aparece mascarado
+function _cpfFmt(v) { const d = String(v || '').replace(/\D/g, ''); if (!d) return ''; const x = d.padStart(11, '0').slice(-11); return x.slice(0,3) + '.' + x.slice(3,6) + '.' + x.slice(6,9) + '-' + x.slice(9); }
+function _cpfMask(v) { const c = _cpfFmt(v); return c ? '***.' + c.slice(4, 11) + '-**' : ''; }
+function _cpfValido(v) { const d = String(v || '').replace(/\D/g, ''); if (d.length !== 11 || /^(\d)\1+$/.test(d)) return false;
+  const dv = n => { let s = 0; for (let i = 0; i < n; i++) s += +d[i] * (n + 1 - i); const r = s * 10 % 11; return r === 10 ? 0 : r; };
+  return dv(9) === +d[9] && dv(10) === +d[10]; }
 function _numImport(v) {
   if (v === undefined || v === null || v === '') return 0;
   if (typeof v === 'number') return v;
@@ -8182,6 +8189,12 @@ function _importarLinhas(tipo, rows, resumo) {
       const e = item._emp ? (dados.empresas||[]).find(x => daObra(x) && ((x.cod||'').toLowerCase() === String(item._emp).toLowerCase() || (x.nome||'').toLowerCase() === String(item._emp).toLowerCase()))
                           : (dados.empresas||[]).find(x => daObra(x) && /pr[oó]pria/i.test(x.tipo || ''));   // v2.67: mão de obra é sempre própria
       item.empresa = e ? e.nome : (item._emp || ''); item.empresaId = e ? e.id : ''; delete item._emp;
+      // v2.69: função pelo código ou, sem código, pelo nome; o nome da função fica guardado
+      { const cs = (dados.cargos||[]).filter(daObra), fn = String(item._fnome || '').trim().toLowerCase();
+        if (!item.codFuncao && fn) { const c = cs.find(x => (x.nome||'').toLowerCase() === fn || (x.cod||'').toLowerCase() === fn); if (c) item.codFuncao = c.cod; }
+        const c = cs.find(x => (x.cod||'').toLowerCase() === String(item.codFuncao||'').toLowerCase());
+        item.funcao = c ? c.nome : (item._fnome && item._fnome !== item.codFuncao ? item._fnome : ''); delete item._fnome;
+        if (!item.salario) delete item.salario; if (!item.cpf) delete item.cpf; }
       if (!item.direto) { const c = (dados.cargos||[]).find(x => daObra(x) && String(x.cod||'').toLowerCase() === String(item.codFuncao||'').toLowerCase()); item.direto = (c && c.direto) || 'Sim'; }
       item.geraApont = item._ga ? (/^n/i.test(item._ga) ? 'Não' : 'Sim') : (/^n/i.test(item.direto) ? 'Não' : 'Sim'); delete item._ga;
     }
@@ -8237,6 +8250,8 @@ function _importarLinhas(tipo, rows, resumo) {
         if (temCol2(['apropriador'])) mud.apropriador = item.apropriador;
         if (temCol2(['gera apont'])) mud.geraApont = item.geraApont;
         if (temCol2(['telefone','whatsapp','celular'])) mud.tel = item.tel;
+        if (temCol2(['salár','salar'])) mud.salario = item.salario;
+        if (temCol2(['cpf'])) mud.cpf = item.cpf;
         if (x && Object.keys(mud).some(k => String(x[k] || '') !== String(mud[k] || ''))) { Object.assign(x, mud); (window.__impAtualizados = window.__impAtualizados || []).push([tipo, x]); r.atual = (r.atual||0) + 1; return; }
       }
       if (document.getElementById('import-atualizar-custo')?.checked && (tipo === 'cargos' || tipo === 'equipamentos')) {
@@ -9856,13 +9871,15 @@ async function _sincApropriadores() {
   window.editarFuncionario = function (id) {
     const r = oEdit.apply(this, arguments);
     const f = (dados.funcionarios || []).find(x => x.id === id);
-    if (f) { if ($('func-gera')) $('func-gera').value = _geraApont(f); if ($('func-aprop')) $('func-aprop').value = f.apropriador === 'Sim' ? 'Sim' : 'Não'; if ($('func-tel')) $('func-tel').value = f.tel || ''; if ($('func-aprop-dica')) $('func-aprop-dica').style.display = f.apropriador === 'Sim' ? '' : 'none'; }
+    if (f) { if ($('func-salario')) $('func-salario').value = f.salario || ''; if ($('func-cpf')) $('func-cpf').value = f.cpf || '';
+      if ($('func-gera')) $('func-gera').value = _geraApont(f); if ($('func-aprop')) $('func-aprop').value = f.apropriador === 'Sim' ? 'Sim' : 'Não'; if ($('func-tel')) $('func-tel').value = f.tel || ''; if ($('func-aprop-dica')) $('func-aprop-dica').style.display = f.apropriador === 'Sim' ? '' : 'none'; }
     return r;
   };
   const oSave = window.salvarFuncionario;
   window.salvarFuncionario = function () {
     const v = id => ($(id)?.value || '');
-    const extra = { geraApont: v('func-gera') || 'Sim', apropriador: v('func-aprop') === 'Sim' ? 'Sim' : 'Não', tel: v('func-tel').trim() };
+    const extra = { geraApont: v('func-gera') || 'Sim', apropriador: v('func-aprop') === 'Sim' ? 'Sim' : 'Não', tel: v('func-tel').trim(), salario: parseFloat(v('func-salario')) || 0, cpf: _cpfFmt(v('func-cpf')) };
+    if (extra.cpf && !_cpfValido(extra.cpf)) { toast('CPF inválido: confira os números.', 'error'); return; }
     const mat = v('func-mat').trim(), obra = v('func-obra'), idEd = v('func-edit-id');
     const r = oSave.apply(this, arguments);
     if ($('modal-novo-func')?.classList.contains('open')) return r;          // não salvou (campo obrigatório etc.)
@@ -9872,13 +9889,13 @@ async function _sincApropriadores() {
     if (db && _firebaseReady) fbSave('funcionarios', f.id, f).catch(() => {});
     try { renderFuncionarios(); } catch (e) {}
     if (f.apropriador === 'Sim') _garantirApropriador(f);
-    ['func-gera', 'func-aprop'].forEach(i => { if ($(i)) $(i).selectedIndex = 0; }); if ($('func-tel')) $('func-tel').value = ''; if ($('func-aprop-dica')) $('func-aprop-dica').style.display = 'none';
+    ['func-gera', 'func-aprop'].forEach(i => { if ($(i)) $(i).selectedIndex = 0; }); ['func-tel', 'func-salario', 'func-cpf'].forEach(i => { if ($(i)) $(i).value = ''; }); if ($('func-aprop-dica')) $('func-aprop-dica').style.display = 'none';
     return r;
   };
   const oClose = window.closeModal;
   window.closeModal = function (id) {
     const r = oClose.apply(this, arguments);
-    if (id === 'modal-novo-func') { ['func-gera', 'func-aprop'].forEach(i => { if ($(i)) $(i).selectedIndex = 0; }); if ($('func-tel')) $('func-tel').value = ''; if ($('func-aprop-dica')) $('func-aprop-dica').style.display = 'none'; }
+    if (id === 'modal-novo-func') { ['func-gera', 'func-aprop'].forEach(i => { if ($(i)) $(i).selectedIndex = 0; }); ['func-tel', 'func-salario', 'func-cpf'].forEach(i => { if ($(i)) $(i).value = ''; }); if ($('func-aprop-dica')) $('func-aprop-dica').style.display = 'none'; }
     return r;
   };
   // importação: depois de gravar os funcionários, cria os acessos dos apropriadores
