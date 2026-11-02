@@ -554,7 +554,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v2.73 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v2.74 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -3194,7 +3194,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
   </div>
 </div>
 <div class="modal-overlay" id="modal-perfil">
-  <div class="modal" style="max-width:520px">
+  <div class="modal" style="max-width:720px">
     <div class="modal-header"><span class="modal-title" id="pf-titulo">Novo perfil</span><button class="modal-close" onclick="closeModal('modal-perfil')">×</button></div>
     <div class="modal-body">
       <input type="hidden" id="pf-id"/>
@@ -3209,8 +3209,13 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
           </select></div>
         <div class="form-group form-full"><label class="form-label">Descrição</label><input class="form-control" id="pf-desc" placeholder="Ex.: lança apontamentos da equipe"/></div>
       </div>
+      <div id="pf-telas-bloco" style="margin-bottom:12px">
+        <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;margin:.5rem 0 .3rem">Telas que este perfil vê no painel</div>
+        <div style="font-size:11.5px;color:var(--text-3);margin-bottom:8px">Só aparecem no menu as telas marcadas. Usuários e Configurações são sempre só do Admin.</div>
+        <div id="pf-telas" style="display:grid;grid-template-columns:1fr 1fr;gap:10px"></div>
+      </div>
       <div id="pf-perms-bloco">
-        <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;margin:.5rem 0 .6rem">Módulos liberados</div>
+        <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;margin:.5rem 0 .6rem">Módulos liberados (app de campo e permissões gerais)</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="pf-perms"></div>
       </div>
     </div>
@@ -7854,6 +7859,13 @@ const PERFIS_PADRAO = [
     perms:{dashboards:true,cadastros:false,apontamentos:false,almoxarifado:false,relatorios:false,aprovacao:false,qrcodes:false,config:false} },
   { id:'pf-abastecedor', nome:'Abastecedor', tipo:'painel', cor:'amber', sistema:true, desc:'somente notas fiscais e diesel',
     perms:{dashboards:false,cadastros:false,apontamentos:false,almoxarifado:true,relatorios:false,qrcodes:false,config:false,abastecimento:true} },
+  // v2.74: perfis por setor — cada um vê só as telas marcadas
+  { id:'pf-manutencao', nome:'Manutenção EQ', tipo:'painel', cor:'amber', sistema:true, desc:'só o Setor Manutenção EQ',
+    perms:{almoxarifado:true,abastecimento:true}, telas:{'produtos':true,'notas-diesel':true,'tanques':true,'apon-diesel':true,'dash-abs':true} },
+  { id:'pf-lean', nome:'Lean', tipo:'painel', cor:'blue', sistema:true, desc:'só frentes de serviço e as placas QR',
+    perms:{cadastros:true,qrcodes:true}, telas:{'frentes':true,'qrcodes':true} },
+  { id:'pf-dp', nome:'DP', tipo:'painel', cor:'green', sistema:true, desc:'só o efetivo (funcionários)',
+    perms:{cadastros:true}, telas:{'funcionarios':true} },
 ];
 function listaPerfis() {
   const salvos = dados.perfis || [];
@@ -9838,7 +9850,7 @@ function _ambPagsGestao() {
 }
 function _ambPode(a) {
   if (!usuarioLogado) return false;
-  if (a === 'dash') return typeof podeVerPagina !== 'function' || podeVerPagina('dashboard');
+  if (a === 'dash') return typeof podeVerPagina !== 'function' || _DASH_PAGS.filter(p => p !== 'diario').some(p => podeVerPagina(p));
   return _ambPagsGestao().length > 0;
 }
 function _ambClasses(a) {
@@ -9858,7 +9870,7 @@ function ambDefinir(a) {
   if (!_ambPode(a)) return;
   _ambClasses(a);
   const ativa = document.querySelector('.page.active')?.id?.replace('page-', '') || '';
-  if (a === 'dash' && !_DASH_PAGS.includes(ativa)) _ambIr(_ambUlt.dash || 'dashboard');
+  if (a === 'dash' && !_DASH_PAGS.includes(ativa)) { const alvo = [_ambUlt.dash, 'dashboard', ..._DASH_PAGS].find(p => p && podeVerPagina(p)); _ambIr(alvo || 'dashboard'); }
   if (a === 'gestao' && (_DASH_PAGS.includes(ativa) || !ativa)) {
     const ps = _ambPagsGestao();
     _ambIr(ps.includes(_ambUlt.gestao) ? _ambUlt.gestao : (ps.includes('aprovacao') ? 'aprovacao' : ps[0]));
@@ -11156,6 +11168,135 @@ function _dxDieselPrev() {
   window.openModal = function (id) { const r = oOpen.apply(this, arguments); if (id === 'modal-nova-frente' && !($('frente-edit-id')?.value)) { if ($('frente-cod')) $('frente-cod').value = _proxCodFrente(); } return r; };
   const oSave = window.salvarFrente;
   window.salvarFrente = function () { if (!($('frente-edit-id')?.value) && $('frente-cod')) $('frente-cod').value = _proxCodFrente(); return oSave.apply(this, arguments); };
+})();
+
+// ═══════════════════════════════════════════════════════════════
+// v2.74: ACESSO POR TELA (cada perfil vê só as telas marcadas) + LISTA DE USUÁRIOS EM TABELA
+// ═══════════════════════════════════════════════════════════════
+const _TELAS_ADMIN = ['usuarios', 'config'];
+function _telasCatalogo() {
+  const grupos = [{ id: 'grp-dashboards', nome: 'Dashboards', itens: [['dashboard', 'Visão Geral'], ['dash-mo', 'Dashboard Mão de Obra'], ['dash-eq', 'Dashboard Equipamentos'], ['dash-abs', 'Dashboard Abastecimento'], ['diario', 'Acompanhamento do dia']] }];
+  document.querySelectorAll('.sidebar .nav-group').forEach(g => {
+    if (g.id === 'grp-dashboards' || g.id === 'grp-admin') return;
+    const nome = (g.querySelector('.nav-section')?.childNodes[0]?.textContent || '').trim();
+    const itens = [...g.querySelectorAll('[onclick*="showPage("]')].map(el => { const m = (el.getAttribute('onclick') || '').match(/showPage\('([^']+)'/); return m ? [m[1], (el.querySelector('span')?.textContent || el.getAttribute('title') || m[1]).trim()] : null; })
+      .filter(x => x && !_TELAS_ADMIN.includes(x[0]) && x[0] !== 'diario' && !x[0].startsWith('dash'));
+    if (itens.length) grupos.push({ id: g.id, nome, itens });
+  });
+  return grupos;
+}
+function _telasDo(u) { if (!u) return null; const p = perfilPorNome(u.perfil); return p && p.telas && Object.keys(p.telas).some(k => p.telas[k]) ? p.telas : null; }
+// telas que um perfil antigo (só por módulos) já via — para pré-marcar
+function _telasDosModulos(perms) {
+  const t = {}; const gm = {}; MODULOS.forEach(([k, , gs]) => gs.forEach(g => gm[g] = k));
+  _telasCatalogo().forEach(g => g.itens.forEach(([id]) => {
+    let ok = g.id === 'grp-dashboards' ? perms.dashboards : perms[gm[g.id]];
+    if (id === 'aprovacao') ok = perms.aprovacao; if (id === 'qrcodes') ok = perms.qrcodes;
+    if (ok) t[id] = true; }));
+  return t;
+}
+(function () {
+  // quem pode ver a tela
+  const oP = window.podeVerPagina;
+  window.podeVerPagina = function (pag) {
+    if (!usuarioLogado || usuarioLogado.perfil === 'Admin') return true;
+    const t = _telasDo(usuarioLogado); if (!t) return oP.apply(this, arguments);
+    if (_TELAS_ADMIN.includes(pag)) return false;
+    return !!t[pag];
+  };
+  // menu: só as telas liberadas; grupo some se ficar vazio
+  const oA = window.aplicarPermissoes;
+  window.aplicarPermissoes = function () {
+    const r = oA.apply(this, arguments);
+    if (!usuarioLogado || usuarioLogado.perfil === 'Admin' || !_telasDo(usuarioLogado)) return r;
+    document.querySelectorAll('.sidebar .nav-group').forEach(g => {
+      let algum = false;
+      g.querySelectorAll('[onclick*="showPage("]').forEach(el => { const m = (el.getAttribute('onclick') || '').match(/showPage\('([^']+)'/); if (!m) return; const ok = podeVerPagina(m[1]); el.style.display = ok ? '' : 'none'; if (ok && m[1] !== 'diario') algum = true; });
+      g.style.display = algum ? '' : 'none';
+    });
+    const ativa = document.querySelector('.page.active')?.id?.replace('page-', '');
+    if (ativa && !podeVerPagina(ativa)) { const primeira = _telasCatalogo().flatMap(g => g.itens.map(i => i[0])).find(podeVerPagina); if (primeira) showPage(primeira); }
+    return r;
+  };
+  // menu lateral das dashboards também respeita
+  const oNav = _dxNav;
+  _dxNav = function () { let h = oNav.apply(this, arguments); return h.replace(/<a class="[^"]*" onclick="showPage\('([^']+)'\)">[\s\S]*?<\/a>/g, (m, p) => podeVerPagina(p) ? m : ''); };
+  // editor de perfil: árvore de telas
+  const oEd = window.editarPerfil;
+  window.editarPerfil = function (id) {
+    const r = oEd.apply(this, arguments);
+    const p = id ? listaPerfis().find(x => x.id === id) : null;
+    const marc = p ? (p.telas && Object.keys(p.telas).length ? p.telas : _telasDosModulos(p.perms || {})) : {};
+    document.getElementById('pf-telas').innerHTML = _telasCatalogo().map(g => `<div style="border:1px solid var(--border);border-radius:10px;padding:8px 10px">
+        <label style="display:flex;gap:8px;align-items:center;font-weight:700;font-size:13px;cursor:pointer;margin-bottom:4px"><input type="checkbox" class="pf-tg" data-g="${g.id}" onchange="document.querySelectorAll('.pf-tl[data-g=\\'${g.id}\\']').forEach(c=>c.checked=this.checked)"/> ${_escP(g.nome)}</label>
+        ${g.itens.map(([t, l]) => `<label style="display:flex;gap:8px;align-items:center;font-size:12.5px;cursor:pointer;padding:2px 0 2px 22px"><input type="checkbox" class="pf-tl" data-g="${g.id}" data-t="${t}" ${marc[t] ? 'checked' : ''} onchange="_pfGrupoSync()"/> ${_escP(l)}</label>`).join('')}</div>`).join('');
+    _pfGrupoSync(); pfTipoMudou();
+    return r;
+  };
+  const oTipo = window.pfTipoMudou;
+  window.pfTipoMudou = function () { const r = oTipo.apply(this, arguments); const b = document.getElementById('pf-telas-bloco'); if (b) b.style.display = document.getElementById('pf-tipo').value === 'campo' ? 'none' : ''; return r; };
+  const oSv = window.salvarPerfil;
+  window.salvarPerfil = function () {
+    const tipo = document.getElementById('pf-tipo').value, idAnt = document.getElementById('pf-id').value, nome = (document.getElementById('pf-nome').value || '').trim();
+    const telas = {}; document.querySelectorAll('#pf-telas .pf-tl').forEach(c => { if (c.checked) telas[c.dataset.t] = true; });
+    if (tipo === 'painel' && !Object.keys(telas).length && nome !== 'Admin') { toast('Marque pelo menos uma tela para este perfil.', 'error'); return; }
+    const r = oSv.apply(this, arguments);
+    if (document.getElementById('modal-perfil')?.classList.contains('open')) return r;   // não salvou
+    const obj = (dados.perfis || []).find(x => (idAnt && x.id === idAnt) || x.nome === nome) || [...(dados.perfis || [])].pop();
+    if (obj) { obj.telas = tipo === 'painel' ? telas : {}; if (db && _firebaseReady) fbSave('perfis', obj.id, obj).catch(() => {}); }
+    try { renderListaPerfis(); renderUsuarios(); } catch (e) {}
+    return r;
+  };
+  // lista de perfis mostra as telas
+  const oLP = window.renderListaPerfis;
+  window.renderListaPerfis = function () {
+    const r = oLP.apply(this, arguments);
+    const nomes = {}; _telasCatalogo().forEach(g => g.itens.forEach(([t, l]) => nomes[t] = l));
+    document.querySelectorAll('#lista-perfis tbody tr').forEach((tr, i) => { const p = listaPerfis()[i]; if (!p || p.nome === 'Admin' || p.tipo === 'campo') return;
+      const t = p.telas && Object.keys(p.telas).filter(k => p.telas[k]); if (t && t.length) tr.children[2].textContent = t.map(k => nomes[k] || k).join(', '); });
+    return r;
+  };
+})();
+function _pfGrupoSync() { document.querySelectorAll('#pf-telas .pf-tg').forEach(g => { const cs = [...document.querySelectorAll(`.pf-tl[data-g="${g.dataset.g}"]`)], n = cs.filter(c => c.checked).length; g.checked = n === cs.length && n > 0; g.indeterminate = n > 0 && n < cs.length; }); }
+
+// ── lista de usuários em tabela; Editar abre o formulário
+(function () {
+  const oR = window.renderUsuarios;
+  window.renderUsuarios = function () {
+    const r = oR.apply(this, arguments);
+    const grid = document.getElementById('usuarios-grid'); if (!grid) return r;
+    const perfil = document.getElementById('filtro-usr-perfil')?.value || '', obraF = document.getElementById('filtro-usr-obra')?.value || '', busca = (document.getElementById('search-usuarios')?.value || '').toLowerCase();
+    let lista = [...USUARIOS];
+    if (perfil) lista = lista.filter(u => u.perfil === perfil);
+    if (usuarioLogado?.perfil !== 'Admin') lista = lista.filter(u => u.obra === usuarioLogado?.obra || u.perfil === 'Admin');
+    else if (obraF) lista = lista.filter(u => u.obra === obraF || !u.obra || u.perfil === 'Admin');
+    if (busca) lista = lista.filter(u => String(u.nome || '').toLowerCase().includes(busca) || String(u.email || '').toLowerCase().includes(busca) || String(u.mat || '').includes(busca));
+    lista.sort((a, b) => (b.master ? 1 : 0) - (a.master ? 1 : 0) || String(a.perfil).localeCompare(String(b.perfil)) || String(a.nome).localeCompare(String(b.nome)));
+    const nomesT = {}; _telasCatalogo().forEach(g => g.itens.forEach(([t, l]) => nomesT[t] = l));
+    const acesso = u => { if (u.perfil === 'Admin') return 'Tudo'; const p = perfilPorNome(u.perfil); if (p && p.tipo === 'campo') return '📱 App de campo'; const t = _telasDo(u);
+      if (t) { const ks = Object.keys(t).filter(k => t[k]); return ks.slice(0, 4).map(k => nomesT[k] || k).join(', ') + (ks.length > 4 ? ' +' + (ks.length - 4) : ''); }
+      return (p && p.desc) || '—'; };
+    grid.style.display = 'block';
+    grid.innerHTML = lista.length ? `<div class="table-wrap"><table><thead><tr><th>Usuário</th><th>Perfil</th><th>Acesso</th><th>Obra</th><th>Situação</th><th style="text-align:right">Ações</th></tr></thead><tbody>${lista.map(u => {
+      const isMe = usuarioLogado?.id === u.id, ini = String(u.nome || '?').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+      const pf = perfilPorNome(u.perfil), cor = (pf && pf.cor) || (u.perfil === 'Admin' ? 'red' : 'gray');
+      const obra = (dados.obras || []).find(o => o.id === u.obra);
+      const login = u.login || (String(u.email || '').endsWith('@' + _DOMINIO_CAMPO) ? '' : String(u.email || '').split('@')[0]);
+      const pode = !isMe && (!u.master || _outroAdmin(u.id));
+      return `<tr style="cursor:pointer" onclick="editarUsuario('${u.id}')">
+        <td><div style="display:flex;gap:10px;align-items:center"><div style="width:34px;height:34px;border-radius:50%;background:var(--${cor}-light,var(--bg));color:var(--${cor === 'gray' ? 'text-2' : cor},var(--text));display:grid;place-items:center;font-weight:800;font-size:12px;flex:none">${_e(ini)}</div>
+          <div><div style="font-weight:700">${_e(u.nome)} ${isMe ? '<span class="tag tag-red" style="font-size:10px">você</span>' : ''} ${u.master ? '<span class="tag tag-amber" style="font-size:10px">★ master</span>' : ''}</div>
+          <div style="font-size:11.5px;color:var(--text-3)">${u.mat ? 'Mat. ' + _e(u.mat) : _e(login)}${!u.mat && u.email ? ' · ' + _e(u.email) : ''}</div></div></div></td>
+        <td>${tag(u.perfil, cor)}</td>
+        <td style="font-size:12px;color:var(--text-2);max-width:280px">${_e(acesso(u))}</td>
+        <td style="font-size:12px">${obra ? _e(obra.cod || obra.nome) : '<span style="color:var(--text-3)">Todas</span>'}</td>
+        <td>${tag(u.status || 'Ativo', u.status === 'Inativo' ? 'gray' : 'green')}</td>
+        <td style="white-space:nowrap;text-align:right" onclick="event.stopPropagation()"><button class="btn btn-outline btn-sm" onclick="editarUsuario('${u.id}')">✎ Editar</button>
+          ${pode ? `<button class="btn btn-sm" style="background:var(--red-light);color:var(--red);border:1px solid var(--red-light)" onclick="desativarUsuario('${u.id}')">${u.status === 'Inativo' ? 'Ativar' : 'Desativar'}</button>
+          <button class="btn btn-sm" style="background:var(--red);color:white;border:1px solid var(--red)" onclick="excluirUsuario('${u.id}')">Excluir</button>` : ''}</td></tr>`; }).join('')}</tbody></table></div>`
+      : '<div style="text-align:center;color:var(--text-3);padding:2rem">Nenhum usuário encontrado</div>';
+    return r;
+  };
 })();
 
 // Apply configs on load
