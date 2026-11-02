@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v2.81 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v2.82 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -3210,7 +3210,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
       </div>
       <label id="import-custo-wrap" style="display:flex;gap:8px;align-items:flex-start;font-size:13px;cursor:pointer;margin-top:4px">
         <input type="checkbox" id="import-atualizar-custo" style="margin-top:3px"/>
-        <span><strong>Atualizar cadastros que já existem</strong><br><span style="font-size:11px;color:var(--text-3)">Cargos: custo/hora, adicional HE e adicional domingo/feriado. Equipamentos: custo/hora. Tanques: preço do litro. Funcionários: gera apontamento, apropriador e telefone. Frentes: coordenada e responsável. Modelos: tanque e consumo previsto. Nada mais é alterado, e célula em branco não apaga o valor atual.</span></span>
+        <span><strong>Atualizar cadastros que já existem</strong><br><span style="font-size:11px;color:var(--text-3)">Cargos: custo/hora, adicional HE e adicional domingo/feriado. Equipamentos: custo/hora. Tanques: preço do litro. Funcionários: gera apontamento, apropriador e telefone. Frentes: coordenada e responsável. Modelos: tanque e consumo previsto. Abastecimentos (histórico): preço do litro e nº do ticket. Nada mais é alterado, e célula em branco não apaga o valor atual.</span></span>
       </label>
       <div id="import-preview" style="margin-top:1rem;font-size:12px;color:var(--text-3);background:var(--bg);padding:10px;border-radius:6px;display:none"></div>
       <input type="hidden" id="import-tipo"/>
@@ -8255,8 +8255,8 @@ IMPORT_DEF.aponEQ = { rotulo:'Apontamentos EQ', porObra:true, chave:'_chave', co
             lancadoPor:g(['apontador'])||'Importação', status:/pend/i.test(g(['status'])) ? 'campo' : 'aprovado' }), ok:x=>x.data&&x.equip };
 IMPORT_DEF.tanques = { rotulo:'Tanques', porObra:true, chave:'cod', col:['Código','Nome','Capacidade (L)','Saldo atual (L)','Local','Preço do litro (R$)'],
   map:g=>({ cod:g(['código','codigo','cod']), nome:g(['nome']), cap:_numImport(g(['capacidade'])), saldo:_numImport(g(['saldo'])), local:g(['local']), preco:_numImport(g(['preço','preco'])), ativo:true }), ok:x=>x.cod&&x.nome };
-IMPORT_DEF.diesel = { rotulo:'Abastecimentos', porObra:true, chave:'_chave', col:['Data (DD/MM/AAAA)','Hora (HH:MM)','TAG','Tanque (código)','Litros','Horímetro / Km','Apontador'],
-  map:g=>({ _data:excelDataParaISO(g(['data'])), _hora:_horaImport(g(['hora'])) || '07:00', equip:g(['tag']), _tq:g(['tanque']), litros:_numImport(g(['litros'])), hor:g(['horímetro','horimetro','km']), lancadoPor:g(['apontador'])||'Importação', status:'aprovado' }), ok:x=>x._data&&x.equip&&x.litros };
+IMPORT_DEF.diesel = { rotulo:'Abastecimentos', porObra:true, chave:'_chave', col:['Data (DD/MM/AAAA)','Hora (HH:MM)','TAG','Tanque (código)','Litros','Horímetro / Km','Apontador','Preço por litro (R$)','Nº do ticket (opcional)'],
+  map:g=>({ _data:excelDataParaISO(g(['data'])), _hora:_horaImport(g(['hora'])) || '07:00', equip:g(['tag']), _tq:g(['tanque']), litros:_numImport(g(['litros'])), hor:g(['horímetro','horimetro','km']), lancadoPor:g(['apontador'])||'Importação', status:'aprovado', _preco:_numImport(g(['preço','preco'])), _ticket:String(g(['ticket','comprovante'])||'').trim() }), ok:x=>x._data&&x.equip&&x.litros };
 const IMPORT_ORDEM = ['obras','empresas','ua','cargos','familias','modelos','frentes','tiposServico','turnos','tiposPerdas','funcionarios','equipamentos','tanques','aponMO','aponEQ','diesel'];
 // v2.67: o pacote da obra traz só cadastros; histórico (apontamentos e abastecimentos antigos) vem num arquivo à parte.
 // Tipos de perda e tanques são cadastrados no painel (não entram na importação). Famílias e modelos vêm dentro de Equipamentos.
@@ -8405,8 +8405,9 @@ function _importarLinhas(tipo, rows, resumo) {
       const e = (dados.equipamentos||[]).find(x => (x.tag||'').toLowerCase() === String(item.equip).toLowerCase());
       if (!e) { r.erro++; if (r.avisos.length < 3) r.avisos.push('linha ' + (i+2) + ': TAG ' + item.equip + ' não cadastrada'); return; }
       const t = (dados.tanques||[]).find(x => (x.cod||'').toLowerCase() === String(item._tq).toLowerCase() && (!x.obra || x.obra === obraId));
-      item.dt = item._data + ' ' + item._hora; item.equipId = e.id; item.tanqueId = t ? t.id : ''; item.precoL = t && t.preco ? +t.preco : 0; item.lancadoEm = new Date().toISOString(); item.importado = true;
-      item._chave = item.dt + '|' + item.equip; delete item._data; delete item._hora; delete item._tq;
+      item.dt = item._data + ' ' + item._hora; item.equipId = e.id; item.tanqueId = t ? t.id : ''; item.precoL = item._preco || (t && t.preco ? +t.preco : 0); item.lancadoEm = new Date().toISOString(); item.importado = true;
+      if (item._ticket) item.ticket = item._ticket;
+      item._chave = item.dt + '|' + item.equip; delete item._data; delete item._hora; delete item._tq; delete item._preco; delete item._ticket;
     }
     if (tipo === 'aponEQ') {
       const e = (dados.equipamentos||[]).find(x => (x.tag||'').toLowerCase() === String(item.equip).toLowerCase());
@@ -8425,6 +8426,12 @@ function _importarLinhas(tipo, rows, resumo) {
         const x = lista.find(y => String(y.cod||'').toLowerCase() === chave && (y.obra||'') === obraId);
         const mud = {}; if (item.coord) mud.coord = item.coord; if (item.resp) mud.resp = item.resp;
         if (x && Object.keys(mud).some(k => String(x[k] || '') !== String(mud[k]))) { Object.assign(x, mud); (window.__impAtualizados = window.__impAtualizados || []).push([tipo, x]); r.atual = (r.atual||0) + 1; return; }
+      }
+      // v2.82: abastecimento que já existe ganha preço do litro / nº do ticket (subir o histórico de novo)
+      if (document.getElementById('import-atualizar-custo')?.checked && tipo === 'diesel') {
+        const x = lista.find(y => String(chaveDe(y)||'').toLowerCase() === chave);
+        const mud = {}; if (item.precoL && +x?.precoL !== +item.precoL) mud.precoL = item.precoL; if (item.ticket && x?.ticket !== item.ticket) mud.ticket = item.ticket;
+        if (x && Object.keys(mud).length) { Object.assign(x, mud); (window.__impAtualizados = window.__impAtualizados || []).push([tipo, x]); r.atual = (r.atual||0) + 1; return; }
       }
       // v2.77: modelo que já existe ganha capacidade do tanque / consumo previsto
       if (document.getElementById('import-atualizar-custo')?.checked && tipo === 'modelos') {
@@ -8511,7 +8518,7 @@ window.abrirImportacao = function (tipo) {
   const $ = k => document.getElementById(k);
   if ($('import-titulo')) $('import-titulo').textContent = tipo === 'pacote' ? 'Importar pacote completo' : tipo === 'historico' ? 'Importar histórico (apontamentos e abastecimentos antigos)' : 'Importar ' + (IMPORT_DEF[tipo]?.rotulo || tipo);
   if ($('import-tipo')) $('import-tipo').value = tipo;
-  if ($('import-custo-wrap')) { $('import-custo-wrap').style.display = ['pacote','cargos','equipamentos','funcionarios','tanques','frentes','modelos'].includes(tipo) ? 'flex' : 'none'; $('import-atualizar-custo').checked = false; }
+  if ($('import-custo-wrap')) { $('import-custo-wrap').style.display = ['pacote','historico','cargos','equipamentos','funcionarios','tanques','frentes','modelos'].includes(tipo) ? 'flex' : 'none'; $('import-atualizar-custo').checked = false; }
   const f = $('import-file'); if (f) { f.value = ''; f.onchange = function () { previewImport(this); }; }
   const pv = $('import-preview'); if (pv) { pv.innerHTML = tipo === 'pacote'
     ? 'Um arquivo Excel com <strong>uma aba por cadastro</strong>: Obras, Empresas, UA, Cargos, Frentes, Tipos de serviço, Turnos, Funcionários, Modelos (tanque e consumo previsto) e Equipamentos (com família e modelo). Não precisa de coluna "Obra": vale a obra da aba Obras ou a escolhida no topo. Registros com código que já existe são ignorados.<br><span style="color:var(--text-3)">Apontamentos e abastecimentos antigos vão no arquivo de <strong>histórico</strong>. Tipos de perda e tanques são cadastrados no painel.</span>'
@@ -11574,6 +11581,7 @@ function ticketHtml(d) {
   const dt = String(d.dt || ''), data = dt.slice(0, 10).split('-').reverse().join('/'), hora = dt.slice(11, 16);
   const selo = d.status === 'pendente-confirmar' ? '<div class="tk-pend">CONFIRA ANTES DE VALIDAR</div>'
     : d.status === 'rejeitado' ? '<div class="tk-pend" style="color:#B91C1C;border-color:#B91C1C">REJEITADO</div>'
+    : d.importado && !d.validadoEm ? '<div class="tk-pend" style="color:#555;border-color:#999">IMPORTADO DO HISTÓRICO</div>'
     : !d.validadoEm ? '<div class="tk-pend" style="color:#555;border-color:#999">REGISTRADO SEM VALIDAÇÃO NO CAMPO</div>'
     : `<div class="tk-ok">✓ VALIDADO${d.validadoEm ? ' · ' + _tkEsc(new Date(d.validadoEm).toLocaleString('pt-BR').replace(',', '').slice(0, 16)) : ''}</div>`;
   return `<div class="tk">
@@ -11595,7 +11603,7 @@ function _tkDe(d) {
   const cap = +(mod && mod.capTanque) || 0, cfg = window.OK_CLIENTE_CFG;
   return { ticket: _tkNum(d), dt: d.dt, equip: d.equip, modelo: (mod && mod.nome) || '', hor: d.hor, tanque: t ? t.nome : '', litros: d.litros, precoL: precoDiesel(d),
     abastecedor: d.validadoPor || d.lancadoPor || 'Escritório', cliente: (cfg && cfg.nomeCurto) || 'TENCO', obra: d.obra ? getNomeObra(d.obra) : '',
-    fotos: !!(d.fotoHor && d.fotoTotal), acimaTanque: cap && +d.litros > cap ? cap : 0, status: d.status === 'rejeitado' ? 'rejeitado' : 'validado', validadoEm: d.validadoEm || '' };
+    fotos: !!(d.fotoHor && d.fotoTotal), acimaTanque: cap && +d.litros > cap ? cap : 0, importado: !!d.importado, status: d.status === 'rejeitado' ? 'rejeitado' : 'validado', validadoEm: d.validadoEm || '' };
 }
 function verTicket(id) {
   const d = (dados.diesel || []).find(x => x.id === id); if (!d) return;
