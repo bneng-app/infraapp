@@ -100,7 +100,7 @@ input:disabled{opacity:.7}
     <input id="lg-senha" type="password" autocomplete="current-password">
     <div class="err" id="lg-err"></div>
     <button class="btn btn-p" style="width:100%" id="lg-btn">Entrar</button>
-    <div class="ver">ObraKontrol Console · v1.1</div>
+    <div class="ver">ObraKontrol Console · v1.2</div>
   </form>
 </div>
 
@@ -207,6 +207,11 @@ input:disabled{opacity:.7}
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:200px;font-size:13px">App de campo: <b id="lk-campo"></b></span><button class="btn btn-sm" onclick="copiar('lk-campo')">Copiar</button></div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:200px;font-size:13px">Painel: <b id="lk-painel"></b></span><button class="btn btn-sm" onclick="copiar('lk-painel')">Copiar</button></div>
         </div>
+        <div class="sec" style="color:var(--red)">Zona de perigo</div>
+        <div class="box" style="border-color:var(--red);display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap">
+          <div style="font-size:13px;max-width:440px"><b>Limpar dados do cliente</b><div class="hint">Apaga obras, cadastros, apontamentos, abastecimentos, fotos, orçamentos e repúblicas. Mantém os usuários, os perfis de acesso e as configurações. Não tem volta.</div></div>
+          <button class="btn" style="border-color:var(--red);color:var(--red)" onclick="limparCliente()">Limpar dados…</button>
+        </div>
       </div>
     </div>
     <div class="mf"><button class="btn" onclick="fechar()">Cancelar</button><button class="btn btn-p" id="btn-salvar" onclick="salvarCliente()">Salvar cliente</button></div>
@@ -214,7 +219,7 @@ input:disabled{opacity:.7}
 </div>
 
 <script>
-const VERSAO = 'v1.1';
+const VERSAO = 'v1.2';
 const firebaseConfig = {
   apiKey: "AIzaSyBShR-XvPrUiFtnndFXJV7IYrrTG90BS5o",
   authDomain: "obrakontrol-205c4.firebaseapp.com",
@@ -422,6 +427,43 @@ async function migrar() {
   b.disabled = false;
 }
 
+
+// ── limpar todos os dados de um cliente (mantém usuários, perfis e configurações)
+async function limparCliente() {
+  const id = editando; if (!id) return; const c = CLIENTES.find(x => x.id === id) || {}, nome = (c.nomeCurto || id).toUpperCase();
+  const r = prompt('Isto apaga TODOS os dados de ' + nome + ': obras, cadastros, apontamentos, abastecimentos, fotos, orçamentos e repúblicas.\nUsuários, perfis e configurações ficam.\n\nNão tem volta. Para confirmar, digite o nome do cliente: ' + nome);
+  if (!r || r.trim().toUpperCase() !== nome) { toast('Limpeza cancelada.'); return; }
+  const cols = COLS.filter(x => !['usuarios', 'perfis', '_sistema', 'configs'].includes(x)).concat(['republicas']);
+  let n = 0; toast('Limpando ' + nome + '…');
+  try {
+    for (const col of cols) {
+      const snap = await db.collection('clientes').doc(id).collection(col).get().catch(() => null); if (!snap || snap.empty) continue;
+      for (let i = 0; i < snap.docs.length; i += 300) { const b = db.batch(); snap.docs.slice(i, i + 300).forEach(d => b.delete(d.ref)); await b.commit(); n += Math.min(300, snap.docs.length - i); }
+    }
+    toast(nome + ': ' + n + ' registros apagados.'); fechar(); carregar();
+  } catch (e) { toast('Parou com erro: ' + (e.code || e.message) + '. Pode clicar de novo para terminar.', true); }
+}
+// ── repúblicas fictícias no DEMO, para testar o módulo
+async function criarRepublicasExemplo() {
+  try {
+    const obras = (await db.collection('clientes').doc('demo').collection('obras').get()).docs.map(d => ({ id: d.id, ...d.data() }));
+    if (!obras.length) { toast('O DEMO ainda não tem obra. Copie os dados de teste primeiro.', true); return; }
+    const ob = obras[0].id, hoje = new Date().toISOString();
+    const ex = [
+      { cod: 'REP-001', nome: 'República Rua das Acácias', tipo: 'República', endereco: 'Rua das Acácias, 120 – Centro, Mococa/SP', vagas: 8, aluguel: 3200, agua: 180, luz: 420, internet: 110, extras: [{ desc: 'Gás', valor: 120 }, { desc: 'Limpeza quinzenal', valor: 400 }], responsavel: 'Antônio (proprietário)', tel: '(19) 99999-0101', inicio: '2026-03-01', fim: '2027-02-28', status: 'Ativa' },
+      { cod: 'REP-002', nome: 'Casa Vila Lambari', tipo: 'República', endereco: 'Rua São José, 455 – Vila Lambari, Mococa/SP', vagas: 6, aluguel: 2600, agua: 150, luz: 340, internet: 100, extras: [{ desc: 'Gás', valor: 90 }], responsavel: 'Imobiliária Central', tel: '(19) 99999-0202', inicio: '2026-04-15', fim: '2027-04-14', status: 'Ativa' },
+      { cod: 'REP-003', nome: 'Alojamento do Canteiro', tipo: 'Alojamento', endereco: 'Canteiro de obras – Estrada Municipal MCC-010', vagas: 12, aluguel: 1800, agua: 0, luz: 600, internet: 150, extras: [{ desc: 'Limpeza diária', valor: 900 }, { desc: 'Manutenção dos contêineres', valor: 250 }], responsavel: 'Locadora de contêineres', tel: '(19) 99999-0303', inicio: '2026-03-01', fim: '', status: 'Ativa' },
+      { cod: 'REP-004', nome: 'Pousada Mococa', tipo: 'Hotel / pousada', endereco: 'Av. Brasil, 890 – Centro, Mococa/SP', vagas: 4, aluguel: 4800, agua: 0, luz: 0, internet: 0, extras: [], responsavel: 'Recepção da pousada', tel: '(19) 99999-0404', inicio: '2026-10-01', fim: '2026-12-31', status: 'Ativa', obs: 'Diárias para equipe de pico (4 quartos)' },
+      { cod: 'REP-005', nome: 'República Rua Tiradentes', tipo: 'República', endereco: 'Rua Tiradentes, 77 – Centro, Mococa/SP', vagas: 6, aluguel: 2400, agua: 140, luz: 300, internet: 100, extras: [], responsavel: 'Sra. Marlene', tel: '(19) 99999-0505', inicio: '2026-03-01', fim: '2026-08-31', status: 'Encerrada', obs: 'Contrato encerrado em agosto' },
+    ];
+    const b = db.batch();
+    ex.forEach((r, i) => { const id = 'rpdemo' + (i + 1); b.set(db.collection('clientes').doc('demo').collection('republicas').doc(id), { id, obra: ob, moradores: [], criadoEm: hoje, ...r }); });
+    await b.commit();
+    toast('5 repúblicas de exemplo criadas na obra ' + (obras[0].cod || obras[0].nome) + '. Coloque os moradores pelo botão 👥 Moradores.');
+    const f = $('amb-frame'); if (f) f.src = f.src;
+  } catch (e) { toast('Não consegui criar: ' + (e.code || e.message), true); }
+}
+
 // ── abas
 function aba(n) {
   document.querySelectorAll('.abas button').forEach(b => b.classList.toggle('on', b.dataset.aba === n));
@@ -490,6 +532,7 @@ function renderAmbiente(abrir) {
   if (!demo) { bt.innerHTML = ''; corpo.innerHTML = `<div class="card" style="padding:28px;text-align:center"><b style="font-size:16px">O ambiente DEMO ainda não existe</b><p class="sub" style="max-width:520px;margin:8px auto 16px">Ele é um cliente de mentira, só seu, com todos os módulos ligados. É onde você testa o que está desenvolvendo antes de liberar para as obras.</p><button class="btn btn-p" onclick="criarDemo()">Criar ambiente DEMO</button></div>`; return; }
   const outros = clientesReais();
   bt.innerHTML = `${outros.length ? `<select class="sit" id="amb-origem" aria-label="Copiar dados de">${outros.map(c => `<option value="${esc(c.id)}">${esc(c.nomeCurto || c.id)}</option>`).join('')}</select><button class="btn" onclick="copiarParaDemo()">Copiar dados de teste para o DEMO</button>` : ''}
+    <button class="btn" onclick="criarRepublicasExemplo()">Criar repúblicas de exemplo</button>
     <button class="btn" onclick="window.open(base() + 'index.html?c=demo', '_blank')">Abrir em nova aba ↗</button>`;
   if (abrir && !$('amb-frame')) corpo.innerHTML = `<iframe id="amb-frame" title="Painel do ambiente DEMO" src="${base()}index.html?c=demo"></iframe>`;
   else if (!$('amb-frame')) corpo.innerHTML = '';
