@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v2.83 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v2.84 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -5188,6 +5188,8 @@ function showQRTab(id, el) {
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
   qrTab = id.replace('qr-','');
+  // v2.84: ao trocar de aba, some o resultado gerado na aba anterior
+  const gw = document.getElementById('qr-gerados-wrap'), g = document.getElementById('qr-gerados'); if (gw) gw.style.display = 'none'; if (g) g.innerHTML = '';
 }
 
 // v2.26: o QR leva "mat:<matrícula>" (crachá) ou "tag:<TAG>" (máquina) — é o que o app de campo lê
