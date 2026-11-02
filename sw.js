@@ -1,10 +1,11 @@
 // ObraKontrol Campo — service worker
 // Guarda o app no celular para abrir mesmo sem internet.
 // Com internet, sempre busca a versão mais nova do campo.html (atualiza sozinho).
-const VERSAO = 'campo-v2.39';
+const VERSAO = 'campo-v2.40';
 const ESSENCIAIS = [
   './campo.html',
   './manifest-campo.webmanifest',
+  './marca/obrakontrol_logo.svg',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/apple-touch-icon.png',

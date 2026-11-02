@@ -489,6 +489,33 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
+<!-- ObraKontrol: tela de abertura (logo do produto + cliente embaixo) -->
+<style>
+#ok-abertura{position:fixed;inset:0;z-index:2147483000;background:#000;display:flex;flex-direction:column;align-items:center;padding:0 24px calc(48px + env(safe-area-inset-bottom));transition:opacity .35s ease}
+#ok-abertura.sai{opacity:0;pointer-events:none}
+#ok-abertura .ok-ab-c{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:34px;width:100%}
+#ok-abertura img{width:min(330px,82vw);height:auto;display:block}
+#ok-abertura .ok-ab-bar{width:120px;height:3px;border-radius:2px;background:#2A2A2A;overflow:hidden}
+#ok-abertura .ok-ab-bar i{display:block;width:40%;height:3px;background:#E30613;border-radius:2px;animation:okab 1.1s ease-in-out infinite}
+#ok-abertura .ok-ab-cli{color:#E30613;font:700 15px/1 Inter,system-ui,sans-serif;letter-spacing:.18em}
+@keyframes okab{0%{transform:translateX(-100%)}100%{transform:translateX(300%)}}
+@media (prefers-reduced-motion: reduce){#ok-abertura .ok-ab-bar i{animation:none;width:100%}}
+</style>
+<div id="ok-abertura" role="status" aria-label="Carregando o ObraKontrol" style="display:none">
+  <div class="ok-ab-c"><img src="marca/obrakontrol_logo.svg" alt="ObraKontrol — Gestão operacional de obras"><div class="ok-ab-bar"><i></i></div></div>
+  <div id="ok-ab-cliente"><svg viewBox="0 0 312 60" aria-label="TENCO" role="img" style="width:96px;display:block"><g fill="#E30613"><rect x="0" y="0" width="48" height="12"/><rect x="18" y="0" width="12" height="60"/><rect x="62" y="0" width="44" height="12"/><rect x="62" y="24" width="44" height="12"/><rect x="62" y="48" width="44" height="12"/><rect x="120" y="0" width="12" height="60"/><rect x="168" y="0" width="12" height="60"/><polygon points="120,0 133,0 180,60 167,60"/></g><g fill="none" stroke="#E30613" stroke-width="12"><path d="M240.4 14.6 A24 24 0 1 0 240.4 45.4"/><circle cx="282" cy="30" r="24"/></g></svg></div>
+</div>
+<script>
+// cliente embaixo: na Tenco é a logo dela; nos outros clientes, o nome curto guardado no aparelho
+(function () { try { const n = localStorage.getItem('ok_cliente_nome'), c = localStorage.getItem('ok_cliente_id');
+  if (c && c !== 'tenco' && n) document.getElementById('ok-ab-cliente').innerHTML = '<div class="ok-ab-cli"></div>', document.querySelector('#ok-ab-cliente .ok-ab-cli').textContent = n; } catch (e) {} })();
+window._okAbIni = Date.now();
+function okAbertura(mostrar) { const el = document.getElementById('ok-abertura'); if (!el) return;
+  if (mostrar) { el.style.display = ''; el.classList.remove('sai'); window._okAbIni = Date.now(); return; }
+  const falta = Math.max(0, 1100 - (Date.now() - window._okAbIni));
+  setTimeout(() => { el.classList.add('sai'); setTimeout(() => { if (el.classList.contains('sai')) el.style.display = 'none'; }, 400); }, falta); }
+</script>
+
 
 <!-- TOPBAR -->
 <!-- ═══════════════ TELA DE LOGIN ═══════════════ -->
@@ -554,7 +581,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v2.78 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v2.79 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -3911,6 +3938,7 @@ function fazerLogin() {
       usuarioLogado = usr;
       if (erroEl) erroEl.style.display='none';
       if (btnEl) btnEl.textContent = 'Carregando dados...';
+      okAbertura(true); setTimeout(() => okAbertura(false), 15000);
       try { await sincronizarTudo(); } finally { if (btnEl) { btnEl.textContent = 'Entrar no ObraKontrol'; btnEl.disabled = false; } }
       entrarNoApp();
     })
@@ -8611,7 +8639,8 @@ async function atualizarDados() {
 
 (function () {
   const oEntrar = window.entrarNoApp;
-  window.entrarNoApp = function () { const r = oEntrar.apply(this, arguments); setTimeout(iniciarAoVivo, 1500); try { _okFaixaDev(); } catch (e) {} return r; };
+  window.entrarNoApp = function () { const r = oEntrar.apply(this, arguments); setTimeout(iniciarAoVivo, 1500); try { _okFaixaDev(); } catch (e) {}
+    try { okAbertura(false); localStorage.setItem('ok_cliente_id', window.OK_CLIENTE || 'tenco'); if (window.OK_CLIENTE_CFG && window.OK_CLIENTE_CFG.nomeCurto) localStorage.setItem('ok_cliente_nome', window.OK_CLIENTE_CFG.nomeCurto); } catch (e) {} return r; };
   const oLogin = window.fazerLogin;
   window.fazerLogin = function () { window.__logando = true; setTimeout(() => window.__logando = false, 20000); return oLogin.apply(this, arguments); };
   const oSair = window.logout;
@@ -8624,6 +8653,7 @@ async function atualizarDados() {
       // só retoma no carregamento da página (não durante um login normal)
       if (!ehPrimeiro || !user || usuarioLogado || window.__logando) return;
       const lbl = document.getElementById('sync-label'); if (lbl) lbl.textContent = 'Retomando sessão…';
+      okAbertura(true); setTimeout(() => okAbertura(false), 15000);
       try {
         const em = (user.email || '').toLowerCase();
         if (!(await _definirCliente(em))) { auth.signOut(); if (lbl) lbl.textContent = ''; return; }
