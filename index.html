@@ -554,7 +554,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v2.67 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v2.68 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -3139,8 +3139,9 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
     <div class="modal-body">
       <div class="alert alert-info" style="margin-bottom:1rem">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        <div>Use o <strong>Template Excel</strong> como base. Preencha a partir da linha 2 (a linha 1 é o cabeçalho). A coluna <strong>Obra (Nome)</strong> deve conter o nome exato da obra cadastrada.</div>
+        <div>Use o <strong>Template Excel</strong> como base. Preencha a partir da linha 2 (a linha 1 é o cabeçalho). A obra de destino aparece logo abaixo: confira antes de importar.</div>
       </div>
+      <div id="import-destino" style="display:none;margin-bottom:12px"></div>
       <div class="form-group">
         <label class="form-label">Selecione o arquivo (.xlsx ou .csv)</label>
         <input type="file" id="import-file" class="form-control" accept=".xlsx,.xls,.csv" style="padding:6px"/>
@@ -5790,14 +5791,27 @@ async function excluirObraCompleta(obraId) {
 }
 
 
+// v2.68: obra de um lançamento (pelo próprio registro, pela frente ou pelo funcionário/equipamento)
+function _relObraId(r) {
+  if (!r) return '';
+  if (r.obra) return r.obra;
+  const fr = r.frente && (dados.frentes||[]).find(f => f.cod === r.frente); if (fr && fr.obra) return fr.obra;
+  const fu = (r.mat || r.func) && (dados.funcionarios||[]).find(f => (r.mat && String(f.mat) === String(r.mat)) || (r.func && f.nome === r.func)); if (fu && fu.obra) return fu.obra;
+  const eq = (r.equip || r.recurso) && (dados.equipamentos||[]).find(e => e.tag === (r.equip || r.recurso) || e.placa === (r.equip || r.recurso)); if (eq && eq.obra) return eq.obra;
+  return '';
+}
+function _relObraCod(r) { const id = _relObraId(r); const o = id && (dados.obras||[]).find(x => x.id === id); return o ? (o.cod || o.nome) : ''; }
 function gerarRelatorio(tipo) {
   const XLSX = window.XLSX;
   if (!XLSX) { toast('SheetJS não carregado. Verifique sua conexão.','error'); return; }
 
   const g = id => (document.getElementById(id)||{}).value||'';
 
+  // v2.68: respeita a obra escolhida no topo; em "Todas as obras" a coluna Obra diferencia as linhas
+  const _relOb = (obraAtiva && obraAtiva.id !== 'todas') ? obraAtiva.id : '';
   function filtrarData(lista, campoData, ini, fim) {
     return lista.filter(r => {
+      if (_relOb && _relObraId(r) !== _relOb) return false;
       const d = (r[campoData]||'').slice(0,10);
       if (ini && d < ini) return false;
       if (fim && d > fim) return false;
@@ -5842,6 +5856,7 @@ function gerarRelatorio(tipo) {
 
   // ── Gerar Excel com tabela formatada ─────────────────────────
   function buildExcel(headers, rows, sheetName, filename, totalsRow) {
+    if (totalsRow && totalsRow.length === headers.length - 1) totalsRow = [''].concat(totalsRow);
     const wb = XLSX.utils.book_new();
 
     // Apenas cabeçalho de colunas + dados (sem bloco de título/empresa)
@@ -5921,7 +5936,7 @@ function gerarRelatorio(tipo) {
       '',totalQtd,
       parseFloat(totalHN.toFixed(1)),parseFloat(totalHE.toFixed(1)),'','','',''];
 
-    buildExcel(headers, rows, 'Mão de Obra',
+    buildExcel(['Obra', ...headers], rows.map((r, i) => [_relObraCod(lista[i]), ...r]), 'Mão de Obra',
       'Apontamentos_MO' + periodo('rel-mo-ini','rel-mo-fim') + '.xlsx', totals);
   }
 
@@ -5965,7 +5980,7 @@ function gerarRelatorio(tipo) {
       parseFloat(totalHP.toFixed(1)),
       parseFloat(totalHPar.toFixed(1)),'','',''];
 
-    buildExcel(headers, rows, 'Equipamentos',
+    buildExcel(['Obra', ...headers], rows.map((r, i) => [_relObraCod(lista[i]), ...r]), 'Equipamentos',
       'Apontamentos_EQ' + periodo('rel-eq-ini','rel-eq-fim') + '.xlsx', totals);
   }
 
@@ -6019,7 +6034,7 @@ function gerarRelatorio(tipo) {
     const totals = ['TOTAIS','','','','','','',
       parseFloat(totalL.toFixed(1)),'','','','',''];
 
-    buildExcel(headers, rows, 'Diesel',
+    buildExcel(['Obra', ...headers], rows.map((r, i) => [_relObraCod(lista[i]), ...r]), 'Diesel',
       'Controle_Abastecimento_Diesel' + periodo('rel-die-ini','rel-die-fim') + '.xlsx', totals);
   }
 
@@ -6055,7 +6070,7 @@ function gerarRelatorio(tipo) {
     const totals = ['TOTAIS','','',
       parseFloat(totalH.toFixed(1)),'','','','',''];
 
-    buildExcel(headers, rows, 'Perdas',
+    buildExcel(['Obra', ...headers], rows.map((r, i) => [_relObraCod(lista[i]), ...r]), 'Perdas',
       'Perdas_Improdutivas' + periodo('rel-per-ini','rel-per-fim') + '.xlsx', totals);
   }
 }
@@ -10631,6 +10646,67 @@ function perdaSugIgnorar(i) { const x = _perdaSugestoes()[i]; if (!x) return; le
   if (typeof oAtu === 'function') window.atualizarDashboard = function () { const r = oAtu.apply(this, arguments); if (!_redesenhando) _dxRefazer(); return r; };
   const oEntrar = window.entrarNoApp;
   window.entrarNoApp = function () { const r = oEntrar.apply(this, arguments); setTimeout(_dxRefazer, 50); setTimeout(_dxRefazer, 1500); return r; };
+})();
+
+// ═══════════════════════════════════════════════════════════════
+// v2.68: IMPORTAÇÃO MOSTRA E PEDE CONFIRMAÇÃO DA OBRA DE DESTINO
+// Sem obra definida (Todas as obras e sem aba Obras no pacote) o botão fica travado.
+// ═══════════════════════════════════════════════════════════════
+let _impObraPacote = null;   // { cod, nome } lido da aba Obras do arquivo
+function _impPrecisaObra(tipo) { return tipo === 'pacote' || tipo === 'historico' || !!(IMPORT_DEF[tipo] && IMPORT_DEF[tipo].porObra); }
+function _impDestino() {
+  const tipo = document.getElementById('import-tipo')?.value || '';
+  const box = document.getElementById('import-destino'), btn = document.querySelector('#modal-importacao .modal-footer .btn-primary');
+  if (!box) return;
+  if (!_impPrecisaObra(tipo)) { box.style.display = 'none'; box.innerHTML = ''; if (btn) btn.disabled = false; return; }
+  let cod = '', nome = '', origem = '';
+  if (tipo === 'pacote' && _impObraPacote) { cod = _impObraPacote.cod; const ex = (dados.obras||[]).find(o => (o.cod||'').toLowerCase() === cod.toLowerCase()); nome = ex ? ex.nome : (_impObraPacote.nome || ''); origem = ex ? 'obra já cadastrada' : 'obra nova, criada por este pacote'; }
+  else if (obraAtiva && obraAtiva.id !== 'todas') { const o = (dados.obras||[]).find(x => x.id === obraAtiva.id) || obraAtiva; cod = o.cod || ''; nome = o.nome || ''; origem = 'obra escolhida no topo do painel'; }
+  box.style.display = '';
+  if (!cod && !nome) {
+    box.innerHTML = `<div style="border:1.5px solid #FCA5A5;background:#FEF2F2;color:#991B1B;border-radius:10px;padding:12px 14px;font-size:13px"><strong>Escolha a obra antes de importar.</strong><br>${tipo === 'pacote' ? 'Selecione a obra no topo do painel ou inclua no arquivo a aba <strong>Obras</strong> com a obra.' : 'Selecione a obra no topo do painel (está em "Todas as obras").'}</div>`;
+    if (btn) btn.disabled = true; return;
+  }
+  const marcado = document.getElementById('import-conf-obra')?.dataset.obra === (cod + '|' + nome) && document.getElementById('import-conf-obra')?.checked;
+  box.innerHTML = `<div style="border:1.5px solid #E30613;background:rgba(227,6,19,.06);border-radius:10px;padding:12px 14px">
+      <div style="font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--text-3)">VAI IMPORTAR PARA</div>
+      <div style="font-size:16px;font-weight:800;margin:2px 0">${_e(cod)}${cod && nome ? ' — ' : ''}${_e(nome)}</div>
+      <div style="font-size:12px;color:var(--text-3);margin-bottom:8px">${_e(origem)}</div>
+      <label style="display:flex;gap:8px;align-items:center;font-size:13px;font-weight:700;cursor:pointer"><input type="checkbox" id="import-conf-obra" data-obra="${_e(cod + '|' + nome)}" ${marcado ? 'checked' : ''} onchange="_impDestino()"/> Confirmo que é esta a obra</label></div>`;
+  if (btn) btn.disabled = !document.getElementById('import-conf-obra').checked;
+}
+(function () {
+  const oAbrir = window.abrirImportacao;
+  window.abrirImportacao = function (tipo) { _impObraPacote = null; const r = oAbrir.apply(this, arguments); const c = document.getElementById('import-conf-obra'); if (c) c.checked = false; _impDestino(); return r; };
+  const oPrev = window.previewImport;
+  window.previewImport = function (input) {
+    const r = oPrev.apply(this, arguments);
+    _impObraPacote = null;
+    const tipo = document.getElementById('import-tipo')?.value;
+    if (tipo === 'pacote' && input.files && input.files[0] && typeof XLSX !== 'undefined') {
+      const rd = new FileReader();
+      rd.onload = e => { try {
+        const wb = XLSX.read(e.target.result, { type:'binary' });
+        const n = wb.SheetNames.find(x => _ABA_TIPO[_normAba(x)] === 'obras');
+        if (n) { const ro = XLSX.utils.sheet_to_json(wb.Sheets[n], { header:1, defval:'' }); const h = (ro[0]||[]).map(x => String(x).toLowerCase());
+          const ic = h.findIndex(x => x.includes('cód') || x.includes('cod')), inm = h.findIndex(x => x.includes('nome'));
+          const ls = ro.slice(1).filter(l => String(l[ic] ?? '').trim()); if (ls.length === 1) _impObraPacote = { cod: String(ls[0][ic]).trim(), nome: inm >= 0 ? String(ls[0][inm]).trim() : '' }; }
+      } catch (x) {} _impDestino(); };
+      rd.readAsBinaryString(input.files[0]);
+    } else _impDestino();
+    return r;
+  };
+  const oConf = window.confirmarImportacao;
+  window.confirmarImportacao = function () {
+    const tipo = document.getElementById('import-tipo')?.value || '';
+    if (_impPrecisaObra(tipo) && !document.getElementById('import-conf-obra')?.checked) { toast('Confirme a obra de destino antes de importar.', 'error'); return; }
+    const r = oConf.apply(this, arguments);
+    Promise.resolve(r).then(() => setTimeout(() => { const btn = document.querySelector('#modal-importacao .modal-footer .btn-primary'); if (btn && !btn.textContent.includes('Importando')) _impDestino(); }, 50));
+    return r;
+  };
+  // trocar a obra no topo com a janela aberta atualiza o destino
+  const oSel = window.selecionarObra;
+  if (typeof oSel === 'function') window.selecionarObra = function () { const r = oSel.apply(this, arguments); if (document.getElementById('modal-importacao')?.classList.contains('open')) _impDestino(); return r; };
 })();
 
 // Apply configs on load
