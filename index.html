@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v2.82 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v2.83 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -8529,6 +8529,7 @@ window.abrirImportacao = function (tipo) {
 };
 
 window.previewImport = function (input) {
+  { const b = document.querySelector('#modal-importacao .modal-footer .btn-primary'); if (b && b.dataset.fim) { delete b.dataset.fim; b.textContent = '↑ Importar dados'; } const p = document.getElementById('import-preview'); if (p) { p.style.border = ''; p.style.background = ''; } }
   if (!input.files || !input.files[0] || typeof XLSX === 'undefined') return;
   const tipo = document.getElementById('import-tipo')?.value;
   const reader = new FileReader();
@@ -8549,6 +8550,10 @@ window.previewImport = function (input) {
 };
 
 window.confirmarImportacao = async function () {
+  // v2.83: depois de importar, o botão vira "Concluído — fechar"
+  const _bFim = document.querySelector('#modal-importacao .modal-footer .btn-primary');
+  if (_bFim && _bFim.dataset.fim) { delete _bFim.dataset.fim; _bFim.textContent = '↑ Importar dados'; closeModal('modal-importacao'); return; }
+  let _impOk = false;
   const tipo = document.getElementById('import-tipo')?.value;
   const file = document.getElementById('import-file')?.files?.[0];
   if (!tipo || !file) { toast('Selecione um arquivo.', 'error'); return; }
@@ -8589,15 +8594,19 @@ window.confirmarImportacao = async function () {
       const linhas = Object.entries(resumo).map(([t, r]) => '<strong>' + IMPORT_DEF[t].rotulo + ':</strong> ' + r.ok + ' importado(s)' + (r.atual ? ', <strong>' + r.atual + ' atualizado(s)</strong>' : '') + (r.dup ? ', ' + r.dup + ' já existiam' : '') + (r.erro ? ', <span style="color:var(--red)">' + r.erro + ' com erro</span> (' + r.avisos.join('; ') + ')' : ''));
       const nf = (window.__impCriados||[]).filter(x => x[0] === 'familias').length, nm = (window.__impCriados||[]).filter(x => x[0] === 'modelos').length;
       if (nf || nm) linhas.push('<strong>Famílias e modelos:</strong> ' + nf + ' família(s) e ' + nm + ' modelo(s) criados a partir de Equipamentos');
-      const total = Object.values(resumo).reduce((a, r) => a + r.ok, 0);
+      const total = Object.values(resumo).reduce((a, r) => a + r.ok, 0), atual = Object.values(resumo).reduce((a, r) => a + (r.atual || 0), 0), erros = Object.values(resumo).reduce((a, r) => a + (r.erro || 0), 0);
       const pv = document.getElementById('import-preview');
       pv.style.display = 'block';
-      pv.innerHTML = '<strong style="color:var(--green-dark)">Importação concluída — ' + total + ' registro(s)</strong><br>' + linhas.join('<br>')
+      const okTudo = !falhas && !erros;
+      pv.style.cssText += ';border:1.5px solid ' + (okTudo ? '#16A34A' : '#D97706') + ';background:' + (okTudo ? 'rgba(22,163,74,.10)' : 'rgba(217,119,6,.10)') + ';color:var(--text-2)';
+      pv.innerHTML = '<div style="font-size:15px;font-weight:800;color:' + (okTudo ? '#16A34A' : '#D97706') + ';margin-bottom:6px">' + (okTudo ? '✓ Importação concluída' : '⚠ Importação concluída com avisos') + '</div>'
+        + '<div style="margin-bottom:6px"><strong>' + total + '</strong> novo(s)' + (atual ? ' · <strong>' + atual + '</strong> atualizado(s)' : '') + (erros ? ' · <strong style="color:var(--red)">' + erros + '</strong> com erro' : '') + '</div>' + linhas.join('<br>')
         + (falhas ? '<br><span style="color:var(--red)">⚠ ' + falhas + ' não foram gravados no servidor. Importe o mesmo arquivo de novo (os que já entraram são ignorados).</span>' : '');
-      toast(total + ' registro(s) importado(s)!');
+      toast(okTudo ? '✓ Importação concluída: ' + total + ' novo(s)' + (atual ? ', ' + atual + ' atualizado(s)' : '') : 'Importação concluída com avisos — veja o resumo', okTudo ? 'success' : 'error');
+      _impOk = true;
     } catch (err) {
       toast('Erro ao importar: ' + err.message, 'error');
-    } finally { if (btn) { btn.disabled = false; btn.textContent = '↑ Importar dados'; } }
+    } finally { if (btn) { btn.disabled = false; btn.textContent = _impOk ? '✓ Concluído — fechar' : '↑ Importar dados'; if (_impOk) btn.dataset.fim = '1'; } }
   };
   reader.readAsBinaryString(file);
 };
@@ -10912,7 +10921,7 @@ function _impDestino() {
 }
 (function () {
   const oAbrir = window.abrirImportacao;
-  window.abrirImportacao = function (tipo) { _impObraPacote = null; const r = oAbrir.apply(this, arguments); const c = document.getElementById('import-conf-obra'); if (c) c.checked = false; _impDestino(); return r; };
+  window.abrirImportacao = function (tipo) { _impObraPacote = null; { const b = document.querySelector('#modal-importacao .modal-footer .btn-primary'); if (b) { delete b.dataset.fim; b.textContent = '↑ Importar dados'; } } const _pv = document.getElementById('import-preview'); if (_pv) _pv.style.border = _pv.style.background = ''; const r = oAbrir.apply(this, arguments); const c = document.getElementById('import-conf-obra'); if (c) c.checked = false; _impDestino(); return r; };
   const oPrev = window.previewImport;
   window.previewImport = function (input) {
     const r = oPrev.apply(this, arguments);
