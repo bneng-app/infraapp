@@ -554,7 +554,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v2.75 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v2.76 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -3205,7 +3205,7 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
         <div class="form-group form-full"><label class="form-label">Tipo de acesso *</label>
           <select class="form-control" id="pf-tipo" onchange="pfTipoMudou()">
             <option value="campo">App de campo — matrícula e senha, só apontamentos</option>
-            <option value="painel">Painel — usuário/e-mail, módulos marcados abaixo</option>
+            <option value="painel">Painel — usuário/e-mail, telas marcadas abaixo</option>
           </select></div>
         <div class="form-group form-full"><label class="form-label">Descrição</label><input class="form-control" id="pf-desc" placeholder="Ex.: lança apontamentos da equipe"/></div>
       </div>
@@ -3215,7 +3215,8 @@ body.amb-dash:not(.dx-full) .dx-nav-sair{display:none}
         <div id="pf-telas" style="display:grid;grid-template-columns:1fr 1fr;gap:10px"></div>
       </div>
       <div id="pf-perms-bloco">
-        <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;margin:.5rem 0 .6rem">Módulos liberados (app de campo e permissões gerais)</div>
+        <div id="pf-perms-tit" style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;margin:.5rem 0 .2rem">Módulos do app de campo</div>
+        <div id="pf-perms-hint" style="font-size:11.5px;color:var(--text-3);margin-bottom:8px"></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="pf-perms"></div>
       </div>
     </div>
@@ -11314,6 +11315,41 @@ function _pfGrupoSync() { document.querySelectorAll('#pf-telas .pf-tg').forEach(
           <button class="btn btn-sm" style="background:var(--red);color:white;border:1px solid var(--red)" onclick="excluirUsuario('${u.id}')">Excluir</button>` : ''}</td></tr>`; }).join('')}</tbody></table></div>`
       : '<div style="text-align:center;color:var(--text-3);padding:2rem">Nenhum usuário encontrado</div>';
     return r;
+  };
+})();
+
+// ═══════════════════════════════════════════════════════════════
+// v2.76: perfil do painel — um só lugar para marcar: as TELAS. Embaixo fica só o app de campo
+// (se a pessoa também usar o celular). As permissões gerais saem das telas marcadas.
+// ═══════════════════════════════════════════════════════════════
+(function () {
+  const $ = id => document.getElementById(id);
+  const oTipo = window.pfTipoMudou;
+  window.pfTipoMudou = function () {
+    const r = oTipo.apply(this, arguments);
+    const campo = $('pf-tipo').value === 'campo';
+    MODULOS.forEach(([k, l]) => { const c = $('pf-perm-' + k); const lb = c && c.closest('label'); if (!lb) return;
+      const doApp = k === 'apontamentos' || k === 'abastecimento';
+      lb.style.display = doApp ? '' : 'none';
+      lb.lastChild.textContent = k === 'apontamentos' ? ' Apropriação (mão de obra e equipamentos)' : k === 'abastecimento' ? ' Abastecimento (diesel)' : ' ' + l; });
+    if ($('pf-perms-tit')) $('pf-perms-tit').textContent = campo ? 'O que essa pessoa faz no app de campo' : 'App de campo (só se essa pessoa também usar o celular)';
+    if ($('pf-perms-hint')) $('pf-perms-hint').textContent = campo ? 'Marque pelo menos um.' : 'Não muda nada no painel — o painel segue as telas marcadas acima. Pode deixar desmarcado se ela não aponta pelo celular.';
+    return r;
+  };
+  const oSv = window.salvarPerfil;
+  window.salvarPerfil = function () {
+    if ($('pf-tipo').value === 'painel') {
+      // as permissões gerais acompanham as telas marcadas
+      const t = {}; document.querySelectorAll('#pf-telas .pf-tl').forEach(c => { if (c.checked) t[c.dataset.t] = true; });
+      const grp = g => [...document.querySelectorAll(`#pf-telas .pf-tl[data-g="${g}"]`)].some(c => c.checked);
+      const set = (k, v) => { const c = $('pf-perm-' + k); if (c) c.checked = !!v; };
+      set('dashboards', grp('grp-dashboards'));
+      set('cadastros', ['grp-cadastros', 'grp-mo', 'grp-equipamentos', 'grp-frentes'].some(grp));
+      set('almoxarifado', grp('grp-almoxarifado'));
+      set('relatorios', grp('grp-analise'));
+      set('aprovacao', t.aprovacao); set('qrcodes', t.qrcodes); set('config', false);
+    }
+    return oSv.apply(this, arguments);
   };
 })();
 
