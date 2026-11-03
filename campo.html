@@ -649,6 +649,25 @@ select.form-control,select.form-control:focus{background-image:url("data:image/s
 .ap-qr-frente{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:8px;padding:11px;border-radius:12px;border:1.5px dashed var(--red);background:rgba(227,6,19,.06);color:var(--red);font-weight:800;font-size:14px;cursor:pointer}
 .ap-qr-frente svg{width:18px;height:18px}
 .ok-sem-frenteqr .ap-qr-frente{display:none!important}
+
+/* v2.47: mobilização */
+.mob-steps{display:flex;gap:6px;margin-top:10px}.mob-steps span{flex:1;height:4px;border-radius:3px;background:rgba(255,255,255,.18)}.mob-steps span.on{background:#E30613}.mob-steps span.ok{background:#16A34A}
+.mob-bar{position:sticky;bottom:0;display:flex;gap:10px;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:var(--bg,#F4F5F7);border-top:1px solid var(--border)}
+.mob-bar .btn{flex:1;min-height:50px;font-size:15px;font-weight:800}
+.mob-tag{border:2px dashed var(--red);border-radius:14px;padding:12px;text-align:center;margin:4px 0 16px;background:rgba(227,6,19,.05)}
+.mob-tag span{display:block;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text2)}
+.mob-tag b{display:block;font-size:34px;font-weight:900;letter-spacing:.04em;color:var(--red);font-family:ui-monospace,monospace}
+.mob-tag small{font-size:12px;color:var(--text2)}.mob-tag.vazia{border-color:var(--border);background:none}.mob-tag.vazia b{color:var(--text2)}
+.mob-seg{display:flex;gap:6px;flex-wrap:wrap}.mob-seg button{flex:1;min-width:56px;min-height:46px;border-radius:10px;border:1.5px solid var(--border);background:white;font-weight:700;font-size:14px;color:var(--text)}
+.mob-seg button.on{border-color:#16A34A;background:#F0FDF4;color:#15803D}.mob-seg button.on.nok{border-color:var(--red);background:#FEF2F2;color:var(--red)}.mob-seg button.on.na{border-color:#94A3B8;background:#F1F5F9;color:#475569}
+.mob-seg-sm button{min-height:40px;font-size:13px}
+.mob-ck{padding:12px 0;border-bottom:1px solid var(--border)}.mob-ck:last-child{border-bottom:none}.mob-ck-t{font-weight:700;font-size:14px;margin-bottom:8px}.mob-ck.nok .mob-ck-t{color:var(--red)}
+.mob-resumo{font-size:13px;color:var(--text2);margin:0 2px 10px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center}
+.mob-link{background:none;border:0;color:var(--red);font-weight:700;font-size:13px;padding:6px 0;cursor:pointer}
+.mob-av{padding:10px 0;border-bottom:1px dashed var(--border);margin-bottom:8px}
+.mob-sig{margin-top:8px;border:1.5px dashed var(--border);border-radius:12px;background:white;position:relative;padding-bottom:26px}
+.mob-sig canvas{width:100%;height:120px;display:block;touch-action:none}
+.mob-sig span{position:absolute;left:10px;bottom:6px;font-size:11px;color:var(--text2)}.mob-sig .mob-link{position:absolute;right:10px;bottom:0}
 /* v2.42: ticket de abastecimento */
 .tk{background:#fff;color:#111;width:300px;max-width:100%;margin:0 auto;padding:18px 18px 22px;font-family:'Courier New',ui-monospace,monospace;font-size:12.5px;line-height:1.45;box-shadow:0 10px 30px rgba(0,0,0,.25);position:relative;
   -webkit-mask:radial-gradient(circle 6px at 50% 100%,transparent 98%,#000) bottom/14px 100% repeat-x;mask:radial-gradient(circle 6px at 50% 100%,transparent 98%,#000) bottom/14px 100% repeat-x}
@@ -862,7 +881,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.46</div>
+  <div class="login-versao">ObraKontrol Campo · v2.47</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -894,6 +913,11 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
       <div class="hcard-t">Abastecimento</div>
       <div class="hcard-s">Diesel</div>
       <div class="module-card-badge" id="badge-fuel" style="display:none"></div>
+    </div>
+    <div class="hcard" onclick="abrirMobilizacao()" id="card-mob" style="display:none">
+      <svg class="hic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="11" width="13" height="6" rx="1"/><path d="M14 13h4l3 3v1h-7z"/><circle cx="5" cy="19" r="2"/><circle cx="17" cy="19" r="2"/><path d="M4 11V7h6l2 4"/><path d="M9 3l2 2-2 2"/></svg>
+      <div class="hcard-t">Mobilização</div>
+      <div class="hcard-s">Chegada de equipamento</div>
     </div>
     <div class="hcard" onclick="sincronizarPendentes()">
       <svg class="hic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
@@ -1331,6 +1355,18 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
 </div>
 
 <!-- ══════════════ SCREEN: FUEL ══════════════ -->
+<!-- ══════════════ SCREEN: MOBILIZAÇÃO (v2.47) ══════════════ -->
+<div class="screen" id="screen-mob">
+  <div class="topbar">
+    <div class="topbar-row">
+      <div class="tb-left"><button class="tb-back" onclick="mobVoltar()" aria-label="Voltar"><svg class="" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg></button><div><div class="topbar-title">Mobilização</div><div class="topbar-sub" id="mob-sub"></div></div></div>
+    </div>
+    <div class="mob-steps" id="mob-steps"></div>
+  </div>
+  <div class="content" id="mob-content"></div>
+  <div class="mob-bar"><button class="btn btn-outline" id="mob-ant" onclick="mobPasso(-1)">Cancelar</button><button class="btn btn-green" id="mob-prox" onclick="mobPasso(1)">Avançar →</button></div>
+</div>
+
 <div class="screen" id="screen-fuel">
   <div class="topbar">
     <div class="topbar-row">
@@ -1586,6 +1622,8 @@ async function fazerLoginCampo() {
   const emailAuth = (cred.user.email || '').toLowerCase();
   const _ac = await _okAcesso(emailAuth);
   window.OK_CLIENTE = (_ac && _ac.cliente) || null;
+  window._okDevCampo = false;
+  if (_okEhDev(emailAuth) && _okClienteLink() && _okClienteLink() !== window.OK_CLIENTE) { window.OK_CLIENTE = _okClienteLink(); window._okDevCampo = true; }
   window.OK_CLIENTE_CFG = null;
   if (window.OK_CLIENTE) { const cfg = await _okCarregarCliente(window.OK_CLIENTE); window.OK_CLIENTE_CFG = cfg; if (cfg.status === 'Suspenso') { try { await auth.signOut(); } catch (_) {} erro('O acesso desta empresa está suspenso. Fale com o escritório.'); return; } }
   let usr = null;
@@ -1595,6 +1633,7 @@ async function fazerLoginCampo() {
     if (!snap.empty) usr = { ...snap.docs[0].data(), id: snap.docs[0].id };
   } catch (e) { try { await auth.signOut(); } catch (_) {} erro('Não consegui ler o cadastro (' + (e.code || 'erro') + '). Tente de novo.'); return; }
 
+  if (!usr && window._okDevCampo) usr = { id: 'dev', nome: 'Desenvolvedor', perfil: 'Admin', obra: '', status: 'Ativo' };
   if (!usr) { try { await auth.signOut(); } catch (_) {} erro('Acesso sem cadastro no ObraKontrol. Fale com o escritório.'); return; }
   if (usr.status === 'Inativo') { try { await auth.signOut(); } catch (_) {} erro('Acesso desativado. Fale com o escritório.'); return; }
 
@@ -1608,7 +1647,7 @@ async function fazerLoginCampo() {
 }
 
 async function carregarDadosCampo() {
-  const cols = ['funcionarios','equipamentos','frentes','tiposServico','tiposPerdas','empresas','turnos','tanques','modelos'];
+  const cols = ['funcionarios','equipamentos','frentes','tiposServico','tiposPerdas','empresas','turnos','tanques','modelos','familias'];
   // v2.9: carrega todos os cadastros ao mesmo tempo (antes era um de cada vez — login demorava)
   const resultados = await Promise.all(cols.map(c => fbCarregar(c)));
   for (const [i, col] of cols.entries()) {
@@ -3775,6 +3814,7 @@ const OK_MOD_PADRAO = {
   locacao:       { nome: 'Locação de equipamentos', situacao: 'disponivel', padrao: true },
   orcamento:     { nome: 'Orçamento previsto', situacao: 'disponivel', padrao: true },
   republicas:    { nome: 'Repúblicas e alojamentos', situacao: 'dev', padrao: false, desc: 'Cadastro de repúblicas e alojamentos, vagas, moradores e custo por pessoa' },
+  mobilizacao:   { nome: 'Mobilização de equipamentos', situacao: 'dev', padrao: false, desc: 'App de campo: TAG automática, horímetro, checklist, fotos, avarias e termo assinado ao mobilizar' },
 };
 window.OK_MODULOS = JSON.parse(JSON.stringify(OK_MOD_PADRAO));
 async function _okCarregarModulos() {
@@ -3807,6 +3847,234 @@ function _okAplicarModulosCampo() {
   };
   const oPM = podeModulo;
   podeModulo = function (k) { if (k === 'abastecimento' && !okModuloAtivo('abastecimento', usuarioCampo && usuarioCampo.obra)) return false; return oPM.apply(this, arguments); };
+})();
+
+// ══════════════════════════════════════════════════════════════
+// v2.47: MOBILIZAÇÃO DE EQUIPAMENTO (time de manutenção)
+// TAG automática (prefixo da família + sequência da obra), horímetro com foto, checklist,
+// fotos, avarias, assinaturas e termo validado → o equipamento entra como Mobilizado.
+// ══════════════════════════════════════════════════════════════
+const MOB_CHECK = ['Nível do óleo do motor', 'Nível do óleo hidráulico', 'Nível do líquido de arrefecimento', 'Pneus ou esteiras', 'Vazamentos (óleo, combustível, hidráulico)',
+  'Faróis e luzes', 'Sirene de ré e buzina', 'Extintor de incêndio (carga e validade)', 'Cinto de segurança', 'Espelhos e vidros', 'Freios e freio de estacionamento',
+  'Painel e instrumentos', 'Documentação (CRLV, manual, certificados)', 'Kit de mitigação ambiental', 'Limpeza geral e cabine'];
+const MOB_FOTOS = [['frente', 'Frente'], ['tras', 'Traseira'], ['esq', 'Lateral esquerda'], ['dir', 'Lateral direita'], ['painel', 'Painel']];
+const MOB_PASSOS = ['Identificação', 'Horímetro e chegada', 'Checklist', 'Fotos e avarias', 'Conferir e assinar'];
+let mob = null;
+function _mobNovo() {
+  return { passo: 0, obra: (usuarioCampo && usuarioCampo.obra) || '', familia: '', modelo: '', modeloNovo: '', prop: '', placa: '', ano: '', fotoPlaca: null,
+    data: _hojeISO(), hora: new Date().toTimeString().slice(0, 5), hor: '', fotoHor: null, comb: '',
+    check: MOB_CHECK.map(t => ({ t, st: '', obs: '', foto: null })), fotos: {}, avarias: [], acess: '',
+    nomeRec: usuarioCampo ? usuarioCampo.nome : '', sigRec: '', nomeEnt: '', sigEnt: '' };
+}
+function _mobEsc(t) { return String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function _mobNorm(t) { return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+// ── TAG: prefixo da família (cadastro, ou o que a obra já usa) + próxima sequência da obra, sem repetir TAG existente
+function mobTag(obra, famCod, eqs) {
+  eqs = eqs || dadosCampo.equipamentos || [];
+  const fam = (dadosCampo.familias || []).find(f => f.cod === famCod); if (!fam) return '';
+  let pref = _mobNorm(fam.prefixo);
+  if (!pref) {
+    const cont = {}; eqs.filter(e => e.familia === famCod).forEach(e => { const m = /^([A-Z0-9]+)-\d+$/i.exec(String(e.tag || '').trim()); if (m) { const p = m[1].toUpperCase(); cont[p] = (cont[p] || 0) + ((e.obra || '') === obra ? 10 : 1); } });
+    pref = Object.keys(cont).sort((a, b) => cont[b] - cont[a])[0] || _mobNorm(fam.desc || fam.cod).slice(0, 3);
+  }
+  let mx = 0, larg = 2; const re = new RegExp('^' + pref + '-(\\d+)$', 'i');
+  eqs.filter(e => (e.obra || '') === obra).forEach(e => { const m = re.exec(String(e.tag || '').trim()); if (m) { mx = Math.max(mx, +m[1]); larg = Math.max(larg, m[1].length); } });
+  let n = mx + 1, tag = pref + '-' + String(n).padStart(larg, '0');
+  const usadas = new Set(eqs.map(e => String(e.tag || '').toUpperCase()));
+  while (usadas.has(tag.toUpperCase())) { n++; tag = pref + '-' + String(n).padStart(larg, '0'); }
+  return tag;
+}
+async function abrirMobilizacao() {
+  mob = _mobNovo();
+  if (!usuarioCampo.obra) { try { window._mobObras = (await fbCarregar('obras')) || window._mobObras || []; } catch (e) {} }
+  showScreen('mob'); mobRender();
+}
+function mobVoltar() { if (mob && mob.passo > 0) { mob.passo--; mobRender(); return; } if (!mob || confirm('Sair da mobilização? O que foi preenchido será perdido.')) showScreen('home'); }
+function _mobFotoBtn(k, label, v, obrig) {
+  return `<div class="hor-linha" style="margin-top:6px">${v ? `<img class="hor-thumb" src="${v.img}" onclick="mobFotoVer('${k}')"/>` : ''}
+    <label class="hor-foto-btn ${v ? 'ok' : ''}" style="display:flex;align-items:center;justify-content:center;flex:1;min-height:48px">📷 ${v ? 'Trocar foto' : label + (obrig ? ' (obrigatória)' : '')}<input type="file" accept="image/*" capture="environment" style="display:none" onchange="mobFoto('${k}', this)"/></label></div>`;
+}
+function _mobGet(k) { const [a, b] = k.split(':'); if (a === 'placa') return mob.fotoPlaca; if (a === 'hor') return mob.fotoHor; if (a === 'f') return mob.fotos[b]; if (a === 'ck') return mob.check[+b].foto; if (a === 'av') return mob.avarias[+b].foto; }
+function _mobSet(k, v) { const [a, b] = k.split(':'); if (a === 'placa') mob.fotoPlaca = v; if (a === 'hor') mob.fotoHor = v; if (a === 'f') mob.fotos[b] = v; if (a === 'ck') mob.check[+b].foto = v; if (a === 'av') mob.avarias[+b].foto = v; }
+async function mobFoto(k, input) {
+  const f = input.files && input.files[0]; if (!f) return;
+  try { _mobSet(k, { img: await _reduzirFoto(f), em: new Date().toISOString() }); mobRender(); toast('Foto registrada', 'ok'); } catch (e) { toast('Não consegui usar essa foto. Tente de novo.', 'err'); }
+}
+function mobFotoVer(k) { const v = _mobGet(k); if (!v) return; const ov = document.createElement('div'); ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:3500;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.innerHTML = `<img src="${v.img}" style="max-width:100%;max-height:100%;border-radius:10px"/>`; ov.onclick = () => ov.remove(); document.body.appendChild(ov); }
+function mobCampo(k, v) { mob[k] = v; if (['obra', 'familia'].includes(k)) { if (k === 'familia') mob.modelo = ''; mobRender(); } }
+function mobRender() {
+  const p = mob.passo, el = document.getElementById('mob-content');
+  document.getElementById('mob-sub').textContent = 'Etapa ' + (p + 1) + ' de 5 · ' + MOB_PASSOS[p];
+  document.getElementById('mob-steps').innerHTML = MOB_PASSOS.map((t, i) => `<span class="${i < p ? 'ok' : i === p ? 'on' : ''}"></span>`).join('');
+  document.getElementById('mob-ant').textContent = p ? '← Voltar' : 'Cancelar';
+  document.getElementById('mob-prox').textContent = p < 4 ? 'Avançar →' : 'Ver termo e validar';
+  const sel = (id, ops, val, ph, on) => `<select class="form-control" id="${id}" onchange="${on}">${'<option value="">' + ph + '</option>' + ops.map(([v, t]) => `<option value="${_mobEsc(v)}" ${v === val ? 'selected' : ''}>${_mobEsc(t)}</option>`).join('')}</select>`;
+  let h = '';
+  if (p === 0) {
+    const obras = usuarioCampo.obra ? [] : (window._mobObras || []);
+    const fams = (dadosCampo.familias || []).filter(f => !mob.obra || !f.obra || f.obra === mob.obra);
+    const mods = (dadosCampo.modelos || []).filter(m => (!mob.obra || !m.obra || m.obra === mob.obra) && (!mob.familia || !m.familia || m.familia === mob.familia));
+    const emps = (dadosCampo.empresas || []).filter(e => !mob.obra || !e.obra || e.obra === mob.obra);
+    const tag = mob.obra || usuarioCampo.obra ? mobTag(mob.obra, mob.familia) : '';
+    h = `<div class="card"><div class="card-body">
+      ${!usuarioCampo.obra ? `<div class="form-group"><label class="form-label">Obra</label>${sel('mob-obra', obras.map(o => [o.id, (o.cod ? o.cod + ' · ' : '') + o.nome]), mob.obra, 'Escolha a obra…', "mobCampo('obra',this.value)")}</div>` : ''}
+      <div class="form-group"><label class="form-label">Família *</label>${sel('mob-fam', fams.map(f => [f.cod, f.desc || f.cod]), mob.familia, 'Escolha a família…', "mobCampo('familia',this.value)")}</div>
+      <div class="mob-tag ${tag ? '' : 'vazia'}"><span>TAG gerada</span><b>${tag || '—'}</b><small>${tag ? 'Escreva esta TAG no equipamento' : 'Escolha a família para gerar'}</small></div>
+      <div class="form-group"><label class="form-label">Modelo *</label>${sel('mob-mod', mods.map(m => [m.cod, m.nome || m.cod]).concat([['__novo', '+ Modelo novo (não está na lista)']]), mob.modelo, 'Escolha o modelo…', "mobCampo('modelo',this.value);mobRender()")}
+        ${mob.modelo === '__novo' ? `<input class="form-control" style="margin-top:8px" placeholder="Nome do modelo, ex.: Volvo EC220" value="${_mobEsc(mob.modeloNovo)}" oninput="mob.modeloNovo=this.value"/>` : ''}</div>
+      <div class="form-group"><label class="form-label">Empresa proprietária *</label>${sel('mob-prop', emps.map(e => [e.cod, (e.cod ? e.cod + ' · ' : '') + (e.nome || e.razao || '')]), mob.prop, 'Própria ou locadora…', "mob.prop=this.value")}</div>
+      <div class="form-group"><label class="form-label">Placa / nº de série / chassi *</label><input class="form-control" value="${_mobEsc(mob.placa)}" oninput="mob.placa=this.value" placeholder="Ex.: ABC1D23 ou nº de série"/></div>
+      <div class="form-group"><label class="form-label">Ano</label><input class="form-control" type="number" inputmode="numeric" value="${_mobEsc(mob.ano)}" oninput="mob.ano=this.value" placeholder="Ex.: 2021"/></div>
+      <div class="form-group"><label class="form-label">Foto da plaqueta ou documento</label>${_mobFotoBtn('placa', 'Foto da plaqueta', mob.fotoPlaca, false)}</div>
+    </div></div>`;
+  }
+  if (p === 1) {
+    h = `<div class="card"><div class="card-body">
+      <div class="form-group"><label class="form-label">Horímetro / km de mobilização *</label><input class="form-control" type="number" inputmode="decimal" step="0.1" value="${_mobEsc(mob.hor)}" oninput="mob.hor=this.value" placeholder="Ex.: 1245,5" style="font-size:24px;font-weight:800;text-align:center"/>
+        ${_mobFotoBtn('hor', 'Foto do horímetro', mob.fotoHor, true)}</div>
+      <div class="form-group"><label class="form-label">Combustível na chegada *</label><div class="mob-seg">${['Vazio', '1/4', '1/2', '3/4', 'Cheio'].map(c => `<button type="button" class="${mob.comb === c ? 'on' : ''}" onclick="mob.comb='${c}';mobRender()">${c}</button>`).join('')}</div></div>
+      <div style="display:flex;gap:10px"><div class="form-group" style="flex:1"><label class="form-label">Data</label><input class="form-control" type="date" value="${mob.data}" oninput="mob.data=this.value"/></div>
+        <div class="form-group" style="flex:1"><label class="form-label">Hora</label><input class="form-control" type="time" value="${mob.hora}" oninput="mob.hora=this.value"/></div></div>
+    </div></div>`;
+  }
+  if (p === 2) {
+    const nok = mob.check.filter(c => c.st === 'nok').length, feitos = mob.check.filter(c => c.st).length;
+    h = `<div class="mob-resumo">${feitos} de ${mob.check.length} conferidos${nok ? ` · <b style="color:var(--red)">${nok} com problema</b>` : ''} <button type="button" class="mob-link" onclick="mob.check.forEach(c=>{if(!c.st)c.st='ok'});mobRender()">Marcar o resto como OK</button></div>
+      <div class="card"><div class="card-body" style="padding:4px 14px">${mob.check.map((c, i) => `<div class="mob-ck ${c.st === 'nok' ? 'nok' : ''}">
+        <div class="mob-ck-t">${i + 1}. ${_mobEsc(c.t)}</div>
+        <div class="mob-seg mob-seg-sm">${[['ok', 'OK'], ['nok', 'Não OK'], ['na', 'N/A']].map(([v, t]) => `<button type="button" class="${c.st === v ? 'on ' + v : ''}" onclick="mob.check[${i}].st='${v}';mobRender()">${t}</button>`).join('')}</div>
+        ${c.st === 'nok' ? `<input class="form-control" style="margin-top:8px" placeholder="O que está errado? (obrigatório)" value="${_mobEsc(c.obs)}" oninput="mob.check[${i}].obs=this.value"/>${_mobFotoBtn('ck:' + i, 'Foto do problema', c.foto, true)}` : ''}
+      </div>`).join('')}</div></div>`;
+  }
+  if (p === 3) {
+    h = `<div class="card"><div class="card-header"><span class="card-title">Fotos do equipamento</span></div><div class="card-body">${MOB_FOTOS.map(([k, t]) => `<div class="form-group"><label class="form-label">${t}</label>${_mobFotoBtn('f:' + k, 'Foto ' + t.toLowerCase(), mob.fotos[k], true)}</div>`).join('')}</div></div>
+      <div class="card"><div class="card-header"><span class="card-title">Avarias que já vieram</span></div><div class="card-body">
+        <div style="font-size:12.5px;color:var(--text2);margin-bottom:8px">Registre amassados, trincas, peças faltando… Isso protege a obra na devolução.</div>
+        ${mob.avarias.map((a, i) => `<div class="mob-av"><div style="display:flex;gap:8px"><input class="form-control" placeholder="Descreva a avaria" value="${_mobEsc(a.desc)}" oninput="mob.avarias[${i}].desc=this.value"/><button type="button" class="btn btn-outline btn-sm" onclick="mob.avarias.splice(${i},1);mobRender()" aria-label="Remover avaria">✕</button></div>${_mobFotoBtn('av:' + i, 'Foto da avaria', a.foto, true)}</div>`).join('')}
+        <button type="button" class="btn btn-outline" style="width:100%" onclick="mob.avarias.push({desc:'',foto:null});mobRender()">+ Registrar avaria</button>
+        ${!mob.avarias.length ? '<div style="font-size:12px;color:var(--text2);text-align:center;margin-top:8px">Sem avarias? Pode avançar.</div>' : ''}</div></div>
+      <div class="card"><div class="card-body"><div class="form-group"><label class="form-label">Acessórios recebidos</label><textarea class="form-control" rows="2" placeholder="Ex.: caçamba extra, martelo rompedor, garfo…" oninput="mob.acess=this.value">${_mobEsc(mob.acess)}</textarea></div></div></div>`;
+  }
+  if (p === 4) {
+    h = `<div class="card"><div class="card-body">
+      <div class="form-group"><label class="form-label">Quem recebeu *</label><input class="form-control" value="${_mobEsc(mob.nomeRec)}" oninput="mob.nomeRec=this.value"/>
+        <div class="mob-sig"><canvas id="sig-rec" width="600" height="180" aria-label="Assinatura de quem recebeu"></canvas><button type="button" class="mob-link" onclick="mobSigLimpar('rec')">Limpar</button><span>Assine com o dedo</span></div></div>
+      <div class="form-group"><label class="form-label">Quem entregou (motorista / locadora)</label><input class="form-control" value="${_mobEsc(mob.nomeEnt)}" oninput="mob.nomeEnt=this.value" placeholder="Opcional"/>
+        <div class="mob-sig"><canvas id="sig-ent" width="600" height="180" aria-label="Assinatura de quem entregou"></canvas><button type="button" class="mob-link" onclick="mobSigLimpar('ent')">Limpar</button><span>Assine com o dedo (opcional)</span></div></div>
+    </div></div>`;
+  }
+  el.innerHTML = h; el.scrollTop = 0;
+  if (p === 4) { _mobSig('rec'); _mobSig('ent'); }
+}
+function _mobSig(k) {
+  const c = document.getElementById('sig-' + k); if (!c) return; const g = c.getContext('2d'), campo = k === 'rec' ? 'sigRec' : 'sigEnt';
+  g.lineWidth = 3.2; g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = '#111';
+  if (mob[campo]) { const im = new Image(); im.onload = () => g.drawImage(im, 0, 0, c.width, c.height); im.src = mob[campo]; }
+  let des = false; const pos = e => { const r = c.getBoundingClientRect(); return [(e.clientX - r.left) * c.width / r.width, (e.clientY - r.top) * c.height / r.height]; };
+  c.onpointerdown = e => { des = true; c.setPointerCapture(e.pointerId); const [x, y] = pos(e); g.beginPath(); g.moveTo(x, y); e.preventDefault(); };
+  c.onpointermove = e => { if (!des) return; const [x, y] = pos(e); g.lineTo(x, y); g.stroke(); e.preventDefault(); };
+  c.onpointerup = c.onpointercancel = () => { if (!des) return; des = false; mob[campo] = c.toDataURL('image/png'); };
+}
+function mobSigLimpar(k) { mob[k === 'rec' ? 'sigRec' : 'sigEnt'] = ''; const c = document.getElementById('sig-' + k); if (c) c.getContext('2d').clearRect(0, 0, c.width, c.height); }
+function _mobFalta(p) {
+  const f = [];
+  if (p === 0) { if (!usuarioCampo.obra && !mob.obra) f.push('a obra'); if (!mob.familia) f.push('a família'); if (!mob.modelo || (mob.modelo === '__novo' && !mob.modeloNovo.trim())) f.push('o modelo'); if (!mob.prop) f.push('a empresa proprietária'); if (!mob.placa.trim()) f.push('a placa / nº de série'); }
+  if (p === 1) { if (!String(mob.hor).trim()) f.push('o horímetro'); if (!mob.fotoHor) f.push('a foto do horímetro'); if (!mob.comb) f.push('o combustível na chegada'); }
+  if (p === 2) { const sem = mob.check.filter(c => !c.st).length; if (sem) f.push(sem + ' item(ns) do checklist'); mob.check.forEach((c, i) => { if (c.st === 'nok' && (!c.obs.trim() || !c.foto)) f.push('observação e foto do item ' + (i + 1)); }); }
+  if (p === 3) { MOB_FOTOS.forEach(([k, t]) => { if (!mob.fotos[k]) f.push('foto ' + t.toLowerCase()); }); mob.avarias.forEach((a, i) => { if (!a.desc.trim() || !a.foto) f.push('descrição e foto da avaria ' + (i + 1)); }); }
+  if (p === 4) { if (!mob.nomeRec.trim()) f.push('o nome de quem recebeu'); if (!mob.sigRec) f.push('a assinatura de quem recebeu'); }
+  return f;
+}
+function mobPasso(d) {
+  if (d < 0) { mobVoltar(); return; }
+  const f = _mobFalta(mob.passo); if (f.length) { toast('Falta ' + f.slice(0, 3).join(', ') + (f.length > 3 ? '…' : '') + '.', 'err'); if (navigator.vibrate) { try { navigator.vibrate([60, 60, 60]); } catch (e) {} } return; }
+  if (mob.passo < 4) { mob.passo++; mobRender(); return; }
+  mobTermo();
+}
+function _mobDados() {
+  const obra = mob.obra || usuarioCampo.obra || '', fam = (dadosCampo.familias || []).find(f => f.cod === mob.familia) || {}, mod = (dadosCampo.modelos || []).find(m => m.cod === mob.modelo) || {};
+  const emp = (dadosCampo.empresas || []).find(e => e.cod === mob.prop) || {}, ob = (window._mobObras || []).find(o => o.id === obra);
+  return { obra, obraNome: ob ? ob.nome : ((document.getElementById('home-obra-label') || {}).textContent || ''), familiaNome: fam.desc || mob.familia,
+    modeloNome: mob.modelo === '__novo' ? mob.modeloNovo.trim() : (mod.nome || mob.modelo), empresaNome: emp.nome || emp.razao || mob.prop };
+}
+function termoMobHtml(t) {
+  const L = (k, v) => v === '' || v == null ? '' : `<div class="tk-l"><span>${k}</span><b>${_mobEsc(v)}</b></div>`;
+  const nok = (t.checklist || []).filter(c => c.st === 'nok');
+  return `<div class="tk" style="width:330px">
+    <img class="tk-logo" src="${typeof _TK_LOGO !== 'undefined' ? _TK_LOGO : ''}" alt="ObraKontrol">
+    <div class="tk-c" style="font-size:11px;color:#555">${_mobEsc(t.cliente || 'TENCO')}${t.obraNome ? ' · ' + _mobEsc(t.obraNome) : ''}</div>
+    <div class="tk-t">TERMO DE MOBILIZAÇÃO</div>
+    <div class="tk-big" style="font-size:30px">${_mobEsc(t.tag)}</div><hr>
+    ${L('Data', String(t.data || '').split('-').reverse().join('/') + ' ' + (t.hora || ''))}${L('Família', t.familiaNome)}${L('Modelo', t.modeloNome)}${L('Placa / série', t.placa)}${L('Ano', t.ano)}${L('Proprietária', t.empresaNome)}
+    <hr>${L('Horímetro/Km', t.hor)}${L('Combustível', t.comb)}
+    <hr><div class="tk-c" style="color:#555">CHECKLIST</div>
+    ${L('Itens OK', (t.checklist || []).filter(c => c.st === 'ok').length + ' de ' + (t.checklist || []).length)}
+    ${nok.length ? nok.map(c => `<div style="color:#B91C1C;font-weight:700">✕ ${_mobEsc(c.t)}</div><div style="color:#555;margin-bottom:4px">${_mobEsc(c.obs)}</div>`).join('') : '<div class="tk-c" style="color:#15803D;font-weight:700">Nenhum item com problema</div>'}
+    <hr>${L('Fotos', (t.nFotos || 0) + ' foto(s)')}${L('Avarias registradas', (t.avarias || []).length || 'nenhuma')}
+    ${(t.avarias || []).map(a => `<div style="color:#555">• ${_mobEsc(a.desc)}</div>`).join('')}
+    ${t.acess ? `<hr><div style="color:#555">Acessórios: ${_mobEsc(t.acess)}</div>` : ''}
+    <hr><div style="display:flex;gap:10px">${[['Recebeu', t.nomeRec, t.sigRec], ['Entregou', t.nomeEnt, t.sigEnt]].filter(x => x[1] || x[2]).map(([r, n, s]) => `<div style="flex:1;text-align:center">${s ? `<img src="${s}" style="width:100%;height:46px;object-fit:contain;border-bottom:1px solid #999"/>` : '<div style="height:46px;border-bottom:1px solid #999"></div>'}<div style="font-size:10.5px;color:#555">${r}: ${_mobEsc(n || '')}</div></div>`).join('')}</div>
+    ${t.validadoEm ? `<div class="tk-ok">✓ MOBILIZADO · ${_mobEsc(new Date(t.validadoEm).toLocaleString('pt-BR').replace(',', '').slice(0, 16))}</div>` : '<div class="tk-pend">CONFIRA ANTES DE VALIDAR</div>'}
+    <div class="tk-rod">ObraKontrol · Gestão operacional de obras</div></div>`;
+}
+function _mobTermoDados() {
+  const d = _mobDados(); let cliente = 'TENCO'; try { cliente = localStorage.getItem('ok_cliente_nome') || 'TENCO'; } catch (e) {}
+  return { ...d, cliente, tag: mobTag(d.obra, mob.familia), data: mob.data, hora: mob.hora, placa: mob.placa.trim(), ano: mob.ano, hor: mob.hor, comb: mob.comb,
+    checklist: mob.check.map(c => ({ t: c.t, st: c.st, obs: c.obs })), nFotos: Object.keys(mob.fotos).length + (mob.fotoHor ? 1 : 0) + (mob.fotoPlaca ? 1 : 0) + mob.check.filter(c => c.foto).length + mob.avarias.filter(a => a.foto).length,
+    avarias: mob.avarias.map(a => ({ desc: a.desc })), acess: mob.acess.trim(), nomeRec: mob.nomeRec.trim(), sigRec: mob.sigRec, nomeEnt: mob.nomeEnt.trim(), sigEnt: mob.sigEnt };
+}
+function mobTermo() {
+  const t = _mobTermoDados();
+  _tkModal(termoMobHtml(t), `<button class="btn btn-outline" style="flex:1;background:#fff" onclick="document.getElementById('tk-ov').remove()">Corrigir</button>
+    <button class="btn btn-green" style="flex:1.4" onclick="mobValidar()">✓ Validar mobilização</button>`);
+}
+async function mobValidar() {
+  const b = document.querySelector('#tk-ov .btn-green'); if (b) { b.disabled = true; b.textContent = 'Salvando…'; }
+  try {
+    // confere a TAG com a lista mais nova (outro celular pode ter mobilizado agora)
+    if (navigator.onLine) { try { const eqs = await fbCarregar('equipamentos'); if (eqs) dadosCampo.equipamentos = eqs; } catch (e) {} }
+    const t = _mobTermoDados(), ag = new Date().toISOString(), suf = Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+    if (!t.tag) throw new Error('TAG não gerada');
+    let codModelo = mob.modelo;
+    if (mob.modelo === '__novo') {
+      const nome = mob.modeloNovo.trim(), base = _mobNorm(nome).slice(0, 10) || 'MOD';
+      const ex = (dadosCampo.modelos || []).find(m => String(m.nome || '').toLowerCase() === nome.toLowerCase() && (!m.obra || m.obra === t.obra));
+      if (ex) codModelo = ex.cod; else { let c = base, n = 2; while ((dadosCampo.modelos || []).some(m => m.cod === c)) c = base + n++;
+        const nm = { id: 'md' + suf, obra: t.obra, cod: c, nome, familia: mob.familia, criadoNoCampo: true }; await fbSalvar('modelos', nm); (dadosCampo.modelos = dadosCampo.modelos || []).push(nm); codModelo = c; }
+    }
+    const idEq = 'q' + suf, idMob = 'mb' + suf, fotos = [];
+    const foto = async (v, tipo, rotulo) => { if (!v) return ''; const id = 'fm' + suf + fotos.length; fotos.push(id);
+      await fbSalvar('fotos', { id, tipo: 'mobilizacao_' + tipo, rotulo, mobilizacao: idMob, equipId: idEq, equip: t.tag, obra: t.obra, data: t.data, hor: t.hor, lancadoPor: usuarioCampo.nome, tiradaEm: v.em || '', img: v.img }); return id; };
+    const fHor = await foto(mob.fotoHor, 'horimetro', 'Horímetro'), fPlaca = await foto(mob.fotoPlaca, 'placa', 'Plaqueta / documento');
+    const fEq = {}; for (const [k, r] of MOB_FOTOS) fEq[k] = await foto(mob.fotos[k], k, r);
+    const ck = []; for (const [i, c] of mob.check.entries()) ck.push({ t: c.t, st: c.st, obs: c.obs, foto: await foto(c.foto, 'check', c.t) });
+    const av = []; for (const a of mob.avarias) av.push({ desc: a.desc, foto: await foto(a.foto, 'avaria', 'Avaria: ' + a.desc) });
+    const eq = { id: idEq, obra: t.obra, tag: t.tag, codModelo, placa: t.placa, familia: mob.familia, prop: mob.prop, ano: t.ano, status: 'Mobilizado', dataMob: t.data, horMob: parseFloat(String(t.hor).replace(',', '.')) || t.hor,
+      custoHora: 0, cadastroPendente: true, mobilizacaoId: idMob, origem: 'campo', criadoPor: usuarioCampo.nome, criadoEm: ag };
+    await fbSalvar('equipamentos', eq); (dadosCampo.equipamentos = dadosCampo.equipamentos || []).push(eq);
+    await fbSalvar('mobilizacoes', { id: idMob, tipo: 'mobilizacao', equipId: idEq, tag: t.tag, obra: t.obra, data: t.data, hora: t.hora, familia: mob.familia, familiaNome: t.familiaNome, codModelo, modeloNome: t.modeloNome,
+      prop: mob.prop, empresaNome: t.empresaNome, placa: t.placa, ano: t.ano, hor: t.hor, comb: t.comb, fotoHor: fHor, fotoPlaca: fPlaca, fotos: fEq, checklist: ck, avarias: av, acess: t.acess,
+      nomeRec: t.nomeRec, sigRec: t.sigRec, nomeEnt: t.nomeEnt, sigEnt: t.sigEnt, lancadoPor: usuarioCampo.nome, validadoEm: ag, obraNome: t.obraNome });
+    t.validadoEm = ag; t.tag = eq.tag;
+    _tkModal(termoMobHtml(t), `<button class="btn btn-green" style="flex:1" onclick="document.getElementById('tk-ov').remove();showScreen('home')">Concluir</button>`);
+    toast('✓ ' + eq.tag + ' mobilizado', 'ok'); mob = null;
+  } catch (e) { toast('Não consegui salvar: ' + (e.message || e), 'err'); if (b) { b.disabled = false; b.textContent = '✓ Validar mobilização'; } }
+}
+// cartão da tela inicial
+function _mobCard() {
+  const c = document.getElementById('card-mob'); if (!c) return;
+  const pode = typeof podeModulo === 'function' && podeModulo('mobilizacao') && okModuloAtivo('mobilizacao', usuarioCampo && usuarioCampo.obra);
+  c.style.display = pode ? '' : 'none';
+}
+(function () {
+  const oA = typeof _okAplicarModulosCampo === 'function' ? _okAplicarModulosCampo : null;
+  if (oA) _okAplicarModulosCampo = function () { const r = oA.apply(this, arguments); _mobCard(); return r; };
+  const oPM = podeModulo;
+  podeModulo = function (k) { if (k === 'mobilizacao') { const u = usuarioCampo; if (!u) return false; if (u.perfil === 'Admin') return true;
+      const pf = (dadosCampo.perfis || []).find(p => p.nome === u.perfil); if (pf && pf.perms && pf.perms.mobilizacao !== undefined) return !!pf.perms.mobilizacao;
+      if (u.perms && u.perms.mobilizacao !== undefined) return !!u.perms.mobilizacao; return u.perfil === 'Manutenção (campo)'; }
+    return oPM.apply(this, arguments); };
 })();
 
 // Salvar sessão ao entrar

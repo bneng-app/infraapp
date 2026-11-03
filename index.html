@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v2.86 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v2.87 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -3825,7 +3825,7 @@ async function sincronizarTudo() {
   if (!db || !_firebaseReady) return;
   const colecoes = ['obras','empresas','ua','cargos','turnos','equipes','funcionarios',
     'familias','modelos','equipamentos','frentes','tiposServico','tiposPerdas',
-    'aponMO','aponEQ','diesel','perdas','tanques','movTanques','notasFiscais','produtos','perfis','orcamentos','republicas'];
+    'aponMO','aponEQ','diesel','perdas','tanques','movTanques','notasFiscais','produtos','perfis','orcamentos','republicas','mobilizacoes'];
 
   // Check if Firebase was ever initialized
   let fbInicializado = false;
@@ -8049,6 +8049,7 @@ const MODULOS = [
   ['qrcodes',      'QR Codes',                   []],
   ['config',       'Configurações ADM',          []],
   ['abastecimento', 'Abastecimento no app de campo', []],
+  ['mobilizacao', 'Mobilização no app de campo', []],
 ];
 const PERFIS_PADRAO = [
   { id:'pf-admin',       nome:'Admin',       tipo:'painel', cor:'red',   sistema:true, desc:'acesso total',
@@ -8062,6 +8063,8 @@ const PERFIS_PADRAO = [
   { id:'pf-abastecedor', nome:'Abastecedor', tipo:'painel', cor:'amber', sistema:true, desc:'somente notas fiscais e diesel',
     perms:{dashboards:false,cadastros:false,apontamentos:false,almoxarifado:true,relatorios:false,qrcodes:false,config:false,abastecimento:true} },
   // v2.74: perfis por setor — cada um vê só as telas marcadas
+  { id:'pf-manut-campo', nome:'Manutenção (campo)', tipo:'campo', cor:'amber', sistema:true, desc:'mobiliza equipamentos pelo app de campo',
+    perms:{mobilizacao:true} },
   { id:'pf-manutencao', nome:'Manutenção EQ', tipo:'painel', cor:'amber', sistema:true, desc:'só o Setor Manutenção EQ',
     perms:{almoxarifado:true,abastecimento:true}, telas:{'produtos':true,'notas-diesel':true,'tanques':true,'apon-diesel':true,'dash-abs':true} },
   { id:'pf-lean', nome:'Lean', tipo:'painel', cor:'blue', sistema:true, desc:'só frentes de serviço e as placas QR',
@@ -8139,8 +8142,8 @@ function salvarPerfil() {
   if (listaPerfis().some(p => p.nome.toLowerCase() === nome.toLowerCase() && p.id !== id)) { toast('Já existe um perfil com esse nome','error'); return; }
   const tipo = $('pf-tipo').value;
   // v2.52: perfil de campo escolhe Apropriação e/ou Abastecimento no app
-  const perms = {}; MODULOS.forEach(([k]) => perms[k] = tipo === 'campo' ? ((k === 'apontamentos' || k === 'abastecimento') && !!$('pf-perm-' + k)?.checked) : !!$('pf-perm-' + k)?.checked);
-  if (tipo === 'campo' && !perms.apontamentos && !perms.abastecimento) { toast('Marque pelo menos Apropriação ou Abastecimento para o app de campo.', 'error'); return; }
+  const perms = {}; MODULOS.forEach(([k]) => perms[k] = tipo === 'campo' ? ((k === 'apontamentos' || k === 'abastecimento' || k === 'mobilizacao') && !!$('pf-perm-' + k)?.checked) : !!$('pf-perm-' + k)?.checked);
+  if (tipo === 'campo' && !perms.apontamentos && !perms.abastecimento && !perms.mobilizacao) { toast('Marque pelo menos um módulo do app de campo (Apropriação, Abastecimento ou Mobilização).', 'error'); return; }
   const obj = { id: id || ('pf' + Date.now()), nome, desc: ($('pf-desc').value||'').trim(), cor: $('pf-cor').value, tipo, perms };
   dados.perfis = (dados.perfis || []).filter(x => x.id !== obj.id && x.nome !== obj.nome);
   dados.perfis.push(obj);
@@ -11556,9 +11559,9 @@ function _pfGrupoSync() { document.querySelectorAll('#pf-telas .pf-tg').forEach(
     const r = oTipo.apply(this, arguments);
     const campo = $('pf-tipo').value === 'campo';
     MODULOS.forEach(([k, l]) => { const c = $('pf-perm-' + k); const lb = c && c.closest('label'); if (!lb) return;
-      const doApp = k === 'apontamentos' || k === 'abastecimento';
+      const doApp = k === 'apontamentos' || k === 'abastecimento' || k === 'mobilizacao';
       lb.style.display = doApp ? '' : 'none';
-      lb.lastChild.textContent = k === 'apontamentos' ? ' Apropriação (mão de obra e equipamentos)' : k === 'abastecimento' ? ' Abastecimento (diesel)' : ' ' + l; });
+      lb.lastChild.textContent = k === 'apontamentos' ? ' Apropriação (mão de obra e equipamentos)' : k === 'abastecimento' ? ' Abastecimento (diesel)' : k === 'mobilizacao' ? ' Mobilização de equipamentos' : ' ' + l; });
     if ($('pf-perms-tit')) $('pf-perms-tit').textContent = campo ? 'O que essa pessoa faz no app de campo' : 'App de campo (só se essa pessoa também usar o celular)';
     if ($('pf-perms-hint')) $('pf-perms-hint').textContent = campo ? 'Marque pelo menos um.' : 'Não muda nada no painel — o painel segue as telas marcadas acima. Pode deixar desmarcado se ela não aponta pelo celular.';
     return r;
@@ -11774,6 +11777,7 @@ const OK_MOD_PADRAO = {
   locacao:       { nome: 'Locação de equipamentos', situacao: 'disponivel', padrao: true },
   orcamento:     { nome: 'Orçamento previsto', situacao: 'disponivel', padrao: true },
   republicas:    { nome: 'Repúblicas e alojamentos', situacao: 'dev', padrao: false, desc: 'Cadastro de repúblicas e alojamentos, vagas, moradores e custo por pessoa' },
+  mobilizacao:   { nome: 'Mobilização de equipamentos', situacao: 'dev', padrao: false, desc: 'App de campo: TAG automática, horímetro, checklist, fotos, avarias e termo assinado ao mobilizar' },
 };
 window.OK_MODULOS = JSON.parse(JSON.stringify(OK_MOD_PADRAO));
 async function _okCarregarModulos() {
@@ -11980,6 +11984,58 @@ function repSaida(mid) {
   if (m.saida < (m.entrada || '')) { m.saida = ''; delete m.saida; toast('A saída não pode ser antes da entrada.', 'error'); return; }
   if (db && _firebaseReady) fbSave('republicas', r.id, r).catch(() => {});
   _repMoradoresRender(); renderRepublicas(); try { renderAlojados(); } catch (e) {} toast(m.nome + ' saiu de ' + r.nome);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// v2.87: TERMO DE MOBILIZAÇÃO (feito no app de campo) na lista de equipamentos
+// ═══════════════════════════════════════════════════════════════
+(function () {
+  const oR = window.renderEquipamentos || renderEquipamentos;
+  renderEquipamentos = window.renderEquipamentos = function () {
+    const r = oR.apply(this, arguments);
+    const ids = {}; (dados.equipamentos || []).forEach(e => ids[e.id] = e);
+    document.querySelectorAll('#tbody-equip tr').forEach(tr => {
+      const cb = tr.querySelector('[data-id]'), e = cb && ids[cb.dataset.id]; if (!e) return;
+      const tdTag = tr.children[2]; if (tdTag && e.mobilizacaoId && !tdTag.querySelector('.mob-b')) tdTag.insertAdjacentHTML('beforeend', ` <button class="btn btn-outline btn-sm mob-b" style="padding:2px 7px;font-size:11px" onclick="verTermoMob('${e.mobilizacaoId}')" title="Termo de mobilização">📋 termo</button>`);
+      const tdC = tr.children[10]; if (tdC && e.cadastroPendente && !+e.custoHora) tdC.innerHTML = '<span class="tag tag-amber" style="font-size:10.5px" title="Mobilizado pelo app de campo: falta custo/hora e locação">completar cadastro</span>';
+    });
+    return r;
+  };
+})();
+async function _mobFotoImg(id) { if (!id) return ''; try { const d = await db.collection('fotos').doc(id).get(); return d.exists ? d.data().img : ''; } catch (e) { return ''; } }
+async function verTermoMob(id) {
+  let m = (dados.mobilizacoes || []).find(x => x.id === id);
+  if (!m) { try { const d = await db.collection('mobilizacoes').doc(id).get(); if (d.exists) m = { id, ...d.data() }; } catch (e) {} }
+  if (!m) { toast('Termo ainda não chegou ao servidor (o celular pode estar sem internet).', 'error'); return; }
+  let ov = document.getElementById('mob-ov'); if (ov) ov.remove();
+  ov = document.createElement('div'); ov.id = 'mob-ov'; ov.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.75);overflow:auto;padding:24px 16px';
+  ov.onclick = e => { if (e.target === ov) ov.remove(); };
+  const L = (k, v) => v === '' || v == null ? '' : `<div><div style="font-size:11px;color:#666;text-transform:uppercase;letter-spacing:.06em">${k}</div><div style="font-weight:700">${_e(v)}</div></div>`;
+  const ft = (fid, rot) => fid ? `<figure style="margin:0"><div class="mob-foto" data-f="${_e(fid)}" style="aspect-ratio:4/3;border-radius:8px;background:#eee center/cover;display:flex;align-items:center;justify-content:center;font-size:11px;color:#888">carregando…</div><figcaption style="font-size:11px;color:#555;margin-top:3px">${_e(rot)}</figcaption></figure>` : '';
+  const ck = m.checklist || [], nok = ck.filter(c => c.st === 'nok');
+  ov.innerHTML = `<div id="mob-termo" style="background:#fff;color:#111;max-width:860px;margin:0 auto;border-radius:14px;padding:24px;font-family:Arial,sans-serif">
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap"><div><img src="${typeof _TK_LOGO !== 'undefined' ? _TK_LOGO : ''}" style="width:200px" alt="ObraKontrol"><div style="font-size:12px;color:#555;margin-top:4px">${_e(getNomeObra(m.obra) || m.obraNome || '')}</div></div>
+      <div style="text-align:right"><div style="font-size:12px;letter-spacing:.1em;color:#555">TERMO DE MOBILIZAÇÃO</div><div style="font-size:34px;font-weight:900;color:#E30613;font-family:monospace">${_e(m.tag)}</div><div style="font-size:12px;color:#555">${_e(String(m.data || '').split('-').reverse().join('/'))} ${_e(m.hora || '')}</div></div></div>
+    <hr style="border:0;border-top:1px solid #ddd;margin:16px 0">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">${L('Família', m.familiaNome)}${L('Modelo', m.modeloNome)}${L('Placa / série', m.placa)}${L('Ano', m.ano)}${L('Proprietária', m.empresaNome)}${L('Horímetro / km', m.hor)}${L('Combustível na chegada', m.comb)}${L('Registrado por', m.lancadoPor)}</div>
+    <h3 style="font-size:14px;margin:20px 0 8px">Checklist de recebimento · ${ck.filter(c => c.st === 'ok').length} OK${nok.length ? ' · <span style="color:#B91C1C">' + nok.length + ' com problema</span>' : ''}</h3>
+    <table style="width:100%;border-collapse:collapse;font-size:12.5px">${ck.map(c => `<tr style="border-bottom:1px solid #eee"><td style="padding:5px 4px">${_e(c.t)}${c.obs ? '<div style="color:#B91C1C;font-size:11.5px">' + _e(c.obs) + '</div>' : ''}</td>
+      <td style="padding:5px 4px;text-align:right;font-weight:700;color:${c.st === 'nok' ? '#B91C1C' : c.st === 'ok' ? '#15803D' : '#64748B'}">${c.st === 'nok' ? 'NÃO OK' : c.st === 'ok' ? 'OK' : 'N/A'}</td></tr>`).join('')}</table>
+    <h3 style="font-size:14px;margin:20px 0 8px">Fotos</h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px">${ft(m.fotoHor, 'Horímetro')}${Object.entries(m.fotos || {}).map(([k, f]) => ft(f, { frente: 'Frente', tras: 'Traseira', esq: 'Lateral esquerda', dir: 'Lateral direita', painel: 'Painel' }[k] || k)).join('')}${ft(m.fotoPlaca, 'Plaqueta / documento')}
+      ${ck.filter(c => c.foto).map(c => ft(c.foto, 'Problema: ' + c.t)).join('')}${(m.avarias || []).filter(a => a.foto).map(a => ft(a.foto, 'Avaria: ' + a.desc)).join('')}</div>
+    <h3 style="font-size:14px;margin:20px 0 8px">Avarias que já vieram</h3><div style="font-size:13px">${(m.avarias || []).length ? m.avarias.map(a => '• ' + _e(a.desc)).join('<br>') : 'Nenhuma registrada.'}</div>
+    ${m.acess ? `<h3 style="font-size:14px;margin:20px 0 8px">Acessórios recebidos</h3><div style="font-size:13px">${_e(m.acess)}</div>` : ''}
+    <div style="display:flex;gap:24px;margin-top:24px;flex-wrap:wrap">${[['Recebeu', m.nomeRec, m.sigRec], ['Entregou', m.nomeEnt, m.sigEnt]].filter(x => x[1] || x[2]).map(([r, n, s]) => `<div style="flex:1;min-width:220px;text-align:center">${s ? `<img src="${s}" style="width:100%;max-width:300px;height:70px;object-fit:contain;border-bottom:1px solid #999">` : '<div style="height:70px;border-bottom:1px solid #999"></div>'}<div style="font-size:12px;color:#555">${r}: ${_e(n || '')}</div></div>`).join('')}</div>
+    <div style="margin-top:16px;font-size:12px;color:#15803D;font-weight:700">✓ Validado no app de campo em ${_e(new Date(m.validadoEm).toLocaleString('pt-BR'))}</div>
+  </div>
+  <div style="display:flex;gap:8px;justify-content:center;margin-top:14px"><button class="btn btn-outline" style="background:#fff" onclick="document.getElementById('mob-ov').remove()">Fechar</button><button class="btn btn-primary" onclick="imprimirTermoMob()">🖨 Imprimir / PDF</button></div>`;
+  document.body.appendChild(ov);
+  ov.querySelectorAll('.mob-foto').forEach(async el => { const img = await _mobFotoImg(el.dataset.f); if (img) { el.style.backgroundImage = `url('${img}')`; el.textContent = ''; el.style.cursor = 'zoom-in'; el.onclick = () => window.open().document.write('<img src="' + img + '" style="max-width:100%">'); } else el.textContent = 'sem foto'; });
+}
+function imprimirTermoMob() {
+  const t = document.getElementById('mob-termo'); if (!t) return; const w = window.open('', '_blank'); if (!w) { toast('Libere as janelas pop-up para imprimir.', 'error'); return; }
+  w.document.write('<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Termo de mobilização</title><style>body{margin:0;padding:16px;font-family:Arial,sans-serif}@media print{body{padding:0}}</style></head><body>' + t.outerHTML + '<script>setTimeout(()=>print(),600)<\/script></body></html>'); w.document.close();
 }
 
 // Apply configs on load
