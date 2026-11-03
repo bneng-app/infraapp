@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.03 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.04 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -1710,7 +1710,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
   <div id="qr-func"><div class="card" style="padding:0"><div class="table-wrap" style="max-height:420px;overflow:auto"><table><thead><tr><th style="width:34px;position:sticky;top:0;background:var(--bg)"><input type="checkbox" id="qr-todos-func" title="Marcar / desmarcar todos" onclick="qrMarcarTodos(this.checked)"/></th><th style="position:sticky;top:0;background:var(--bg)" colspan="3"><label for="qr-todos-func" style="cursor:pointer">Marcar todos <span id="qr-cont-func" style="font-weight:400;color:var(--text-3)"></span></label></th></tr></thead><tbody id="qr-grid-func"></tbody></table></div></div></div>
   <div id="qr-equip" style="display:none"><div class="card" style="padding:0"><div class="table-wrap" style="max-height:420px;overflow:auto"><table><thead><tr><th style="width:34px;position:sticky;top:0;background:var(--bg)"><input type="checkbox" id="qr-todos-equip" title="Marcar / desmarcar todos" onclick="qrMarcarTodos(this.checked)"/></th><th style="position:sticky;top:0;background:var(--bg)" colspan="3"><label for="qr-todos-equip" style="cursor:pointer">Marcar todos <span id="qr-cont-equip" style="font-weight:400;color:var(--text-3)"></span></label></th></tr></thead><tbody id="qr-grid-equip"></tbody></table></div></div></div>
   <div id="qr-frente" style="display:none"><div class="card" style="padding:0"><div class="table-wrap" style="max-height:420px;overflow:auto"><table><thead><tr><th style="width:34px;position:sticky;top:0;background:var(--bg)"><input type="checkbox" id="qr-todos-frente" title="Marcar / desmarcar todos" onclick="qrMarcarTodos(this.checked)"/></th><th style="position:sticky;top:0;background:var(--bg)" colspan="3"><label for="qr-todos-frente" style="cursor:pointer">Marcar todos <span id="qr-cont-frente" style="font-weight:400;color:var(--text-3)"></span></label></th></tr></thead><tbody id="qr-grid-frente"></tbody></table></div></div>
-    <div style="font-size:12px;color:var(--text-3);margin-top:8px">A placa da frente fica no local de trabalho: o apropriador lê o QR e a frente já vem escolhida no app. Para imprimir maior, clique no QR gerado e use o modo grande.</div></div>
+    <div style="font-size:12px;color:var(--text-3);margin-top:8px">A placa da frente fica no local de trabalho: no app, o apropriador lê o QR e a frente já vem escolhida; com a câmera do celular, qualquer pessoa com acesso vê o dia daquela frente. Para imprimir maior, clique no QR gerado e use o modo grande.</div></div>
   <div id="qr-gerados-wrap" style="display:none;margin-top:1rem">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
       <strong id="qr-gerados-tit" style="font-size:14px"></strong>
@@ -5444,7 +5444,7 @@ function _qrItens(semFiltro) {
   const frente = _qrDaObra(dados.frentes||[]).filter(f => f.cod).filter(okSt)
     .filter(f => !b || String(f.cod||'').toLowerCase().includes(b) || String(f.desc||f.nome||'').toLowerCase().includes(b))
     .sort((a, c) => String(a.cod).localeCompare(String(c.cod), 'pt-BR', { numeric:true }))
-    .map(f => ({ id:'FR-' + f.id, col:'frentes', rid:f.id, ger:f.qrGeradoEm || '', texto:'frente:' + f.cod, label:f.cod, sub:['Frente de serviço', f.desc || f.nome, obraCod(f.obra)].filter(Boolean).join(' · ') }));
+    .map(f => ({ id:'FR-' + f.id, col:'frentes', rid:f.id, ger:f.qrGeradoEm || '', texto:_qrFrenteLink(f.cod), label:f.cod, sub:['Frente de serviço', f.desc || f.nome, obraCod(f.obra)].filter(Boolean).join(' · ') }));
   return { func, equip, frente };
 }
 // v2.28: a tela só lista (rápido); o QR é gerado só para quem for marcado
@@ -12530,7 +12530,7 @@ function imprimirFrentesA4() {
   const semLogo = new Set();
   const pags = lista.map(f => {
     const o = (dados.obras || []).find(x => x.id === f.obra) || {}; if (!o.logo) semLogo.add(o.nome || o.cod || 'sem obra');
-    const nome = f.desc || f.nome || '', qr = _qrDataUrl('frente:' + f.cod, 900);
+    const nome = f.desc || f.nome || '', qr = _qrDataUrl(_qrFrenteLink(f.cod), 900);
     return `<section class="pg"><div class="info">
       <div class="topo">${o.logo ? `<img class="logo" src="${o.logo}" alt="">` : ''}<div class="obra">${_e(o.nome || '')}</div>${o.cod ? `<div class="obracod">${_e(o.cod)}${o.local ? ' · ' + _e(o.local) : ''}</div>` : ''}</div>
       <div class="rot">FRENTE DE SERVIÇO</div>
@@ -13072,6 +13072,10 @@ async function diaDetalhe(id) {
       cap.textContent = f.tiradaEm ? new Date(f.tiradaEm).toLocaleTimeString('pt-BR').slice(0, 5) : ''; } catch (e) { box.textContent = '—'; } });
 }
 
+
+// v3.04: QR da frente vira link — a câmera do celular abre o app de campo na tela "Frente hoje" (o app também lê para escolher a frente)
+function _qrFrenteLink(cod) { let base = 'https://obrakontrol.github.io/campo.html'; try { if (/^https?:/.test(location.protocol) && !/localhost|127\.0\.0\.1/.test(location.host)) base = new URL('campo.html', location.href).href.split('?')[0]; } catch (e) {}
+  return base + '?c=' + encodeURIComponent(window.OK_CLIENTE || 'tenco') + '&frente=' + encodeURIComponent(cod); }
 // Apply configs on load
 setTimeout(applyConfigs, 200);
 setTimeout(function() {

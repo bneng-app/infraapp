@@ -883,7 +883,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.66</div>
+  <div class="login-versao">ObraKontrol Campo · v2.67</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -4660,6 +4660,85 @@ async function mobRascExcluir(rid) {
 
 // v2.66: o painel vê o operador de cada equipamento no turno ao vivo
 (function () { const oF = _turnoFoto; _turnoFoto = function () { const o = oF.apply(this, arguments); o.eq = (o.eq || []).map(x => { const v = ap.eq.get(x.id) || {}; return { ...x, operador: v.operador || '', operadorMat: v.operadorMat || '' }; }); return o; }; })();
+
+// ══════════════════════════════════════════════════════════════
+// v2.67: FRENTE HOJE — ler a placa da frente (câmera do celular ou cartão "Ver frente") mostra o dia daquela frente:
+// turnos abertos/encerrados, quem está lá, equipamentos e operadores, paradas, produção e fotos.
+// A placa nova traz um link (campo.html?c=<cliente>&frente=<código>); a antiga "frente:<código>" continua valendo.
+// ══════════════════════════════════════════════════════════════
+function _fhCodDe(texto) {
+  const t = String(texto || '').trim();
+  try { if (/^https?:\/\//i.test(t)) { const u = new URL(t); const f = u.searchParams.get('frente') || u.searchParams.get('f'); if (f) return f; } } catch (e) {}
+  const m = /^frente:\s*(.+)$/i.exec(t); return m ? m[1].trim() : '';
+}
+let _fhCod = '';
+function _fhTela() {
+  if (document.getElementById('screen-fh')) return;
+  const ref = document.getElementById('screen-mob');
+  const back = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>';
+  ref.insertAdjacentHTML('afterend', `<div class="screen" id="screen-fh"><div class="topbar"><div class="topbar-row"><div class="tb-left"><button class="tb-back" onclick="showScreen('home')" aria-label="Voltar">${back}</button><div><div class="topbar-title">Frente hoje</div><div class="topbar-sub" id="fh-sub"></div></div></div>
+    <button type="button" class="mob-guardar" onclick="abrirFrenteHoje(_fhCod)">↻ Atualizar</button></div></div><div class="content" id="fh-content"></div></div>`);
+}
+async function abrirFrenteHoje(cod) {
+  if (!cod) return; _fhCod = cod; _fhTela(); showScreen('fh');
+  const el = document.getElementById('fh-content'), hoje = _hojeISO();
+  const fr = (dadosCampo.frentes || []).find(f => String(f.cod).toLowerCase() === String(cod).toLowerCase());
+  document.getElementById('fh-sub').textContent = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' });
+  el.innerHTML = `<div class="fh-top"><div class="fh-cod">${_esc(fr ? fr.cod : cod)}</div><div class="fh-nome">${_esc(fr ? (fr.desc || fr.nome || '') : 'Frente não encontrada no cadastro')}</div></div><div class="fh-vazio">Carregando o dia da frente…</div>`;
+  let ts = null;
+  if (isOnline && db && _fbReady) { try { const s = await db.collection('turnosAbertos').where('frente', '==', fr ? fr.cod : cod).where('data', '==', hoje).get(); ts = s.docs.map(d => ({ id: d.id, ...d.data() })).filter(t => t.status !== 'descartado'); } catch (e) { ts = null; } }
+  if (ts === null) { el.querySelector('.fh-vazio').textContent = 'Sem internet agora. Conecte e toque em Atualizar.'; return; }
+  ts.sort((a, b) => (a.status === 'aberto' ? 0 : 1) - (b.status === 'aberto' ? 0 : 1) || String(a.horaIni).localeCompare(String(b.horaIni)));
+  const abertos = ts.filter(t => t.status === 'aberto'), pessoas = new Set(abertos.flatMap(t => (t.mo || []).map(x => x.id))).size, equips = new Set(abertos.flatMap(t => (t.eq || []).map(x => x.id))).size;
+  const parAb = abertos.flatMap(t => (t.paradas || []).filter(p => !p.fim));
+  const k = (n, l, c) => `<div class="fh-k${c ? ' ' + c : ''}"><b>${n}</b><span>${l}</span></div>`;
+  const parH = p => { if (!p.ini || !p.fim) return ''; const m = x => { const [a, b] = String(x).split(':').map(Number); return a * 60 + b; }; let d = m(p.fim) - m(p.ini); if (d < 0) d += 1440; return ' · ' + (d / 60).toFixed(1).replace('.', ',') + ' h'; };
+  const card = t => `<div class="fh-t ${t.status}">
+      <div class="fh-th"><div><b>${_esc(t.servico || '—')}</b><div class="fh-s">${_esc(t.apontador || '')} · ${_esc(t.horaIni || '')}${t.horaFim ? '–' + _esc(t.horaFim) : ''}</div></div><span class="fh-st ${t.status}">${t.status === 'aberto' ? '● Aberto' : 'Encerrado'}</span></div>
+      ${t.qtd ? `<div class="fh-l">Produção: <b>${_esc(String(t.qtd).replace('.', ','))} ${_esc(t.unid || '')}</b></div>` : t.prodStatus === 'andamento' ? '<div class="fh-l">Produção: serviço em andamento</div>' : ''}
+      <div class="fh-sec">Equipe (${(t.mo || []).length})</div><div class="fh-chips">${(t.mo || []).map(x => `<span>${_esc(x.nome)}</span>`).join('') || '<i>—</i>'}</div>
+      <div class="fh-sec">Equipamentos (${(t.eq || []).length})</div>${(t.eq || []).map(x => `<div class="fh-l"><b>${_esc(x.tag)}</b>${x.operador ? ' · ' + _esc(x.operador) : ''}</div>`).join('') || '<div class="fh-l"><i>—</i></div>'}
+      ${(t.paradas || []).length ? `<div class="fh-sec">Paradas (${t.paradas.length})</div>${t.paradas.map(p => `<div class="fh-l ${p.fim ? '' : 'fh-par'}">${p.fim ? '' : '⏸ '}${_esc(p.motivo)} · ${_esc(p.quem || '')} · ${_esc(p.ini || '')}${p.fim ? '–' + _esc(p.fim) + parH(p) : ' (parado agora)'}</div>`).join('')}` : ''}
+      ${(t.fotosFrente || []).length ? `<div class="fh-sec">Fotos (${t.fotosFrente.length})</div><div class="fh-fotos">${t.fotosFrente.map(f => `<div class="fh-f" data-fh="${_esc(f)}"></div>`).join('')}</div>` : ''}
+    </div>`;
+  el.innerHTML = `<div class="fh-top"><div class="fh-cod">${_esc(fr ? fr.cod : cod)}</div><div class="fh-nome">${_esc(fr ? (fr.desc || fr.nome || '') : '')}</div></div>
+    <div class="fh-ks">${k(abertos.length, 'abertos agora', abertos.length ? 'ok' : '')}${k(pessoas, 'pessoas')}${k(equips, 'equipamentos')}${k(parAb.length, 'paradas agora', parAb.length ? 'warn' : '')}</div>
+    ${ts.length ? ts.map(card).join('') : '<div class="fh-vazio">Nenhum apontamento aberto nesta frente hoje.</div>'}
+    <div class="fh-rod">Atualizado às ${new Date().toTimeString().slice(0, 5)}</div>`;
+  el.querySelectorAll('[data-fh]').forEach(async d => { try { const x = await db.collection('fotos').doc(d.dataset.fh).get(); const f = x.exists ? x.data() : null; if (f && f.img) { d.style.backgroundImage = `url('${f.img}')`; d.onclick = () => { const ov = document.createElement('div'); ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:3000;display:flex;align-items:center;justify-content:center;padding:16px'; ov.innerHTML = `<img src="${f.img}" style="max-width:100%;max-height:100%;border-radius:10px"/>`; ov.onclick = () => ov.remove(); document.body.appendChild(ov); }; } } catch (e) {} });
+}
+(function () {
+  const css = document.createElement('style');
+  css.textContent = `.fh-top{background:#fff;border-radius:16px;padding:14px 16px;margin-bottom:10px;border-left:5px solid var(--red)}
+    .fh-cod{font-size:26px;font-weight:900;font-family:monospace}.fh-nome{font-size:15px;font-weight:700;color:var(--text2)}
+    .fh-ks{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}.fh-k{background:#fff;border-radius:12px;padding:8px 4px;text-align:center}
+    .fh-k b{display:block;font-size:22px}.fh-k span{font-size:10.5px;color:var(--text2)}.fh-k.ok b{color:#15803D}.fh-k.warn b{color:#B45309}
+    .fh-t{background:#fff;border-radius:16px;padding:12px 14px;margin-bottom:10px;border:1px solid rgba(0,0,0,.06)}.fh-t.aberto{border-left:4px solid #16A34A}
+    .fh-th{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}.fh-s{font-size:12px;color:var(--text2)}
+    .fh-st{font-size:11.5px;font-weight:800;border-radius:10px;padding:3px 8px;background:#F3F4F6;color:#4B5563;white-space:nowrap}.fh-st.aberto{background:#DCFCE7;color:#15803D}
+    .fh-sec{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--text2);margin:10px 0 4px}
+    .fh-l{font-size:13px;padding:2px 0}.fh-par{color:#B45309;font-weight:700}
+    .fh-chips{display:flex;flex-wrap:wrap;gap:4px}.fh-chips span{font-size:12px;background:#F3F4F6;border-radius:8px;padding:3px 7px}
+    .fh-fotos{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.fh-f{aspect-ratio:1;border-radius:10px;background:#E5E7EB center/cover;cursor:zoom-in}
+    .fh-vazio{background:#fff;border-radius:16px;padding:22px;text-align:center;color:var(--text2)}.fh-rod{text-align:center;font-size:11.5px;color:var(--text2);margin:6px 0 20px}
+    #screen-fh .mob-guardar{margin-left:auto}`;
+  document.head.appendChild(css);
+  // cartão na tela inicial
+  const res = document.querySelector('.hcard[onclick="abrirMeuResumo()"]');
+  if (res) res.insertAdjacentHTML('beforebegin', `<div class="hcard" onclick="abrirQR('verfrente')"><svg class="hic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 17h4v4"/></svg><div class="hcard-t">Ver frente</div><div class="hcard-s">Leia a placa e veja o dia</div></div>`);
+  // QR com link → mesmo tratamento do "frente:<código>"; contexto "verfrente" abre a tela
+  const oProc = processarQR;
+  processarQR = function (texto, contexto) {
+    const cod = _fhCodDe(texto);
+    if (contexto === 'verfrente') { if (cod) { setTimeout(() => abrirFrenteHoje(cod), 300); return { ok: true }; } toast('Esse QR não é de frente de serviço.', 'err'); return; }
+    return oProc.call(this, cod ? 'frente:' + cod : texto, contexto);
+  };
+  // abriu pelo link da placa: guarda e mostra a frente assim que entrar
+  try { const f = new URLSearchParams(location.search).get('frente'); if (f) sessionStorage.setItem('ok_fh_pend', f); } catch (e) {}
+  const oEnt = entrarNoCampo;
+  entrarNoCampo = function () { const r = oEnt.apply(this, arguments); let f = ''; try { f = sessionStorage.getItem('ok_fh_pend') || ''; sessionStorage.removeItem('ok_fh_pend'); } catch (e) {}
+    if (f) setTimeout(() => { abrirFrenteHoje(f); try { history.replaceState(null, '', location.pathname + (new URLSearchParams(location.search).get('c') ? '?c=' + new URLSearchParams(location.search).get('c') : '')); } catch (e) {} }, 600); return r; };
+})();
 
 // Salvar sessão ao entrar
 const _origEntrar = entrarNoCampo;
