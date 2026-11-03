@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v2.93 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v2.94 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -12501,27 +12501,29 @@ function imprimirFrentesA4() {
   const pags = lista.map(f => {
     const o = (dados.obras || []).find(x => x.id === f.obra) || {}; if (!o.logo) semLogo.add(o.nome || o.cod || 'sem obra');
     const nome = f.desc || f.nome || '', qr = _qrDataUrl('frente:' + f.cod, 900);
-    return `<section class="pg">
+    return `<section class="pg"><div class="info">
       <div class="topo">${o.logo ? `<img class="logo" src="${o.logo}" alt="">` : ''}<div class="obra">${_e(o.nome || '')}</div>${o.cod ? `<div class="obracod">${_e(o.cod)}${o.local ? ' · ' + _e(o.local) : ''}</div>` : ''}</div>
       <div class="rot">FRENTE DE SERVIÇO</div>
       <div class="cod">${_e(f.cod)}</div>
       ${nome ? `<div class="nome">${_e(nome)}</div>` : ''}
-      <img class="qr" src="${qr}" alt="QR ${_e(f.cod)}">
-      <div class="inst">Aponte a câmera do app <b>ObraKontrol Campo</b> para abrir esta frente</div>
-      <div class="rod">ObraKontrol</div></section>`;
+      <div class="rod">ObraKontrol</div></div>
+      <div class="lado"><img class="qr" src="${qr}" alt="QR ${_e(f.cod)}"><div class="inst">Aponte a câmera do app <b>ObraKontrol Campo</b><br>para abrir esta frente</div></div></section>`;
   }).join('');
   w.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Placas QR das frentes</title><style>
-    @page{size:A4 portrait;margin:0}*{box-sizing:border-box}html,body{margin:0;font-family:Arial,Helvetica,sans-serif;color:#111;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    .pg{width:210mm;height:297mm;padding:14mm 14mm 10mm;display:flex;flex-direction:column;align-items:center;text-align:center;page-break-after:always;break-after:page;overflow:hidden}
+    @page{size:A4 landscape;margin:0}*{box-sizing:border-box}html,body{margin:0;font-family:Arial,Helvetica,sans-serif;color:#111;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .pg{width:297mm;height:210mm;padding:12mm 14mm;display:flex;gap:10mm;align-items:stretch;page-break-after:always;break-after:page;overflow:hidden}
     .pg:last-child{page-break-after:auto;break-after:auto}
-    .topo{width:100%;display:flex;flex-direction:column;align-items:center;gap:2mm;padding-bottom:5mm;border-bottom:1.2mm solid #E30613}
-    .logo{max-height:26mm;max-width:120mm;object-fit:contain}
-    .obra{font-size:22pt;font-weight:800;line-height:1.15}.obracod{font-size:12pt;color:#555}
-    .rot{margin-top:7mm;font-size:13pt;font-weight:700;letter-spacing:.25em;color:#E30613}
-    .cod{font-size:64pt;font-weight:900;line-height:1;margin-top:2mm;font-family:'Arial Black',Arial,sans-serif}
-    .nome{font-size:28pt;font-weight:800;line-height:1.15;margin-top:3mm;max-width:180mm}
-    .qr{width:125mm;height:125mm;margin-top:auto;image-rendering:pixelated}
-    .inst{margin-top:5mm;font-size:12pt;color:#333}.rod{margin-top:auto;font-size:9pt;color:#999;letter-spacing:.1em}
+    .info{flex:1;min-width:0;display:flex;flex-direction:column;border-right:1.2mm solid #E30613;padding-right:10mm}
+    .topo{display:flex;flex-direction:column;align-items:flex-start;gap:2mm}
+    .logo{max-height:28mm;max-width:110mm;object-fit:contain;object-position:left center}
+    .obra{font-size:24pt;font-weight:800;line-height:1.15;margin-top:2mm}.obracod{font-size:12pt;color:#555}
+    .rot{margin-top:auto;font-size:13pt;font-weight:700;letter-spacing:.25em;color:#E30613}
+    .cod{font-size:76pt;font-weight:900;line-height:1;margin-top:2mm;font-family:'Arial Black',Arial,sans-serif}
+    .nome{font-size:28pt;font-weight:800;line-height:1.15;margin-top:4mm}
+    .rod{margin-top:auto;font-size:9pt;color:#999;letter-spacing:.1em}
+    .lado{flex:0 0 150mm;display:flex;flex-direction:column;align-items:center;justify-content:center}
+    .qr{width:150mm;height:150mm;image-rendering:pixelated}
+    .inst{margin-top:5mm;font-size:12pt;color:#333;text-align:center}
     @media screen{body{background:#666}.pg{background:#fff;margin:10mm auto;box-shadow:0 2px 12px rgba(0,0,0,.4)}}
   </style></head><body>${pags}<script>window.onload=()=>setTimeout(()=>print(),400)<\/script></body></html>`);
   w.document.close();
