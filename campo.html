@@ -883,7 +883,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.50</div>
+  <div class="login-versao">ObraKontrol Campo · v2.51</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -3931,7 +3931,7 @@ function mobRender() {
       <div style="display:flex;gap:10px"><div class="form-group" style="flex:1"><label class="form-label">Chassi</label><input class="form-control" value="${_mobEsc(mob.chassi)}" oninput="mob.chassi=this.value.toUpperCase()" style="text-transform:uppercase"/></div>
         <div class="form-group" style="flex:1"><label class="form-label">Nº de série</label><input class="form-control" value="${_mobEsc(mob.serie)}" oninput="mob.serie=this.value"/></div></div>
       <div class="form-group"><label class="form-label">Validade do documento (CRLV / licenciamento)</label><input class="form-control" type="date" value="${_mobEsc(mob.docVal)}" oninput="mob.docVal=this.value"/></div>
-      <div class="form-group"><label class="form-label">Ano</label><input class="form-control" type="number" inputmode="numeric" value="${_mobEsc(mob.ano)}" oninput="mob.ano=this.value" placeholder="Ex.: 2021"/></div>
+      <div class="form-group"><label class="form-label">Ano de fabricação</label><input class="form-control" type="number" inputmode="numeric" value="${_mobEsc(mob.ano)}" oninput="mob.ano=this.value" placeholder="Ex.: 2021"/></div>
       <div class="form-group"><label class="form-label">Foto da plaqueta ou documento</label>${_mobFotoBtn('placa', 'Foto da plaqueta', mob.fotoPlaca, false)}</div>
     </div></div>`;
   }
@@ -4026,7 +4026,7 @@ function termoMobHtml(t) {
     <div class="tk-c" style="font-size:11px;color:#555">${_mobEsc(t.cliente || 'TENCO')}${t.obraNome ? ' · ' + _mobEsc(t.obraNome) : ''}</div>
     <div class="tk-t">TERMO DE MOBILIZAÇÃO</div>
     <div class="tk-big" style="font-size:30px">${_mobEsc(t.tag)}</div><hr>
-    ${L('Data', String(t.data || '').split('-').reverse().join('/') + ' ' + (t.hora || ''))}${L('Família', t.familiaNome)}${L('Modelo', t.modeloNome)}${L('Placa', t.placa)}${L('Chassi', t.chassi)}${L('Nº de série', t.serie)}${L('Validade do documento', t.docVal ? String(t.docVal).split('-').reverse().join('/') : '')}${L('Ano', t.ano)}${L('Proprietária', t.empresaNome)}
+    ${L('Data', String(t.data || '').split('-').reverse().join('/') + ' ' + (t.hora || ''))}${L('Família', t.familiaNome)}${L('Modelo', t.modeloNome)}${L('Placa', t.placa)}${L('Chassi', t.chassi)}${L('Nº de série', t.serie)}${L('Validade do documento', t.docVal ? String(t.docVal).split('-').reverse().join('/') : '')}${L('Ano de fabricação', t.ano)}${L('Proprietária', t.empresaNome)}
     <hr>${L('Horímetro/Km', t.hor)}${L('Combustível', t.comb)}
     <hr><div class="tk-c" style="color:#555">CHECKLIST</div>
     ${L('Itens OK', (t.checklist || []).filter(c => c.st === 'ok').length + ' de ' + (t.checklist || []).length)}
