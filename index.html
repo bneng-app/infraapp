@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v2.96 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v2.97 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -3153,6 +3153,8 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
             <button class="btn btn-outline btn-sm" type="button" id="obra-logo-rem" style="display:none" onclick="obraLogoRemover()">Remover</button>
           </div>
           <div style="font-size:11px;color:var(--text-3);margin-top:3px">PNG com fundo transparente fica melhor. Ela vai nas placas de QR Code das frentes.</div></div>
+        <div class="form-group form-full"><label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;font-size:13px"><input type="checkbox" id="obra-qrcli" style="margin-top:3px;width:16px;height:16px"/>
+          <span><b>Mão de obra usa o crachá do cliente</b><br><span style="font-size:11.5px;color:var(--text-3)">Os funcionários desta obra não aparecem como pendentes em QR Codes. O app de campo lê o QR do crachá do cliente (matrícula ou CPF).</span></span></label></div>
       </div>
     </div>
     <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-nova-obra')">Cancelar</button><button class="btn btn-primary" onclick="salvarObra()">Salvar</button></div>
@@ -12534,6 +12536,43 @@ function imprimirFrentesA4() {
   w.document.close();
   if (semLogo.size) toast('Sem logo cadastrada: ' + [...semLogo].join(', ') + '. Cadastre em Obras → Editar.', 'error');
 }
+
+
+// ═══════════════════════════════════════════════════════════════
+// v2.97: obra com crachá do cliente — funcionários dela saem da lista/pendência de QR Codes
+// ═══════════════════════════════════════════════════════════════
+function _obraCrachaCli(id) { const o = (dados.obras || []).find(x => x.id === id); return !!(o && o.qrCracha === 'cliente'); }
+(function () {
+  const $ = id => document.getElementById(id);
+  const oEd = window.editarObra;
+  window.editarObra = function (id) { const r = oEd.apply(this, arguments); const o = (dados.obras || []).find(x => x.id === id) || {}; if ($('obra-qrcli')) $('obra-qrcli').checked = o.qrCracha === 'cliente'; return r; };
+  const oNova = window.novaObra;
+  window.novaObra = function () { const r = oNova.apply(this, arguments); if ($('obra-qrcli')) $('obra-qrcli').checked = false; return r; };
+  const oSv = window.salvarObra;
+  window.salvarObra = function () {
+    const idEd = $('obra-edit-id')?.value || '', cod = ($('obra-cod')?.value || '').trim(), marc = !!$('obra-qrcli')?.checked, antes = new Set((dados.obras || []).map(x => x.id));
+    const r = oSv.apply(this, arguments);
+    const o = idEd ? (dados.obras || []).find(x => x.id === idEd) : (dados.obras || []).find(x => !antes.has(x.id) && (x.cod || '') === cod);
+    if (o && (o.qrCracha === 'cliente') !== marc) { o.qrCracha = marc ? 'cliente' : ''; if (db && _firebaseReady) fbSave('obras', o.id, { qrCracha: o.qrCracha }).catch(() => {}); try { renderQRCodes(); } catch (e) {} }
+    return r;
+  };
+  const oIt = _qrItens;
+  _qrItens = function () {
+    const r = oIt.apply(this, arguments), fs = new Map((dados.funcionarios || []).map(f => [f.id, f]));
+    r.func = r.func.filter(x => { const f = fs.get(x.rid); return !(f && f.obra && _obraCrachaCli(f.obra)); });
+    return r;
+  };
+  const oR = renderQRCodes;
+  renderQRCodes = window.renderQRCodes = function () {
+    const r = oR.apply(this, arguments);
+    const sel = document.getElementById('qr-obra')?.value || '', obs = (dados.obras || []).filter(o => o.qrCracha === 'cliente' && (!sel || o.id === sel));
+    const box = document.getElementById('qr-func'); if (!box) return r;
+    let n = box.querySelector('.qr-cli-nota'); if (!obs.length) { if (n) n.remove(); return r; }
+    if (!n) { n = document.createElement('div'); n.className = 'qr-cli-nota'; n.style.cssText = 'font-size:12.5px;padding:9px 12px;border-radius:10px;background:var(--blue-light,#EFF6FF);color:var(--blue,#1D4ED8);margin-bottom:10px'; box.prepend(n); }
+    n.innerHTML = '🪪 Usam o crachá do cliente (não precisam de QR): <b>' + obs.map(o => _e(o.cod || o.nome)).join(', ') + '</b>. Para mudar: Obras → Editar.';
+    return r;
+  };
+})();
 
 // Apply configs on load
 setTimeout(applyConfigs, 200);
