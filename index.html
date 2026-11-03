@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v2.97 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v2.98 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -1389,7 +1389,8 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
         <div class="form-group form-full"><label class="form-label" for="rep-endereco">Endereço</label><input class="form-control" id="rep-endereco" placeholder="Rua, número, bairro – cidade"/></div>
         <div class="form-group"><label class="form-label" for="rep-vagas">Vagas *</label><input class="form-control" type="number" min="1" step="1" id="rep-vagas" oninput="_repTotal()" placeholder="Ex.: 8"/></div>
         <div class="form-group"><label class="form-label" for="rep-status">Situação</label><select class="form-control" id="rep-status"><option>Ativa</option><option>Encerrada</option></select></div>
-        <div class="form-group"><label class="form-label" for="rep-responsavel">Proprietário / contato</label><input class="form-control" id="rep-responsavel"/></div>
+        <div class="form-group form-full"><label class="form-label" for="rep-responsavel">Proprietário (nome completo, como no contrato) *</label><input class="form-control" id="rep-responsavel" placeholder="Pessoa ou imobiliária que recebe o aluguel"/></div>
+        <div class="form-group"><label class="form-label" for="rep-propdoc">CPF / CNPJ do proprietário</label><input class="form-control td-mono" id="rep-propdoc" inputmode="numeric" maxlength="18" placeholder="000.000.000-00" oninput="this.value=_docFmt(this.value)"/></div>
         <div class="form-group"><label class="form-label" for="rep-tel">Telefone</label><input class="form-control" id="rep-tel"/></div>
         <div class="form-group"><label class="form-label" for="rep-inicio">Início do contrato</label><input class="form-control" type="date" id="rep-inicio"/></div>
         <div class="form-group"><label class="form-label" for="rep-fim">Fim do contrato</label><input class="form-control" type="date" id="rep-fim"/></div>
@@ -11972,7 +11973,7 @@ function renderRepublicas() {
   tb.innerHTML = lista.length ? lista.map(r => {
     const c = repCusto(r), m = repMoradores(r).length, v = +r.vagas || 0, pc = v ? Math.min(100, m / v * 100) : 0;
     return `<tr>
-      <td><div style="font-weight:700">${_e(r.nome)}</div><div style="font-size:11.5px;color:var(--text-3)">${_e(r.cod)}${r.tipo ? ' · ' + _e(r.tipo) : ''}${r.endereco ? ' · ' + _e(r.endereco) : ''}</div></td>
+      <td><div style="font-weight:700">${_e(r.nome)}</div><div style="font-size:11.5px;color:var(--text-3)">${_e(r.cod)}${r.tipo ? ' · ' + _e(r.tipo) : ''}${r.endereco ? ' · ' + _e(r.endereco) : ''}</div>${r.responsavel ? `<div style="font-size:11.5px;color:var(--text-2)">Proprietário: <b>${_e(r.responsavel)}</b>${r.propDoc ? ' · ' + _e(r.propDoc) : ''}</div>` : '<div style="font-size:11px;color:var(--amber)">⚠ sem proprietário</div>'}</td>
       <td style="font-size:12px">${_e(getNomeObra(r.obra) || '—')}</td>
       <td style="min-width:150px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><b>${m} de ${v}</b><span style="color:var(--text-3)">${v - m > 0 ? (v - m) + ' livre(s)' : v ? 'lotada' : ''}</span></div>
         <div style="height:7px;border-radius:4px;background:var(--border);overflow:hidden"><div style="height:7px;width:${pc}%;background:${m > v ? 'var(--red)' : 'var(--blue, #2563EB)'}"></div></div></td>
@@ -12570,6 +12571,33 @@ function _obraCrachaCli(id) { const o = (dados.obras || []).find(x => x.id === i
     let n = box.querySelector('.qr-cli-nota'); if (!obs.length) { if (n) n.remove(); return r; }
     if (!n) { n = document.createElement('div'); n.className = 'qr-cli-nota'; n.style.cssText = 'font-size:12.5px;padding:9px 12px;border-radius:10px;background:var(--blue-light,#EFF6FF);color:var(--blue,#1D4ED8);margin-bottom:10px'; box.prepend(n); }
     n.innerHTML = '🪪 Usam o crachá do cliente (não precisam de QR): <b>' + obs.map(o => _e(o.cod || o.nome)).join(', ') + '</b>. Para mudar: Obras → Editar.';
+    return r;
+  };
+})();
+
+
+// ═══════════════════════════════════════════════════════════════
+// v2.98: república — proprietário obrigatório + CPF/CNPJ (para conferência com o financeiro)
+// ═══════════════════════════════════════════════════════════════
+function _docFmt(v) { const d = String(v || '').replace(/\D/g, '').slice(0, 14);
+  if (d.length <= 11) return d.replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})\.(\d{3})(\d)/, '$1.$2.$3').replace(/(\d{3})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3-$4');
+  return d.replace(/^(\d{2})(\d)/, '$1.$2').replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3').replace(/\.(\d{3})(\d)/, '.$1/$2').replace(/(\d{4})(\d)/, '$1-$2'); }
+function _cnpjValido(v) { const c = String(v || '').replace(/\D/g, ''); if (c.length !== 14 || /^(\d)\1+$/.test(c)) return false;
+  const dv = n => { let s = 0, p = n - 7; for (let i = 0; i < n; i++) { s += +c[i] * p--; if (p < 2) p = 9; } const r = s % 11; return r < 2 ? 0 : 11 - r; };
+  return dv(12) === +c[12] && dv(13) === +c[13]; }
+(function () {
+  const $ = id => document.getElementById(id);
+  const oEd = repEditar;
+  repEditar = window.repEditar = function (id) { const r = oEd.apply(this, arguments); const x = id ? (dados.republicas || []).find(y => y.id === id) : null; if ($('rep-propdoc')) $('rep-propdoc').value = x ? (x.propDoc || '') : ''; return r; };
+  const oSv = salvarRepublica;
+  salvarRepublica = window.salvarRepublica = function () {
+    const nome = ($('rep-responsavel')?.value || '').trim(), doc = ($('rep-propdoc')?.value || '').trim(), d = doc.replace(/\D/g, '');
+    if (!nome) { toast('Informe o nome do proprietário.', 'error'); $('rep-responsavel')?.focus(); return; }
+    if (d && !(d.length === 11 ? _cpfValido(d) : d.length === 14 ? _cnpjValido(d) : false)) { toast('CPF / CNPJ do proprietário inválido. Confira os números.', 'error'); $('rep-propdoc')?.focus(); return; }
+    const idEd = $('rep-id')?.value || '', antes = new Set((dados.republicas || []).map(x => x.id));
+    const r = oSv.apply(this, arguments);
+    const x = idEd ? (dados.republicas || []).find(y => y.id === idEd) : (dados.republicas || []).find(y => !antes.has(y.id));
+    if (x && (x.propDoc || '') !== doc) { x.propDoc = doc; if (db && _firebaseReady) fbSave('republicas', x.id, x).catch(() => {}); try { renderRepublicas(); } catch (e) {} }
     return r;
   };
 })();
