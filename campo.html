@@ -881,7 +881,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.47</div>
+  <div class="login-versao">ObraKontrol Campo · v2.48</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -3886,7 +3886,8 @@ function mobTag(obra, famCod, eqs) {
 }
 async function abrirMobilizacao() {
   mob = _mobNovo();
-  if (!usuarioCampo.obra) { try { window._mobObras = (await fbCarregar('obras')) || window._mobObras || []; } catch (e) {} }
+  if (!usuarioCampo.obra) { try { window._mobObras = (await fbCarregar('obras')) || window._mobObras || []; } catch (e) {}
+    const ativas = (window._mobObras || []).filter(o => !/encerr/i.test(o.status || '')); if (ativas.length === 1) mob.obra = ativas[0].id; }   // uma obra só: já vem escolhida
   showScreen('mob'); mobRender();
 }
 function mobVoltar() { if (mob && mob.passo > 0) { mob.passo--; mobRender(); return; } if (!mob || confirm('Sair da mobilização? O que foi preenchido será perdido.')) showScreen('home'); }
@@ -3920,7 +3921,7 @@ function mobRender() {
     h = `<div class="card"><div class="card-body">
       ${!usuarioCampo.obra ? `<div class="form-group"><label class="form-label">Obra</label>${sel('mob-obra', obras.map(o => [o.id, (o.cod ? o.cod + ' · ' : '') + o.nome]), mob.obra, 'Escolha a obra…', "mobCampo('obra',this.value)")}</div>` : ''}
       <div class="form-group"><label class="form-label">Família *</label>${sel('mob-fam', fams.map(f => [f.cod, f.desc || f.cod]), mob.familia, 'Escolha a família…', "mobCampo('familia',this.value)")}</div>
-      <div class="mob-tag ${tag ? '' : 'vazia'}"><span>TAG gerada</span><b>${tag || '—'}</b><small>${tag ? 'Escreva esta TAG no equipamento' : 'Escolha a família para gerar'}</small></div>
+      <div class="mob-tag ${tag ? '' : 'vazia'}"><span>TAG gerada</span><b>${tag || '—'}</b><small>${tag ? 'Escreva esta TAG no equipamento' : (!mob.obra && !usuarioCampo.obra ? 'Escolha a obra' + (mob.familia ? '' : ' e a família') + ' para gerar' : 'Escolha a família para gerar')}</small></div>
       <div class="form-group"><label class="form-label">Modelo *</label>${sel('mob-mod', mods.map(m => [m.cod, m.nome || m.cod]).concat([['__novo', '+ Modelo novo (não está na lista)']]), mob.modelo, 'Escolha o modelo…', "mobCampo('modelo',this.value);mobRender()")}
         ${mob.modelo === '__novo' ? `<input class="form-control" style="margin-top:8px" placeholder="Nome do modelo, ex.: Volvo EC220" value="${_mobEsc(mob.modeloNovo)}" oninput="mob.modeloNovo=this.value"/>` : ''}</div>
       <div class="form-group"><label class="form-label">Empresa proprietária *</label>${sel('mob-prop', emps.map(e => [e.cod, (e.cod ? e.cod + ' · ' : '') + (e.nome || e.razao || '')]), mob.prop, 'Própria ou locadora…', "mob.prop=this.value")}</div>
