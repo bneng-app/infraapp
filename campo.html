@@ -883,7 +883,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.61</div>
+  <div class="login-versao">ObraKontrol Campo · v2.62</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -4486,6 +4486,32 @@ function mobFotoMaisDel(k, i) { _mobMais(k).splice(i, 1); mobRender(); }
   // ao abrir o Revisar refaz a conta (se já houver saída)
   const oTab = apTab;
   apTab = function (t) { const r = oTab.apply(this, arguments); if (t === 'rev') { ap.hnManual = false; try { apHorasMudaram(); } catch (e) {} } return r; };
+})();
+
+// ══════════════════════════════════════════════════════════════
+// v2.62: excluir apontamento em andamento direto da lista (🗑), sem precisar abrir e ir até o Revisar
+// ══════════════════════════════════════════════════════════════
+function apExcluirAberto(uid) {
+  const x = apRascunhos().find(r => r.uid === uid); if (!x) return;
+  const c = x.campos || {}, desc = (c['ap-frente'] || '') + (c['ap-servico'] ? ' · ' + c['ap-servico'] : '') + ' · entrada ' + (c['ap-hora-ini'] || '—');
+  if (!confirm('Excluir este apontamento em andamento?\n\n' + desc + '\n\nNada dele foi enviado ainda. As fotos tiradas nele também serão apagadas.')) return;
+  const ok = window.confirm; window.confirm = () => true;
+  try { apAbrir(uid); apDescartar(); } finally { window.confirm = ok; }
+  apMostrarLista(); toast('Apontamento excluído', 'ok');
+}
+(function () {
+  const css = document.createElement('style');
+  css.textContent = `.ap-aberto .ap-lixo{flex:0 0 auto;margin-left:6px;width:38px;height:38px;border-radius:10px;border:1.5px solid #FCA5A5;background:#fff;color:var(--red);font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center}`;
+  document.head.appendChild(css);
+  const oLista = apMostrarLista;
+  apMostrarLista = function () {
+    const r = oLista.apply(this, arguments), l = apRascunhos();
+    document.querySelectorAll('#ap-lista-abertos .ap-aberto').forEach((el, i) => { const x = l[i]; if (!x || el.querySelector('.ap-lixo')) return;
+      const b = document.createElement('button'); b.className = 'ap-lixo'; b.type = 'button'; b.title = 'Excluir este apontamento'; b.setAttribute('aria-label', 'Excluir este apontamento'); b.textContent = '🗑';
+      b.onclick = ev => { ev.stopPropagation(); apExcluirAberto(x.uid); };
+      el.insertBefore(b, el.lastElementChild); });
+    return r;
+  };
 })();
 
 // Salvar sessão ao entrar
