@@ -883,7 +883,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.52</div>
+  <div class="login-versao">ObraKontrol Campo · v2.53</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -2861,8 +2861,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const sess = localStorage.getItem('campo_usuario');
     if (sess) {
       usuarioCampo = JSON.parse(sess);
-      carregarDadosCampo().then(() => entrarNoCampo());
-      return;
+      // v2.53: sessão antiga (antes do multi-cliente) não guardava o cliente — era sempre a Tenco
+      if (!usuarioCampo.cliente) usuarioCampo.cliente = 'tenco';
+      // v2.53: abriu o link de outro cliente (ex.: ?c=demo) com a sessão de um cliente diferente → pede login de novo
+      const _cUrl = (new URLSearchParams(location.search).get('c') || '').toLowerCase();
+      if (_cUrl && _cUrl !== usuarioCampo.cliente) {
+        usuarioCampo = null; localStorage.removeItem('campo_usuario');
+        setTimeout(() => { const e = document.getElementById('login-error'); if (e) { e.textContent = 'Este link é de outra empresa (' + _cUrl.toUpperCase() + '). Entre de novo para continuar.'; e.style.display = 'block'; } }, 300);
+      } else {
+        window.OK_CLIENTE = usuarioCampo.cliente;
+        carregarDadosCampo().then(() => entrarNoCampo());
+        return;
+      }
     }
   } catch(e) {}
 
