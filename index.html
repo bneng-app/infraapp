@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v2.95 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v2.96 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -2912,6 +2912,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
             <option value="Locadora">Locadora</option>
             <option value="Fornecedora">Fornecedora</option>
             <option value="Prestadora">Prestadora</option>
+            <option value="Própria">Própria (a nossa empresa)</option>
           </select>
         </div>
         <div class="form-group form-full"><label class="form-label">Razão Social *</label><input class="form-control" id="emp-nome" placeholder="Nome da empresa"/></div>
@@ -12133,11 +12134,11 @@ async function verTermoMob(id) {
     <table style="width:100%;border-collapse:collapse;font-size:12.5px">${ck.map(c => `<tr style="border-bottom:1px solid #eee"><td style="padding:5px 4px">${_e(c.t)}${c.obs ? '<div style="color:#B91C1C;font-size:11.5px">' + _e(c.obs) + '</div>' : ''}</td>
       <td style="padding:5px 4px;text-align:right;font-weight:700;color:${c.st === 'nok' ? '#B91C1C' : c.st === 'ok' ? '#15803D' : '#64748B'}">${c.st === 'nok' ? 'NÃO OK' : c.st === 'ok' ? 'OK' : 'N/A'}</td></tr>`).join('')}</table>
     <h3 style="font-size:14px;margin:20px 0 8px">Fotos</h3>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px">${ft(m.fotoHor, 'Horímetro')}${Object.entries(m.fotos || {}).map(([k, f]) => ft(f, { frente: 'Frente', tras: 'Traseira', esq: 'Lateral esquerda', dir: 'Lateral direita', painel: 'Painel' }[k] || k)).join('')}${ft(m.fotoPlaca, 'Plaqueta / documento')}
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px">${ft(m.fotoHor, 'Horímetro')}${Object.entries(m.fotos || {}).map(([k, f]) => ft(f, (({ frente: 'Frente', tras: 'Traseira', esq: 'Lateral esquerda', dir: 'Lateral direita', painel: 'Painel' }[k.split('_')[0]] || k) + (k.includes('_') ? ' (' + k.split('_')[1] + ')' : '')))).join('')}${ft(m.fotoPlaca, 'Plaqueta / documento')}
       ${ck.filter(c => c.foto).map(c => ft(c.foto, 'Problema: ' + c.t)).join('')}${(m.avarias || []).filter(a => a.foto).map(a => ft(a.foto, 'Avaria: ' + a.desc)).join('')}</div>
     <h3 style="font-size:14px;margin:20px 0 8px">Avarias que já vieram</h3><div style="font-size:13px">${(m.avarias || []).length ? m.avarias.map(a => '• ' + _e(a.desc)).join('<br>') : 'Nenhuma registrada.'}</div>
     ${m.acess ? `<h3 style="font-size:14px;margin:20px 0 8px">Acessórios recebidos</h3><div style="font-size:13px">${_e(m.acess)}</div>` : ''}
-    <div style="display:flex;gap:24px;margin-top:24px;flex-wrap:wrap">${[['Recebeu', m.nomeRec, m.sigRec], ['Entregou', m.nomeEnt, m.sigEnt]].filter(x => x[1] || x[2]).map(([r, n, s]) => `<div style="flex:1;min-width:220px;text-align:center">${s ? `<img src="${s}" style="width:100%;max-width:300px;height:70px;object-fit:contain;border-bottom:1px solid #999">` : '<div style="height:70px;border-bottom:1px solid #999"></div>'}<div style="font-size:12px;color:#555">${r}: ${_e(n || '')}</div></div>`).join('')}</div>
+    <div style="display:flex;gap:24px;margin-top:24px;flex-wrap:wrap">${[['Recebeu', m.nomeRec, m.sigRec], ['Entregou', (m.nomeEnt || '') + (m.cpfEnt ? ' · CPF ' + m.cpfEnt : ''), m.sigEnt]].filter(x => x[1] || x[2]).map(([r, n, s]) => `<div style="flex:1;min-width:220px;text-align:center">${s ? `<img src="${s}" style="width:100%;max-width:300px;height:70px;object-fit:contain;border-bottom:1px solid #999">` : '<div style="height:70px;border-bottom:1px solid #999"></div>'}<div style="font-size:12px;color:#555">${r}: ${_e(n || '')}</div></div>`).join('')}</div>
     <div style="margin-top:16px;font-size:12px;color:#15803D;font-weight:700">✓ Validado no app de campo em ${_e(new Date(m.validadoEm).toLocaleString('pt-BR'))}</div>
   </div>
   <div style="display:flex;gap:8px;justify-content:center;margin-top:14px"><button class="btn btn-outline" style="background:#fff" onclick="document.getElementById('mob-ov').remove()">Fechar</button><button class="btn btn-primary" onclick="imprimirTermoMob()">🖨 Imprimir / PDF</button></div>`;

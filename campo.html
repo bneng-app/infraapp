@@ -883,7 +883,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.59</div>
+  <div class="login-versao">ObraKontrol Campo · v2.60</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -4358,6 +4358,112 @@ function loginModoEmail(on) {
   const oFb = fbSalvar;
   fbSalvar = async function (col, item) {
     if (col === 'aponEQ' && item && item.equipId) { const v = ap.eq.get(item.equipId); if (v && v.operadorMat) item.operadorMat = v.operadorMat; }
+    return oFb.apply(this, arguments);
+  };
+})();
+
+// ══════════════════════════════════════════════════════════════
+// v2.60: MOBILIZAÇÃO — entregador de FORNECEDOR: CPF obrigatório e assinatura feita à mão (sem gerar pelo nome).
+// Interno (empresa própria): como antes. · Fotos do equipamento: de 1 a 3 por campo.
+// ══════════════════════════════════════════════════════════════
+const MOB_FOTO_MAX = 3;
+function _mobEmp() { return (dadosCampo.empresas || []).find(e => e.cod === mob.prop) || null; }
+// interna = empresa marcada como "Própria" no painel, ou com o nome do cliente (ex.: TENCO)
+function mobFornecedor() {
+  const e = _mobEmp(); if (!e) return false;
+  if (/pr[óo]pria|intern/i.test(e.tipo || '')) return false;
+  let cli = ''; try { cli = (localStorage.getItem('ok_cliente_nome') || window.OK_CLIENTE || '').toLowerCase(); } catch (x) {}
+  const nome = String(e.nome || e.razao || '').toLowerCase();
+  if (cli && cli.length >= 2 && nome.includes(cli)) return false;
+  return true;
+}
+function _cpfDig(v) { return String(v || '').replace(/\D/g, ''); }
+function _cpfValido(v) {
+  const c = _cpfDig(v); if (c.length !== 11 || /^(\d)\1{10}$/.test(c)) return false;
+  const dv = n => { let s = 0; for (let i = 0; i < n; i++) s += +c[i] * (n + 1 - i); const r = (s * 10) % 11; return r === 10 ? 0 : r; };
+  return dv(9) === +c[9] && dv(10) === +c[10];
+}
+function _cpfFmt(v) { const c = _cpfDig(v).slice(0, 11); return c.replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})\.(\d{3})(\d)/, '$1.$2.$3').replace(/(\d{3})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3-$4'); }
+function mobCpf(el) { el.value = _cpfFmt(el.value); mob.cpfEnt = el.value; const ok = _cpfValido(el.value); el.classList.toggle('mob-cpf-ruim', _cpfDig(el.value).length === 11 && !ok); }
+// fotos extras por campo (a 1ª continua em mob.fotos[k])
+function _mobMais(k) { mob.fotosMais = mob.fotosMais || {}; return (mob.fotosMais[k] = mob.fotosMais[k] || []); }
+async function mobFotoMais(k, input) {
+  const f = input.files && input.files[0]; input.value = ''; if (!f) return;
+  if (1 + _mobMais(k).length >= MOB_FOTO_MAX) { toast('Máximo de ' + MOB_FOTO_MAX + ' fotos neste campo.', 'err'); return; }
+  try { _mobMais(k).push({ img: await _reduzirFoto(f), em: new Date().toISOString() }); mobRender(); toast('Foto registrada', 'ok'); } catch (e) { toast('Não consegui usar essa foto. Tente de novo.', 'err'); }
+}
+function mobFotoMaisVer(k, i) { const v = _mobMais(k)[i]; if (!v) return; const ov = document.createElement('div'); ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:3500;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.innerHTML = `<img src="${v.img}" style="max-width:100%;max-height:100%;border-radius:10px"/>`; ov.onclick = () => ov.remove(); document.body.appendChild(ov); }
+function mobFotoMaisDel(k, i) { _mobMais(k).splice(i, 1); mobRender(); }
+(function () {
+  const css = document.createElement('style');
+  css.textContent = `.mob-mais{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center}
+    .mob-mais .mm{position:relative;width:64px;height:64px;border-radius:10px;overflow:hidden;background:#ddd}
+    .mob-mais .mm img{width:100%;height:100%;object-fit:cover;cursor:zoom-in}
+    .mob-mais .mm button{position:absolute;top:2px;right:2px;width:22px;height:22px;border-radius:50%;border:none;background:rgba(0,0,0,.6);color:#fff;font-size:14px;line-height:1;cursor:pointer}
+    .mob-mais label{flex:1;min-width:150px;min-height:44px;display:flex;align-items:center;justify-content:center;border:1.5px dashed var(--red);border-radius:12px;color:var(--red);font-weight:800;font-size:13px;cursor:pointer;background:rgba(227,6,19,.04)}
+    .mob-mais .cnt{font-size:11.5px;color:var(--text2);width:100%}
+    .mob-cpf-ruim{border-color:var(--red)!important}
+    .mob-forn{font-size:12px;font-weight:700;color:#B45309;background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:8px 10px;margin:4px 0 10px}`;
+  document.head.appendChild(css);
+
+  const oRender = mobRender;
+  mobRender = function () {
+    const r = oRender.apply(this, arguments), p = mob.passo, el = document.getElementById('mob-content'); if (!el) return r;
+    if (p === 3) {
+      MOB_FOTOS.forEach(([k, t]) => {
+        const inp = el.querySelector(`input[onchange="mobFoto('f:${k}', this)"]`), linha = inp && inp.closest('.hor-linha'); if (!linha) return;
+        const lb = linha.closest('.form-group')?.querySelector('.form-label'); if (lb) lb.textContent = t + ' *';
+        if (!mob.fotos[k]) { linha.insertAdjacentHTML('afterend', `<div class="mob-mais"><span class="cnt">Mínimo 1, até ${MOB_FOTO_MAX} fotos</span></div>`); return; }
+        const ex = _mobMais(k), n = 1 + ex.length;
+        linha.insertAdjacentHTML('afterend', `<div class="mob-mais">${ex.map((v, i) => `<div class="mm"><img src="${v.img}" onclick="mobFotoMaisVer('${k}',${i})" alt="Foto ${i + 2}"/><button type="button" onclick="mobFotoMaisDel('${k}',${i})" aria-label="Apagar foto">×</button></div>`).join('')}
+          ${n < MOB_FOTO_MAX ? `<label>📷 + Outra foto (${n}/${MOB_FOTO_MAX})<input type="file" accept="image/*" capture="environment" style="display:none" onchange="mobFotoMais('${k}', this)"/></label>` : `<span class="cnt">✓ ${MOB_FOTO_MAX} de ${MOB_FOTO_MAX} fotos</span>`}</div>`);
+      });
+    }
+    if (p === 4 && mobFornecedor()) {
+      const ent = el.querySelector('#sig-ent'), g = ent && ent.closest('.form-group'); if (!g) return r;
+      const lb = g.querySelector('.form-label'); if (lb) lb.textContent = 'Quem entregou (fornecedor) *';
+      const nomeInp = g.querySelector('input.form-control'); if (nomeInp) { nomeInp.placeholder = 'Nome completo de quem entregou'; nomeInp.insertAdjacentHTML('afterend',
+        `<label class="form-label" style="margin-top:10px">CPF de quem entregou *</label><input class="form-control" id="mob-cpf-ent" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" value="${_mobEsc(mob.cpfEnt || '')}" oninput="mobCpf(this)"/>`); }
+      g.insertAdjacentHTML('afterbegin', `<div class="mob-forn">Equipamento de fornecedor (${_mobEsc((_mobEmp() || {}).nome || mob.prop)}): quem entregou informa o CPF e assina com o dedo.</div>`);
+      g.querySelector('[onclick="mobSigNome(\'ent\')"]')?.remove();
+      const sp = g.querySelector('.mob-sig span'); if (sp) sp.textContent = 'Assine com o dedo (obrigatório)';
+      if (mob.sigEntTipo && mob.sigEntTipo.tipo === 'nome') mobSigLimpar('ent');
+    }
+    return r;
+  };
+  const oFalta = _mobFalta;
+  _mobFalta = function (p) {
+    const f = oFalta.apply(this, arguments);
+    if (p === 4 && mobFornecedor()) {
+      if (!String(mob.nomeEnt || '').trim()) f.push('o nome de quem entregou');
+      if (!_cpfValido(mob.cpfEnt)) f.push(_cpfDig(mob.cpfEnt).length === 11 ? 'um CPF válido de quem entregou' : 'o CPF de quem entregou');
+      if (!mob.sigEnt || !mob.sigEntTipo || mob.sigEntTipo.tipo !== 'manuscrita') f.push('a assinatura à mão de quem entregou');
+    }
+    return f;
+  };
+  // termo mostra o CPF e conta as fotos extras
+  const oDados = _mobTermoDados;
+  _mobTermoDados = function () {
+    const t = oDados.apply(this, arguments), forn = mobFornecedor();
+    t.cpfEnt = forn ? _cpfFmt(mob.cpfEnt || '') : ''; t.entFornecedor = forn;
+    t.nFotos = (t.nFotos || 0) + Object.values(mob.fotosMais || {}).reduce((s, l) => s + l.length, 0);
+    return t;
+  };
+  const oHtml = termoMobHtml;
+  termoMobHtml = function (t) { return oHtml.call(this, t && t.cpfEnt ? { ...t, nomeEnt: t.nomeEnt + ' · CPF ' + t.cpfEnt } : t); };
+  // ao gravar a mobilização: sobe as fotos extras e guarda CPF / tipo da assinatura
+  const oFb = fbSalvar;
+  fbSalvar = async function (col, item) {
+    if (col === 'mobilizacoes' && item && mob) {
+      const forn = mobFornecedor(); item.entFornecedor = forn; if (forn) item.cpfEnt = _cpfFmt(mob.cpfEnt || '');
+      item.fotos = item.fotos || {};
+      for (const [k, r] of MOB_FOTOS) for (const [i, v] of (_mobMais(k)).entries()) {
+        const id = 'fm' + item.id + k + (i + 2);
+        await oFb.call(this, 'fotos', { id, tipo: 'mobilizacao_' + k, rotulo: r + ' (' + (i + 2) + ')', mobilizacao: item.id, equipId: item.equipId || '', equip: item.tag || '', obra: item.obra || '', data: item.data || '', lancadoPor: usuarioCampo.nome, tiradaEm: v.em || '', img: v.img });
+        item.fotos[k + '_' + (i + 2)] = id;
+      }
+    }
     return oFb.apply(this, arguments);
   };
 })();
