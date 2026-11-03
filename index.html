@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v2.99 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.00 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -816,6 +816,10 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
       <div class="nav-item" onclick="showPage('frota',this)" title="Veículos leves">
         <svg viewBox="0 0 24 24"><path d="M5 17h14"/><path d="M3 17v-4l2-5h14l2 5v4"/><path d="M3 13h18"/><circle cx="7.5" cy="17.5" r="1.8"/><circle cx="16.5" cy="17.5" r="1.8"/></svg>
         <span>Veículos</span>
+      </div>
+      <div class="nav-item" onclick="showPage('frota-resp',this)" title="Responsáveis pelos veículos">
+        <svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/><path d="M16 11l2 2 4-4"/></svg>
+        <span>Responsáveis</span>
       </div>
     </div>
   </div>
@@ -1336,6 +1340,22 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <div class="table-wrap"><table><thead><tr><th>Veículo</th><th>Obra</th><th>Locadora / contrato</th><th>Responsável</th><th style="text-align:right">R$/mês</th><th>Situação</th><th></th></tr></thead>
       <tbody id="tbody-frota"></tbody></table></div>
   </div></div>
+</div>
+
+<div class="page" id="page-frota-resp">
+  <div class="page-header">
+    <div><div class="page-title">Responsáveis pelos veículos</div><div class="page-sub">Quem está com cada veículo, CNH e termo de responsabilidade</div></div>
+    <div class="btn-group"><button class="btn btn-primary" onclick="frRespNovo()">+ Vincular responsável</button></div>
+  </div>
+  <div class="stats-grid" id="frr-kpis" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:.875rem"></div>
+  <div class="card"><div class="card-body">
+    <div style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:flex-end;margin-bottom:.75rem">
+      <div class="search-wrap" style="flex:1;min-width:240px;margin:0"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="search-frr" placeholder="Buscar placa, responsável ou matrícula…" oninput="renderFrotaResp()"/></div>
+      <div class="form-group" style="min-width:200px;margin:0"><label class="form-label" for="filtro-frr">Mostrar</label><select class="form-control" id="filtro-frr" onchange="renderFrotaResp()"><option value="">Todos os veículos na obra</option><option value="sem">Sem responsável</option><option value="cnh">CNH vencida ou vencendo</option></select></div>
+    </div>
+    <div class="table-wrap"><table><thead><tr><th>Veículo</th><th>Obra</th><th>Responsável</th><th>CNH</th><th>Desde</th><th></th></tr></thead>
+      <tbody id="tbody-frota-resp"></tbody></table></div>
+  </div></div>
   <div class="card" style="margin-top:.875rem"><div class="card-body">
     <div style="font-weight:700;margin-bottom:4px">🔎 Quem estava com o veículo?</div>
     <div style="font-size:12.5px;color:var(--text-3);margin-bottom:10px">Para multa ou ocorrência: escolha o veículo e a data, e o sistema mostra o responsável naquele dia.</div>
@@ -1435,7 +1455,8 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
         <div class="form-group form-full" style="background:var(--blue-light);border:1px solid #B5D4F4;border-radius:8px;padding:10px 12px"><label class="form-label" style="font-weight:600;color:var(--blue)" for="fr-obra">🏗️ Obra *</label><select class="form-control" id="fr-obra"><option value="">Selecione a obra…</option></select></div>
         <div class="form-group"><label class="form-label" for="fr-placa">Placa *</label><input class="form-control td-mono" id="fr-placa" maxlength="8" placeholder="ABC1D23" style="text-transform:uppercase;font-weight:700" oninput="this.value=this.value.toUpperCase()"/></div>
         <div class="form-group"><label class="form-label" for="fr-tipo">Tipo</label><select class="form-control" id="fr-tipo"><option>Carro</option><option>Picape</option><option>Van / utilitário</option><option>Moto</option><option>Outro</option></select></div>
-        <div class="form-group form-full"><label class="form-label" for="fr-modelo">Marca / modelo *</label><input class="form-control" id="fr-modelo" placeholder="Ex.: Fiat Strada Freedom 1.3"/></div>
+        <div class="form-group form-full"><label class="form-label" for="fr-modelo-sel">Marca / modelo * <span style="font-size:10px;color:var(--text-3);text-transform:none;letter-spacing:0">(do cadastro de Modelos)</span></label><select class="form-control" id="fr-modelo-sel"><option value="">Escolha…</option></select><input type="hidden" id="fr-modelo"/>
+          <div id="fr-modelo-nota" style="font-size:11.5px;color:var(--text-3);margin-top:4px">Não achou? Cadastre em <b>Equipamentos → Modelos</b> e volte aqui.</div></div>
         <div class="form-group"><label class="form-label" for="fr-ano">Ano</label><input class="form-control" id="fr-ano" maxlength="9" placeholder="Ex.: 2025/2026"/></div>
         <div class="form-group"><label class="form-label" for="fr-cor">Cor</label><input class="form-control" id="fr-cor" placeholder="Ex.: Branca"/></div>
         <div class="form-group"><label class="form-label" for="fr-chassi">Chassi</label><input class="form-control td-mono" id="fr-chassi" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"/></div>
@@ -1466,6 +1487,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
   <div class="modal" style="max-width:640px">
     <div class="modal-header"><span class="modal-title" id="frr-titulo">Responsável</span><button class="modal-close" onclick="closeModal('modal-fr-resp')">×</button></div>
     <div class="modal-body">
+      <div class="form-group" id="frr-veic-box" style="display:none;margin-bottom:14px"><label class="form-label" for="frr-veic">Veículo *</label><select class="form-control" id="frr-veic" onchange="frRespVeic(this.value)"><option value="">Escolha…</option></select></div>
       <div id="frr-atual" style="margin-bottom:14px"></div>
       <div style="padding:12px;border:1px dashed var(--border);border-radius:10px">
         <div style="font-weight:700;font-size:13px;margin-bottom:8px" id="frr-acao">Entregar o veículo para</div>
@@ -11914,7 +11936,7 @@ const OK_MOD_PAGINAS = {
   maoDeObra: ['apon-mo', 'funcionarios', 'equipes', 'cargos', 'dash-mo', 'perdas', 'tipos-perdas'],
   equipamentos: ['apon-eq', 'familias', 'modelos', 'equipamentos', 'dash-eq'],
   abastecimento: ['apon-diesel', 'produtos', 'notas-diesel', 'tanques', 'dash-abs'],
-  orcamento: ['orcamento'], republicas: ['republicas', 'alojados'], frota: ['frota'],
+  orcamento: ['orcamento'], republicas: ['republicas', 'alojados'], frota: ['frota', 'frota-resp'],
 };
 function _okModDaPagina(p) { for (const k in OK_MOD_PAGINAS) if (OK_MOD_PAGINAS[k].includes(p)) return k; return null; }
 function _okObraAtual() { return (typeof obraAtiva !== 'undefined' && obraAtiva && obraAtiva.id) || 'todas'; }
@@ -12251,7 +12273,7 @@ function renderFrota() {
       <td style="font-size:12.5px">${r ? `<b>${_e(r.nome)}</b><div style="font-size:11px;color:var(--text-3)">${r.mat ? 'Mat. ' + _e(r.mat) + ' · ' : ''}CNH ${_e(r.cnhCat || '—')}${r.cnhVal ? ' até ' + _frData(r.cnhVal) : ''}</div>` : '<span style="color:var(--text-3)">—</span>'}</td>
       <td class="td-mono" style="text-align:right">${+v.valorMes ? _repMoeda(v.valorMes) : '—'}</td>
       <td>${tag(_e(v.status || 'Em uso'), corSit[v.status] || 'green')}${v.status === 'Devolvido' && v.devData ? '<div style="font-size:11px;color:var(--text-3)">' + _frData(v.devData) + '</div>' : ''}</td>
-      <td style="white-space:nowrap;text-align:right"><button class="btn btn-outline btn-sm" onclick="frRespAbrir('${v.id}')">👤 Responsável</button> ${r ? `<button class="btn btn-outline btn-sm" onclick="frTermo('${v.id}')" title="Termo de responsabilidade">📄 Termo</button> ` : ''}<button class="btn btn-outline btn-sm" onclick="frEditar('${v.id}')">✎ Editar</button></td></tr>`; }).join('')
+      <td style="white-space:nowrap;text-align:right"><button class="btn btn-outline btn-sm" onclick="frEditar('${v.id}')">✎ Editar</button></td></tr>`; }).join('')
     : '<tr><td colspan="7" style="text-align:center;color:var(--text-3);padding:2rem">Nenhum veículo' + (sit || busca ? ' com esse filtro' : _okObraAtual() !== 'todas' ? ' nesta obra' : '') + '. Clique em <b>+ Novo veículo</b>.</td></tr>';
   // consulta "quem estava com o veículo"
   const q = document.getElementById('fr-q-veic');
@@ -12641,7 +12663,7 @@ function buscaSelect(selId, ph) {
 }
 (function () {
   const css = document.createElement('style');
-  css.textContent = `.bs-wrap{position:relative}
+  css.textContent = `.bs-wrap{position:relative;width:100%}.bs-wrap .bs-inp{width:100%;box-sizing:border-box}
     .bs-inp.bs-ok{border-color:#16A34A;background:#F0FDF4;font-weight:700}
     .bs-lista{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:50;background:var(--surface,#fff);border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.18);max-height:280px;overflow:auto}
     .bs-it{padding:8px 12px;cursor:pointer;display:flex;flex-direction:column;border-bottom:1px solid var(--border)}
@@ -12655,6 +12677,102 @@ function buscaSelect(selId, ph) {
   // depois de entrar, limpa a busca para o próximo
   const oEnt = window.repEntrada || repEntrada;
   repEntrada = window.repEntrada = function () { const r = oEnt.apply(this, arguments); const i = document.querySelector('#mor-func + .bs-wrap input'); if (i) { i.value = ''; i.classList.remove('bs-ok'); i.focus(); } return r; };
+})();
+
+
+// ═══════════════════════════════════════════════════════════════
+// v3.00: FROTA em duas telas (Veículos = cadastro · Responsáveis = vínculo) e marca/modelo do cadastro de Modelos
+// ═══════════════════════════════════════════════════════════════
+function buscaSelectSync(selId) {
+  const sel = document.getElementById(selId), inp = sel && sel.nextElementSibling && sel.nextElementSibling.querySelector('.bs-inp'); if (!inp) return;
+  const o = sel.selectedOptions[0]; inp.value = o && o.value ? o.textContent.split(' · ')[0] : ''; inp.classList.toggle('bs-ok', !!(o && o.value));
+}
+function _frModelosOpts(obra, atual) {
+  const sel = document.getElementById('fr-modelo-sel'); if (!sel) return;
+  const fam = c => { const f = (dados.familias || []).find(x => x.cod === c); return f ? (f.desc || f.cod) : (c || ''); };
+  const l = (dados.modelos || []).filter(m => !obra || !m.obra || m.obra === obra).sort((a, b) => String(a.nome || a.cod).localeCompare(String(b.nome || b.cod), 'pt-BR'));
+  sel.innerHTML = '<option value="">Escolha…</option>' + l.map(m => `<option value="${_e(m.id)}">${_e(m.nome || m.cod)} · ${_e(fam(m.familia))}${m.cod && m.cod !== m.nome ? ' · ' + _e(m.cod) : ''}</option>`).join('');
+  if (atual) sel.value = atual; buscaSelectSync('fr-modelo-sel');
+}
+function renderFrotaResp() {
+  const tb = document.getElementById('tbody-frota-resp'); if (!tb) return;
+  const busca = _bsNorm(document.getElementById('search-frr')?.value || ''), filtro = document.getElementById('filtro-frr')?.value || '';
+  const todos = _frLista().filter(v => v.status !== 'Devolvido');
+  const cnhSit = r => { if (!r || !r.cnhVal) return null; const d = _frDias(r.cnhVal); return d < 0 ? 'red' : d <= 30 ? 'amber' : 'green'; };
+  const sem = todos.filter(v => !frRespAtual(v)), cnh = todos.filter(v => { const s = cnhSit(frRespAtual(v)); return s === 'red' || s === 'amber'; });
+  const kpi = (l, val, sub, cor) => `<div class="stat-card"><div class="stat-label">${l}</div><div class="stat-value" style="${cor ? 'color:' + cor : ''}">${val}</div><div class="stat-sub">${sub}</div></div>`;
+  const kp = document.getElementById('frr-kpis');
+  if (kp) kp.innerHTML = kpi('Com responsável', todos.length - sem.length, 'de ' + todos.length + ' veículo(s) na obra')
+    + kpi('Sem responsável', sem.length, 'vincule alguém', sem.length ? 'var(--red)' : '')
+    + kpi('CNH vencida ou vencendo', cnh.length, 'nos próximos 30 dias', cnh.length ? 'var(--amber)' : '');
+  const l = todos.filter(v => filtro === 'sem' ? !frRespAtual(v) : filtro === 'cnh' ? cnh.includes(v) : true)
+    .filter(v => { if (!busca) return true; const r = frRespAtual(v) || {}; return _bsNorm([v.placa, v.modelo, r.nome, r.mat].join(' ')).includes(busca); })
+    .sort((a, b) => (!!frRespAtual(a)) - (!!frRespAtual(b)) || String(a.placa).localeCompare(String(b.placa)));
+  tb.innerHTML = l.length ? l.map(v => { const r = frRespAtual(v), cs = cnhSit(r);
+    return `<tr><td><div class="td-mono" style="font-weight:800">${_e(v.placa)}</div><div style="font-size:11.5px;color:var(--text-3)">${_e(v.modelo || '')}${v.tipo ? ' · ' + _e(v.tipo) : ''}</div></td>
+      <td style="font-size:12px">${_e(getNomeObra(v.obra) || '—')}</td>
+      <td>${r ? `<b>${_e(r.nome)}</b><div style="font-size:11.5px;color:var(--text-3)">${r.mat ? 'Mat. ' + _e(r.mat) : ''}${r.funcao ? ' · ' + _e(r.funcao) : ''}</div>` : tag('Sem responsável', 'amber')}</td>
+      <td>${r ? `${_e(r.cnhCat || '—')} ${r.cnhVal ? tag((cs === 'red' ? 'vencida ' : 'até ') + _frData(r.cnhVal), cs) : ''}` : '—'}</td>
+      <td class="td-mono" style="font-size:12px">${r ? _frData(r.inicio) : '—'}</td>
+      <td style="white-space:nowrap;text-align:right">${r ? `<button class="btn btn-outline btn-sm" onclick="frTermo('${v.id}')">📄 Termo</button> <button class="btn btn-outline btn-sm" onclick="frRespAbrir('${v.id}')">↺ Trocar / devolver</button>` : `<button class="btn btn-primary btn-sm" onclick="frRespAbrir('${v.id}')">+ Vincular</button>`}</td></tr>`; }).join('')
+    : `<tr><td colspan="6" style="text-align:center;color:var(--text-3);padding:2rem">${todos.length ? 'Nada com esse filtro.' : 'Nenhum veículo na obra. Cadastre primeiro em <b>Frota → Veículos</b>.'}</td></tr>`;
+  // "quem estava com o veículo" mora nesta tela
+  const q = document.getElementById('fr-q-veic');
+  if (q) { const val = q.value; q.innerHTML = '<option value="">Escolha…</option>' + _frLista().slice().sort((a, b) => String(a.placa).localeCompare(String(b.placa))).map(v => `<option value="${v.id}">${_e(v.placa)} · ${_e(v.modelo || '')}</option>`).join(''); q.value = val; frQuem(); }
+}
+function _frrModo(escolher) {
+  const box = document.getElementById('frr-veic-box'); if (box) box.style.display = escolher ? '' : 'none';
+  document.querySelectorAll('#modal-fr-resp .modal-body > div:not(#frr-veic-box)').forEach(d => d.style.display = escolher && !window._frAtual ? 'none' : '');
+}
+function frRespNovo() {
+  window._frAtual = '';
+  const sel = document.getElementById('frr-veic'), l = _frLista().filter(v => v.status !== 'Devolvido').sort((a, b) => (!!frRespAtual(a)) - (!!frRespAtual(b)) || String(a.placa).localeCompare(String(b.placa)));
+  if (!l.length) { toast('Cadastre o veículo primeiro em Frota → Veículos.', 'error'); return; }
+  sel.innerHTML = '<option value="">Escolha…</option>' + l.map(v => { const r = frRespAtual(v); return `<option value="${v.id}">${_e(v.placa)} · ${_e(v.modelo || '')} · ${r ? 'com ' + _e(r.nome) : 'sem responsável'}</option>`; }).join('');
+  sel.value = ''; buscaSelect('frr-veic', 'Digite a placa ou o modelo…'); buscaSelectSync('frr-veic');
+  document.getElementById('frr-titulo').textContent = 'Vincular responsável';
+  _frrModo(true); openModal('modal-fr-resp');
+  setTimeout(() => document.querySelector('#frr-veic + .bs-wrap input')?.focus(), 100);
+}
+function frRespVeic(id) { window._frAtual = id; if (!id) { _frrModo(true); return; } _frrModo(true); _frRespRender(); _frrModo(true); }
+(function () {
+  const $ = id => document.getElementById(id);
+  buscaSelect('fr-modelo-sel', 'Digite marca ou modelo…');
+  // abrir pela linha (já sabe o veículo): sem o seletor
+  const oAbr = frRespAbrir;
+  frRespAbrir = window.frRespAbrir = function () { const r = oAbr.apply(this, arguments); _frrModo(false); return r; };
+  // cadastro do veículo: marca/modelo do cadastro de Modelos
+  const oEd = frEditar;
+  frEditar = window.frEditar = function (id) {
+    const r = oEd.apply(this, arguments), v = id ? (dados.frota || []).find(x => x.id === id) : null, obra = $('fr-obra').value;
+    let mid = v && v.modeloId; if (!mid && v && v.modelo) { const m = (dados.modelos || []).find(x => _bsNorm(x.nome) === _bsNorm(v.modelo) || x.cod === v.codModelo); if (m) mid = m.id; }
+    _frModelosOpts(obra, mid || '');
+    const n = $('fr-modelo-nota'); if (n) n.innerHTML = v && v.modelo && !mid ? `<span style="color:var(--amber)">Modelo antigo digitado: <b>${_e(v.modelo)}</b> — escolha o do cadastro.</span>` : 'Não achou? Cadastre em <b>Equipamentos → Modelos</b> e volte aqui.';
+    return r;
+  };
+  $('fr-obra')?.addEventListener('change', () => _frModelosOpts($('fr-obra').value, $('fr-modelo-sel').value));
+  const oSv = salvarVeiculo;
+  salvarVeiculo = window.salvarVeiculo = function () {
+    const m = (dados.modelos || []).find(x => x.id === $('fr-modelo-sel').value);
+    if (!m) { toast('Escolha a marca / modelo do cadastro. Se não existir, cadastre em Equipamentos → Modelos.', 'error'); return; }
+    $('fr-modelo').value = m.nome || m.cod;
+    const idEd = $('fr-id').value, antes = new Set((dados.frota || []).map(x => x.id));
+    const r = oSv.apply(this, arguments);
+    const v = idEd ? (dados.frota || []).find(x => x.id === idEd) : (dados.frota || []).find(x => !antes.has(x.id));
+    if (v && (v.modeloId !== m.id || v.codModelo !== m.cod)) { v.modeloId = m.id; v.codModelo = m.cod || ''; v.familia = m.familia || ''; if (db && _firebaseReady) fbSave('frota', v.id, v).catch(() => {}); }
+    return r;
+  };
+  // telas se atualizam juntas
+  const oR = renderFrota;
+  renderFrota = window.renderFrota = function () { const r = oR.apply(this, arguments); if ($('page-frota-resp')?.classList.contains('active')) renderFrotaResp(); return r; };
+  const oInit = window.pageInit;
+  window.pageInit = function (id) { const r = oInit.apply(this, arguments); if (id === 'frota-resp') renderFrotaResp(); return r; };
+  const oSel = window.selecionarObra;
+  window.selecionarObra = function () { const r = oSel.apply(this, arguments); try { if ($('page-frota-resp')?.classList.contains('active')) renderFrotaResp(); } catch (e) {} return r; };
+  const oEnt = frEntregar;
+  frEntregar = window.frEntregar = function () { const r = oEnt.apply(this, arguments); try { renderFrotaResp(); } catch (e) {} return r; };
+  const oDev = frDevolverResp;
+  frDevolverResp = window.frDevolverResp = function () { const r = oDev.apply(this, arguments); try { renderFrotaResp(); } catch (e) {} return r; };
 })();
 
 // Apply configs on load
