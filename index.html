@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v2.94 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v2.95 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -1742,7 +1742,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <div class="btn-group">
       <button class="btn btn-outline btn-sm" onclick="exportarCSV('mo')">↓ Exportar CSV</button>
       <button class="btn btn-primary btn-sm" onclick="agAbrir()">+ Lançar apontamento</button>
-      <button class="btn btn-primary" id="btn-processar-todos-mo" onclick="processarTodosMO()">✓ Processar todos</button>
+      <button class="btn btn-primary" id="btn-processar-todos-mo" onclick="processarTodosMO()">✓ Aprovar todos</button>
     </div>
   </div>
 
@@ -1767,7 +1767,6 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
             <option value="aprovado">Aprovado</option>
             <option value="campo">Pendente</option>
             <option value="rejeitado">Rejeitado</option>
-            <option value="corrigido">Processado</option>
           </select>
         </div>
         <div class="form-group" style="min-width:170px"><label class="form-label">Apontador</label>
@@ -1782,7 +1781,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
   <!-- pills de status -->
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:.875rem;align-items:center">
     <span style="font-size:11px;color:var(--text-3);font-weight:500">Filtro rápido:</span>
-    <span class="tag tag-green" style="cursor:pointer;padding:4px 12px;font-size:11px" onclick="filtroRapidoMO('')">● Todos processados <span id="mo-cnt-proc">0</span></span>
+    <span class="tag tag-green" style="cursor:pointer;padding:4px 12px;font-size:11px" onclick="filtroRapidoMO('aprovado')">● Aprovados <span id="mo-cnt-proc">0</span></span>
     <span class="tag" style="cursor:pointer;padding:4px 12px;font-size:11px;background:var(--green-light);color:var(--green-dark)" onclick="filtroHojeMO()">● Hoje</span>
     <span class="tag tag-amber" style="cursor:pointer;padding:4px 12px;font-size:11px" onclick="filtroRapidoMO('campo')">● Pendentes <span id="mo-cnt-pend">0</span></span>
     <span class="tag tag-blue" style="cursor:pointer;padding:4px 12px;font-size:11px" onclick="filtroRapidoMO('ultimos4')">● Últimos 4 dias</span>
@@ -1840,7 +1839,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
         <div class="form-group" style="min-width:150px"><label class="form-label">TAG / Equipamento</label><select class="form-control" id="filtro-eq-tag"><option value="">Todos</option></select></div>
         <div class="form-group" style="min-width:150px"><label class="form-label">Família</label><select class="form-control" id="filtro-eq-familia"><option value="">Todas</option></select></div>
         <div class="form-group" style="min-width:130px"><label class="form-label">Frente</label><select class="form-control" id="filtro-eq-frente"><option value="">Todas</option></select></div>
-        <div class="form-group" style="min-width:120px"><label class="form-label">Status</label><select class="form-control" id="filtro-eq-status"><option value="">Todos</option><option value="campo">Campo (pendente)</option><option value="corrigido">Processado</option></select></div>
+        <div class="form-group" style="min-width:120px"><label class="form-label">Status</label><select class="form-control" id="filtro-eq-status"><option value="">Todos</option><option value="campo">Pendente</option><option value="corrigido">Aprovado</option></select></div>
         <button class="btn btn-primary btn-sm" onclick="renderAponEQ()">Filtrar</button>
         <button class="btn btn-outline btn-sm" onclick="limparFiltrosEQ()">✕ Limpar</button>
       </div>
@@ -1851,7 +1850,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:.875rem;align-items:center">
     <span style="font-size:11px;color:var(--text-3);font-weight:500">Rápido:</span>
     <span class="tag tag-amber" style="cursor:pointer;padding:4px 12px;font-size:11px" onclick="filtroRapidoEQ('campo')">● Pendentes <span id="eq-cnt-pend">0</span></span>
-    <span class="tag tag-green" style="cursor:pointer;padding:4px 12px;font-size:11px" onclick="filtroRapidoEQ('corrigido')">● Processados <span id="eq-cnt-proc">0</span></span>
+    <span class="tag tag-green" style="cursor:pointer;padding:4px 12px;font-size:11px" onclick="filtroRapidoEQ('corrigido')">● Aprovados <span id="eq-cnt-proc">0</span></span>
     <span class="tag tag-red" style="cursor:pointer;padding:4px 12px;font-size:11px" onclick="filtroRapidoEQ('parado')">● Com parada registrada</span>
     <span class="tag tag-blue" style="cursor:pointer;padding:4px 12px;font-size:11px" onclick="filtroRapidoEQ('')">● Todos</span>
   </div>
@@ -4633,6 +4632,8 @@ function pageInit(id) {
 // ───── HELPERS ─────
 function tag(txt, cls) { return `<span class="tag tag-${cls}">${txt}</span>`; }
 function tagStatus(s) {
+  const _ap = { campo:['Pendente','amber'], aprovado:['Aprovado','green'], corrigido:['Aprovado','green'], rejeitado:['Rejeitado','red'] };
+  if (_ap[s]) return tag(_ap[s][0], _ap[s][1]);
   const m = { 'Ativo':'green','Operando':'green','Ativa':'green','campo':'blue','corrigido':'amber','Afastado':'amber','Parado':'amber','Desligado':'red','Manutenção':'red','Encerrada':'gray','Suspensa':'gray' };
   return tag(s, m[s] || 'gray');
 }
@@ -5545,8 +5546,8 @@ function filtroRapidoMO(tipo) {
   if (statusEl) statusEl.value = '';
   if (dataEl)   dataEl.value   = '';
 
-  if (tipo === 'campo' || tipo === 'corrigido') {
-    if (statusEl) statusEl.value = tipo;
+  if (tipo === 'campo' || tipo === 'corrigido' || tipo === 'aprovado') {
+    if (statusEl) statusEl.value = tipo === 'corrigido' ? 'aprovado' : tipo;
   } else if (tipo === 'ultimos4') {
     // Set date to 4 days ago range — not single date, just clear date and show all recent
     // We'll filter in renderMO using a date range pill
@@ -5585,7 +5586,7 @@ function renderMO() {
   if (dataF)    lista = lista.filter(a => (a.data||'').slice(0,10) === dataF);
   if (frenteF)  lista = lista.filter(a => a.frente === frenteF);
   if (empresaF) lista = lista.filter(a => (a.empresa||'').includes(empresaF));
-  if (statusF)  lista = lista.filter(a => a.status === statusF);
+  if (statusF)  lista = lista.filter(a => (statusF === 'aprovado' || statusF === 'corrigido') ? (a.status === 'aprovado' || a.status === 'corrigido') : a.status === statusF);
 
   // KPIs (contadores globais + lista filtrada)
   const totalApon  = lista.length;
@@ -5599,7 +5600,7 @@ function renderMO() {
   setEl('mo-kpi-colab', totalColab);
   setEl('mo-kpi-horas', (totalHN+totalHE).toFixed(1)+'h');
   setEl('mo-kpi-pend',  pend);
-  setEl('mo-cnt-proc',  dados.aponMO.filter(a=>a.status==='corrigido').length);
+  setEl('mo-cnt-proc',  dados.aponMO.filter(a=>a.status==='corrigido'||a.status==='aprovado').length);
   setEl('mo-cnt-pend',  dados.aponMO.filter(a=>a.status==='campo').length);
   setEl('mo-atualizado','Atualizado às ' + new Date().toTimeString().slice(0,5));
 
@@ -5643,7 +5644,7 @@ function renderMO() {
         +       '<div class="mo-card-cargo">Apontador de Campo</div>'
         +       '<div class="mo-card-empresa">'+(g.apontamentos[0]?.empresa||'—')+'</div>'
         +     '</div>'
-        +     '<div>'+(temPendente ? tag('Pendente','amber') : tag('Processado','green'))+'</div>'
+        +     '<div>'+(temPendente ? tag('Pendente','amber') : tag('Aprovado','green'))+'</div>'
         +   '</div>'
         + '</div>'
         + '<div class="mo-card-mid">'
@@ -5668,7 +5669,7 @@ function renderMO() {
         +     '<button class="mo-icon-btn" title="Exportar apontador" data-mo-action="exportar" data-mo-nome="'+nome+'"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>'
         +   '</div>'
         +   '<div>'
-        +   (temPendente ? '<button class="mo-process-btn mo-process-green" onclick="processarApontadorMO(&quot;'+nome+'&quot;)">✓ Processar</button>' : '<button class="mo-process-btn mo-process-done" style="opacity:.5" disabled>✓ Processado</button>')
+        +   (temPendente ? '<button class="mo-process-btn mo-process-green" onclick="processarApontadorMO(&quot;'+nome+'&quot;)">✓ Aprovar</button>' : '<button class="mo-process-btn mo-process-done" style="opacity:.5" disabled>✓ Aprovado</button>')
         +   '</div>'
         + '</div>'
         + '</div>';
@@ -5698,16 +5699,18 @@ function renderMO() {
     : '<tr><td colspan="13" style="text-align:center;color:var(--text-3);padding:2rem">Nenhum apontamento</td></tr>';
 }
 
-function processarApontadorMO(nome) {
-  dados.aponMO.filter(a=>a.lancadoPor===nome&&a.status==='campo').forEach(a=>a.status='corrigido');
-  renderMO();
-  toast(`Apontamentos de ${nome} processados!`);
+// v2.95: "Processar" virou "Aprovar" — usa a mesma aprovação da tela Aprovação (grava no servidor, aparece aprovado em todos os painéis)
+async function processarApontadorMO(nome) {
+  const gs = _aprGrupos('campo').filter(g => (g.apontador || 'Escritório') === nome);
+  if (!gs.length) { toast('Nada pendente de ' + nome + '.', 'error'); return; }
+  if (!confirm('Aprovar ' + gs.length + ' apontamento(s) de ' + nome + ' sem revisar um por um?\n\nPara conferir antes, use a tela Aprovação.')) return;
+  await aprAprovar(gs.map(g => g.chave)); renderMO();
 }
-
-function processarTodosMO() {
-  dados.aponMO.filter(a=>a.status==='campo').forEach(a=>a.status='corrigido');
-  renderMO();
-  toast('Todos os apontamentos processados!');
+async function processarTodosMO() {
+  const gs = _aprGrupos('campo');
+  if (!gs.length) { toast('Nada pendente.', 'error'); return; }
+  if (!confirm('Aprovar todos os ' + gs.length + ' apontamento(s) pendentes sem revisar um por um?\n\nPara conferir antes, use a tela Aprovação.')) return;
+  await aprAprovar(gs.map(g => g.chave)); renderMO();
 }
 
 function carregarApontamentosMO() { renderMO(); }
@@ -7863,7 +7866,8 @@ renderAponEQ = function() {
   if(fim) lista = lista.filter(a=>a.data<=fim);
   if(tagF) lista = lista.filter(a=>a.equip===tagF);
   if(frenteF) lista = lista.filter(a=>a.frente===frenteF||a.frente===frenteF.split(' — ')[0]);
-  if(statusF==='campo'||statusF==='corrigido') lista = lista.filter(a=>a.status===statusF);
+  if(statusF==='campo') lista = lista.filter(a=>a.status==='campo');
+  if(statusF==='corrigido') lista = lista.filter(a=>a.status==='corrigido'||a.status==='aprovado');
   if(statusF==='parado') lista = lista.filter(a=>(a.hpar||0)>0);
 
   // Update KPIs
@@ -7873,7 +7877,7 @@ renderAponEQ = function() {
   setT('eq-kpi-hpar', lista.reduce((s,a)=>s+(a.hpar||0),0).toFixed(1)+'h');
   setT('eq-kpi-pend', lista.filter(a=>a.status==='campo').length);
   const pendEQ = dados.aponEQ.filter(a=>a.status==='campo').length;
-  const procEQ = dados.aponEQ.filter(a=>a.status==='corrigido').length;
+  const procEQ = dados.aponEQ.filter(a=>a.status==='corrigido'||a.status==='aprovado').length;
   setT('eq-cnt-pend', pendEQ);
   setT('eq-cnt-proc', procEQ);
   setT('eq-atualizado', 'Atualizado às '+new Date().toTimeString().slice(0,5));
@@ -9028,7 +9032,7 @@ function _aprCardHTML(g, i, status) {
       <div class="mo-info-tags">
         ${g.servico && g.servico !== '—' ? `<span class="mo-info-tag" style="background:var(--blue-light);color:var(--blue)">${_e(g.servico)}</span>` : ''}
         ${qtd ? `<span class="mo-info-tag" style="background:var(--green-light);color:var(--green-dark)">${qtd} ${_e(unid)}</span>` : (g.mo.some(x => x.prodStatus === 'andamento') ? `<span class="mo-info-tag" style="background:#FEF3C7;color:#B45309">⏳ em andamento</span>` : '')}
-        ${perdas ? `<span class="mo-info-tag" style="background:var(--amber-light);color:#633806">perda ${perdas}h</span>` : ''}
+        ${perdas ? `<span class="mo-info-tag" style="background:var(--amber-light);color:#633806">perda ${perdas.toFixed(1).replace('.', ',')}h</span>` : ''}
       </div>
     </div>
     <div class="mo-card-stats">
