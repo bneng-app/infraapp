@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v2.87 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v2.88 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -2989,6 +2989,9 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
             <option value="Desmobilizado">Desmobilizado</option>
           </select>
         </div>
+        <div class="form-group"><label class="form-label">Chassi</label><input class="form-control" id="equip-chassi" style="text-transform:uppercase"/></div>
+        <div class="form-group"><label class="form-label">Nº de série</label><input class="form-control" id="equip-serie"/></div>
+        <div class="form-group"><label class="form-label">Validade do documento (CRLV)</label><input type="date" class="form-control" id="equip-docval"/></div>
         <div class="form-group"><label class="form-label">Data mobilização</label><input type="date" class="form-control" id="equip-mob"/>
           <div style="font-size:11px;color:var(--text-3);margin-top:3px">A partir dela a máquina deve ser apontada.</div></div>
         <div class="form-group"><label class="form-label">Data desmobilização</label><input type="date" class="form-control" id="equip-desmob"/>
@@ -12017,7 +12020,7 @@ async function verTermoMob(id) {
     <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap"><div><img src="${typeof _TK_LOGO !== 'undefined' ? _TK_LOGO : ''}" style="width:200px" alt="ObraKontrol"><div style="font-size:12px;color:#555;margin-top:4px">${_e(getNomeObra(m.obra) || m.obraNome || '')}</div></div>
       <div style="text-align:right"><div style="font-size:12px;letter-spacing:.1em;color:#555">TERMO DE MOBILIZAÇÃO</div><div style="font-size:34px;font-weight:900;color:#E30613;font-family:monospace">${_e(m.tag)}</div><div style="font-size:12px;color:#555">${_e(String(m.data || '').split('-').reverse().join('/'))} ${_e(m.hora || '')}</div></div></div>
     <hr style="border:0;border-top:1px solid #ddd;margin:16px 0">
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">${L('Família', m.familiaNome)}${L('Modelo', m.modeloNome)}${L('Placa / série', m.placa)}${L('Ano', m.ano)}${L('Proprietária', m.empresaNome)}${L('Horímetro / km', m.hor)}${L('Combustível na chegada', m.comb)}${L('Registrado por', m.lancadoPor)}</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">${L('Família', m.familiaNome)}${L('Modelo', m.modeloNome)}${L('Placa', m.placa)}${L('Chassi', m.chassi)}${L('Nº de série', m.serie)}${L('Validade do documento', m.docValidade ? String(m.docValidade).split('-').reverse().join('/') : '')}${L('Ano', m.ano)}${L('Proprietária', m.empresaNome)}${L('Horímetro / km', m.hor)}${L('Combustível na chegada', m.comb)}${L('Registrado por', m.lancadoPor)}</div>
     <h3 style="font-size:14px;margin:20px 0 8px">Checklist de recebimento · ${ck.filter(c => c.st === 'ok').length} OK${nok.length ? ' · <span style="color:#B91C1C">' + nok.length + ' com problema</span>' : ''}</h3>
     <table style="width:100%;border-collapse:collapse;font-size:12.5px">${ck.map(c => `<tr style="border-bottom:1px solid #eee"><td style="padding:5px 4px">${_e(c.t)}${c.obs ? '<div style="color:#B91C1C;font-size:11.5px">' + _e(c.obs) + '</div>' : ''}</td>
       <td style="padding:5px 4px;text-align:right;font-weight:700;color:${c.st === 'nok' ? '#B91C1C' : c.st === 'ok' ? '#15803D' : '#64748B'}">${c.st === 'nok' ? 'NÃO OK' : c.st === 'ok' ? 'OK' : 'N/A'}</td></tr>`).join('')}</table>
@@ -12037,6 +12040,38 @@ function imprimirTermoMob() {
   const t = document.getElementById('mob-termo'); if (!t) return; const w = window.open('', '_blank'); if (!w) { toast('Libere as janelas pop-up para imprimir.', 'error'); return; }
   w.document.write('<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Termo de mobilização</title><style>body{margin:0;padding:16px;font-family:Arial,sans-serif}@media print{body{padding:0}}</style></head><body>' + t.outerHTML + '<script>setTimeout(()=>print(),600)<\/script></body></html>'); w.document.close();
 }
+
+// ═══════════════════════════════════════════════════════════════
+// v2.88: CHASSI, Nº DE SÉRIE E VALIDADE DO DOCUMENTO DO EQUIPAMENTO (aviso de vencimento)
+// ═══════════════════════════════════════════════════════════════
+function _docSit(e) { if (!e.docValidade) return null; const d = Math.round((new Date(e.docValidade + 'T12:00') - new Date(_hojeLocal() + 'T12:00')) / 864e5);
+  return { dias: d, vencido: d < 0, vence: d >= 0 && d <= 30, data: String(e.docValidade).split('-').reverse().join('/') }; }
+(function () {
+  const $ = id => document.getElementById(id);
+  const oEd = window.editarEquipamento;
+  window.editarEquipamento = function (id) { const r = oEd.apply(this, arguments); const e = (dados.equipamentos || []).find(x => x.id === id) || {};
+    if ($('equip-chassi')) $('equip-chassi').value = e.chassi || ''; if ($('equip-serie')) $('equip-serie').value = e.serie || ''; if ($('equip-docval')) $('equip-docval').value = e.docValidade || ''; return r; };
+  const oSv = window.salvarEquipamento;
+  window.salvarEquipamento = function () {
+    const ex = { chassi: ($('equip-chassi')?.value || '').trim().toUpperCase(), serie: ($('equip-serie')?.value || '').trim(), docValidade: $('equip-docval')?.value || '' };
+    const tag = ($('equip-tag')?.value || '').trim(), idEd = ($('equip-edit-id')?.value || '').trim();
+    const r = oSv.apply(this, arguments);
+    if ($('modal-novo-equip')?.classList.contains('open')) return r;
+    const e = idEd ? (dados.equipamentos || []).find(x => x.id === idEd) : [...(dados.equipamentos || [])].reverse().find(x => String(x.tag || '').toLowerCase() === tag.toLowerCase());
+    if (e) { Object.assign(e, ex); if (db && _firebaseReady) fbSave('equipamentos', e.id, e).catch(() => {}); try { renderEquipamentos(); } catch (x) {} }
+    ['equip-chassi', 'equip-serie', 'equip-docval'].forEach(k => { if ($(k)) $(k).value = ''; });
+    return r;
+  };
+  const oR = window.renderEquipamentos;
+  renderEquipamentos = window.renderEquipamentos = function () {
+    const r = oR.apply(this, arguments); const ids = {}; (dados.equipamentos || []).forEach(e => ids[e.id] = e);
+    document.querySelectorAll('#tbody-equip tr').forEach(tr => { const cb = tr.querySelector('[data-id]'), e = cb && ids[cb.dataset.id]; if (!e) return;
+      const s = _docSit(e), td = tr.children[5]; if (!td || td.querySelector('.doc-b')) return;
+      if (e.chassi || e.serie) td.insertAdjacentHTML('beforeend', `<div class="doc-b" style="font-size:10.5px;color:var(--text-3)">${e.chassi ? 'Chassi ' + _e(e.chassi) : ''}${e.chassi && e.serie ? ' · ' : ''}${e.serie ? 'Série ' + _e(e.serie) : ''}</div>`);
+      if (s && (s.vencido || s.vence)) td.insertAdjacentHTML('beforeend', `<div class="doc-b"><span class="tag ${s.vencido ? 'tag-red' : 'tag-amber'}" style="font-size:10.5px" title="Validade do documento">${s.vencido ? 'doc. vencido em ' + s.data : 'doc. vence ' + s.data}</span></div>`); });
+    return r;
+  };
+})();
 
 // Apply configs on load
 setTimeout(applyConfigs, 200);
