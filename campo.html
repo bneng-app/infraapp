@@ -883,7 +883,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.55</div>
+  <div class="login-versao">ObraKontrol Campo · v2.56</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -4258,6 +4258,36 @@ async function atualizarCadastrosCampo(avisar) {
       atualizarCadastrosCampo(false);
     }
     return r;
+  };
+})();
+
+// ══════════════════════════════════════════════════════════════
+// v2.56: CRACHÁS ANTIGOS DAS OBRAS — QR com "matrícula/CPF" (ex.: 939801/40438436822) ou só o CPF
+// acha o funcionário pela matrícula ou pelo CPF (com ou sem pontos e traços)
+// ══════════════════════════════════════════════════════════════
+function _soDig(v) { return String(v || '').replace(/\D/g, ''); }
+function _funcPorCracha(texto) {
+  const t = String(texto || '').trim(), fs = dadosCampo.funcionarios || [];
+  const pMat = m => m && fs.find(f => String(f.mat || '').trim() === String(m).trim()) || (_soDig(m) && fs.find(f => _soDig(f.mat) === _soDig(m)));
+  const pCpf = c => { const d = _soDig(c); return d.length === 11 && fs.find(f => _soDig(f.cpf) === d); };
+  const m = /^([^/|;]+)[/|;]\s*([\d.\-\s]{11,14})$/.exec(t);
+  if (m) return { f: pMat(m[1]) || pCpf(m[2]), mat: m[1].trim(), cpf: _soDig(m[2]) };
+  if (/^[\d.\-\s]{11,14}$/.test(t) && _soDig(t).length === 11) { const f = pCpf(t) || pMat(t); return { f, mat: f ? f.mat : '', cpf: _soDig(t) }; }
+  return null;
+}
+(function () {
+  const oQR = processarQR;
+  processarQR = function (texto, contexto) {
+    if ((contexto === 'ap' && ap.aba === 'mo') || contexto === 'mo') {
+      const c = _funcPorCracha(texto);
+      if (c) {
+        if (c.f) return oQR.call(this, c.f.mat ? 'mat:' + c.f.mat : c.f.id, contexto);
+        const r = oQR.call(this, 'mat:' + (c.mat || c.cpf), contexto);
+        if (r && r.ok === false) { r.msg = r.msg.replace(/: .*?( —|$)/, ': matrícula ' + (c.mat || '—') + (c.cpf ? ' · CPF ' + c.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '') + '$1'); if (r.add) r.add.valor = c.mat || c.cpf; }
+        return r;
+      }
+    }
+    return oQR.apply(this, arguments);
   };
 })();
 
