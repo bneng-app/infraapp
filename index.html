@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.01 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.02 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -3956,7 +3956,7 @@ async function sincronizarTudo() {
   if (!db || !_firebaseReady) return;
   const colecoes = ['obras','empresas','ua','cargos','turnos','equipes','funcionarios',
     'familias','modelos','equipamentos','frentes','tiposServico','tiposPerdas',
-    'aponMO','aponEQ','diesel','perdas','tanques','movTanques','notasFiscais','produtos','perfis','orcamentos','republicas','mobilizacoes','frota'];
+    'aponMO','aponEQ','diesel','perdas','tanques','movTanques','notasFiscais','produtos','perfis','orcamentos','republicas','mobilizacoes','frota','fornBanco','solicitacoes'];
 
   // Check if Firebase was ever initialized
   let fbInicializado = false;
@@ -12833,6 +12833,199 @@ function _ehMaster() { const u = usuarioLogado; return !!(u && (u.master || u.de
     });
     return r;
   };
+})();
+
+
+// ═══════════════════════════════════════════════════════════════
+// v3.02: BANCO DE FORNECEDORES (Master) — a obra cadastra o fornecedor dela escolhendo do banco (nome e CNPJ padronizados).
+// Não está no banco? A obra pede ao Master (Solicitações). O Master aprova, consultando o CNPJ na Receita (BrasilAPI).
+// ═══════════════════════════════════════════════════════════════
+function _fbDig(v) { return String(v || '').replace(/\D/g, ''); }
+function _fbDocOk(v) { const d = _fbDig(v); return d.length === 14 ? _cnpjValido(d) : d.length === 11 ? _cpfValido(d) : false; }
+function _fbNome(b) { return (b && (b.razao || b.fantasia)) || ''; }
+async function _fbConsultaCNPJ(cnpj) {
+  const d = _fbDig(cnpj); if (d.length !== 14) return null;
+  try { const r = await fetch('https://brasilapi.com.br/api/cnpj/v1/' + d); if (!r.ok) return null; const j = await r.json();
+    return { razao: j.razao_social || '', fantasia: j.nome_fantasia || '', cidade: j.municipio || '', uf: j.uf || '', situacao: j.descricao_situacao_cadastral || '' }; } catch (e) { return null; }
+}
+function _fbGravar(col, o) { (dados[col] = dados[col] || []); const i = dados[col].findIndex(x => x.id === o.id); if (i >= 0) dados[col][i] = o; else dados[col].push(o); if (db && _firebaseReady) return fbSave(col, o.id, o).catch(() => toast('Salvo aqui, mas não no servidor. Tente de novo.', 'error')); }
+function _fbHtml() {
+  if (document.getElementById('modal-forn-banco')) return;
+  document.body.insertAdjacentHTML('beforeend', `<div class="modal-overlay" id="modal-forn-banco"><div class="modal" style="max-width:560px">
+    <div class="modal-header"><span class="modal-title" id="fb-titulo">Novo fornecedor no banco</span><button class="modal-close" onclick="closeModal('modal-forn-banco')">×</button></div>
+    <div class="modal-body"><input type="hidden" id="fb-id"/><input type="hidden" id="fb-sol"/>
+      <div class="form-grid">
+        <div class="form-group form-full"><label class="form-label" for="fb-doc">CNPJ (ou CPF) *</label><div style="display:flex;gap:8px"><input class="form-control td-mono" id="fb-doc" inputmode="numeric" maxlength="18" placeholder="00.000.000/0001-00" oninput="this.value=_docFmt(this.value)"/><button class="btn btn-outline" type="button" onclick="fbConsultar()">🔎 Consultar</button></div>
+          <div id="fb-cons" style="font-size:11.5px;color:var(--text-3);margin-top:4px">Com CNPJ, a consulta traz a razão social da Receita.</div></div>
+        <div class="form-group form-full"><label class="form-label" for="fb-razao">Razão social *</label><input class="form-control" id="fb-razao"/></div>
+        <div class="form-group form-full"><label class="form-label" for="fb-fantasia">Nome fantasia</label><input class="form-control" id="fb-fantasia"/></div>
+        <div class="form-group"><label class="form-label" for="fb-cidade">Cidade</label><input class="form-control" id="fb-cidade"/></div>
+        <div class="form-group"><label class="form-label" for="fb-uf">UF</label><input class="form-control" id="fb-uf" maxlength="2" style="text-transform:uppercase"/></div>
+      </div></div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-forn-banco')">Cancelar</button><button class="btn btn-primary" onclick="fbSalvar()">Salvar no banco</button></div></div></div>
+  <div class="modal-overlay" id="modal-forn-sol"><div class="modal" style="max-width:480px">
+    <div class="modal-header"><span class="modal-title">Pedir inclusão no banco</span><button class="modal-close" onclick="closeModal('modal-forn-sol')">×</button></div>
+    <div class="modal-body"><p style="margin:0 0 10px;font-size:13px;color:var(--text-2)">O Master confere e inclui no banco. Depois é só voltar e escolher.</p>
+      <div class="form-group"><label class="form-label" for="fs-doc">CNPJ (ou CPF) *</label><input class="form-control td-mono" id="fs-doc" inputmode="numeric" maxlength="18" oninput="this.value=_docFmt(this.value)"/></div>
+      <div class="form-group"><label class="form-label" for="fs-nome">Nome do fornecedor *</label><input class="form-control" id="fs-nome"/></div>
+      <div class="form-group"><label class="form-label" for="fs-obs">Observação</label><input class="form-control" id="fs-obs" placeholder="Ex.: locadora de caminhão pipa"/></div></div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-forn-sol')">Cancelar</button><button class="btn btn-primary" onclick="fsEnviar()">Enviar pedido</button></div></div></div>`);
+}
+// ── tela do Master
+function renderFornBanco() {
+  const tb = document.getElementById('tbody-forn-banco'); if (!tb) return;
+  const busca = _bsNorm(document.getElementById('search-fb')?.value || ''), banco = dados.fornBanco || [], emps = dados.empresas || [];
+  const sol = (dados.solicitacoes || []).filter(x => x.tipo === 'fornecedor' && x.status === 'pendente');
+  const sb = document.getElementById('fb-sols');
+  if (sb) sb.innerHTML = sol.length ? `<div class="card" style="margin-bottom:14px;border:1.5px solid #FCD34D;background:#FFFBEB"><div class="card-body"><div style="font-weight:800;color:#92400E;margin-bottom:8px">📨 ${sol.length} pedido(s) das obras</div>
+    ${sol.map(x => `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#fff;border:1px solid #FDE68A;border-radius:10px;padding:8px 12px;margin-bottom:6px">
+      <div style="flex:1;min-width:220px"><b>${_e(x.nome)}</b> <span class="td-mono" style="font-size:12px">${_e(x.doc)}</span><div style="font-size:11.5px;color:var(--text-3)">${_e(getNomeObra(x.obra) || '')} · pedido por ${_e(x.por || '')} em ${_e(String(x.em || '').slice(0, 10).split('-').reverse().join('/'))}${x.obs ? ' · ' + _e(x.obs) : ''}</div></div>
+      <button class="btn btn-primary btn-sm" onclick="fbAprovarSol('${x.id}')">Conferir e incluir</button><button class="btn btn-outline btn-sm" onclick="fbRecusarSol('${x.id}')">Recusar</button></div>`).join('')}</div></div>` : '';
+  const uso = id => emps.filter(e => e.bancoId === id).length;
+  const l = banco.filter(b => !busca || _bsNorm([b.razao, b.fantasia, b.doc, _fbDig(b.doc), b.cidade].join(' ')).includes(busca)).sort((a, b) => _fbNome(a).localeCompare(_fbNome(b), 'pt-BR'));
+  const semV = emps.filter(e => !e.bancoId).length;
+  const st = document.getElementById('fb-resumo'); if (st) st.innerHTML = `${banco.length} fornecedor(es) no banco${semV ? ` · <span style="color:var(--amber)">${semV} cadastro(s) das obras ainda sem vínculo com o banco</span>` : ''}`;
+  tb.innerHTML = l.length ? l.map(b => `<tr><td><b>${_e(b.razao || '—')}</b>${b.fantasia ? `<div style="font-size:11.5px;color:var(--text-3)">${_e(b.fantasia)}</div>` : ''}</td>
+      <td class="td-mono">${_e(b.doc || '—')}</td><td style="font-size:12px">${_e([b.cidade, b.uf].filter(Boolean).join(' / ') || '—')}</td>
+      <td>${b.situacao ? tag(_e(b.situacao), /ativa/i.test(b.situacao) ? 'green' : 'red') : '—'}</td><td class="td-mono" style="text-align:center">${uso(b.id)}</td>
+      <td style="text-align:right">${acoesCell(`fbEditar('${b.id}')`, `fbExcluir('${b.id}')`)}</td></tr>`).join('')
+    : `<tr><td colspan="6" style="text-align:center;color:var(--text-3);padding:2rem">${banco.length ? 'Nada com essa busca.' : 'Banco vazio. Use <b>+ Novo fornecedor</b>, <b>↑ Importar Excel</b> ou <b>Puxar das obras</b>.'}</td></tr>`;
+}
+function fbNovo(pre) {
+  _fbHtml(); const $ = id => document.getElementById(id);
+  ['fb-id', 'fb-sol', 'fb-doc', 'fb-razao', 'fb-fantasia', 'fb-cidade', 'fb-uf'].forEach(k => $(k).value = '');
+  if (pre) { $('fb-doc').value = pre.doc || ''; $('fb-razao').value = pre.nome || ''; $('fb-sol').value = pre.sol || ''; }
+  $('fb-titulo').textContent = pre && pre.sol ? 'Incluir pedido da obra no banco' : 'Novo fornecedor no banco'; $('fb-cons').textContent = 'Com CNPJ, a consulta traz a razão social da Receita.';
+  openModal('modal-forn-banco'); if (pre && _fbDig(pre.doc).length === 14) fbConsultar();
+}
+function fbEditar(id) { const b = (dados.fornBanco || []).find(x => x.id === id); if (!b) return; fbNovo(); const $ = k => document.getElementById(k);
+  $('fb-id').value = b.id; $('fb-doc').value = b.doc || ''; $('fb-razao').value = b.razao || ''; $('fb-fantasia').value = b.fantasia || ''; $('fb-cidade').value = b.cidade || ''; $('fb-uf').value = b.uf || ''; $('fb-titulo').textContent = 'Editar fornecedor do banco'; }
+async function fbConsultar() {
+  const $ = k => document.getElementById(k), d = _fbDig($('fb-doc').value), c = $('fb-cons');
+  if (d.length !== 14) { c.textContent = 'A consulta é só para CNPJ. Para CPF, preencha o nome à mão.'; return; }
+  if (!_cnpjValido(d)) { c.innerHTML = '<span style="color:var(--red)">CNPJ inválido. Confira os números.</span>'; return; }
+  c.textContent = 'Consultando a Receita…'; const r = await _fbConsultaCNPJ(d);
+  if (!r) { c.innerHTML = '<span style="color:var(--amber)">Não consegui consultar agora. Preencha à mão.</span>'; return; }
+  $('fb-razao').value = r.razao; $('fb-fantasia').value = r.fantasia; $('fb-cidade').value = r.cidade; $('fb-uf').value = r.uf; $('fb-razao').dataset.sit = r.situacao;
+  c.innerHTML = `✓ Receita: <b>${_e(r.situacao || '—')}</b>`;
+}
+function fbSalvar() {
+  const $ = k => document.getElementById(k), id = $('fb-id').value, doc = $('fb-doc').value.trim(), razao = $('fb-razao').value.trim();
+  if (!_fbDocOk(doc)) { toast('CNPJ / CPF inválido.', 'error'); return; }
+  if (!razao) { toast('Informe a razão social.', 'error'); return; }
+  const dup = (dados.fornBanco || []).find(b => b.id !== id && _fbDig(b.doc) === _fbDig(doc)); if (dup) { toast('Esse CNPJ / CPF já está no banco: ' + _fbNome(dup) + '.', 'error'); return; }
+  const ant = id ? (dados.fornBanco || []).find(b => b.id === id) : null;
+  const b = { ...(ant || { id: 'fb' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), criadoEm: new Date().toISOString(), criadoPor: usuarioLogado?.nome || '' }),
+    doc: _docFmt(doc), razao, fantasia: $('fb-fantasia').value.trim(), cidade: $('fb-cidade').value.trim(), uf: $('fb-uf').value.trim().toUpperCase(), situacao: $('fb-razao').dataset.sit || (ant && ant.situacao) || '', atualizadoEm: new Date().toISOString() };
+  _fbGravar('fornBanco', b);
+  // nome padronizado também nos cadastros das obras ligados a ele
+  if (ant) (dados.empresas || []).filter(e => e.bancoId === b.id && (e.nome !== b.razao || e.cnpj !== b.doc)).forEach(e => { e.nome = b.razao; e.cnpj = b.doc; _fbGravar('empresas', e); });
+  const sid = $('fb-sol').value; if (sid) { const s = (dados.solicitacoes || []).find(x => x.id === sid); if (s) _fbGravar('solicitacoes', { ...s, status: 'aprovada', bancoId: b.id, resolvidoPor: usuarioLogado?.nome || '', resolvidoEm: new Date().toISOString() }); }
+  closeModal('modal-forn-banco'); renderFornBanco(); toast(_fbNome(b) + ' no banco de fornecedores.');
+}
+function fbExcluir(id) {
+  const b = (dados.fornBanco || []).find(x => x.id === id); if (!b) return; const n = (dados.empresas || []).filter(e => e.bancoId === id).length;
+  if (n) { toast('Está em uso em ' + n + ' cadastro(s) das obras. Não dá para excluir.', 'error'); return; }
+  if (!confirm('Excluir ' + _fbNome(b) + ' do banco?')) return;
+  dados.fornBanco = dados.fornBanco.filter(x => x.id !== id); if (db && _firebaseReady) fbDelete('fornBanco', id).catch(() => {}); renderFornBanco();
+}
+function fbAprovarSol(sid) { const s = (dados.solicitacoes || []).find(x => x.id === sid); if (!s) return;
+  const ja = (dados.fornBanco || []).find(b => _fbDig(b.doc) === _fbDig(s.doc));
+  if (ja) { _fbGravar('solicitacoes', { ...s, status: 'aprovada', bancoId: ja.id, resolvidoPor: usuarioLogado?.nome || '', resolvidoEm: new Date().toISOString() }); renderFornBanco(); toast('Já estava no banco: ' + _fbNome(ja) + '.'); return; }
+  fbNovo({ doc: s.doc, nome: s.nome, sol: s.id }); }
+function fbRecusarSol(sid) { const s = (dados.solicitacoes || []).find(x => x.id === sid); if (!s) return; const m = prompt('Motivo (a obra vê):', ''); if (m === null) return;
+  _fbGravar('solicitacoes', { ...s, status: 'recusada', motivo: m, resolvidoPor: usuarioLogado?.nome || '', resolvidoEm: new Date().toISOString() }); renderFornBanco(); }
+// puxa os fornecedores que as obras já cadastraram (com CNPJ válido) para o banco e liga os cadastros
+function fbPuxarDasObras() {
+  const emps = dados.empresas || []; let novos = 0, ligados = 0, sem = 0;
+  emps.forEach(e => { const d = _fbDig(e.cnpj); if (!(d.length === 14 ? _cnpjValido(d) : d.length === 11 ? _cpfValido(d) : false)) { if (!e.bancoId) sem++; return; }
+    let b = (dados.fornBanco || []).find(x => _fbDig(x.doc) === d);
+    if (!b) { b = { id: 'fb' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), doc: _docFmt(d), razao: e.nome || '', fantasia: '', cidade: '', uf: '', situacao: '', criadoEm: new Date().toISOString(), criadoPor: 'importado das obras' }; _fbGravar('fornBanco', b); novos++; }
+    if (e.bancoId !== b.id || e.nome !== b.razao) { e.bancoId = b.id; if (b.razao) e.nome = b.razao; e.cnpj = b.doc; _fbGravar('empresas', e); ligados++; } });   // nome fica igual ao do banco
+  renderFornBanco(); toast(`${novos} novo(s) no banco · ${ligados} cadastro(s) ligado(s)` + (sem ? ` · ${sem} sem CNPJ válido (ligue manualmente)` : '') + '.');
+}
+function fbImportar(inp) {
+  const f = inp.files && inp.files[0]; inp.value = ''; if (!f || typeof XLSX === 'undefined') return;
+  const rd = new FileReader();
+  rd.onload = ev => { try {
+    const wb = XLSX.read(ev.target.result, { type: 'binary' }), rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '' });
+    let hi = rows.findIndex(r => r.some(c => /cnpj|cpf/i.test(String(c)))); if (hi < 0) { toast('Não achei a coluna CNPJ na planilha.', 'error'); return; }
+    const H = rows[hi].map(h => _bsNorm(h)), ix = re => H.findIndex(h => re.test(h));
+    const cD = ix(/cnpj|cpf/), cR = ix(/razao|nome(?!.*fantasia)/), cF = ix(/fantasia/), cC = ix(/cidade|municipio/), cU = ix(/^uf$|estado/);
+    let n = 0, rep = 0, inv = 0;
+    rows.slice(hi + 1).forEach(r => { const d = _fbDig(r[cD]); if (!d) return; if (!(d.length === 14 ? _cnpjValido(d) : d.length === 11 ? _cpfValido(d) : false)) { inv++; return; }
+      if ((dados.fornBanco || []).some(b => _fbDig(b.doc) === d)) { rep++; return; }
+      _fbGravar('fornBanco', { id: 'fb' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), doc: _docFmt(d), razao: String(cR >= 0 ? r[cR] : '').trim(), fantasia: String(cF >= 0 ? r[cF] : '').trim(), cidade: String(cC >= 0 ? r[cC] : '').trim(), uf: String(cU >= 0 ? r[cU] : '').trim().toUpperCase().slice(0, 2), situacao: '', criadoEm: new Date().toISOString(), criadoPor: 'importação' }); n++; });
+    renderFornBanco(); toast(`${n} importado(s)` + (rep ? ` · ${rep} já estavam no banco` : '') + (inv ? ` · ${inv} com CNPJ/CPF inválido` : '') + '.');
+  } catch (e) { toast('Não consegui ler a planilha.', 'error'); } };
+  rd.readAsBinaryString(f);
+}
+// ── obra: pedir inclusão
+function fsAbrir() { _fbHtml(); ['fs-doc', 'fs-nome', 'fs-obs'].forEach(k => document.getElementById(k).value = ''); const q = document.querySelector('#emp-banco + .bs-wrap input'); if (q && q.value) { const d = _fbDig(q.value); if (d.length >= 11) document.getElementById('fs-doc').value = _docFmt(d); else document.getElementById('fs-nome').value = q.value; } openModal('modal-forn-sol'); }
+function fsEnviar() {
+  const $ = k => document.getElementById(k), doc = $('fs-doc').value.trim(), nome = $('fs-nome').value.trim();
+  if (!_fbDocOk(doc)) { toast('CNPJ / CPF inválido.', 'error'); return; } if (!nome) { toast('Informe o nome.', 'error'); return; }
+  const ja = (dados.fornBanco || []).find(b => _fbDig(b.doc) === _fbDig(doc)); if (ja) { toast('Esse já está no banco: ' + _fbNome(ja) + '. É só escolher.', 'error'); return; }
+  const obra = $('emp-obra')?.value || (_okObraAtual() !== 'todas' ? _okObraAtual() : '');
+  _fbGravar('solicitacoes', { id: 'sl' + Date.now().toString(36), tipo: 'fornecedor', status: 'pendente', doc: _docFmt(doc), nome, obs: $('fs-obs').value.trim(), obra, por: usuarioLogado?.nome || '', em: new Date().toISOString() });
+  closeModal('modal-forn-sol'); toast('Pedido enviado ao Master.');
+}
+(function () {
+  const $ = id => document.getElementById(id);
+  // página do Master
+  const pgAnt = $('page-frentes');
+  if (pgAnt && !$('page-forn-banco')) pgAnt.insertAdjacentHTML('beforebegin', `<div class="page" id="page-forn-banco">
+    <div class="page-header"><div><div class="page-title">Banco de fornecedores</div><div class="page-sub">Lista padrão da empresa. As obras escolhem daqui ao cadastrar o fornecedor delas.</div></div>
+      <div class="btn-group"><button class="btn btn-outline btn-sm" onclick="fbPuxarDasObras()" title="Traz os fornecedores que as obras já cadastraram com CNPJ">⇣ Puxar das obras</button><label class="btn btn-outline btn-sm" style="cursor:pointer">↑ Importar Excel<input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="fbImportar(this)"/></label><button class="btn btn-primary" onclick="fbNovo()">+ Novo fornecedor</button></div></div>
+    <div id="fb-sols"></div>
+    <div class="card"><div class="card-body">
+      <div class="search-wrap" style="margin-bottom:.5rem"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="search-fb" placeholder="Buscar razão social, fantasia, CNPJ ou cidade…" oninput="renderFornBanco()"/></div>
+      <div id="fb-resumo" style="font-size:12.5px;color:var(--text-3);margin-bottom:.5rem"></div>
+      <div class="table-wrap"><table><thead><tr><th>Razão social</th><th>CNPJ / CPF</th><th>Cidade</th><th>Receita</th><th style="text-align:center">Obras</th><th></th></tr></thead><tbody id="tbody-forn-banco"></tbody></table></div>
+      <div style="font-size:11.5px;color:var(--text-3);margin-top:8px">Importar Excel: colunas CNPJ, Razão social e, se tiver, Nome fantasia, Cidade e UF. CNPJ repetido é ignorado.</div>
+    </div></div></div>`);
+  const gm = $('grp-master'), box = gm && gm.querySelector('.nav-group-items');
+  if (box && !box.querySelector(`[onclick*="showPage('forn-banco'"]`)) box.insertAdjacentHTML('beforeend', `<div class="nav-item" onclick="showPage('forn-banco',this)" title="Banco de fornecedores"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg><span>Banco de fornecedores</span></div>`);
+  // "Fornecedores" (cadastro da obra) volta para o grupo Obra e é visto por quem tem a tela
+  const it = document.querySelector(`.sidebar .nav-item[onclick*="showPage('empresas'"]`), go = $('grp-cadastros')?.querySelector('.nav-group-items');
+  if (it && go) go.appendChild(it);
+  const mi = _MENU_MASTER.indexOf('empresas'); if (mi >= 0) _MENU_MASTER.splice(mi, 1); if (!_MENU_MASTER.includes('forn-banco')) _MENU_MASTER.push('forn-banco');
+  const sub = document.querySelector('#page-empresas .page-sub'); if (sub) sub.textContent = 'Fornecedores, empreiteiras e locadoras desta obra — escolhidos do banco de fornecedores';
+  // cadastro da obra: escolhe do banco
+  const nomeG = $('emp-nome')?.closest('.form-group');
+  if (nomeG && !$('emp-banco')) {
+    nomeG.insertAdjacentHTML('beforebegin', `<div class="form-group form-full"><label class="form-label" for="emp-banco">Fornecedor (do banco) *</label><select class="form-control" id="emp-banco" onchange="_empDoBanco()"><option value="">Escolha…</option></select>
+      <div style="font-size:11.5px;color:var(--text-3);margin-top:4px">Busque pela razão social, nome fantasia ou CNPJ. Não achou? <a href="#" onclick="fsAbrir();return false">Pedir inclusão ao Master</a>.</div></div>`);
+    $('emp-nome').readOnly = true; $('emp-cnpj').readOnly = true; $('emp-nome').style.background = $('emp-cnpj').style.background = 'var(--bg)';
+    buscaSelect('emp-banco', 'Digite razão social, fantasia ou CNPJ…');
+  }
+  window._empDoBanco = function () { const b = (dados.fornBanco || []).find(x => x.id === $('emp-banco').value); $('emp-nome').value = b ? b.razao : ''; $('emp-cnpj').value = b ? b.doc : ''; };
+  const opts = sel => { const s = $('emp-banco'); if (!s) return; s.innerHTML = '<option value="">Escolha…</option>' + (dados.fornBanco || []).slice().sort((a, b) => _fbNome(a).localeCompare(_fbNome(b), 'pt-BR')).map(b => `<option value="${_e(b.id)}">${_e(b.razao)} · ${_e(b.doc)}${b.fantasia ? ' · ' + _e(b.fantasia) : ''}</option>`).join(''); s.value = sel || ''; buscaSelectSync('emp-banco'); };
+  // botão "+ Nova empresa" abre limpo com o banco
+  const btn = document.querySelector(`#page-empresas [onclick="openModal('modal-nova-empresa')"]`); if (btn) { btn.textContent = '+ Novo fornecedor'; btn.setAttribute('onclick', 'empNovo()'); }
+  window.empNovo = function () { ['emp-edit-id', 'emp-cod', 'emp-nome', 'emp-cnpj', 'emp-resp'].forEach(k => { if ($(k)) $(k).value = ''; }); popularSelectObra('emp-obra', _okObraAtual() !== 'todas' ? _okObraAtual() : ''); const t = $('modal-emp-titulo'); if (t) t.textContent = 'Novo fornecedor da obra'; opts(''); openModal('modal-nova-empresa'); };
+  const oEd = window.editarEmpresa;
+  window.editarEmpresa = function (id) { const r = oEd.apply(this, arguments); const e = (dados.empresas || []).find(x => x.id === id) || {};
+    let bid = e.bancoId; if (!bid && e.cnpj) { const b = (dados.fornBanco || []).find(x => _fbDig(x.doc) === _fbDig(e.cnpj)); if (b) bid = b.id; }
+    opts(bid || ''); if (!bid) { $('emp-nome').value = e.nome || ''; $('emp-cnpj').value = e.cnpj || ''; } return r; };
+  const oSv = window.salvarEmpresa;
+  window.salvarEmpresa = function () {
+    const b = (dados.fornBanco || []).find(x => x.id === $('emp-banco')?.value);
+    if (!b) { toast((dados.fornBanco || []).length ? 'Escolha o fornecedor do banco. Se não existir, peça ao Master.' : 'O banco de fornecedores está vazio. Peça ao Master para cadastrar.', 'error'); return; }
+    $('emp-nome').value = b.razao; $('emp-cnpj').value = b.doc;
+    const idEd = $('emp-edit-id')?.value || '', antes = new Set((dados.empresas || []).map(x => x.id));
+    const r = oSv.apply(this, arguments);
+    const e = idEd ? (dados.empresas || []).find(x => x.id === idEd) : (dados.empresas || []).find(x => !antes.has(x.id));
+    if (e && e.bancoId !== b.id) { e.bancoId = b.id; _fbGravar('empresas', e); }
+    return r;
+  };
+  // lista da obra mostra se está ligado ao banco
+  const oR = window.renderEmpresas || renderEmpresas;
+  renderEmpresas = window.renderEmpresas = function () { const r = oR.apply(this, arguments); const ids = new Map((dados.empresas || []).map(e => [e.id, e]));
+    document.querySelectorAll('#tbody-empresas tr').forEach(tr => { const cb = tr.querySelector('[data-id]'), e = cb && ids.get(cb.dataset.id); const td = tr.children[3]; if (e && td && !e.bancoId && !td.querySelector('.sem-banco')) td.insertAdjacentHTML('beforeend', ' <span class="tag tag-amber sem-banco" style="font-size:10px" title="Edite e escolha do banco de fornecedores">fora do banco</span>'); });
+    return r; };
+  const oInit = window.pageInit;
+  window.pageInit = function (id) { const r = oInit.apply(this, arguments); if (id === 'forn-banco') renderFornBanco(); return r; };
 })();
 
 // Apply configs on load
