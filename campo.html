@@ -883,7 +883,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.62</div>
+  <div class="login-versao">ObraKontrol Campo · v2.64</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -4371,11 +4371,7 @@ function _mobEmp() { return (dadosCampo.empresas || []).find(e => e.cod === mob.
 // interna = empresa marcada como "Própria" no painel, ou com o nome do cliente (ex.: TENCO)
 function mobFornecedor() {
   const e = _mobEmp(); if (!e) return false;
-  if (/pr[óo]pria|intern/i.test(e.tipo || '')) return false;
-  let cli = ''; try { cli = (localStorage.getItem('ok_cliente_nome') || window.OK_CLIENTE || '').toLowerCase(); } catch (x) {}
-  const nome = String(e.nome || e.razao || '').toLowerCase();
-  if (cli && cli.length >= 2 && nome.includes(cli)) return false;
-  return true;
+  return !/pr[óo]pria|intern/i.test(e.tipo || '');   // v2.63: só é interna a empresa marcada como "Própria" no cadastro
 }
 function _cpfDig(v) { return String(v || '').replace(/\D/g, ''); }
 function _cpfValido(v) {
@@ -4512,6 +4508,128 @@ function apExcluirAberto(uid) {
       el.insertBefore(b, el.lastElementChild); });
     return r;
   };
+})();
+
+// ══════════════════════════════════════════════════════════════
+// v2.63: quem entregou é sempre obrigatório (nome). Fornecedor: + CPF e assinatura à mão. Aviso mostra qual regra vale.
+// ══════════════════════════════════════════════════════════════
+(function () {
+  const oRender = mobRender;
+  mobRender = function () {
+    const r = oRender.apply(this, arguments);
+    if (mob && mob.passo === 4 && !mobFornecedor()) {
+      const el = document.getElementById('mob-content'), ent = el && el.querySelector('#sig-ent'), g = ent && ent.closest('.form-group'); if (!g) return r;
+      const lb = g.querySelector('.form-label'); if (lb) lb.textContent = 'Quem entregou *';
+      const i = g.querySelector('input.form-control'); if (i) i.placeholder = 'Nome de quem entregou';
+      const sp = g.querySelector('.mob-sig span'); if (sp) sp.textContent = 'Assine com o dedo ou gere pelo nome';
+      const e = _mobEmp();
+      g.insertAdjacentHTML('afterbegin', `<div class="mob-forn" style="color:#166534;background:#F0FDF4;border-color:#BBF7D0">Equipamento próprio (${_mobEsc((e && e.nome) || mob.prop || '—')}): CPF não é exigido.</div>`);
+    }
+    return r;
+  };
+  const oFalta = _mobFalta;
+  _mobFalta = function (p) {
+    const f = oFalta.apply(this, arguments);
+    if (p === 4 && !mobFornecedor()) { if (!String(mob.nomeEnt || '').trim()) f.push('o nome de quem entregou'); if (!mob.sigEnt) f.push('a assinatura de quem entregou'); }
+    return f;
+  };
+})();
+
+// ══════════════════════════════════════════════════════════════
+// v2.64: MOBILIZAÇÃO GUARDADA — salva sozinha no celular (com fotos e assinaturas) e dá para continuar depois.
+// Fica no IndexedDB do aparelho (cabe muito mais que o localStorage). Some ao validar ou excluir.
+// ══════════════════════════════════════════════════════════════
+const _mobIDB = (function () {
+  let p = null;
+  const abre = () => p || (p = new Promise((ok, falha) => { try { const r = indexedDB.open('ok_campo', 1);
+    r.onupgradeneeded = () => { const d = r.result; if (!d.objectStoreNames.contains('mobRasc')) d.createObjectStore('mobRasc', { keyPath: 'rid' }); };
+    r.onsuccess = () => ok(r.result); r.onerror = () => falha(r.error); } catch (e) { falha(e); } }));
+  const tx = async (modo, fn) => { const d = await abre(); return new Promise((ok, falha) => { const t = d.transaction('mobRasc', modo), st = t.objectStore('mobRasc'); const r = fn(st); t.oncomplete = () => ok(r && r.result); t.onerror = () => falha(t.error); }); };
+  return {
+    salvar: o => tx('readwrite', st => st.put(o)),
+    apagar: rid => tx('readwrite', st => st.delete(rid)),
+    todos: () => tx('readonly', st => st.getAll()),
+  };
+})();
+function _mobUsr() { return String((usuarioCampo && (usuarioCampo.id || usuarioCampo.mat)) || 'x') + '@' + (window.OK_CLIENTE || (usuarioCampo && usuarioCampo.cliente) || ''); }
+function _mobTemAlgo(m) { return m && (m.familia || m.placa || m.passo > 0 || m.fotoHor || Object.keys(m.fotos || {}).length); }
+let _mobSalvT = null;
+function _mobAgendar() { clearTimeout(_mobSalvT); _mobSalvT = setTimeout(mobGuardar, 1200); }
+async function mobGuardar() {
+  clearTimeout(_mobSalvT);
+  if (!mob || !_mobTemAlgo(mob)) return false;
+  if (!mob.rid) mob.rid = 'mr' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+  try { await _mobIDB.salvar({ ...JSON.parse(JSON.stringify(mob)), usr: _mobUsr(), salvoEm: new Date().toISOString() }); _mobCardRasc(); return true; } catch (e) { return false; }
+}
+async function _mobRascunhos() { try { const u = _mobUsr(); return ((await _mobIDB.todos()) || []).filter(x => x.usr === u).sort((a, b) => String(b.salvoEm).localeCompare(String(a.salvoEm))); } catch (e) { return []; } }
+async function mobSairGuardar() {
+  const ok = await mobGuardar();
+  if (ok) toast('Mobilização guardada. Continue depois pelo cartão Mobilização.', 'ok');
+  mob = null; showScreen('home');
+}
+async function _mobCardRasc() {
+  const c = document.getElementById('card-mob'); if (!c) return;
+  const l = await _mobRascunhos(); let b = c.querySelector('.mob-rasc-b');
+  if (!l.length) { if (b) b.remove(); return; }
+  if (!b) { b = document.createElement('span'); b.className = 'mob-rasc-b'; c.appendChild(b); }
+  b.textContent = l.length === 1 ? '1 em andamento' : l.length + ' em andamento';
+}
+async function _mobEscolher() {
+  const l = await _mobRascunhos(); if (!l.length) return;
+  const el = document.getElementById('mob-content'), bar = document.querySelector('#screen-mob .mob-bar'); if (!el) return;
+  if (bar) bar.style.display = 'none'; const gb = document.querySelector('.mob-guardar'); if (gb) gb.style.display = 'none';
+  document.getElementById('mob-sub').textContent = 'Você tem mobilização em andamento';
+  const fam = c => ((dadosCampo.familias || []).find(f => f.cod === c) || {}).desc || c || 'sem família';
+  el.innerHTML = `<div style="font-size:13px;color:var(--text2);margin:4px 2px 10px">Continue de onde parou ou comece uma nova.</div>
+    ${l.map(x => `<div class="card mob-rasc"><div class="card-body">
+      <div><div style="font-weight:800;font-size:15px">${_mobEsc(fam(x.familia))}${x.placa ? ' · ' + _mobEsc(String(x.placa).toUpperCase()) : ''}</div>
+        <div style="font-size:12.5px;color:var(--text2)">Etapa ${(x.passo || 0) + 1} de 5 · ${_mobEsc(MOB_PASSOS[x.passo || 0] || '')}</div>
+        <div style="font-size:11.5px;color:var(--text3)">guardada ${_mobEsc(new Date(x.salvoEm).toLocaleString('pt-BR').replace(',', '').slice(0, 16))}</div></div>
+      <div style="display:flex;gap:8px;margin-top:10px"><button type="button" class="btn btn-green" style="flex:1;min-height:44px" onclick="mobContinuar('${x.rid}')">Continuar</button>
+      <button type="button" class="ap-lixo" style="flex:0 0 44px;height:44px" onclick="mobRascExcluir('${x.rid}')" aria-label="Excluir">🗑</button></div></div></div>`).join('')}
+    <button type="button" class="btn btn-outline" style="width:100%;margin-top:6px;min-height:48px;font-weight:800" onclick="mobNovaMesmo()">+ Nova mobilização</button>`;
+}
+async function mobContinuar(rid) {
+  const x = (await _mobRascunhos()).find(r => r.rid === rid); if (!x) return;
+  const { usr, salvoEm, ...m } = x; mob = m;
+  const bar = document.querySelector('#screen-mob .mob-bar'); if (bar) bar.style.display = ''; const gb = document.querySelector('.mob-guardar'); if (gb) gb.style.display = '';
+  mobRender(); toast('Continuando de onde parou', 'ok');
+}
+function mobNovaMesmo() { const bar = document.querySelector('#screen-mob .mob-bar'); if (bar) bar.style.display = ''; const gb = document.querySelector('.mob-guardar'); if (gb) gb.style.display = ''; mobRender(); }
+async function mobRascExcluir(rid) {
+  if (!confirm('Excluir esta mobilização em andamento? As fotos e assinaturas dela serão perdidas.')) return;
+  try { await _mobIDB.apagar(rid); } catch (e) {}
+  _mobCardRasc();
+  if ((await _mobRascunhos()).length) _mobEscolher(); else mobNovaMesmo();
+}
+(function () {
+  const css = document.createElement('style');
+  css.textContent = `.mob-rasc-b{position:absolute;top:10px;right:10px;background:#F59E0B;color:#fff;font-size:11px;font-weight:800;border-radius:10px;padding:3px 8px}
+    #card-mob{position:relative}
+    .mob-guardar{margin-left:auto;background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:12px;padding:8px 12px;font-weight:800;font-size:13px;cursor:pointer;white-space:nowrap}
+    .ap-lixo{width:38px;height:38px;border-radius:10px;border:1.5px solid #FCA5A5;background:#fff;color:var(--red);font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center}`;
+  document.head.appendChild(css);
+  // botão no topo da mobilização
+  const row = document.querySelector('#screen-mob .topbar-row');
+  if (row) row.insertAdjacentHTML('beforeend', '<button type="button" class="mob-guardar" onclick="mobSairGuardar()">💾 Continuar depois</button>');
+  // salva sozinha: a cada mudança de tela, foto, digitação ou assinatura
+  const oRender = mobRender;
+  mobRender = function () { const r = oRender.apply(this, arguments); _mobAgendar(); return r; };
+  const cont = document.getElementById('mob-content');
+  if (cont) ['input', 'change', 'pointerup'].forEach(ev => cont.addEventListener(ev, () => { if (mob) _mobAgendar(); }, true));
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && mob) mobGuardar(); });
+  // ao abrir: se tiver alguma guardada, pergunta
+  const oAbrir = abrirMobilizacao;
+  abrirMobilizacao = async function () { const r = await oAbrir.apply(this, arguments); await _mobEscolher(); return r; };
+  // sair pelo voltar na 1ª etapa: guarda em vez de perder
+  const oVoltar = mobVoltar;
+  mobVoltar = function () { if (mob && mob.passo === 0 && _mobTemAlgo(mob)) { mobSairGuardar(); return; } return oVoltar.apply(this, arguments); };
+  // validou: apaga a guardada
+  const oVal = mobValidar;
+  mobValidar = async function () { const rid = mob && mob.rid; clearTimeout(_mobSalvT); const r = await oVal.apply(this, arguments);
+    if (rid && !mob) { try { await _mobIDB.apagar(rid); } catch (e) {} _mobCardRasc(); } return r; };
+  const oEntrar = entrarNoCampo;
+  entrarNoCampo = function () { const r = oEntrar.apply(this, arguments); setTimeout(_mobCardRasc, 500); return r; };
 })();
 
 // Salvar sessão ao entrar
