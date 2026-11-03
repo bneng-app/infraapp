@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v2.98 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v2.99 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -12600,6 +12600,61 @@ function _cnpjValido(v) { const c = String(v || '').replace(/\D/g, ''); if (c.le
     if (x && (x.propDoc || '') !== doc) { x.propDoc = doc; if (db && _firebaseReady) fbSave('republicas', x.id, x).catch(() => {}); try { renderRepublicas(); } catch (e) {} }
     return r;
   };
+})();
+
+
+// ═══════════════════════════════════════════════════════════════
+// v2.99: busca de funcionário — digita nome, matrícula ou função e escolhe (moradores da república e responsável da frota)
+// O <select> original continua por baixo (escondido): o resto do código lê o valor dele normalmente.
+// ═══════════════════════════════════════════════════════════════
+function _bsNorm(t) { return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
+function buscaSelect(selId, ph) {
+  const sel = document.getElementById(selId); if (!sel || sel.dataset.bs) return; sel.dataset.bs = '1';
+  const w = document.createElement('div'); w.className = 'bs-wrap';
+  w.innerHTML = `<input class="form-control bs-inp" type="search" autocomplete="off" placeholder="${ph || 'Digite nome ou matrícula…'}"/><div class="bs-lista" hidden></div>`;
+  sel.style.display = 'none'; sel.after(w);
+  const inp = w.querySelector('input'), lst = w.querySelector('.bs-lista'); let foco = 0, itens = [];
+  const ops = () => [...sel.options].filter(o => o.value !== '');
+  const marca = () => lst.querySelectorAll('.bs-it').forEach((e, i) => e.classList.toggle('on', i === foco));
+  const pinta = () => {
+    const q = _bsNorm(inp.value).trim().split(/\s+/).filter(Boolean);
+    itens = ops().filter(o => !o.value.startsWith('__') && q.every(p => _bsNorm(o.textContent).includes(p))).slice(0, 60).concat(ops().filter(o => o.value.startsWith('__'))); foco = 0;
+    lst.innerHTML = itens.length ? itens.map((o, i) => { const [nome, ...resto] = o.textContent.split(' · ');
+      return `<div class="bs-it${i === 0 ? ' on' : ''}" data-v="${_e(o.value)}"><b>${_e(nome)}</b>${resto.length ? `<span>${_e(resto.join(' · '))}</span>` : ''}</div>`; }).join('')
+      : `<div class="bs-vazio">Ninguém encontrado${inp.value ? ' com “' + _e(inp.value) + '”' : ''}</div>`;
+    lst.hidden = false;
+  };
+  const escolhe = v => { const o = [...sel.options].find(x => x.value === v); if (!o) return; sel.value = v; inp.value = o.textContent.split(' · ')[0]; lst.hidden = true; inp.classList.add('bs-ok'); sel.dispatchEvent(new Event('change', { bubbles: true })); };
+  inp.addEventListener('focus', () => { inp.select(); pinta(); });
+  inp.addEventListener('input', () => { sel.value = ''; inp.classList.remove('bs-ok'); pinta(); });
+  inp.addEventListener('keydown', e => {
+    if (lst.hidden) return;
+    if (e.key === 'ArrowDown') { foco = Math.min(foco + 1, itens.length - 1); marca(); e.preventDefault(); }
+    else if (e.key === 'ArrowUp') { foco = Math.max(foco - 1, 0); marca(); e.preventDefault(); }
+    else if (e.key === 'Enter') { if (itens[foco]) escolhe(itens[foco].value); e.preventDefault(); }
+    else if (e.key === 'Escape') lst.hidden = true;
+  });
+  lst.addEventListener('mousedown', e => { const it = e.target.closest('.bs-it'); if (it) { e.preventDefault(); escolhe(it.dataset.v); } });
+  inp.addEventListener('blur', () => setTimeout(() => { lst.hidden = true; if (!sel.value) inp.value = ''; }, 150));
+  // quando o select é recarregado (outra república, outro veículo), limpa a busca
+  new MutationObserver(() => { if (!sel.value) { inp.value = ''; inp.classList.remove('bs-ok'); } }).observe(sel, { childList: true });
+}
+(function () {
+  const css = document.createElement('style');
+  css.textContent = `.bs-wrap{position:relative}
+    .bs-inp.bs-ok{border-color:#16A34A;background:#F0FDF4;font-weight:700}
+    .bs-lista{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:50;background:var(--surface,#fff);border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.18);max-height:280px;overflow:auto}
+    .bs-it{padding:8px 12px;cursor:pointer;display:flex;flex-direction:column;border-bottom:1px solid var(--border)}
+    .bs-it:last-child{border-bottom:none}.bs-it span{font-size:11.5px;color:var(--text-3)}
+    .bs-it.on,.bs-it:hover{background:var(--red-light,#FEE2E2)}
+    .bs-vazio{padding:12px;font-size:12.5px;color:var(--text-3)}`;
+  document.head.appendChild(css);
+  const lbl = document.querySelector('label[for="mor-func"]'); if (lbl) lbl.textContent = 'Colocar morador (busque pelo nome, matrícula ou função)';
+  buscaSelect('mor-func', 'Digite nome, matrícula ou função…');
+  buscaSelect('frr-func', 'Digite nome, matrícula ou função…');
+  // depois de entrar, limpa a busca para o próximo
+  const oEnt = window.repEntrada || repEntrada;
+  repEntrada = window.repEntrada = function () { const r = oEnt.apply(this, arguments); const i = document.querySelector('#mor-func + .bs-wrap input'); if (i) { i.value = ''; i.classList.remove('bs-ok'); i.focus(); } return r; };
 })();
 
 // Apply configs on load
