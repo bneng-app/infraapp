@@ -883,7 +883,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.58</div>
+  <div class="login-versao">ObraKontrol Campo · v2.59</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -1030,7 +1030,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
   <div class="content-no-pad" id="ap-panel-eq" style="display:none">
     <div class="ap-fr-card" id="ap-resumo-eq"></div>
     <div class="search-bar ap-busca"><svg class="" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="ap-eq-busca" placeholder="Buscar por TAG ou placa (ex.: ABC1234)…" oninput="apRenderEQ()"/></div>
-    <div class="ap-selrow"><span><span id="ap-eq-sel">0</span> selecionados</span><span style="font-size:12px;color:var(--text2)">toque para marcar e lançar as horas</span></div>
+    <div class="ap-selrow"><span><span id="ap-eq-sel">0</span> selecionados</span><span style="font-size:12px;color:var(--text2)">toque para marcar e escolher o operador</span></div>
     <button class="ap-prov-btn" onclick="provAbrir('eq')">+ Equipamento que ainda não está na lista</button>
     <div id="ap-eq-lista"></div>
     <datalist id="ap-operadores"></datalist>
@@ -4307,6 +4307,59 @@ function loginModoEmail(on) {
   const box = i.closest('.form-group') || i.parentElement.parentElement;
   box.insertAdjacentHTML('beforeend', '<button type="button" id="login-modo" onclick="loginModoEmail(!this.dataset.on)" style="background:none;border:none;color:var(--text2,#9A9CA5);font-size:13px;margin-top:8px;padding:4px 0;cursor:pointer;text-decoration:underline">Entrar com <b>e-mail</b></button>');
   if ((new URLSearchParams(location.search).get('c') || '').toLowerCase() === 'demo') setTimeout(() => { loginModoEmail(true); i.blur(); }, 0);
+})();
+
+// ══════════════════════════════════════════════════════════════
+// v2.59: horas só no encerramento (saem da Mão de obra e dos equipamentos) ·
+// operador / motorista obrigatório, escolhido entre as pessoas marcadas na equipe
+// ══════════════════════════════════════════════════════════════
+(function () {
+  // H. normais / H. extras vão para o cartão "Encerramento do dia" do Revisar
+  const hs = document.querySelector('#ap-panel-mo .ap-horas');
+  const enc = [...document.querySelectorAll('#ap-panel-rev .card')].find(c => /Encerramento do dia/i.test(c.querySelector('.card-title')?.textContent || ''));
+  if (hs && enc) { const body = enc.querySelector('.card-body') || enc; hs.style.margin = '4px 0 10px'; const nota = body.querySelector('.ap-nota'); nota ? body.insertBefore(hs, nota) : body.appendChild(hs); }
+  const css = document.createElement('style');
+  css.textContent = `#ap-panel-rev .ap-hcard{background:var(--bg,#F4F5F7)}
+    .ap-eq-campos .time-row{display:none!important}
+    .ap-eq-campos > div[style*="font-size:11px"]{display:none}
+    .ap-eq-campos .form-group:has(.op-sel),.ap-eq-campos .form-group:has(.op-aviso){display:block!important}
+    .op-sel.falta{border-color:var(--red)!important;background:rgba(227,6,19,.05)}
+    .op-aviso{font-size:12px;color:var(--red);font-weight:600;margin-top:4px}`;
+  document.head.appendChild(css);
+
+  const equipe = () => dadosCampo.funcionarios.filter(f => ap.mo.has(f.id));
+  window.apOperador = function (eqId, fid) {
+    const v = ap.eq.get(eqId); if (!v) return; const f = dadosCampo.funcionarios.find(x => x.id === fid);
+    v.operador = f ? f.nome : ''; v.operadorId = f ? f.id : ''; v.operadorMat = f ? (f.mat || '') : ''; apGuardar(); apRenderEQ();
+  };
+  // operador vale só se a pessoa ainda estiver marcada na equipe
+  window._apOpOk = v => { if (!v || !v.operador) return false; const t = equipe(); return v.operadorId ? t.some(f => f.id === v.operadorId) : t.some(f => f.nome === v.operador); };
+  const oEQ = apRenderEQ;
+  apRenderEQ = function () {
+    const r = oEQ.apply(this, arguments), t = equipe();
+    document.querySelectorAll('#ap-eq-lista input[list="ap-operadores"]').forEach(inp => {
+      const m = /apEQCampo\('([^']+)'/.exec(inp.getAttribute('oninput') || ''); if (!m) return;
+      const id = m[1], v = ap.eq.get(id) || {}, ok = _apOpOk(v), atual = ok ? (v.operadorId || (t.find(f => f.nome === v.operador) || {}).id || '') : '';
+      const g = inp.closest('.form-group'); const lb = g && g.querySelector('.form-label'); if (lb) lb.textContent = 'Operador / motorista *';
+      inp.insertAdjacentHTML('afterend', t.length
+        ? `<select class="form-control op-sel ${ok ? '' : 'falta'}" onchange="apOperador('${id}', this.value)"><option value="">Escolha quem opera / dirige…</option>${t.map(f => `<option value="${_esc(f.id)}" ${f.id === atual ? 'selected' : ''}>${_esc(f.nome)}${f.mat ? ' · ' + _esc(f.mat) : ''}</option>`).join('')}</select>${!ok && v.operador ? `<div class="op-aviso">${_esc(v.operador)} não está mais na equipe. Escolha de novo.</div>` : ''}`
+        : `<div class="op-aviso">Marque primeiro a equipe na <b>Mão de obra</b> — o operador é escolhido entre ela.</div>`);
+      inp.remove();
+    });
+    return r;
+  };
+  // encerrar: todo equipamento precisa de operador da equipe
+  const oSalvar = salvarApropriacao;
+  salvarApropriacao = async function () {
+    const falta = dadosCampo.equipamentos.filter(e => ap.eq.has(e.id) && !_apOpOk(ap.eq.get(e.id)));
+    if (falta.length) { toast('Escolha o operador / motorista de ' + falta.map(e => e.tag || e.placa).join(', ') + '.', 'err'); apTab('eq'); return; }
+    return oSalvar.apply(this, arguments);
+  };
+  const oFb = fbSalvar;
+  fbSalvar = async function (col, item) {
+    if (col === 'aponEQ' && item && item.equipId) { const v = ap.eq.get(item.equipId); if (v && v.operadorMat) item.operadorMat = v.operadorMat; }
+    return oFb.apply(this, arguments);
+  };
 })();
 
 // Salvar sessão ao entrar
