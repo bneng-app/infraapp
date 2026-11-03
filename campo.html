@@ -883,7 +883,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.60</div>
+  <div class="login-versao">ObraKontrol Campo · v2.61</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -4466,6 +4466,26 @@ function mobFotoMaisDel(k, i) { _mobMais(k).splice(i, 1); mobRender(); }
     }
     return oFb.apply(this, arguments);
   };
+})();
+
+// ══════════════════════════════════════════════════════════════
+// v2.61: H. normais / H. extras só leitura — calculadas da entrada até a saída pelo turno; correção é na Aprovação do painel
+// ══════════════════════════════════════════════════════════════
+(function () {
+  ['ap-hn', 'ap-he'].forEach(id => { const i = document.getElementById(id); if (!i) return; i.readOnly = true; i.tabIndex = -1; i.removeAttribute('oninput'); i.placeholder = '—'; i.closest('.ap-hcard')?.classList.add('ap-hcard-ro'); });
+  const hs = document.querySelector('.ap-horas');
+  if (hs) hs.insertAdjacentHTML('afterend', '<div class="ap-h-nota">Calculado pelo turno. Antes de encerrar mostra a previsão do turno; o valor final sai da entrada até a saída. Correções: na Aprovação do painel.</div>');
+  const css = document.createElement('style');
+  css.textContent = `.ap-hcard-ro{cursor:default!important}.ap-hcard-ro input{pointer-events:none;color:var(--text)!important}
+    .ap-h-nota{font-size:11.5px;color:var(--text2,#6B7280);margin:-4px 0 10px}`;
+  document.head.appendChild(css);
+  const oAbrir = apAbrir;
+  apAbrir = function () { const r = oAbrir.apply(this, arguments); ap.hnManual = false; try { apHorasMudaram(); } catch (e) {} return r; };
+  const oLimpar = _apLimparForm;
+  _apLimparForm = function () { const r = oLimpar.apply(this, arguments); ap.hnManual = false; return r; };
+  // ao abrir o Revisar refaz a conta (se já houver saída)
+  const oTab = apTab;
+  apTab = function (t) { const r = oTab.apply(this, arguments); if (t === 'rev') { ap.hnManual = false; try { apHorasMudaram(); } catch (e) {} } return r; };
 })();
 
 // Salvar sessão ao entrar
