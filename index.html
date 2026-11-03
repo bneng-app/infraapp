@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v2.90 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v2.91 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -806,6 +806,16 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
       <div class="nav-item" onclick="showPage('alojados',this)" title="Lista de alojados">
         <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" y1="8" x2="23" y2="8"/><line x1="17" y1="12" x2="23" y2="12"/><line x1="19" y1="16" x2="23" y2="16"/></svg>
         <span>Alojados</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="nav-group" id="grp-frota">
+    <div class="nav-section" onclick="toggleNavGroup('grp-frota')">Frota <span class="nav-chevron">▾</span></div>
+    <div class="nav-group-items">
+      <div class="nav-item" onclick="showPage('frota',this)" title="Veículos leves">
+        <svg viewBox="0 0 24 24"><path d="M5 17h14"/><path d="M3 17v-4l2-5h14l2 5v4"/><path d="M3 13h18"/><circle cx="7.5" cy="17.5" r="1.8"/><circle cx="16.5" cy="17.5" r="1.8"/></svg>
+        <span>Veículos</span>
       </div>
     </div>
   </div>
@@ -1312,6 +1322,31 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
   </div></div>
 </div>
 
+<div class="page" id="page-frota">
+  <div class="page-header">
+    <div><div class="page-title">Frota · veículos leves</div><div class="page-sub">Veículos alugados de cada obra, quem é o responsável e o que está vencendo</div></div>
+    <div class="btn-group"><button class="btn btn-outline btn-sm" onclick="exportarFrota()">↓ Exportar Excel</button><button class="btn btn-primary" onclick="frNovo()">+ Novo veículo</button></div>
+  </div>
+  <div class="stats-grid" id="fr-kpis" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:.875rem"></div>
+  <div class="card"><div class="card-body">
+    <div style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:flex-end;margin-bottom:.75rem">
+      <div class="search-wrap" style="flex:1;min-width:240px;margin:0"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="search-fr" placeholder="Buscar placa, modelo, locadora ou responsável…" oninput="renderFrota()"/></div>
+      <div class="form-group" style="min-width:170px;margin:0"><label class="form-label" for="filtro-fr-sit">Situação</label><select class="form-control" id="filtro-fr-sit" onchange="renderFrota()"><option value="">Na obra (sem devolvidos)</option><option value="alerta">⚠ Com alerta</option><option>Em uso</option><option>Reserva</option><option>Em manutenção</option><option>Devolvido</option><option value="todos">Todos</option></select></div>
+    </div>
+    <div class="table-wrap"><table><thead><tr><th>Veículo</th><th>Obra</th><th>Locadora / contrato</th><th>Responsável</th><th style="text-align:right">R$/mês</th><th>Situação</th><th></th></tr></thead>
+      <tbody id="tbody-frota"></tbody></table></div>
+  </div></div>
+  <div class="card" style="margin-top:.875rem"><div class="card-body">
+    <div style="font-weight:700;margin-bottom:4px">🔎 Quem estava com o veículo?</div>
+    <div style="font-size:12.5px;color:var(--text-3);margin-bottom:10px">Para multa ou ocorrência: escolha o veículo e a data, e o sistema mostra o responsável naquele dia.</div>
+    <div style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:flex-end">
+      <div class="form-group" style="min-width:240px;margin:0"><label class="form-label" for="fr-q-veic">Veículo</label><select class="form-control" id="fr-q-veic" onchange="frQuem()"></select></div>
+      <div class="form-group" style="margin:0"><label class="form-label" for="fr-q-data">Data</label><input class="form-control" type="date" id="fr-q-data" onchange="frQuem()"/></div>
+      <div id="fr-q-res" style="flex:1;min-width:220px;font-size:13.5px;padding:8px 0"></div>
+    </div>
+  </div></div>
+</div>
+
 <div class="page" id="page-frentes">
   <div class="page-header">
     <div><div class="page-title">Frentes de Serviço</div><div class="page-sub">Locais ou trechos de trabalho da obra</div></div>
@@ -1386,6 +1421,65 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
       <div id="mor-hist"></div>
     </div>
     <div class="modal-footer"><button class="btn btn-primary" onclick="closeModal('modal-moradores')">Fechar</button></div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: VEÍCULO (FROTA) ═══ -->
+<div class="modal-overlay" id="modal-veiculo">
+  <div class="modal" style="max-width:680px">
+    <div class="modal-header"><span class="modal-title" id="fr-titulo">Novo veículo</span><button class="modal-close" onclick="closeModal('modal-veiculo')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="fr-id"/>
+      <div class="form-grid">
+        <div class="form-group form-full" style="background:var(--blue-light);border:1px solid #B5D4F4;border-radius:8px;padding:10px 12px"><label class="form-label" style="font-weight:600;color:var(--blue)" for="fr-obra">🏗️ Obra *</label><select class="form-control" id="fr-obra"><option value="">Selecione a obra…</option></select></div>
+        <div class="form-group"><label class="form-label" for="fr-placa">Placa *</label><input class="form-control td-mono" id="fr-placa" maxlength="8" placeholder="ABC1D23" style="text-transform:uppercase;font-weight:700" oninput="this.value=this.value.toUpperCase()"/></div>
+        <div class="form-group"><label class="form-label" for="fr-tipo">Tipo</label><select class="form-control" id="fr-tipo"><option>Carro</option><option>Picape</option><option>Van / utilitário</option><option>Moto</option><option>Outro</option></select></div>
+        <div class="form-group form-full"><label class="form-label" for="fr-modelo">Marca / modelo *</label><input class="form-control" id="fr-modelo" placeholder="Ex.: Fiat Strada Freedom 1.3"/></div>
+        <div class="form-group"><label class="form-label" for="fr-ano">Ano</label><input class="form-control" id="fr-ano" maxlength="9" placeholder="Ex.: 2025/2026"/></div>
+        <div class="form-group"><label class="form-label" for="fr-cor">Cor</label><input class="form-control" id="fr-cor" placeholder="Ex.: Branca"/></div>
+        <div class="form-group"><label class="form-label" for="fr-chassi">Chassi</label><input class="form-control td-mono" id="fr-chassi" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"/></div>
+        <div class="form-group"><label class="form-label" for="fr-renavam">Renavam</label><input class="form-control td-mono" id="fr-renavam" inputmode="numeric"/></div>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;margin:14px 0 8px">Locação</div>
+      <div class="form-grid">
+        <div class="form-group"><label class="form-label" for="fr-locadora">Locadora *</label><input class="form-control" id="fr-locadora" list="fr-locadoras" placeholder="Ex.: Localiza"/><datalist id="fr-locadoras"></datalist></div>
+        <div class="form-group"><label class="form-label" for="fr-contrato">Nº do contrato</label><input class="form-control" id="fr-contrato"/></div>
+        <div class="form-group"><label class="form-label" for="fr-valor">Valor mensal (R$)</label><input class="form-control" type="number" step="0.01" min="0" id="fr-valor"/></div>
+        <div class="form-group"><label class="form-label" for="fr-fimc">Fim do contrato</label><input class="form-control" type="date" id="fr-fimc" data-futuro/></div>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;margin:14px 0 8px">Na obra</div>
+      <div class="form-grid">
+        <div class="form-group"><label class="form-label" for="fr-mob">Chegou na obra em</label><input class="form-control" type="date" id="fr-mob"/></div>
+        <div class="form-group"><label class="form-label" for="fr-status">Situação</label><select class="form-control" id="fr-status" onchange="document.getElementById('fr-dev-box').style.display=this.value==='Devolvido'?'':'none'"><option>Em uso</option><option>Reserva</option><option>Em manutenção</option><option>Devolvido</option></select></div>
+        <div class="form-group" id="fr-dev-box" style="display:none"><label class="form-label" for="fr-dev">Devolvido à locadora em</label><input class="form-control" type="date" id="fr-dev"/></div>
+        <div class="form-group"><label class="form-label" for="fr-crlv">Validade do licenciamento (CRLV)</label><input class="form-control" type="date" id="fr-crlv" data-futuro/></div>
+      </div>
+      <div class="form-group" style="margin-top:12px"><label class="form-label" for="fr-obs">Observações</label><input class="form-control" id="fr-obs" placeholder="Opcional…"/></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-veiculo')">Cancelar</button><button class="btn btn-primary" onclick="salvarVeiculo()">Salvar</button></div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: RESPONSÁVEL PELO VEÍCULO ═══ -->
+<div class="modal-overlay" id="modal-fr-resp">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-header"><span class="modal-title" id="frr-titulo">Responsável</span><button class="modal-close" onclick="closeModal('modal-fr-resp')">×</button></div>
+    <div class="modal-body">
+      <div id="frr-atual" style="margin-bottom:14px"></div>
+      <div style="padding:12px;border:1px dashed var(--border);border-radius:10px">
+        <div style="font-weight:700;font-size:13px;margin-bottom:8px" id="frr-acao">Entregar o veículo para</div>
+        <div class="form-grid">
+          <div class="form-group form-full"><label class="form-label" for="frr-func">Funcionário</label><select class="form-control" id="frr-func" onchange="_frrFunc()"></select></div>
+          <div class="form-group form-full" id="frr-outro-box" style="display:none"><label class="form-label" for="frr-nome">Nome completo</label><input class="form-control" id="frr-nome" placeholder="Quem vai ficar com o veículo"/></div>
+          <div class="form-group"><label class="form-label" for="frr-cat">Categoria da CNH</label><select class="form-control" id="frr-cat"><option value="">—</option><option>A</option><option>B</option><option>AB</option><option>C</option><option>AC</option><option>D</option><option>AD</option><option>E</option><option>AE</option></select></div>
+          <div class="form-group"><label class="form-label" for="frr-val">Validade da CNH</label><input class="form-control" type="date" id="frr-val" data-futuro/></div>
+          <div class="form-group"><label class="form-label" for="frr-ini">Entregue em</label><input class="form-control" type="date" id="frr-ini"/></div>
+        </div>
+        <div style="text-align:right;margin-top:6px"><button class="btn btn-primary" onclick="frEntregar()">✓ Registrar entrega</button></div>
+      </div>
+      <div id="frr-hist"></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-primary" onclick="closeModal('modal-fr-resp')">Fechar</button></div>
   </div>
 </div>
 
@@ -3829,7 +3923,7 @@ async function sincronizarTudo() {
   if (!db || !_firebaseReady) return;
   const colecoes = ['obras','empresas','ua','cargos','turnos','equipes','funcionarios',
     'familias','modelos','equipamentos','frentes','tiposServico','tiposPerdas',
-    'aponMO','aponEQ','diesel','perdas','tanques','movTanques','notasFiscais','produtos','perfis','orcamentos','republicas','mobilizacoes'];
+    'aponMO','aponEQ','diesel','perdas','tanques','movTanques','notasFiscais','produtos','perfis','orcamentos','republicas','mobilizacoes','frota'];
 
   // Check if Firebase was ever initialized
   let fbInicializado = false;
@@ -11782,6 +11876,7 @@ const OK_MOD_PADRAO = {
   orcamento:     { nome: 'Orçamento previsto', situacao: 'disponivel', padrao: true },
   republicas:    { nome: 'Repúblicas e alojamentos', situacao: 'dev', padrao: false, desc: 'Cadastro de repúblicas e alojamentos, vagas, moradores e custo por pessoa' },
   mobilizacao:   { nome: 'Mobilização de equipamentos', situacao: 'dev', padrao: false, desc: 'App de campo: TAG automática, horímetro, checklist, fotos, avarias e termo assinado ao mobilizar' },
+  frota:         { nome: 'Gestão de frota (veículos leves)', situacao: 'dev', padrao: false, desc: 'Veículos alugados por obra, responsável com CNH, termo de responsabilidade e avisos de vencimento' },
 };
 window.OK_MODULOS = JSON.parse(JSON.stringify(OK_MOD_PADRAO));
 async function _okCarregarModulos() {
@@ -11803,7 +11898,7 @@ const OK_MOD_PAGINAS = {
   maoDeObra: ['apon-mo', 'funcionarios', 'equipes', 'cargos', 'dash-mo', 'perdas', 'tipos-perdas'],
   equipamentos: ['apon-eq', 'familias', 'modelos', 'equipamentos', 'dash-eq'],
   abastecimento: ['apon-diesel', 'produtos', 'notas-diesel', 'tanques', 'dash-abs'],
-  orcamento: ['orcamento'], republicas: ['republicas', 'alojados'],
+  orcamento: ['orcamento'], republicas: ['republicas', 'alojados'], frota: ['frota'],
 };
 function _okModDaPagina(p) { for (const k in OK_MOD_PAGINAS) if (OK_MOD_PAGINAS[k].includes(p)) return k; return null; }
 function _okObraAtual() { return (typeof obraAtiva !== 'undefined' && obraAtiva && obraAtiva.id) || 'todas'; }
@@ -11822,7 +11917,7 @@ function _okObraAtual() { return (typeof obraAtiva !== 'undefined' && obraAtiva 
       g.querySelectorAll('[onclick*="showPage("]').forEach(el => { const m = (el.getAttribute('onclick') || '').match(/showPage\('([^']+)'/); if (!m) return; const k = _okModDaPagina(m[1]);
         if (k && !okModuloAtivo(k, _okObraAtual())) { el.style.display = 'none'; mexeu = true; } else if (k && el.style.display === 'none' && podeVerPagina(m[1])) el.style.display = ''; });
       const algum = [...g.querySelectorAll('[onclick*="showPage("]')].some(el => el.style.display !== 'none');
-      if (!algum) g.style.display = 'none'; else if (g.id === 'grp-alojamento') g.style.display = '';
+      if (!algum) g.style.display = 'none'; else if (g.id === 'grp-alojamento' || g.id === 'grp-frota') g.style.display = '';
     });
     // botões de módulos que não são tela
     document.querySelectorAll('[onclick*="efetivoAbrir()"]').forEach(b => { if (!b.closest('#modal-efetivo')) b.style.display = okModuloAtivo('efetivoRH', _okObraAtual()) ? '' : 'none'; });
@@ -12092,6 +12187,198 @@ function _docSit(e) { if (!e.docValidade) return null; const d = Math.round((new
   };
   const oE = window.editarUsuario;
   window.editarUsuario = function () { const r = oE.apply(this, arguments); try { usrPerfilMudou(); } catch (e) {} return r; };
+})();
+
+// ═══════════════════════════════════════════════════════════════
+// v2.91: GESTÃO DE FROTA (veículos leves alugados, por obra)
+// ═══════════════════════════════════════════════════════════════
+function _frDias(d) { return d ? Math.round((new Date(d + 'T12:00') - new Date(_hojeLocal() + 'T12:00')) / 864e5) : null; }
+function _frData(d) { return d ? String(d).split('-').reverse().join('/') : ''; }
+function frRespAtual(v) { return (v.resp || []).find(r => !r.fim) || null; }
+function _frLista() { const o = _okObraAtual(); return (dados.frota || []).filter(v => (o === 'todas' || v.obra === o) && okModuloAtivo('frota', v.obra)); }
+// avisos de um veículo: [{t, nivel: 'red'|'amber'}]
+function frAlertas(v) {
+  const a = [], ativo = v.status !== 'Devolvido', r = frRespAtual(v);
+  if (!ativo) return a;
+  const venc = (dt, nome) => { const d = _frDias(dt); if (d === null) return; if (d < 0) a.push({ t: nome + ' vencido(a) em ' + _frData(dt), nivel: 'red' }); else if (d <= 30) a.push({ t: nome + ' vence em ' + (d ? d + ' dia(s)' : 'hoje'), nivel: 'amber' }); };
+  if (v.status === 'Em uso' && !r) a.push({ t: 'Sem responsável', nivel: 'amber' });
+  if (r) {
+    if (!r.cnhVal) a.push({ t: 'CNH do responsável sem validade', nivel: 'amber' }); else venc(r.cnhVal, 'CNH do responsável');
+    const cat = r.cnhCat || '';
+    if (cat && (v.tipo === 'Moto' ? !cat.includes('A') : !/[BCDE]/.test(cat))) a.push({ t: 'CNH categoria ' + cat + ' não serve para ' + (v.tipo || 'o veículo').toLowerCase(), nivel: 'red' });
+  }
+  venc(v.fimContrato, 'Contrato da locadora'); venc(v.crlvVal, 'Licenciamento (CRLV)');
+  return a;
+}
+function renderFrota() {
+  const busca = (document.getElementById('search-fr')?.value || '').toLowerCase(), sit = document.getElementById('filtro-fr-sit')?.value || '';
+  const todos = _frLista(), naObra = todos.filter(v => v.status !== 'Devolvido');
+  const comAl = naObra.filter(v => frAlertas(v).length), semResp = naObra.filter(v => v.status === 'Em uso' && !frRespAtual(v)), custo = naObra.reduce((s, v) => s + (+v.valorMes || 0), 0);
+  const kpi = (l, val, sub, cor) => `<div class="stat-card"><div class="stat-label">${l}</div><div class="stat-value" style="${cor ? 'color:' + cor : ''}">${val}</div><div class="stat-sub">${sub}</div></div>`;
+  const kp = document.getElementById('fr-kpis');
+  if (kp) kp.innerHTML = kpi('Veículos na obra', naObra.length, naObra.filter(v => v.status === 'Em uso').length + ' em uso')
+    + kpi('Locação por mês', _repMoeda(custo), naObra.length ? 'média ' + _repMoeda(custo / naObra.length) + ' por veículo' : 'nenhum veículo')
+    + kpi('Com aviso', comAl.length, 'CNH, contrato ou documento', comAl.length ? 'var(--amber)' : '')
+    + kpi('Sem responsável', semResp.length, 'em uso sem condutor', semResp.length ? 'var(--red)' : '');
+  const lista = todos.filter(v => sit === 'todos' ? true : sit === 'alerta' ? v.status !== 'Devolvido' && frAlertas(v).length : sit ? v.status === sit : v.status !== 'Devolvido')
+    .filter(v => { if (!busca) return true; const r = frRespAtual(v); return [v.placa, v.modelo, v.locadora, v.contrato, r && r.nome].some(x => String(x || '').toLowerCase().includes(busca)); })
+    .sort((a, b) => (a.status === 'Devolvido') - (b.status === 'Devolvido') || String(a.placa).localeCompare(String(b.placa)));
+  const tb = document.getElementById('tbody-frota'); if (!tb) return;
+  const corSit = { 'Em uso': 'green', 'Reserva': 'blue', 'Em manutenção': 'amber', 'Devolvido': 'gray' };
+  tb.innerHTML = lista.length ? lista.map(v => {
+    const r = frRespAtual(v), al = frAlertas(v);
+    return `<tr>
+      <td><div class="td-mono" style="font-weight:800;font-size:14px">${_e(v.placa)}</div><div style="font-size:11.5px;color:var(--text-3)">${_e(v.modelo)}${v.tipo ? ' · ' + _e(v.tipo) : ''}${v.cor ? ' · ' + _e(v.cor) : ''}</div>
+        ${al.map(x => `<span class="tag tag-${x.nivel}" style="font-size:10.5px;margin:3px 3px 0 0;display:inline-block">⚠ ${_e(x.t)}</span>`).join('')}</td>
+      <td style="font-size:12px">${_e(getNomeObra(v.obra) || '—')}${v.mobData ? '<div style="font-size:11px;color:var(--text-3)">desde ' + _frData(v.mobData) + '</div>' : ''}</td>
+      <td style="font-size:12.5px"><b>${_e(v.locadora || '—')}</b>${v.contrato ? '<div style="font-size:11px;color:var(--text-3)">Contrato ' + _e(v.contrato) + '</div>' : ''}${v.fimContrato ? '<div style="font-size:11px;color:var(--text-3)">até ' + _frData(v.fimContrato) + '</div>' : ''}</td>
+      <td style="font-size:12.5px">${r ? `<b>${_e(r.nome)}</b><div style="font-size:11px;color:var(--text-3)">${r.mat ? 'Mat. ' + _e(r.mat) + ' · ' : ''}CNH ${_e(r.cnhCat || '—')}${r.cnhVal ? ' até ' + _frData(r.cnhVal) : ''}</div>` : '<span style="color:var(--text-3)">—</span>'}</td>
+      <td class="td-mono" style="text-align:right">${+v.valorMes ? _repMoeda(v.valorMes) : '—'}</td>
+      <td>${tag(_e(v.status || 'Em uso'), corSit[v.status] || 'green')}${v.status === 'Devolvido' && v.devData ? '<div style="font-size:11px;color:var(--text-3)">' + _frData(v.devData) + '</div>' : ''}</td>
+      <td style="white-space:nowrap;text-align:right"><button class="btn btn-outline btn-sm" onclick="frRespAbrir('${v.id}')">👤 Responsável</button> ${r ? `<button class="btn btn-outline btn-sm" onclick="frTermo('${v.id}')" title="Termo de responsabilidade">📄 Termo</button> ` : ''}<button class="btn btn-outline btn-sm" onclick="frEditar('${v.id}')">✎ Editar</button></td></tr>`; }).join('')
+    : '<tr><td colspan="7" style="text-align:center;color:var(--text-3);padding:2rem">Nenhum veículo' + (sit || busca ? ' com esse filtro' : _okObraAtual() !== 'todas' ? ' nesta obra' : '') + '. Clique em <b>+ Novo veículo</b>.</td></tr>';
+  // consulta "quem estava com o veículo"
+  const q = document.getElementById('fr-q-veic');
+  if (q) { const val = q.value; q.innerHTML = '<option value="">Escolha…</option>' + todos.slice().sort((a, b) => String(a.placa).localeCompare(String(b.placa))).map(v => `<option value="${v.id}">${_e(v.placa)} · ${_e(v.modelo)}</option>`).join(''); q.value = val; frQuem(); }
+}
+function frQuem() {
+  const el = document.getElementById('fr-q-res'); if (!el) return;
+  const v = (dados.frota || []).find(x => x.id === document.getElementById('fr-q-veic').value), d = document.getElementById('fr-q-data').value;
+  if (!v || !d) { el.innerHTML = ''; return; }
+  const r = (v.resp || []).find(x => x.inicio <= d && (!x.fim || x.fim >= d));
+  el.innerHTML = r ? `Em ${_frData(d)} o <b>${_e(v.placa)}</b> estava com <b>${_e(r.nome)}</b>${r.mat ? ' (Mat. ' + _e(r.mat) + ')' : ''} · desde ${_frData(r.inicio)}${r.fim ? ' até ' + _frData(r.fim) : ''}`
+    : `<span style="color:var(--amber)">Nenhum responsável registrado para o ${_e(v.placa)} em ${_frData(d)}.</span>`;
+}
+function frNovo() { frEditar(null); }
+function frEditar(id) {
+  const v = id ? (dados.frota || []).find(x => x.id === id) : null, $ = k => document.getElementById(k);
+  $('fr-titulo').textContent = v ? 'Editar veículo · ' + v.placa : 'Novo veículo';
+  $('fr-id').value = v ? v.id : '';
+  popularSelectObra('fr-obra', v ? v.obra : (_okObraAtual() !== 'todas' ? _okObraAtual() : ''));
+  $('fr-placa').value = v ? v.placa : ''; $('fr-tipo').value = v ? (v.tipo || 'Carro') : 'Carro'; $('fr-status').value = v ? (v.status || 'Em uso') : 'Em uso';
+  [['modelo', 'modelo'], ['ano', 'ano'], ['cor', 'cor'], ['chassi', 'chassi'], ['renavam', 'renavam'], ['locadora', 'locadora'], ['contrato', 'contrato'], ['fimc', 'fimContrato'], ['mob', 'mobData'], ['dev', 'devData'], ['crlv', 'crlvVal'], ['obs', 'obs']]
+    .forEach(([c, k]) => $('fr-' + c).value = v ? (v[k] || '') : '');
+  $('fr-valor').value = v && +v.valorMes ? v.valorMes : '';
+  if (!v) $('fr-mob').value = _hojeLocal();
+  $('fr-dev-box').style.display = $('fr-status').value === 'Devolvido' ? '' : 'none';
+  $('fr-locadoras').innerHTML = [...new Set((dados.frota || []).map(x => x.locadora).filter(Boolean).concat(['Localiza', 'Movida', 'Unidas']))].map(n => `<option value="${_e(n)}">`).join('');
+  openModal('modal-veiculo');
+}
+function salvarVeiculo() {
+  const $ = k => document.getElementById(k), id = $('fr-id').value;
+  const placa = $('fr-placa').value.replace(/[^A-Za-z0-9]/g, '').toUpperCase(), obra = $('fr-obra').value, modelo = $('fr-modelo').value.trim(), locadora = $('fr-locadora').value.trim(), status = $('fr-status').value;
+  if (!obra) { toast('Escolha a obra do veículo.', 'error'); return; }
+  if (!/^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/.test(placa)) { toast('Placa inválida. Use o formato ABC1D23 ou ABC1234.', 'error'); return; }
+  if (!modelo) { toast('Informe a marca e o modelo.', 'error'); return; }
+  if (!locadora) { toast('Informe a locadora.', 'error'); return; }
+  const lista = dados.frota || (dados.frota = []);
+  const dup = lista.find(x => x.id !== id && x.placa === placa && x.status !== 'Devolvido');
+  if (dup) { toast('A placa ' + placa + ' já está cadastrada em ' + (getNomeObra(dup.obra) || 'outra obra') + '.', 'error'); return; }
+  if (status === 'Devolvido' && !$('fr-dev').value) { toast('Informe a data em que o veículo foi devolvido.', 'error'); return; }
+  const v = id ? lista.find(x => x.id === id) : { id: 'vc' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), resp: [], criadoEm: new Date().toISOString() };
+  Object.assign(v, { obra, placa, modelo, locadora, status, tipo: $('fr-tipo').value, ano: $('fr-ano').value.trim(), cor: $('fr-cor').value.trim(), chassi: $('fr-chassi').value.trim().toUpperCase(), renavam: $('fr-renavam').value.trim(),
+    contrato: $('fr-contrato').value.trim(), valorMes: +$('fr-valor').value || 0, fimContrato: $('fr-fimc').value, mobData: $('fr-mob').value, devData: status === 'Devolvido' ? $('fr-dev').value : '', crlvVal: $('fr-crlv').value, obs: $('fr-obs').value.trim(), atualizadoEm: new Date().toISOString() });
+  // devolvido: encerra o responsável que estava com ele
+  const r = frRespAtual(v); if (status === 'Devolvido' && r) r.fim = v.devData;
+  if (!id) lista.push(v);
+  if (db && _firebaseReady) fbSave('frota', v.id, v).catch(() => toast('Salvo aqui, mas não no servidor. Tente de novo.', 'error'));
+  closeModal('modal-veiculo'); renderFrota(); toast('Veículo ' + placa + ' salvo!');
+}
+// ── responsável
+function frRespAbrir(id) { window._frAtual = id; _frRespRender(); openModal('modal-fr-resp'); }
+function _frRespRender() {
+  const v = (dados.frota || []).find(x => x.id === window._frAtual); if (!v) return;
+  const $ = k => document.getElementById(k), r = frRespAtual(v), hist = (v.resp || []).filter(x => x.fim);
+  $('frr-titulo').textContent = v.placa + ' · ' + v.modelo;
+  $('frr-atual').innerHTML = r ? `<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;padding:12px;border-radius:10px;background:var(--bg)">
+      <div><div style="font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em">Responsável agora</div><div style="font-weight:800;font-size:15px">${_e(r.nome)}</div>
+      <div style="font-size:12px;color:var(--text-2)">${r.mat ? 'Mat. ' + _e(r.mat) + ' · ' : ''}${r.funcao ? _e(r.funcao) + ' · ' : ''}CNH ${_e(r.cnhCat || '—')}${r.cnhVal ? ' até ' + _frData(r.cnhVal) : ''} · desde ${_frData(r.inicio)}</div></div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><button class="btn btn-outline btn-sm" onclick="frTermo('${v.id}')">📄 Termo</button><input type="date" class="form-control" id="frr-fim" value="${_hojeLocal()}" style="width:150px;padding:4px 8px"/><button class="btn btn-outline btn-sm" onclick="frDevolverResp()">Recebi o veículo de volta</button></div></div>`
+    : `<div style="padding:12px;border-radius:10px;background:var(--bg);color:var(--text-3);font-size:13px">O veículo está sem responsável no momento.</div>`;
+  $('frr-acao').textContent = r ? 'Trocar o responsável (a entrega para outro encerra o atual)' : 'Entregar o veículo para';
+  const funcs = (dados.funcionarios || []).filter(f => (!v.obra || !f.obra || f.obra === v.obra) && !(f.demissao && f.demissao <= _hojeLocal()) && (!r || f.id !== r.func))
+    .sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
+  $('frr-func').innerHTML = '<option value="">Escolha…</option>' + funcs.map(f => `<option value="${f.id}">${_e(f.nome)} · Mat. ${_e(f.mat || '—')}${f.funcao ? ' · ' + _e(f.funcao) : ''}</option>`).join('') + '<option value="__outro">Outra pessoa (não está na lista)</option>';
+  $('frr-nome').value = ''; $('frr-cat').value = ''; $('frr-val').value = ''; $('frr-ini').value = _hojeLocal(); $('frr-outro-box').style.display = 'none';
+  $('frr-hist').innerHTML = hist.length ? '<div style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;margin:16px 0 6px">Já ficaram com este veículo</div>'
+    + hist.slice().reverse().map(x => `<div style="font-size:12.5px;padding:3px 0;color:var(--text-2)">${_e(x.nome)}${x.mat ? ' · Mat. ' + _e(x.mat) : ''} · ${_frData(x.inicio)} → ${_frData(x.fim)}</div>`).join('') : '';
+}
+// CNH já informada antes para a mesma pessoa (em qualquer veículo) vem preenchida
+function _frrFunc() {
+  const $ = k => document.getElementById(k), fid = $('frr-func').value;
+  $('frr-outro-box').style.display = fid === '__outro' ? '' : 'none';
+  if (!fid || fid === '__outro') return;
+  const ant = (dados.frota || []).flatMap(v => v.resp || []).filter(x => x.func === fid && x.cnhVal).sort((a, b) => String(b.inicio).localeCompare(String(a.inicio)))[0];
+  if (ant) { $('frr-cat').value = ant.cnhCat || ''; $('frr-val').value = ant.cnhVal || ''; }
+}
+function frEntregar() {
+  const v = (dados.frota || []).find(x => x.id === window._frAtual); if (!v) return;
+  const $ = k => document.getElementById(k), fid = $('frr-func').value, ini = $('frr-ini').value || _hojeLocal(), cat = $('frr-cat').value, val = $('frr-val').value;
+  if (!fid) { toast('Escolha quem vai ficar com o veículo.', 'error'); return; }
+  let p;
+  if (fid === '__outro') { const n = $('frr-nome').value.trim(); if (!n) { toast('Informe o nome de quem vai ficar com o veículo.', 'error'); return; } p = { func: '', nome: n, mat: '', funcao: '' }; }
+  else { const f = (dados.funcionarios || []).find(x => x.id === fid); if (!f) return; p = { func: f.id, nome: f.nome, mat: f.mat || '', funcao: f.funcao || '' }; }
+  if (!cat || !val) { toast('Informe a categoria e a validade da CNH.', 'error'); return; }
+  if (val < _hojeLocal() && !confirm('A CNH de ' + p.nome + ' está vencida. Entregar mesmo assim?')) return;
+  if (p.func) { const outro = (dados.frota || []).find(x => x.id !== v.id && x.status !== 'Devolvido' && (frRespAtual(x) || {}).func === p.func);
+    if (outro && !confirm(p.nome + ' já é responsável pelo ' + outro.placa + '. Ficar com os dois?')) return; }
+  const r = frRespAtual(v);
+  if (r) { if (ini < r.inicio) { toast('A entrega não pode ser antes de ' + _frData(r.inicio) + '.', 'error'); return; } r.fim = ini; }
+  (v.resp = v.resp || []).push({ id: 'r' + Date.now().toString(36), ...p, cnhCat: cat, cnhVal: val, inicio: ini, registradoPor: (usuarioLogado && (usuarioLogado.nome || usuarioLogado.email)) || '' });
+  if (v.status === 'Reserva') v.status = 'Em uso';
+  if (db && _firebaseReady) fbSave('frota', v.id, v).catch(() => {});
+  _frRespRender(); renderFrota(); toast(v.placa + ' entregue para ' + p.nome + '. Imprima o termo para assinar.');
+}
+function frDevolverResp() {
+  const v = (dados.frota || []).find(x => x.id === window._frAtual); if (!v) return;
+  const r = frRespAtual(v); if (!r) return; const fim = document.getElementById('frr-fim')?.value || _hojeLocal();
+  if (fim < r.inicio) { toast('A data não pode ser antes de ' + _frData(r.inicio) + '.', 'error'); return; }
+  r.fim = fim;
+  if (db && _firebaseReady) fbSave('frota', v.id, v).catch(() => {});
+  _frRespRender(); renderFrota(); toast(r.nome + ' devolveu o ' + v.placa);
+}
+// ── termo de responsabilidade (impresso para assinar)
+function frTermo(id) {
+  const v = (dados.frota || []).find(x => x.id === id), r = v && frRespAtual(v); if (!r) { toast('O veículo está sem responsável.', 'error'); return; }
+  const emp = (window.OK_CLIENTE_CFG && window.OK_CLIENTE_CFG.nome) || 'a empresa', obra = getNomeObra(v.obra) || '';
+  const L = (k, val) => val ? `<div><div style="font-size:10.5px;color:#666;text-transform:uppercase;letter-spacing:.06em">${k}</div><div style="font-weight:700">${_e(val)}</div></div>` : '';
+  const w = window.open('', '_blank'); if (!w) { toast('Libere as janelas pop-up para imprimir.', 'error'); return; }
+  w.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Termo de responsabilidade · ${_e(v.placa)}</title>
+  <style>body{margin:0;padding:28px;font-family:Arial,sans-serif;color:#111;font-size:13px;line-height:1.5}h1{font-size:17px;margin:18px 0 4px}.g{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 16px;margin:12px 0;padding:12px;border:1px solid #ddd;border-radius:8px}
+  ol{padding-left:18px}li{margin-bottom:6px}.ass{display:flex;gap:40px;margin-top:56px}.ass div{flex:1;text-align:center;border-top:1px solid #333;padding-top:6px;font-size:12px}@media print{body{padding:10mm}}</style></head><body>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start"><img src="${typeof _TK_LOGO !== 'undefined' ? _TK_LOGO : ''}" style="width:190px" alt="ObraKontrol"><div style="text-align:right;font-size:12px;color:#555">${_e(emp)}<br>${_e(obra)}</div></div>
+  <h1>TERMO DE RESPONSABILIDADE DE USO DE VEÍCULO</h1>
+  <div style="font-size:12px;color:#555">Entrega em ${_frData(r.inicio)}</div>
+  <div class="g">${L('Placa', v.placa)}${L('Marca / modelo', v.modelo)}${L('Tipo', v.tipo)}${L('Ano', v.ano)}${L('Cor', v.cor)}${L('Renavam', v.renavam)}${L('Locadora', v.locadora)}${L('Contrato', v.contrato)}${L('Obra', obra)}</div>
+  <div class="g">${L('Responsável', r.nome)}${L('Matrícula', r.mat)}${L('Função', r.funcao)}${L('CNH categoria', r.cnhCat)}${L('CNH validade', _frData(r.cnhVal))}</div>
+  <p>Eu, <b>${_e(r.nome)}</b>, declaro que recebi o veículo acima, locado por ${_e(emp)}, para uso a serviço da obra, e assumo as responsabilidades abaixo enquanto ele estiver comigo:</p>
+  <ol>
+    <li>Usar o veículo somente a serviço da empresa, sem emprestar a outras pessoas não autorizadas.</li>
+    <li>Manter minha CNH válida e na categoria exigida, e avisar imediatamente se ela for suspensa ou vencer.</li>
+    <li>Respeitar a legislação de trânsito. Multas cometidas no período em que o veículo estiver sob minha responsabilidade serão de minha responsabilidade, inclusive a indicação como condutor.</li>
+    <li>Zelar pela conservação e limpeza do veículo, e comunicar logo qualquer avaria, defeito, acidente, furto ou roubo, com registro de boletim de ocorrência quando for o caso.</li>
+    <li>Devolver o veículo quando solicitado, nas mesmas condições em que o recebi, salvo o desgaste normal de uso.</li>
+  </ol>
+  <div style="margin-top:14px">Local e data: ______________________________, ____/____/________</div>
+  <div class="ass"><div>${_e(r.nome)}<br>Responsável pelo veículo</div><div>Gestor da obra<br>${_e(emp)}</div></div>
+  <script>setTimeout(()=>print(),600)<\/script></body></html>`);
+  w.document.close();
+}
+function exportarFrota() {
+  if (typeof XLSX === 'undefined') { toast('Aguarde o carregamento do Excel e tente novamente.', 'error'); return; }
+  const l = _frLista().sort((a, b) => String(a.placa).localeCompare(String(b.placa)));
+  if (!l.length) { toast('Nenhum veículo para exportar.', 'error'); return; }
+  const ws = XLSX.utils.aoa_to_sheet([['Placa', 'Marca/modelo', 'Tipo', 'Ano', 'Cor', 'Chassi', 'Renavam', 'Obra', 'Locadora', 'Contrato', 'Valor mensal (R$)', 'Fim do contrato', 'Na obra desde', 'Situação', 'Devolvido em', 'Validade CRLV', 'Responsável', 'Matrícula', 'CNH categoria', 'CNH validade', 'Responsável desde', 'Avisos'],
+    ...l.map(v => { const r = frRespAtual(v) || {}; return [v.placa, v.modelo, v.tipo || '', v.ano || '', v.cor || '', v.chassi || '', v.renavam || '', getNomeObra(v.obra) || '', v.locadora || '', v.contrato || '', +v.valorMes || 0, _frData(v.fimContrato), _frData(v.mobData), v.status || '', _frData(v.devData), _frData(v.crlvVal),
+      r.nome || '', r.mat || '', r.cnhCat || '', _frData(r.cnhVal), _frData(r.inicio), frAlertas(v).map(x => x.t).join('; ')]; })]);
+  ws['!cols'] = [10, 26, 12, 10, 10, 20, 14, 24, 16, 14, 14, 13, 13, 14, 13, 13, 28, 11, 9, 12, 14, 40].map(w => ({ wch: w }));
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Frota'); XLSX.writeFile(wb, 'ObraKontrol_frota_' + _hojeLocal() + '.xlsx');
+}
+(function () {
+  const oInit = window.pageInit;
+  window.pageInit = function (id) { const r = oInit.apply(this, arguments); if (id === 'frota') renderFrota(); return r; };
+  const oSel = window.selecionarObra;
+  window.selecionarObra = function () { const r = oSel.apply(this, arguments); try { if (document.getElementById('page-frota')?.classList.contains('active')) renderFrota(); } catch (e) {} return r; };
 })();
 
 // Apply configs on load

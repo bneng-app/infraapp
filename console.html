@@ -100,7 +100,7 @@ input:disabled{opacity:.7}
     <input id="lg-senha" type="password" autocomplete="current-password">
     <div class="err" id="lg-err"></div>
     <button class="btn btn-p" style="width:100%" id="lg-btn">Entrar</button>
-    <div class="ver">ObraKontrol Console · v1.3</div>
+    <div class="ver">ObraKontrol Console · v1.4</div>
   </form>
 </div>
 
@@ -219,7 +219,7 @@ input:disabled{opacity:.7}
 </div>
 
 <script>
-const VERSAO = 'v1.3';
+const VERSAO = 'v1.4';
 const firebaseConfig = {
   apiKey: "AIzaSyBShR-XvPrUiFtnndFXJV7IYrrTG90BS5o",
   authDomain: "obrakontrol-205c4.firebaseapp.com",
@@ -244,6 +244,7 @@ const OK_MOD_PADRAO = {
   orcamento:     { nome: 'Orçamento previsto', situacao: 'disponivel', padrao: true },
   republicas:    { nome: 'Repúblicas e alojamentos', situacao: 'dev', padrao: false, desc: 'Cadastro de repúblicas e alojamentos, vagas, moradores e custo por pessoa' },
   mobilizacao:   { nome: 'Mobilização de equipamentos', situacao: 'dev', padrao: false, desc: 'App de campo: TAG automática, horímetro, checklist, fotos, avarias e termo assinado ao mobilizar' },
+  frota:         { nome: 'Gestão de frota (veículos leves)', situacao: 'dev', padrao: false, desc: 'Veículos alugados por obra, responsável com CNH, termo de responsabilidade e avisos de vencimento' },
 };
 window.OK_MODULOS = JSON.parse(JSON.stringify(OK_MOD_PADRAO));
 async function _okCarregarModulos() {
@@ -434,7 +435,7 @@ async function limparCliente() {
   const id = editando; if (!id) return; const c = CLIENTES.find(x => x.id === id) || {}, nome = (c.nomeCurto || id).toUpperCase();
   const r = prompt('Isto apaga TODOS os dados de ' + nome + ': obras, cadastros, apontamentos, abastecimentos, fotos, orçamentos e repúblicas.\nUsuários, perfis e configurações ficam.\n\nNão tem volta. Para confirmar, digite o nome do cliente: ' + nome);
   if (!r || r.trim().toUpperCase() !== nome) { toast('Limpeza cancelada.'); return; }
-  const cols = COLS.filter(x => !['usuarios', 'perfis', '_sistema', 'configs'].includes(x)).concat(['republicas', 'mobilizacoes']);
+  const cols = COLS.filter(x => !['usuarios', 'perfis', '_sistema', 'configs'].includes(x)).concat(['republicas', 'mobilizacoes', 'frota']);
   let n = 0; toast('Limpando ' + nome + '…');
   try {
     for (const col of cols) {
@@ -548,7 +549,7 @@ async function criarDemo() {
 async function copiarParaDemo() {
   const de = $('amb-origem') && $('amb-origem').value; if (!de) return;
   if (!confirm('Copiar obras, cadastros, apontamentos e abastecimentos de ' + de.toUpperCase() + ' para o DEMO?\n\nUsuários e fotos não são copiados. O cliente ' + de.toUpperCase() + ' não é alterado.')) return;
-  const cols = COLS.filter(c => !['usuarios', 'fotos', 'turnosAbertos', '_sistema'].includes(c)).concat(['republicas', 'mobilizacoes']);
+  const cols = COLS.filter(c => !['usuarios', 'fotos', 'turnosAbertos', '_sistema'].includes(c)).concat(['republicas', 'mobilizacoes', 'frota']);
   let n = 0; toast('Copiando… pode levar um minuto');
   try {
     for (const col of cols) {
