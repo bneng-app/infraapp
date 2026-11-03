@@ -883,7 +883,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.54</div>
+  <div class="login-versao">ObraKontrol Campo · v2.55</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -4227,6 +4227,38 @@ function ffAbrir(msg) {
   _turnoFoto = function () { const o = oFoto.apply(this, arguments); o.fotosFrente = (ap.fotosFrente || []).map(x => x.id); return o; };
   const oTab = apTab;
   apTab = function (t) { const r = oTab.apply(this, arguments); if (t === 'rev') _ffRender(); else _ffBotao(); return r; };
+})();
+
+// ══════════════════════════════════════════════════════════════
+// v2.55: CADASTROS ATUALIZAM SEM SAIR DO APP — no botão de sincronizar, ao voltar para o app (a cada 5 min)
+// e quando o QR lido não está na lista (funcionário/equipamento recém-cadastrado no painel)
+// ══════════════════════════════════════════════════════════════
+let _cadUlt = Date.now(), _cadRodando = false;
+async function atualizarCadastrosCampo(avisar) {
+  if (_cadRodando || !isOnline || !db || !_fbReady || !usuarioCampo) return false;
+  _cadRodando = true;
+  try {
+    await carregarDadosCampo(); _cadUlt = Date.now();
+    try { if (document.getElementById('ap-panel-mo')?.style.display !== 'none') apRenderMO(); } catch (e) {}
+    try { if (document.getElementById('ap-panel-eq')?.style.display !== 'none') apRenderEQ(); } catch (e) {}
+    try { apAtualizarContadores(); } catch (e) {}
+    if (avisar) toast('Cadastros atualizados: ' + dadosCampo.funcionarios.length + ' funcionários, ' + dadosCampo.equipamentos.length + ' equipamentos', 'ok');
+    return true;
+  } finally { _cadRodando = false; }
+}
+(function () {
+  const oSync = sincronizarPendentes;
+  sincronizarPendentes = async function () { const r = await oSync.apply(this, arguments); await atualizarCadastrosCampo(true); return r; };
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && Date.now() - _cadUlt > 5 * 60e3) atualizarCadastrosCampo(false); });
+  const oQR = processarQR;
+  processarQR = function (texto, contexto) {
+    const r = oQR.apply(this, arguments);
+    if (r && r.ok === false && r.add && isOnline && Date.now() - _cadUlt > 15e3) {
+      r.msg += ' — atualizando a lista, leia de novo em alguns segundos';
+      atualizarCadastrosCampo(false);
+    }
+    return r;
+  };
 })();
 
 // Salvar sessão ao entrar
