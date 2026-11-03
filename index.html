@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.00 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.01 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -12773,6 +12773,66 @@ function frRespVeic(id) { window._frAtual = id; if (!id) { _frrModo(true); retur
   frEntregar = window.frEntregar = function () { const r = oEnt.apply(this, arguments); try { renderFrotaResp(); } catch (e) {} return r; };
   const oDev = frDevolverResp;
   frDevolverResp = window.frDevolverResp = function () { const r = oDev.apply(this, arguments); try { renderFrotaResp(); } catch (e) {} return r; };
+})();
+
+
+// ═══════════════════════════════════════════════════════════════
+// v3.01: MENU NOVO (Gestão) — Dia a dia · Obra · Pessoas · Equipamentos · Combustível · Frota · Alojamento · Cadastros master · Relatórios · Administração
+// Só reorganiza e renomeia: as telas, os dados e as permissões por tela continuam as mesmas.
+// ═══════════════════════════════════════════════════════════════
+const _MENU_MASTER = ['tipos-perdas', 'empresas'];   // só o Master vê
+function _ehMaster() { const u = usuarioLogado; return !!(u && (u.master || u.dev || (typeof _okEhDev === 'function' && _okEhDev(u.email)))); }
+(function () {
+  const sb = document.querySelector('.sidebar'); if (!sb) return;
+  const G = id => document.getElementById(id);
+  const item = p => sb.querySelector(`.nav-item[onclick*="showPage('${p}'"]`);
+  const rot = (g, t) => { const s = g && g.querySelector('.nav-section'); if (s && s.childNodes[0]) s.childNodes[0].textContent = t + ' '; };
+  const nome = (p, t, tit) => { const el = item(p); if (!el) return; const sp = el.querySelector('span'); if (sp) sp.textContent = t; el.title = tit || t; };
+  const poe = (g, ps) => { const box = g && g.querySelector('.nav-group-items'); if (!box) return; ps.forEach(p => { const el = item(p); if (el) box.appendChild(el); }); };
+  // grupo novo: Cadastros master
+  let gm = G('grp-master');
+  if (!gm) { gm = document.createElement('div'); gm.className = 'nav-group'; gm.id = 'grp-master';
+    gm.innerHTML = `<div class="nav-section" onclick="toggleNavGroup('grp-master')">Cadastros master <span class="nav-chevron">▾</span></div><div class="nav-group-items"></div>`; }
+  // nomes
+  rot(G('grp-apontamentos'), 'Dia a dia'); rot(G('grp-cadastros'), 'Obra'); rot(G('grp-mo'), 'Pessoas'); rot(G('grp-almoxarifado'), 'Combustível'); rot(G('grp-analise'), 'Relatórios');
+  nome('apon-mo', 'Lançamentos de MO', 'Lançamentos de mão de obra vindos do campo'); nome('apon-eq', 'Lançamentos de EQ', 'Lançamentos de equipamentos vindos do campo');
+  nome('apon-diesel', 'Abastecimentos'); nome('perdas', 'Paradas', 'Paradas registradas no campo'); nome('tipos-perdas', 'Tipos de parada');
+  nome('cargos', 'Funções'); nome('empresas', 'Fornecedores', 'Fornecedores, empreiteiras e locadoras'); nome('qrcodes', 'QR Codes e placas', 'Crachás, etiquetas e placas das frentes');
+  nome('tanques', 'Tanques e estoque'); nome('frentes', 'Frentes de serviço'); nome('tipos-servico', 'Tipos de serviço');
+  // lugares
+  poe(G('grp-apontamentos'), ['diario', 'aprovacao', 'apon-mo', 'apon-eq', 'perdas', 'apon-diesel']);
+  poe(G('grp-cadastros'), ['obras', 'frentes', 'tipos-servico', 'orcamento', 'qrcodes', 'ua']);
+  poe(G('grp-mo'), ['funcionarios', 'equipes', 'cargos', 'turnos']);
+  poe(G('grp-almoxarifado'), ['tanques', 'notas-diesel', 'produtos']);
+  poe(G('grp-equipamentos'), ['equipamentos', 'familias', 'modelos']);
+  poe(gm, ['tipos-perdas', 'empresas']);
+  // ordem dos grupos
+  const pai = G('grp-apontamentos')?.parentElement;
+  if (pai) ['grp-dashboards', 'grp-apontamentos', 'grp-cadastros', 'grp-mo', 'grp-equipamentos', 'grp-almoxarifado', 'grp-frota', 'grp-alojamento'].map(G).concat([gm, G('grp-analise'), G('grp-admin')])
+    .forEach(g => { if (g) pai.appendChild(g); });
+  const gf = G('grp-frentes'); if (gf && !gf.querySelector('.nav-item')) gf.remove();
+  // títulos das telas
+  const tit = (pg, t) => { const e = document.querySelector('#page-' + pg + ' .page-title'); if (e) e.textContent = t; };
+  tit('apon-mo', 'Lançamentos de MO'); tit('apon-eq', 'Lançamentos de EQ'); tit('apon-diesel', 'Abastecimentos — controle de diesel');
+  tit('perdas', 'Paradas'); tit('tipos-perdas', 'Tipos de parada'); tit('cargos', 'Funções'); tit('empresas', 'Fornecedores'); tit('qrcodes', 'QR Codes e placas');
+  const sub = (pg, t) => { const e = document.querySelector('#page-' + pg + ' .page-sub'); if (e) e.textContent = t; };
+  sub('perdas', 'Horas paradas de pessoas e equipamentos registradas no campo');
+  sub('tipos-perdas', 'Lista padrão da empresa — vale para todas as obras. Só o Master altera.');
+
+  // permissões: cada item aparece se a pessoa pode ver a tela; o grupo aparece se tiver algum item
+  const oP = window.podeVerPagina;
+  window.podeVerPagina = function (pag) { if (_MENU_MASTER.includes(pag) && usuarioLogado && !_ehMaster()) return false; return oP.apply(this, arguments); };
+  const oA = window.aplicarPermissoes;
+  window.aplicarPermissoes = function () {
+    const r = oA.apply(this, arguments); if (!usuarioLogado) return r;
+    sb.querySelectorAll('.nav-group').forEach(g => {
+      if (g.id === 'grp-dashboards') return;
+      let algum = false;
+      g.querySelectorAll('.nav-item').forEach(el => { const m = (el.getAttribute('onclick') || '').match(/showPage\('([^']+)'/); if (!m) return; const ok = podeVerPagina(m[1]); el.style.display = ok ? '' : 'none'; if (ok) algum = true; });
+      g.style.display = algum ? '' : 'none';
+    });
+    return r;
+  };
 })();
 
 // Apply configs on load
