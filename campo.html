@@ -883,7 +883,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.57</div>
+  <div class="login-versao">ObraKontrol Campo · v2.58</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -4289,6 +4289,24 @@ function _funcPorCracha(texto) {
     }
     return oQR.apply(this, arguments);
   };
+})();
+
+// ══════════════════════════════════════════════════════════════
+// v2.58: login com e-mail no celular — o campo abre teclado numérico (matrícula); "Entrar com e-mail" troca o teclado.
+// No link do DEMO já abre no modo e-mail.
+// ══════════════════════════════════════════════════════════════
+function loginModoEmail(on) {
+  const i = document.getElementById('login-mat'), l = document.getElementById('login-modo'); if (!i) return;
+  i.setAttribute('inputmode', on ? 'email' : 'numeric'); i.type = on ? 'email' : 'text'; i.placeholder = on ? 'seu@email.com' : '0001'; i.setAttribute('autocapitalize', 'off');
+  if (l) l.innerHTML = on ? 'Entrar com <b>matrícula</b>' : 'Entrar com <b>e-mail</b>';
+  const lb = i.closest('.form-group')?.querySelector('label, .form-label'); if (lb) lb.textContent = on ? 'E-mail' : 'Matrícula';
+  l && (l.dataset.on = on ? '1' : ''); i.value = ''; i.blur(); setTimeout(() => i.focus(), 50);
+}
+(function () {
+  const i = document.getElementById('login-mat'); if (!i) return;
+  const box = i.closest('.form-group') || i.parentElement.parentElement;
+  box.insertAdjacentHTML('beforeend', '<button type="button" id="login-modo" onclick="loginModoEmail(!this.dataset.on)" style="background:none;border:none;color:var(--text2,#9A9CA5);font-size:13px;margin-top:8px;padding:4px 0;cursor:pointer;text-decoration:underline">Entrar com <b>e-mail</b></button>');
+  if ((new URLSearchParams(location.search).get('c') || '').toLowerCase() === 'demo') setTimeout(() => { loginModoEmail(true); i.blur(); }, 0);
 })();
 
 // Salvar sessão ao entrar
