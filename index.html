@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v2.89 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v2.90 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -3425,7 +3425,8 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
       </div>
       <div id="usr-perms-bloco">
       <div class="divider" style="margin:.75rem 0"></div>
-      <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.75rem">Permissões por módulo</div>
+      <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.4rem">Permissões por módulo</div>
+      <div id="usr-perms-nota" style="font-size:12px;color:var(--text-3);margin-bottom:.75rem;display:none"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="perm-cadastros" checked/> Cadastros</label>
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="perm-apontamentos" checked/> Apontamentos</label>
@@ -12071,6 +12072,26 @@ function _docSit(e) { if (!e.docValidade) return null; const d = Math.round((new
       if (s && (s.vencido || s.vence)) td.insertAdjacentHTML('beforeend', `<div class="doc-b"><span class="tag ${s.vencido ? 'tag-red' : 'tag-amber'}" style="font-size:10.5px" title="Validade do documento">${s.vencido ? 'doc. vencido em ' + s.data : 'doc. vence ' + s.data}</span></div>`); });
     return r;
   };
+})();
+
+// ═══════════════════════════════════════════════════════════════
+// v2.90: cadastro do usuário — Admin já tem tudo; perfil com telas manda no acesso
+// ═══════════════════════════════════════════════════════════════
+(function () {
+  const oM = window.usrPerfilMudou;
+  window.usrPerfilMudou = function () {
+    const r = oM.apply(this, arguments);
+    const nome = document.getElementById('usr-perfil')?.value || '', p = perfilPorNome(nome), nota = document.getElementById('usr-perms-nota');
+    const grade = nota && nota.nextElementSibling, adm = nome === 'Admin', telas = p && p.telas && Object.keys(p.telas).some(k => p.telas[k]);
+    document.querySelectorAll('#usr-perms-bloco input[type=checkbox]').forEach(c => { if (adm) c.checked = true; c.disabled = adm; });
+    if (nota) { nota.style.display = adm || telas ? '' : 'none';
+      nota.innerHTML = adm ? '<b>Admin tem acesso a tudo</b>, inclusive aos módulos novos. Não precisa marcar nada aqui.'
+        : telas ? 'O que esta pessoa vê no painel vem do perfil <b>' + _e(nome) + '</b> (botão <b>Perfis</b>, no alto da tela de Usuários). Para mudar, edite o perfil.' : ''; }
+    if (grade) grade.style.display = telas && !adm ? 'none' : 'grid';
+    return r;
+  };
+  const oE = window.editarUsuario;
+  window.editarUsuario = function () { const r = oE.apply(this, arguments); try { usrPerfilMudou(); } catch (e) {} return r; };
 })();
 
 // Apply configs on load
