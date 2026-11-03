@@ -8,6 +8,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#000000"/>
 <title>ObraKontrol Campo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600&amp;display=swap" rel="stylesheet"/>
 <meta name="description" content="App de campo do ObraKontrol: apropriação de mão de obra, equipamentos e abastecimento."/>
 <meta property="og:title" content="ObraKontrol Campo — TENCO"/>
 <meta property="og:description" content="Gestão operacional de obras · apropriação e abastecimento no celular"/>
@@ -881,7 +883,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.49</div>
+  <div class="login-versao">ObraKontrol Campo · v2.50</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -3963,9 +3965,11 @@ function mobRender() {
   if (p === 4) {
     h = `<div class="card"><div class="card-body">
       <div class="form-group"><label class="form-label">Quem recebeu *</label><input class="form-control" value="${_mobEsc(mob.nomeRec)}" oninput="mob.nomeRec=this.value"/>
-        <div class="mob-sig"><canvas id="sig-rec" width="600" height="180" aria-label="Assinatura de quem recebeu"></canvas><button type="button" class="mob-link" onclick="mobSigLimpar('rec')">Limpar</button><span>Assine com o dedo</span></div></div>
+        <div class="mob-sig"><canvas id="sig-rec" width="600" height="180" aria-label="Assinatura de quem recebeu"></canvas><button type="button" class="mob-link" onclick="mobSigLimpar('rec')">Limpar</button><span>Assine com o dedo ou gere pelo nome</span></div>
+        <button type="button" class="btn btn-outline" style="width:100%;margin-top:8px" onclick="mobSigNome('rec')">✍ Gerar assinatura pelo nome</button></div>
       <div class="form-group"><label class="form-label">Quem entregou (motorista / locadora)</label><input class="form-control" value="${_mobEsc(mob.nomeEnt)}" oninput="mob.nomeEnt=this.value" placeholder="Opcional"/>
-        <div class="mob-sig"><canvas id="sig-ent" width="600" height="180" aria-label="Assinatura de quem entregou"></canvas><button type="button" class="mob-link" onclick="mobSigLimpar('ent')">Limpar</button><span>Assine com o dedo (opcional)</span></div></div>
+        <div class="mob-sig"><canvas id="sig-ent" width="600" height="180" aria-label="Assinatura de quem entregou"></canvas><button type="button" class="mob-link" onclick="mobSigLimpar('ent')">Limpar</button><span>Assine com o dedo ou gere pelo nome (opcional)</span></div>
+        <button type="button" class="btn btn-outline" style="width:100%;margin-top:8px" onclick="mobSigNome('ent')">✍ Gerar assinatura pelo nome</button></div>
     </div></div>`;
   }
   el.innerHTML = h; el.scrollTop = 0;
@@ -3978,9 +3982,21 @@ function _mobSig(k) {
   let des = false; const pos = e => { const r = c.getBoundingClientRect(); return [(e.clientX - r.left) * c.width / r.width, (e.clientY - r.top) * c.height / r.height]; };
   c.onpointerdown = e => { des = true; c.setPointerCapture(e.pointerId); const [x, y] = pos(e); g.beginPath(); g.moveTo(x, y); e.preventDefault(); };
   c.onpointermove = e => { if (!des) return; const [x, y] = pos(e); g.lineTo(x, y); g.stroke(); e.preventDefault(); };
-  c.onpointerup = c.onpointercancel = () => { if (!des) return; des = false; mob[campo] = c.toDataURL('image/png'); };
+  c.onpointerup = c.onpointercancel = () => { if (!des) return; des = false; mob[campo] = c.toDataURL('image/png'); mob[campo + 'Tipo'] = { tipo: 'manuscrita', em: new Date().toISOString() }; };
 }
-function mobSigLimpar(k) { mob[k === 'rec' ? 'sigRec' : 'sigEnt'] = ''; const c = document.getElementById('sig-' + k); if (c) c.getContext('2d').clearRect(0, 0, c.width, c.height); }
+// assinatura gerada pelo nome (como no DocuSign): letra cursiva + registro de quem, quando e por qual login
+async function mobSigNome(k) {
+  const nome = (k === 'rec' ? mob.nomeRec : mob.nomeEnt).trim(); if (!nome) { toast('Preencha o nome primeiro.', 'err'); return; }
+  const c = document.getElementById('sig-' + k); if (!c) return; const g = c.getContext('2d');
+  try { await document.fonts.load("600 64px 'Dancing Script'"); } catch (e) {}
+  g.clearRect(0, 0, c.width, c.height); g.fillStyle = '#0B2E6B'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  let tam = 70; do { g.font = `600 ${tam}px 'Dancing Script', 'Brush Script MT', cursive`; tam -= 4; } while (g.measureText(nome).width > c.width - 40 && tam > 24);
+  g.fillText(nome, c.width / 2, c.height / 2 - 6);
+  g.font = '15px Arial'; g.fillStyle = '#64748B'; g.fillText('assinado eletronicamente · ' + new Date().toLocaleString('pt-BR').replace(',', '').slice(0, 16), c.width / 2, c.height - 18);
+  mob[k === 'rec' ? 'sigRec' : 'sigEnt'] = c.toDataURL('image/png');
+  mob[k === 'rec' ? 'sigRecTipo' : 'sigEntTipo'] = { tipo: 'nome', em: new Date().toISOString(), login: (usuarioCampo && (usuarioCampo.mat || usuarioCampo.nome)) || '' };
+}
+function mobSigLimpar(k) { mob[k === 'rec' ? 'sigRecTipo' : 'sigEntTipo'] = null; mob[k === 'rec' ? 'sigRec' : 'sigEnt'] = ''; const c = document.getElementById('sig-' + k); if (c) c.getContext('2d').clearRect(0, 0, c.width, c.height); }
 function _mobFalta(p) {
   const f = [];
   if (p === 0) { if (!usuarioCampo.obra && !mob.obra) f.push('a obra'); if (!mob.familia) f.push('a família'); if (!mob.modelo || (mob.modelo === '__novo' && !mob.modeloNovo.trim())) f.push('o modelo'); if (!mob.prop) f.push('a empresa proprietária'); if (!mob.placa.trim()) f.push('a placa'); }
@@ -4059,7 +4075,7 @@ async function mobValidar() {
     await fbSalvar('equipamentos', eq); (dadosCampo.equipamentos = dadosCampo.equipamentos || []).push(eq);
     await fbSalvar('mobilizacoes', { id: idMob, tipo: 'mobilizacao', equipId: idEq, tag: t.tag, obra: t.obra, data: t.data, hora: t.hora, familia: mob.familia, familiaNome: t.familiaNome, codModelo, modeloNome: t.modeloNome,
       prop: mob.prop, empresaNome: t.empresaNome, placa: t.placa, chassi: t.chassi, serie: t.serie, docValidade: t.docVal, ano: t.ano, hor: t.hor, comb: t.comb, fotoHor: fHor, fotoPlaca: fPlaca, fotos: fEq, checklist: ck, avarias: av, acess: t.acess,
-      nomeRec: t.nomeRec, sigRec: t.sigRec, nomeEnt: t.nomeEnt, sigEnt: t.sigEnt, lancadoPor: usuarioCampo.nome, validadoEm: ag, obraNome: t.obraNome });
+      nomeRec: t.nomeRec, sigRec: t.sigRec, sigRecTipo: mob.sigRecTipo || null, nomeEnt: t.nomeEnt, sigEnt: t.sigEnt, sigEntTipo: mob.sigEntTipo || null, lancadoPor: usuarioCampo.nome, validadoEm: ag, obraNome: t.obraNome });
     t.validadoEm = ag; t.tag = eq.tag;
     _tkModal(termoMobHtml(t), `<button class="btn btn-green" style="flex:1" onclick="document.getElementById('tk-ov').remove();showScreen('home')">Concluir</button>`);
     toast('✓ ' + eq.tag + ' mobilizado', 'ok'); mob = null;
