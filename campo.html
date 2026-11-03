@@ -883,7 +883,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.51</div>
+  <div class="login-versao">ObraKontrol Campo · v2.52</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -2190,7 +2190,7 @@ function _checaFuturo(data, ini, fim) {
   return '';
 }
 // calendário não deixa escolher dia futuro
-document.addEventListener('focusin', e => { if (e.target && e.target.type === 'date') e.target.max = _hojeISO(); });
+document.addEventListener('focusin', e => { if (e.target && e.target.type === 'date' && !e.target.dataset.futuro) e.target.max = _hojeISO(); });   // v2.52: datas de validade podem ser futuras (data-futuro)
 
 function apHoraValida(el) {
   const g = id => document.getElementById(id).value;
@@ -3930,7 +3930,7 @@ function mobRender() {
       <div class="form-group"><label class="form-label">Placa *</label><input class="form-control" value="${_mobEsc(mob.placa)}" oninput="mob.placa=this.value.toUpperCase()" placeholder="Ex.: ABC1D23" style="text-transform:uppercase"/></div>
       <div style="display:flex;gap:10px"><div class="form-group" style="flex:1"><label class="form-label">Chassi</label><input class="form-control" value="${_mobEsc(mob.chassi)}" oninput="mob.chassi=this.value.toUpperCase()" style="text-transform:uppercase"/></div>
         <div class="form-group" style="flex:1"><label class="form-label">Nº de série</label><input class="form-control" value="${_mobEsc(mob.serie)}" oninput="mob.serie=this.value"/></div></div>
-      <div class="form-group"><label class="form-label">Validade do documento (CRLV / licenciamento)</label><input class="form-control" type="date" value="${_mobEsc(mob.docVal)}" oninput="mob.docVal=this.value"/></div>
+      <div class="form-group"><label class="form-label">Validade do documento (CRLV / licenciamento)</label><input class="form-control" type="date" data-futuro="1" value="${_mobEsc(mob.docVal)}" oninput="mob.docVal=this.value"/></div>
       <div class="form-group"><label class="form-label">Ano de fabricação</label><input class="form-control" type="number" inputmode="numeric" value="${_mobEsc(mob.ano)}" oninput="mob.ano=this.value" placeholder="Ex.: 2021"/></div>
       <div class="form-group"><label class="form-label">Foto da plaqueta ou documento</label>${_mobFotoBtn('placa', 'Foto da plaqueta', mob.fotoPlaca, false)}</div>
     </div></div>`;
