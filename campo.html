@@ -883,7 +883,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.65</div>
+  <div class="login-versao">ObraKontrol Campo · v2.66</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -4657,6 +4657,9 @@ async function mobRascExcluir(rid) {
     try { return oIni.apply(this, arguments); } finally { dadosCampo.tiposServico = tudo; setTimeout(sinc, 0); }
   };
 })();
+
+// v2.66: o painel vê o operador de cada equipamento no turno ao vivo
+(function () { const oF = _turnoFoto; _turnoFoto = function () { const o = oF.apply(this, arguments); o.eq = (o.eq || []).map(x => { const v = ap.eq.get(x.id) || {}; return { ...x, operador: v.operador || '', operadorMat: v.operadorMat || '' }; }); return o; }; })();
 
 // Salvar sessão ao entrar
 const _origEntrar = entrarNoCampo;

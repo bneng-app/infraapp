@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.02 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.03 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -13027,6 +13027,50 @@ function fsEnviar() {
   const oInit = window.pageInit;
   window.pageInit = function (id) { const r = oInit.apply(this, arguments); if (id === 'forn-banco') renderFornBanco(); return r; };
 })();
+
+
+// ═══════════════════════════════════════════════════════════════
+// v3.03: Acompanhamento do dia — clicar no cartão abre o detalhe do turno (pessoas, equipamentos, paradas, fotos, local)
+// ═══════════════════════════════════════════════════════════════
+(function () {
+  const oCard = _diaCard;
+  _diaCard = function (t) { const h = oCard.apply(this, arguments);
+    return h.replace(/^<div class="dia-card ([^"]*)">/, `<div class="dia-card $1" style="cursor:pointer" title="Clique para ver o detalhe" onclick="if(!event.target.closest('details,a'))diaDetalhe('${_e(t.id)}')">`); };
+})();
+async function diaDetalhe(id) {
+  const t = (_dia.lista || []).find(x => x.id === id); if (!t) return;
+  const fr = (dados.frentes || []).find(x => x.cod === t.frente || x.id === t.frente), mo = t.mo || [], eq = t.eq || [], par = t.paradas || [], fotos = t.fotosFrente || [];
+  const nomeF = c => (typeof _nomeFuncao === 'function' ? _nomeFuncao(c) : c) || c || '—', nomeFam = c => (typeof _nomeFamilia === 'function' ? _nomeFamilia(c) : c) || c || '—';
+  const st = t.status === 'aberto' ? (t.data < _hojeLocal() ? '<span class="tag tag-red">Não encerrado</span>' : '<span class="tag tag-green">Aberto</span>') : t.status === 'encerrado' ? '<span class="tag tag-gray">Encerrado</span>' : tag(_e(t.status || ''), 'gray');
+  const L = (k, v) => v === '' || v == null ? '' : `<div><div style="font-size:11px;color:#6B7280;text-transform:uppercase;letter-spacing:.06em">${k}</div><div style="font-weight:700">${v}</div></div>`;
+  const h1 = t.horaIni ? (t.horaFim ? _e(t.horaIni) + ' – ' + _e(t.horaFim) : _e(t.horaIni) + ' <span style="font-weight:400;color:#6B7280">· há ' + _durTxt(_minDesde(t.data, t.horaIni)) + '</span>') : '—';
+  const sec = (tit, corpo) => `<h3 style="font-size:13px;margin:18px 0 8px;text-transform:uppercase;letter-spacing:.06em;color:#374151">${tit}</h3>${corpo}`;
+  const tb = (cab, linhas) => linhas.length ? `<table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>${cab.map(c => `<th style="text-align:left;padding:6px 4px;border-bottom:1px solid #E5E7EB;font-size:11px;color:#6B7280">${c}</th>`).join('')}</tr></thead><tbody>${linhas.map(l => `<tr>${l.map(c => `<td style="padding:6px 4px;border-bottom:1px solid #F3F4F6">${c}</td>`).join('')}</tr>`).join('')}</tbody></table>` : '<div style="font-size:13px;color:#6B7280">—</div>';
+  const parH = p => { if (!p.ini || !p.fim) return ''; const m = (x => { const [a, b] = String(x).split(':').map(Number); return a * 60 + b; }); let d = m(p.fim) - m(p.ini); if (d < 0) d += 1440; return (d / 60).toFixed(1).replace('.', ',') + ' h'; };
+  let ov = document.getElementById('dia-det'); if (ov) ov.remove();
+  ov = document.createElement('div'); ov.id = 'dia-det'; ov.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.7);overflow:auto;padding:24px 16px';
+  ov.onclick = e => { if (e.target === ov) ov.remove(); };
+  ov.innerHTML = `<div style="background:#fff;color:#111;max-width:900px;margin:0 auto;border-radius:14px;padding:22px;font-family:inherit">
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">
+      <div><div style="font-size:20px;font-weight:800"><span class="td-mono">${_e(t.frente)}</span> ${_e(fr ? (fr.desc || fr.nome || '') : '')}</div>
+        <div style="color:#4B5563;margin-top:2px">${_e(t.servico || '—')} · ${_e(getNomeObra(t.obra) || '')} · ${_e(fmtData(t.data))}</div></div>
+      <div style="display:flex;gap:8px;align-items:center">${st}<button class="btn btn-outline btn-sm" onclick="document.getElementById('dia-det').remove()">Fechar</button></div></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:16px;padding:12px;border:1px solid #E5E7EB;border-radius:10px">
+      ${L('Apontador', _e(t.apontador || '—'))}${L('Horário', h1)}${L('Turno', _e(t.turno || '—'))}${L('Pessoas', mo.length)}${L('Equipamentos', eq.length)}
+      ${t.qtd || t.prodStatus ? L('Produção', t.qtd ? _e(String(t.qtd).replace('.', ',')) + ' ' + _e(t.unid || '') : t.prodStatus === 'andamento' ? 'em andamento' : '—') : ''}
+      ${t.geoIni && typeof _geoTxt === 'function' ? L('Local de abertura', _geoTxt(t.geoIni, t.frente, t.obra)) : ''}</div>
+    ${sec('Equipe (' + mo.length + ')', tb(['Nome', 'Matrícula', 'Função'], mo.map(x => [_e(x.nome), '<span class="td-mono">' + _e(x.mat || '—') + '</span>', _e(nomeF(x.funcao))])))}
+    ${sec('Equipamentos (' + eq.length + ')', tb(['TAG', 'Família', 'Operador'], eq.map(x => ['<b>' + _e(x.tag) + '</b>', _e(nomeFam(x.familia)), _e(x.operador || '—')])))}
+    ${sec('Paradas (' + par.length + ')', tb(['Motivo', 'Quem', 'Início', 'Fim', 'Horas'], par.map(p => [_e(p.motivo), _e(p.quem || '—'), _e(p.ini || ''), p.fim ? _e(p.fim) : '<span style="color:#B45309;font-weight:700">em andamento</span>', parH(p)])))}
+    ${sec('Fotos da frente (' + fotos.length + ')', fotos.length ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px">${fotos.map(f => `<figure style="margin:0" data-dd="${_e(f)}"><div style="aspect-ratio:4/3;border-radius:8px;background:#eee center/cover;display:flex;align-items:center;justify-content:center;font-size:11px;color:#888">carregando…</div><figcaption style="font-size:11px;color:#555;margin-top:3px"></figcaption></figure>`).join('')}</div>` : '<div style="font-size:13px;color:#6B7280">Nenhuma foto ainda.</div>')}
+  </div>`;
+  document.body.appendChild(ov);
+  ov.querySelectorAll('[data-dd]').forEach(async fig => { const box = fig.firstElementChild, cap = fig.lastElementChild;
+    try { const d = await db.collection('fotos').doc(fig.dataset.dd).get(), f = d.exists ? d.data() : null;
+      if (!f || !f.img) { box.textContent = 'ainda não chegou'; return; }
+      box.style.backgroundImage = `url('${f.img}')`; box.textContent = ''; box.style.cursor = 'zoom-in'; box.onclick = () => window.open().document.write('<img src="' + f.img + '" style="max-width:100%">');
+      cap.textContent = f.tiradaEm ? new Date(f.tiradaEm).toLocaleTimeString('pt-BR').slice(0, 5) : ''; } catch (e) { box.textContent = '—'; } });
+}
 
 // Apply configs on load
 setTimeout(applyConfigs, 200);
