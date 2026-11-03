@@ -883,7 +883,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.53</div>
+  <div class="login-versao">ObraKontrol Campo · v2.54</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -4105,6 +4105,128 @@ function _mobCard() {
       const pf = (dadosCampo.perfis || []).find(p => p.nome === u.perfil); if (pf && pf.perms && pf.perms.mobilizacao !== undefined) return !!pf.perms.mobilizacao;
       if (u.perms && u.perms.mobilizacao !== undefined) return !!u.perms.mobilizacao; return u.perfil === 'Manutenção (campo)'; }
     return oPM.apply(this, arguments); };
+})();
+
+// ══════════════════════════════════════════════════════════════
+// v2.54: FOTOS DA FRENTE — mínimo 2, máximo 5 por apontamento; menos de 5 precisa justificar.
+// Tiradas ao longo do dia; cada foto já vai para o servidor (coleção fotos) e o rascunho guarda só a miniatura.
+// ══════════════════════════════════════════════════════════════
+const FF_MIN = 2, FF_MAX = 5;
+function _ffMini(dataUrl) {
+  return new Promise(ok => { const im = new Image(); im.onload = () => { const r = Math.min(1, 220 / Math.max(im.width, im.height)), c = document.createElement('canvas');
+    c.width = Math.round(im.width * r); c.height = Math.round(im.height * r); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); ok(c.toDataURL('image/jpeg', 0.6)); }; im.onerror = () => ok(''); im.src = dataUrl; });
+}
+function _ffN() { return (ap.fotosFrente || []).length; }
+async function ffTirar(input) {
+  const f = input.files && input.files[0]; input.value = ''; if (!f) return;
+  if (!ap.uid) { if (document.getElementById('ap-frente')?.value) apGuardar(); if (!ap.uid) { toast('Escolha a frente primeiro.', 'err'); return; } }
+  if (_ffN() >= FF_MAX) { toast('Já tem ' + FF_MAX + ' fotos. Apague uma para tirar outra.', 'err'); return; }
+  try {
+    const img = await _reduzirFoto(f), th = await _ffMini(img), em = new Date().toISOString();
+    const id = 'ff' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    (ap.fotosFrente = ap.fotosFrente || []).push({ id, em, th });
+    apGuardar(); _ffRender();
+    toast('Foto ' + _ffN() + ' de ' + FF_MAX + ' registrada', 'ok');
+    fbSalvar('fotos', { id, tipo: 'frente', apUid: ap.uid, frente: document.getElementById('ap-frente').value, servico: document.getElementById('ap-servico')?.value || '',
+      data: document.getElementById('ap-data').value, obra: _apObra(), lancadoPor: usuarioCampo?.nome || '', tiradaEm: em, img }).catch(() => {});
+  } catch (e) { toast('Não consegui usar essa foto. Tente de novo.', 'err'); }
+}
+function ffApagar(id) {
+  if (!confirm('Apagar esta foto?')) return;
+  ap.fotosFrente = (ap.fotosFrente || []).filter(x => x.id !== id); apGuardar(); _ffRender();
+  try { if (isOnline && db) db.collection('fotos').doc(id).delete().catch(() => {}); } catch (e) {}
+}
+async function ffVer(id) {
+  const x = (ap.fotosFrente || []).find(y => y.id === id); if (!x) return;
+  const ov = document.createElement('div'); ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:3000;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.innerHTML = `<img src="${x.th}" style="max-width:100%;max-height:100%;border-radius:10px;filter:blur(.3px)"/>`; ov.onclick = () => ov.remove(); document.body.appendChild(ov);
+  try { const d = await db.collection('fotos').doc(id).get(); if (d.exists && d.data().img) ov.querySelector('img').src = d.data().img; } catch (e) {}
+}
+function ffJust(v) { ap.fotosJust = v; apGuardar(); _ffBotao(); }
+function _ffGrade() {
+  const l = ap.fotosFrente || [], n = l.length, hh = t => { const d = new Date(t); return isNaN(d) ? '' : String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+  const slots = l.map((x, i) => `<div class="ff-slot"><img src="${x.th}" onclick="ffVer('${x.id}')" alt="Foto ${i + 1}"/><span>${hh(x.em)}</span><button type="button" onclick="ffApagar('${x.id}')" aria-label="Apagar foto">×</button></div>`).join('')
+    + (n < FF_MAX ? `<label class="ff-slot ff-add"><b>📷</b>Tirar foto<input type="file" accept="image/*" capture="environment" style="display:none" onchange="ffTirar(this)"/></label>` : '');
+  const st = n < FF_MIN ? `<div class="ff-st falta">Faltam ${FF_MIN - n} foto(s) para poder encerrar (mínimo ${FF_MIN}).</div>`
+    : n < FF_MAX ? `<div class="ff-st meio">${n} de ${FF_MAX}. Pode tirar mais ao longo do dia, ou justificar por que ficou com menos de ${FF_MAX}.</div>` : `<div class="ff-st ok">✓ ${FF_MAX} fotos registradas.</div>`;
+  const just = n >= FF_MIN && n < FF_MAX ? `<div class="form-group" style="margin:10px 0 0"><label class="form-label">Por que menos de ${FF_MAX} fotos? *</label><input class="form-control ff-just" placeholder="Ex.: frente pequena, serviço parado pela chuva…" value="${_esc(ap.fotosJust || '')}" oninput="ffJust(this.value)"/></div>` : '';
+  return `<div class="ff-grade">${slots}</div>${st}${just}`;
+}
+function _ffBotao() {
+  const b = document.getElementById('ap-btn-fotos'); if (!b) return;
+  const n = _ffN(); b.style.display = ap.uid ? '' : 'none'; b.textContent = '📷 ' + n + '/' + FF_MAX; b.classList.toggle('ok', n >= FF_MIN);
+}
+function _ffRender() {
+  const c = document.getElementById('ap-ff-corpo'); if (c && document.activeElement?.classList?.contains('ff-just') !== true) c.innerHTML = _ffGrade();
+  const s = document.getElementById('ff-sheet-corpo'); if (s && document.activeElement?.classList?.contains('ff-just') !== true) s.innerHTML = _ffGrade();
+  _ffBotao();
+}
+function ffAbrir(msg) {
+  let ov = document.getElementById('ff-sheet'); if (ov) ov.remove();
+  ov = document.createElement('div'); ov.id = 'ff-sheet'; ov.className = 'ff-ov';
+  ov.innerHTML = `<div class="ff-box"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px"><b style="font-size:16px">Fotos da frente</b><button type="button" class="ff-x" onclick="document.getElementById('ff-sheet').remove()" aria-label="Fechar">×</button></div>
+    <div style="font-size:12.5px;color:var(--text2);margin-bottom:10px">${msg ? '<b style="color:var(--red)">' + _esc(msg) + '</b><br>' : ''}Tire de ${FF_MIN} a ${FF_MAX} fotos ao longo do dia mostrando a frente e o serviço.</div>
+    <div id="ff-sheet-corpo">${_ffGrade()}</div>
+    <button type="button" class="btn btn-primary" style="width:100%;margin-top:14px" onclick="document.getElementById('ff-sheet').remove()">Pronto</button></div>`;
+  ov.onclick = e => { if (e.target === ov) ov.remove(); };
+  document.body.appendChild(ov);
+}
+(function () {
+  // botão no topo (ao lado de Parada) e cartão no Revisar
+  const bp = document.getElementById('ap-btn-parada');
+  if (bp) bp.insertAdjacentHTML('afterend', '<button class="btn btn-sm tb-foto" id="ap-btn-fotos" style="display:none" onclick="ffAbrir()">📷 0/5</button>');
+  const pr = document.getElementById('ap-qtd')?.closest('.card');
+  if (pr) pr.insertAdjacentHTML('beforebegin', '<div class="card" id="ap-ff-card"><div class="card-header"><span class="card-title">Fotos da frente *</span></div><div class="card-body" id="ap-ff-corpo"></div></div>');
+  const css = document.createElement('style');
+  css.textContent = `.tb-foto{white-space:nowrap;background:#fff!important;color:var(--text)!important;border:1.5px solid #F59E0B!important;border-radius:12px!important;font-weight:800!important;padding:8px 10px!important;font-size:14px!important;margin-left:6px}
+  .tb-foto.ok{border-color:#16A34A!important;color:#15803D!important}
+  .ff-grade{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .ff-slot{position:relative;aspect-ratio:1;border-radius:12px;overflow:hidden;background:#E9EAEE}
+  .ff-slot img{width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in}
+  .ff-slot span{position:absolute;left:4px;bottom:4px;background:rgba(0,0,0,.6);color:#fff;font-size:10.5px;font-weight:700;border-radius:6px;padding:1px 5px}
+  .ff-slot button{position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:50%;border:none;background:rgba(0,0,0,.6);color:#fff;font-size:16px;line-height:1;cursor:pointer}
+  .ff-add{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:2px dashed var(--red);background:rgba(227,6,19,.05);color:var(--red);font-size:12px;font-weight:800;cursor:pointer}
+  .ff-add b{font-size:24px}
+  .ff-st{font-size:12.5px;margin-top:10px;font-weight:600}.ff-st.falta{color:var(--red)}.ff-st.meio{color:#B45309}.ff-st.ok{color:#15803D}
+  .ff-ov{position:fixed;inset:0;z-index:2500;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center}
+  .ff-box{background:var(--bg,#F4F5F7);color:var(--text);width:100%;max-width:520px;border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));max-height:92vh;overflow:auto}
+  .ff-x{border:none;background:none;font-size:26px;line-height:1;cursor:pointer;color:var(--text2)}`;
+  document.head.appendChild(css);
+
+  // rascunho guarda as fotos (miniaturas + ids) e a justificativa
+  const oGuardar = apGuardar;
+  apGuardar = function () { const r = oGuardar.apply(this, arguments); if (ap.uid) { const l = apRascunhos(), x = l.find(y => y.uid === ap.uid); if (x) { x.fotosFrente = ap.fotosFrente || []; x.fotosJust = ap.fotosJust || ''; _apGravarLista(l); } } return r; };
+  const oAbrir = apAbrir;
+  apAbrir = function (uid) { const x = apRascunhos().find(y => y.uid === uid); const r = oAbrir.apply(this, arguments); ap.fotosFrente = (x && x.fotosFrente) || []; ap.fotosJust = (x && x.fotosJust) || ''; _ffRender(); return r; };
+  const oLimpar = _apLimparForm;
+  _apLimparForm = function () { oLimpar.apply(this, arguments); ap.fotosFrente = []; ap.fotosJust = ''; setTimeout(_ffRender, 0); };
+  const oPar = _parRender;
+  _parRender = function () { const r = oPar.apply(this, arguments); _ffBotao(); return r; };
+  // descartar o apontamento apaga as fotos que já subiram
+  const oDesc = apDescartar;
+  apDescartar = function () { const ids = (ap.fotosFrente || []).map(x => x.id), uid = ap.uid; const r = oDesc.apply(this, arguments);
+    if (!apRascunhos().some(x => x.uid === uid)) ids.forEach(id => { try { db.collection('fotos').doc(id).delete().catch(() => {}); } catch (e) {} }); return r; };
+
+  // encerrar: exige as fotos
+  const oSalvar = salvarApropriacao;
+  let ffCtx = null;
+  salvarApropriacao = async function () {
+    const n = _ffN();
+    if (n < FF_MIN) { ffAbrir('Para encerrar faltam ' + (FF_MIN - n) + ' foto(s) da frente.'); return; }
+    if (n < FF_MAX && !String(ap.fotosJust || '').trim()) { ffAbrir('Com menos de ' + FF_MAX + ' fotos, escreva o motivo.'); setTimeout(() => document.querySelector('#ff-sheet .ff-just')?.focus(), 200); return; }
+    ffCtx = { ids: (ap.fotosFrente || []).map(x => x.id), just: n < FF_MAX ? String(ap.fotosJust).trim() : '' };
+    try { return await oSalvar.apply(this, arguments); } finally { ffCtx = null; }
+  };
+  const oFb = fbSalvar;
+  fbSalvar = async function (col, item) {
+    if (ffCtx && item && (col === 'aponMO' || col === 'aponEQ')) { item.fotosFrente = ffCtx.ids; if (ffCtx.just) item.fotosJust = ffCtx.just; }
+    return oFb.apply(this, arguments);
+  };
+  // o painel vê quantas fotos o turno aberto já tem
+  const oFoto = _turnoFoto;
+  _turnoFoto = function () { const o = oFoto.apply(this, arguments); o.fotosFrente = (ap.fotosFrente || []).map(x => x.id); return o; };
+  const oTab = apTab;
+  apTab = function (t) { const r = oTab.apply(this, arguments); if (t === 'rev') _ffRender(); else _ffBotao(); return r; };
 })();
 
 // Salvar sessão ao entrar

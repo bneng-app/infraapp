@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v2.91 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v2.92 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -12380,6 +12380,40 @@ function exportarFrota() {
   const oSel = window.selecionarObra;
   window.selecionarObra = function () { const r = oSel.apply(this, arguments); try { if (document.getElementById('page-frota')?.classList.contains('active')) renderFrota(); } catch (e) {} return r; };
 })();
+
+
+// ═══════════════════════════════════════════════════════════════
+// v2.92: FOTOS DA FRENTE (app de campo, 2 a 5 por apontamento) na aprovação
+// ═══════════════════════════════════════════════════════════════
+(function () {
+  const oDet = _aprDetalheHTML;
+  _aprDetalheHTML = function (g, pend) {
+    const h = oDet.apply(this, arguments), ref = [...(g.mo || []), ...(g.eq || [])].find(x => x.fotosFrente && x.fotosFrente.length);
+    if (!ref) return h;
+    const ids = ref.fotosFrente;
+    return h + `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px;padding:10px 12px;border-radius:10px;background:var(--bg)">
+      <button class="btn btn-outline btn-sm" onclick='verFotosFrente(${JSON.stringify(ids)}, ${JSON.stringify(String(g.frente || ""))})'>📷 Fotos da frente (${ids.length})</button>
+      ${ref.fotosJust ? `<span style="font-size:12.5px;color:var(--amber)">Menos de 5 fotos: ${_e(ref.fotosJust)}</span>` : ''}</div>`;
+  };
+})();
+async function verFotosFrente(ids, frente) {
+  let ov = document.getElementById('foto-hor'); if (ov) ov.remove();
+  ov = document.createElement('div'); ov.id = 'foto-hor';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:10000;overflow:auto;padding:24px 16px';
+  ov.onclick = e => { if (e.target === ov) ov.remove(); };
+  ov.innerHTML = `<div style="background:#fff;color:#111;border-radius:14px;padding:16px;max-width:1000px;margin:0 auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:12px"><strong>Fotos da frente ${_e(frente)} · ${ids.length}</strong><button class="btn btn-outline btn-sm" onclick="document.getElementById('foto-hor').remove()">Fechar</button></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">${ids.map(id => `<figure style="margin:0" data-ff="${_e(id)}"><div style="aspect-ratio:4/3;border-radius:8px;background:#eee center/cover;display:flex;align-items:center;justify-content:center;font-size:12px;color:#888">carregando…</div><figcaption style="font-size:11.5px;color:#555;margin-top:4px"></figcaption></figure>`).join('')}</div></div>`;
+  document.body.appendChild(ov);
+  ov.querySelectorAll('[data-ff]').forEach(async fig => {
+    const box = fig.firstElementChild, cap = fig.lastElementChild;
+    try { const d = await db.collection('fotos').doc(fig.dataset.ff).get(); const f = d.exists ? d.data() : null;
+      if (!f || !f.img) { box.textContent = 'ainda não chegou ao servidor'; return; }
+      box.style.backgroundImage = `url('${f.img}')`; box.textContent = ''; box.style.cursor = 'zoom-in'; box.onclick = () => window.open().document.write('<img src="' + f.img + '" style="max-width:100%">');
+      cap.textContent = (f.tiradaEm ? new Date(f.tiradaEm).toLocaleString('pt-BR') : '') + (f.lancadoPor ? ' · ' + f.lancadoPor : '');
+    } catch (e) { box.textContent = 'não consegui carregar'; }
+  });
+}
 
 // Apply configs on load
 setTimeout(applyConfigs, 200);
