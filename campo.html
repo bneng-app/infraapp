@@ -883,7 +883,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.71</div>
+  <div class="login-versao">ObraKontrol Campo · v2.72</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -5212,6 +5212,121 @@ async function vleValidar() {
     let f = null; const c = typeof _funcPorCracha === 'function' ? _funcPorCracha(t) : null; if (c && c.f) f = c.f;
     if (!f) { let mat = t; try { const o = JSON.parse(t); mat = o.mat || o.matricula || t; } catch (e) { if (/^mat:/i.test(t)) mat = t.slice(4).trim(); } f = (dadosCampo.funcionarios || []).find(x => String(x.mat) === String(mat) || x.id === mat); }
     if (!f) { toast('Colaborador não encontrado.', 'err'); return; } vleCampo('funcId', f.id, 1); toast('✓ ' + f.nome, 'ok'); return { ok: true };
+  };
+})();
+
+// ══════════════════════════════════════════════════════════════
+// v2.72: ABASTECIMENTO DE VEÍCULO LEVE (posto) — card Abastecimento pergunta Equipamento (tanque) ou Veículo leve (posto)
+// Veículo pela TAG, motorista (responsável já vem), combustível, litros, preço, km com foto do painel, posto, cupom (opcional).
+// Trava km menor que o último; avisa média km/L fora do normal.
+// ══════════════════════════════════════════════════════════════
+const ABV_COMB = ['Gasolina comum', 'Gasolina aditivada', 'Etanol', 'Diesel S10', 'Diesel S500', 'GNV', 'Outros (óleo, aditivo, Arla…)'];
+let abv = null;
+function _abvTela() {
+  if (document.getElementById('screen-abv')) return;
+  const back = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>';
+  document.getElementById('screen-mob').insertAdjacentHTML('afterend', `<div class="screen" id="screen-abv"><div class="topbar"><div class="topbar-row"><div class="tb-left"><button class="tb-back" onclick="abvSair()" aria-label="Voltar">${back}</button><div><div class="topbar-title">Abastecimento · veículo leve</div><div class="topbar-sub">Posto de combustível</div></div></div></div></div>
+    <div class="content" id="abv-content"></div><div class="mob-bar"><button class="btn btn-outline" onclick="abvSair()">Cancelar</button><button class="btn btn-green" onclick="abvSalvar()">✓ Registrar</button></div></div>`);
+}
+function _abvVeic() { return (window._vlFrota || []).find(v => v.id === abv.veicId) || null; }
+function _abvUlt(v) { // último registro de km do veículo (abastecimentos + chegada + entregas)
+  const l = (window._abvLista || []).filter(a => a.veicId === v.id && +a.km).sort((a, b) => String(a.data + (a.hora || '')).localeCompare(String(b.data + (b.hora || '')))); const u = l[l.length - 1] || null;
+  const ks = [+v.kmMob || 0, +v.kmAjuste || 0].concat((v.resp || []).flatMap(r => [+r.km || 0, +r.kmFim || 0])).concat(l.map(a => +a.km));
+  let media = null; const s = l.slice(-6); if (s.length >= 2) { const km = +s[s.length - 1].km - +s[0].km, lt = s.slice(1).reduce((t, a) => t + (+a.litros || 0), 0); if (km > 0 && lt) media = km / lt; }
+  return { u, kmMax: Math.max(...ks), media };
+}
+async function abvAbrir() {
+  _abvTela();
+  abv = { obra: (usuarioCampo && usuarioCampo.obra) || '', veicId: '', motorista: '', comb: ABV_COMB[0], litros: '', preco: '', valor: '', km: '', fotoKm: [], fotoCupom: [], posto: '', obs: '', data: _hojeISO(), hora: new Date().toTimeString().slice(0, 5) };
+  if (!abv.obra) { try { window._mobObras = (await fbCarregar('obras')) || window._mobObras || []; } catch (e) {} const at = (window._mobObras || []).filter(o => !/encerr/i.test(o.status || '')); if (at.length === 1) abv.obra = at[0].id; }
+  try { const fr = await fbCarregar('frota'); if (fr) window._vlFrota = fr; } catch (e) {} window._vlFrota = window._vlFrota || [];
+  try { const l = await fbCarregar('abastVeic'); if (l) window._abvLista = l; } catch (e) {} window._abvLista = window._abvLista || [];
+  try { abv.posto = localStorage.getItem('ok_abv_posto') || ''; } catch (e) {}
+  showScreen('abv'); abvRender();
+}
+function abvSair() { if (!abv || (!abv.veicId && !abv.litros) || confirm('Sair? O que foi preenchido será perdido.')) { abv = null; showScreen('home'); } }
+function abvCampo(k, v, re) { abv[k] = v; if (k === 'veicId') { const x = _abvVeic(); const r = x && (x.resp || []).find(y => !y.fim); abv.motorista = r ? r.nome : abv.motorista; } if (re) abvRender(); }
+function _abvTot(c) { const L = +String(abv.litros).replace(',', '.') || 0, P = +String(abv.preco).replace(',', '.') || 0, V = +String(abv.valor).replace(',', '.') || 0;
+  if (c !== 'valor' && L && P) { abv.valor = (L * P).toFixed(2); const e = document.getElementById('abv-valor'); if (e) e.value = abv.valor; }
+  else if (c === 'valor' && L && V) { abv.preco = (V / L).toFixed(3); const e = document.getElementById('abv-preco'); if (e) e.value = abv.preco; } _abvAviso(); }
+function _abvAviso() { const el = document.getElementById('abv-aviso'), v = _abvVeic(); if (!el) return; if (!v || !abv.km) { el.innerHTML = ''; return; }
+  const u = _abvUlt(v), km = +abv.km, L = +String(abv.litros).replace(',', '.') || 0;
+  if (km < u.kmMax) { el.innerHTML = `<div class="abv-al red">Km ${km.toLocaleString('pt-BR')} é menor que o último registrado (${u.kmMax.toLocaleString('pt-BR')}). Confira o hodômetro.</div>`; return; }
+  const rod = u.u ? km - +u.u.km : null, kml = rod && L ? rod / L : null;
+  el.innerHTML = rod != null ? `<div class="abv-al ${kml && u.media && (kml < u.media * .5 || kml > u.media * 1.8) ? 'amb' : 'ok'}">${rod.toLocaleString('pt-BR')} km desde o último abastecimento${kml ? ' · ' + kml.toFixed(1).replace('.', ',') + ' km/L' : ''}${u.media ? ' (média do veículo ' + u.media.toFixed(1).replace('.', ',') + ' km/L)' : ''}</div>` : ''; }
+async function abvFoto(k, input) { const f = input.files && input.files[0]; input.value = ''; if (!f) return; try { abv[k] = [{ img: await _reduzirFoto(f), em: new Date().toISOString() }]; abvRender(); toast('Foto registrada', 'ok'); } catch (e) { toast('Não consegui usar essa foto.', 'err'); } }
+function _abvFoto(k, rot) { const l = abv[k]; return `<div class="hor-linha" style="margin-top:6px">${l.length ? `<img class="hor-thumb" src="${l[0].img}"/>` : ''}<label class="hor-foto-btn ${l.length ? 'ok' : ''}" style="display:flex;align-items:center;justify-content:center;flex:1;min-height:48px">📷 ${l.length ? 'Trocar foto' : rot}<input type="file" accept="image/*" capture="environment" style="display:none" onchange="abvFoto('${k}',this)"/></label></div>`; }
+function abvRender() {
+  const el = document.getElementById('abv-content'); if (!el || !abv) return; const E = _mobEsc, o = abv.obra || (usuarioCampo && usuarioCampo.obra) || '';
+  const sel = (ops, val, ph, on) => `<select class="form-control" onchange="${on}"><option value="">${ph}</option>${ops.map(([v, t]) => `<option value="${E(v)}" ${v === val ? 'selected' : ''}>${E(t)}</option>`).join('')}</select>`;
+  const obras = usuarioCampo.obra ? [] : (window._mobObras || []).filter(x => !/encerr/i.test(x.status || ''));
+  const vs = (window._vlFrota || []).filter(v => v.status !== 'Devolvido' && (!o || v.obra === o)).sort((a, b) => String(a.tag || a.placa).localeCompare(String(b.tag || b.placa)));
+  const v = _abvVeic(), u = v ? _abvUlt(v) : null;
+  const postos = [...new Set((window._abvLista || []).filter(a => !o || a.obra === o).map(a => a.posto).filter(Boolean).concat(['Auto Posto Petromoc', 'Auto Posto Vale Azul']))].sort();
+  const mots = [...new Set((dadosCampo.funcionarios || []).filter(f => !o || !f.obra || f.obra === o).map(f => f.nome).filter(Boolean))].sort();
+  el.innerHTML = (!usuarioCampo.obra ? `<div class="card"><div class="card-body"><div class="form-group"><label class="form-label">Obra *</label>${sel(obras.map(x => [x.id, (x.cod ? x.cod + ' · ' : '') + x.nome]), abv.obra, 'Escolha a obra…', "abvCampo('obra',this.value,1)")}</div></div></div>` : '') + `
+    <div class="card"><div class="card-body">
+      <div class="form-group"><label class="form-label">Veículo *</label><div class="vle-row">${sel(vs.map(x => [x.id, (x.tag ? x.tag + ' · ' : '') + x.placa + ' · ' + (x.modelo || '')]), abv.veicId, vs.length ? 'Escolha…' : 'Nenhum veículo nesta obra', "abvCampo('veicId',this.value,1)")}
+        <button type="button" class="btn btn-outline" onclick="abrirQR('abvv')"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-4px;margin-right:4px"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 17h4v4"/></svg>Ler TAG</button></div></div>
+      ${v ? `<div class="vl-info"><b>${E(v.tag || '')}</b> · ${E(v.placa)} · ${E(v.modelo || '')}<br>Último km: <b>${u.kmMax.toLocaleString('pt-BR')}</b>${u.u ? ' · abasteceu em ' + E(String(u.u.data).split('-').reverse().join('/')) : ''}</div>` : ''}
+      <div class="form-group"><label class="form-label">Motorista *</label><input class="form-control" list="abv-mots" value="${E(abv.motorista)}" oninput="abv.motorista=this.value" placeholder="Quem abasteceu"/><datalist id="abv-mots">${mots.map(n => `<option value="${E(n)}">`).join('')}</datalist></div>
+      <div style="display:flex;gap:10px"><div class="form-group" style="flex:1"><label class="form-label">Data</label><input class="form-control" type="date" value="${abv.data}" oninput="abv.data=this.value"/></div><div class="form-group" style="flex:1"><label class="form-label">Hora</label><input class="form-control" type="time" value="${abv.hora}" oninput="abv.hora=this.value"/></div></div>
+    </div></div>
+    <div class="card"><div class="card-body">
+      <div class="form-group"><label class="form-label">Combustível *</label><select class="form-control" onchange="abv.comb=this.value">${ABV_COMB.map(c => `<option ${c === abv.comb ? 'selected' : ''}>${c}</option>`).join('')}</select></div>
+      <div class="form-group"><label class="form-label">Litros *</label><input class="form-control" type="number" inputmode="decimal" step="0.001" value="${E(abv.litros)}" oninput="abv.litros=this.value;_abvTot('litros')" style="font-size:22px;font-weight:800;text-align:center"/></div>
+      <div style="display:flex;gap:10px"><div class="form-group" style="flex:1"><label class="form-label">Preço por litro (R$)</label><input id="abv-preco" class="form-control" type="number" inputmode="decimal" step="0.001" value="${E(abv.preco)}" oninput="abv.preco=this.value;_abvTot('preco')"/></div>
+        <div class="form-group" style="flex:1"><label class="form-label">Valor total (R$) *</label><input id="abv-valor" class="form-control" type="number" inputmode="decimal" step="0.01" value="${E(abv.valor)}" oninput="abv.valor=this.value;_abvTot('valor')"/></div></div>
+      <div class="form-group"><label class="form-label">Km do hodômetro *</label><input class="form-control" type="number" inputmode="numeric" value="${E(abv.km)}" oninput="abv.km=this.value;_abvAviso()" style="font-size:22px;font-weight:800;text-align:center"/><div id="abv-aviso"></div>${_abvFoto('fotoKm', 'Foto do painel (obrigatória)')}</div>
+      <div class="form-group"><label class="form-label">Posto *</label><input class="form-control" list="abv-postos" value="${E(abv.posto)}" oninput="abv.posto=this.value"/><datalist id="abv-postos">${postos.map(p => `<option value="${E(p)}">`).join('')}</datalist></div>
+      <div class="form-group"><label class="form-label">Cupom fiscal (opcional)</label>${_abvFoto('fotoCupom', 'Foto do cupom')}</div>
+      <div class="form-group"><label class="form-label">Observações</label><input class="form-control" value="${E(abv.obs)}" oninput="abv.obs=this.value"/></div>
+    </div></div>`;
+  _abvAviso();
+}
+async function abvSalvar() {
+  const f = [], v = _abvVeic(), L = +String(abv.litros).replace(',', '.') || 0, V = +String(abv.valor).replace(',', '.') || 0, km = +abv.km || 0;
+  if (!v) f.push('o veículo'); if (!abv.motorista.trim()) f.push('o motorista'); if (!L) f.push('os litros'); if (!V) f.push('o valor'); if (!km) f.push('o km'); if (!abv.fotoKm.length) f.push('a foto do painel'); if (!abv.posto.trim()) f.push('o posto');
+  if (v && km && km < _abvUlt(v).kmMax) f.push('km menor que o último (' + _abvUlt(v).kmMax.toLocaleString('pt-BR') + ')');
+  if (f.length) { toast('Falta ' + f.slice(0, 3).join(', ') + (f.length > 3 ? '…' : '') + '.', 'err'); return; }
+  const b = document.querySelector('#screen-abv .btn-green'); if (b) { b.disabled = true; b.textContent = 'Salvando…'; }
+  try {
+    const suf = Date.now().toString(36) + Math.random().toString(36).slice(2, 5), id = 'av' + suf, ag = new Date().toISOString();
+    const foto = async (x, tipo, rot) => { if (!x) return ''; const fid = 'fa' + suf + tipo; await fbSalvar('fotos', { id: fid, tipo: 'abast_veiculo_' + tipo, rotulo: rot, abastecimento: id, veicId: v.id, placa: v.placa, obra: v.obra, data: abv.data, lancadoPor: usuarioCampo.nome, tiradaEm: x.em || '', img: x.img }); return fid; };
+    const it = { id, obra: v.obra || abv.obra, veicId: v.id, tag: v.tag || '', placa: v.placa, data: abv.data, hora: abv.hora, motorista: abv.motorista.trim(), combustivel: abv.comb, litros: L, precoL: +String(abv.preco).replace(',', '.') || +(V / L).toFixed(3), valor: V, km,
+      posto: abv.posto.trim(), obs: abv.obs.trim(), fotoKm: await foto(abv.fotoKm[0], 'painel', 'Painel (km)'), fotoCupom: await foto(abv.fotoCupom[0], 'cupom', 'Cupom fiscal'), origem: 'campo', lancadoPor: usuarioCampo.nome, lancadoEm: ag };
+    await fbSalvar('abastVeic', it); (window._abvLista = window._abvLista || []).push(it);
+    try { localStorage.setItem('ok_abv_posto', it.posto); } catch (e) {}
+    toast('✓ ' + (v.tag || v.placa) + ' · ' + L.toString().replace('.', ',') + ' L registrado', 'ok'); abv = null; showScreen('home');
+  } catch (e) { toast('Não consegui salvar: ' + (e.message || e), 'err'); if (b) { b.disabled = false; b.textContent = '✓ Registrar'; } }
+}
+(function () {
+  const css = document.createElement('style');
+  css.textContent = `.abv-al{margin-top:6px;padding:8px 10px;border-radius:10px;font-size:12.5px;font-weight:700}.abv-al.red{background:#FEF2F2;color:#B91C1C}.abv-al.amb{background:#FFFBEB;color:#B45309}.abv-al.ok{background:#F0FDF4;color:#15803D}`;
+  document.head.appendChild(css);
+  const frotaOn = () => typeof okModuloAtivo !== 'function' || okModuloAtivo('frota', usuarioCampo && usuarioCampo.obra);
+  // card Abastecimento: escolhe tanque (equipamento) ou posto (veículo leve)
+  const oAbr = abrirModulo;
+  abrirModulo = function (mod) {
+    if (mod !== 'fuel' || !frotaOn()) return oAbr.apply(this, arguments);
+    const temDiesel = typeof podeModulo !== 'function' || podeModulo('abastecimento'), args = arguments, self = this;
+    if (!temDiesel) return abvAbrir();
+    let ov = document.getElementById('vl-esc'); if (ov) ov.remove();
+    ov = document.createElement('div'); ov.id = 'vl-esc'; ov.className = 'vl-esc';
+    const bt = (k, ic, t, s) => `<button type="button" data-k="${k}"><span class="vl-ic">${ic}</span><span><b>${t}</b><small>${s}</small></span></button>`;
+    ov.innerHTML = `<div class="vl-sheet"><div class="vl-sh-t">O que vai abastecer?</div>${bt('eq', '🚜', 'Equipamento', 'Diesel do tanque da obra')}${bt('vl', '🚗', 'Veículo leve', 'Posto de combustível')}<button type="button" class="vl-canc" data-k="">Cancelar</button></div>`;
+    ov.onclick = e => { const k = e.target.closest('[data-k]'); if (!k && e.target !== ov) return; ov.remove(); const c = k ? k.dataset.k : ''; if (c === 'eq') oAbr.apply(self, args); if (c === 'vl') abvAbrir(); };
+    document.body.appendChild(ov);
+  };
+  const oMA = _modulosAplicar;
+  _modulosAplicar = function () { const r = oMA.apply(this, arguments); const c = document.getElementById('card-fuel'); if (c && frotaOn()) { const ab = typeof podeModulo !== 'function' || podeModulo('abastecimento'); c.classList.remove('off'); const s = c.querySelector('.hcard-s'); if (s) s.textContent = ab ? 'Diesel e veículos leves' : 'Veículos leves'; } return r; };
+  try { _modulosAplicar(); } catch (e) {}
+  const oQR = processarQR;
+  processarQR = function (texto, contexto) {
+    if (contexto !== 'abvv') return oQR.apply(this, arguments);
+    const t = String(texto || '').trim(); let tag = t; try { const o = JSON.parse(t); tag = o.tag || t; } catch (e) { if (/^tag:/i.test(t)) tag = t.slice(4).trim(); }
+    const v = (window._vlFrota || []).find(x => _mobNorm(x.tag) === _mobNorm(tag) || _mobNorm(x.placa) === _mobNorm(tag));
+    if (!v) { toast('Veículo não encontrado: ' + tag, 'err'); return; } abvCampo('veicId', v.id, 1); toast('✓ ' + (v.tag || v.placa), 'ok'); return { ok: true };
   };
 })();
 

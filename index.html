@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.18 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.19 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -3956,7 +3956,7 @@ async function sincronizarTudo() {
   if (!db || !_firebaseReady) return;
   const colecoes = ['obras','empresas','ua','cargos','turnos','equipes','funcionarios',
     'familias','modelos','equipamentos','frentes','tiposServico','tiposPerdas',
-    'aponMO','aponEQ','diesel','perdas','tanques','movTanques','notasFiscais','produtos','perfis','orcamentos','republicas','mobilizacoes','frota','fornBanco','solicitacoes'];
+    'aponMO','aponEQ','diesel','perdas','tanques','movTanques','notasFiscais','produtos','perfis','orcamentos','republicas','mobilizacoes','frota','fornBanco','solicitacoes','abastVeic','multas'];
 
   // Check if Firebase was ever initialized
   let fbInicializado = false;
@@ -14616,6 +14616,353 @@ async function verTermoEntrega(m) {
   // dashboard da frota mostra a TAG
   const oDF = dxRenderFrota;
   dxRenderFrota = window.dxRenderFrota = function () { _frTagsGarantir(); return oDF.apply(this, arguments); };
+})();
+
+
+// ═══════════════════════════════════════════════════════════════
+// v3.19: FROTA — ABASTECIMENTO DE VEÍCULOS LEVES (app e painel), MULTAS E INFRAÇÕES (painel),
+// km atual automático, revisão e franquia de km, importação da planilha "Controle de Frota e Abastecimento".
+// ═══════════════════════════════════════════════════════════════
+const AB_COMB = ['Gasolina comum', 'Gasolina aditivada', 'Etanol', 'Diesel S10', 'Diesel S500', 'GNV', 'Outros (óleo, aditivo, Arla…)'];
+const MU_GRAV = [['Leve', 3], ['Média', 4], ['Grave', 5], ['Gravíssima', 7]];
+const MU_ST = ['Aguardando indicação', 'Condutor indicado', 'Em recurso', 'A pagar', 'Paga', 'Descontada em folha', 'Cancelada'];
+function _abFmtD(d) { return String(d || '').split('-').reverse().join('/'); }
+function _abQuinz(d) { if (!d) return ''; const [y, m, dd] = d.split('-'); return (+dd <= 15 ? '1ª' : '2ª') + ' quinzena · ' + _mesTxt(y + '-' + m).slice(0, 3) + '/' + y; }
+function _abVeic(id) { return (dados.frota || []).find(v => v.id === id) || null; }
+// abastecimentos de um veículo em ordem, com km rodado / km/L / R$/km calculados contra o anterior
+function _abSerie(veicId) {
+  const l = (dados.abastVeic || []).filter(a => a.veicId === veicId).sort((a, b) => String(a.data + (a.hora || '')).localeCompare(String(b.data + (b.hora || ''))) || (+a.km || 0) - (+b.km || 0));
+  let ant = null; return l.map(a => { const km = +a.km || 0, kmAnt = ant && +ant.km ? +ant.km : null, rod = kmAnt != null && km ? km - kmAnt : null;
+    const r = { a, kmAnt, rod, kml: rod > 0 && +a.litros ? rod / +a.litros : null, rpk: rod > 0 && +a.valor ? +a.valor / rod : null, recuo: rod != null && rod < 0 }; if (km) ant = a; return r; });
+}
+function _abCalc() { const m = {}; [...new Set((dados.abastVeic || []).map(a => a.veicId))].forEach(id => _abSerie(id).forEach(x => m[x.a.id] = x)); return m; }
+function frKmAtual(v) {
+  if (!v) return 0; const ks = [+v.kmMob || 0, +v.kmDev || 0, +v.kmAjuste || 0];
+  (v.resp || []).forEach(r => ks.push(+r.km || 0, +r.kmFim || 0)); (dados.abastVeic || []).filter(a => a.veicId === v.id).forEach(a => ks.push(+a.km || 0));
+  return Math.max(...ks);
+}
+function frKmMes(v, ym) { // km rodados no mês: maior leitura do mês − última leitura antes do mês
+  const leit = [[v.mobData, +v.kmMob], [v.devData, +v.kmDev]].concat((v.resp || []).flatMap(r => [[r.inicio, +r.km], [r.fim, +r.kmFim]])).concat((dados.abastVeic || []).filter(a => a.veicId === v.id).map(a => [a.data, +a.km])).filter(x => x[0] && x[1]);
+  const no = leit.filter(x => x[0].slice(0, 7) === ym).map(x => x[1]), antes = leit.filter(x => x[0].slice(0, 7) < ym).map(x => x[1]);
+  if (!no.length) return 0; const base = antes.length ? Math.max(...antes) : Math.min(...no); return Math.max(0, Math.max(...no) - base);
+}
+function muCondutorNaData(v, d) { const r = (v && v.resp || []).find(x => x.inicio <= d && (!x.fim || x.fim >= d)); return r || null; }
+// ── ABASTECIMENTOS (painel)
+function _abLista() { const o = _okObraAtual(); return (dados.abastVeic || []).filter(a => o === 'todas' || a.obra === o); }
+function renderAbastVeic() {
+  const tb = document.getElementById('tbody-abv'); if (!tb) return; const $ = k => document.getElementById(k);
+  const todos = _abLista(), calc = _abCalc();
+  const fv = ['abvf-veic', 'abvf-mot', 'abvf-posto', 'abvf-quinz'].map(k => $(k));
+  const opt = (sel, l, ph) => { const v = sel.value; sel.innerHTML = `<option value="">${ph}</option>` + l.map(([a, b]) => `<option value="${_e(a)}">${_e(b)}</option>`).join(''); sel.value = v; };
+  opt(fv[0], [...new Set(todos.map(a => a.veicId))].map(id => { const v = _abVeic(id); return [id, v ? (v.tag ? v.tag + ' · ' : '') + v.placa : id]; }).sort((a, b) => a[1].localeCompare(b[1])), 'Todos os veículos');
+  opt(fv[1], [...new Set(todos.map(a => a.motorista).filter(Boolean))].sort().map(x => [x, x]), 'Todos os motoristas');
+  opt(fv[2], [...new Set(todos.map(a => a.posto).filter(Boolean))].sort().map(x => [x, x]), 'Todos os postos');
+  opt(fv[3], [...new Set(todos.map(a => _abQuinz(a.data)))].sort((a, b) => { const k = s => s.slice(-4) + _mesN(s) + s[0]; return k(b).localeCompare(k(a)); }).map(x => [x, x]), 'Todas as quinzenas');
+  const ini = $('abv-ini').value, fim = $('abv-fim').value;
+  const l = todos.filter(a => (!fv[0].value || a.veicId === fv[0].value) && (!fv[1].value || a.motorista === fv[1].value) && (!fv[2].value || a.posto === fv[2].value) && (!fv[3].value || _abQuinz(a.data) === fv[3].value) && (!ini || a.data >= ini) && (!fim || a.data <= fim))
+    .sort((a, b) => String(b.data + (b.hora || '')).localeCompare(String(a.data + (a.hora || ''))));
+  const L = l.reduce((s, a) => s + (+a.litros || 0), 0), R = l.reduce((s, a) => s + (+a.valor || 0), 0), KM = l.reduce((s, a) => s + Math.max(0, (calc[a.id] || {}).rod || 0), 0), Lk = l.filter(a => (calc[a.id] || {}).rod > 0).reduce((s, a) => s + (+a.litros || 0), 0);
+  const kpi = (lb, v, sub, cor) => `<div class="stat-card"><div class="stat-label">${lb}</div><div class="stat-value" style="${cor ? 'color:' + cor : ''}">${v}</div><div class="stat-sub">${sub}</div></div>`;
+  $('abv-kpis').innerHTML = kpi('Abastecimentos', l.length, new Set(l.map(a => a.veicId)).size + ' veículo(s)') + kpi('Litros', _fmtN(L) + ' L', R && L ? 'preço médio ' + _repMoeda(R / L) + '/L' : '')
+    + kpi('Total gasto', _repMoeda(R), 'no filtro') + kpi('Km rodados', KM.toLocaleString('pt-BR'), Lk ? 'média ' + _fmtN(KM / Lk) + ' km/L' : '') + kpi('Custo por km', KM ? _repMoeda(R / KM) : '—', 'combustível ÷ km');
+  tb.innerHTML = l.length ? l.map(a => { const v = _abVeic(a.veicId) || {}, c = calc[a.id] || {}, al = [];
+      if (!+a.km) al.push(['KM não informado', 'amber']); if (c.recuo) al.push(['KM menor que o anterior', 'red']); if (c.kml != null && (c.kml < 3 || c.kml > 25)) al.push(['Média fora do normal', 'amber']);
+      return `<tr><td class="td-mono">${_abFmtD(a.data)}${a.hora ? '<div style="font-size:11px;color:var(--text-3)">' + _e(a.hora) + '</div>' : ''}</td>
+        <td><b>${_e(v.tag || '')}</b> <span class="td-mono">${_e(v.placa || a.placa || '')}</span><div style="font-size:11px;color:var(--text-3)">${_e(v.modelo || '')}</div></td>
+        <td style="font-size:12.5px">${_e(a.motorista || '—')}</td><td style="font-size:12px">${_e(a.combustivel || '—')}</td>
+        <td class="td-mono" style="text-align:right">${_fmtN(+a.litros || 0)}</td><td class="td-mono" style="text-align:right">${+a.precoL ? _repMoeda(a.precoL) : '—'}</td><td class="td-mono" style="text-align:right;font-weight:700">${_repMoeda(+a.valor || 0)}</td>
+        <td class="td-mono" style="text-align:right">${+a.km ? (+a.km).toLocaleString('pt-BR') : '—'}</td><td class="td-mono" style="text-align:right">${c.rod != null ? c.rod.toLocaleString('pt-BR') : '—'}</td>
+        <td class="td-mono" style="text-align:right;${c.kml != null && c.kml < 3 ? 'color:var(--red)' : ''}">${c.kml != null ? _fmtN(c.kml) : '—'}</td><td class="td-mono" style="text-align:right">${c.rpk != null ? _repMoeda(c.rpk) : '—'}</td>
+        <td style="font-size:12px">${_e(a.posto || '—')}</td>
+        <td>${al.map(([t, cor]) => tag(t, cor)).join(' ')}${a.origem === 'campo' ? ' <span title="Lançado no app" style="font-size:11px">📱</span>' : ''}</td>
+        <td style="white-space:nowrap;text-align:right">${a.fotoKm || a.fotoCupom ? `<button class="btn btn-outline btn-sm" onclick="abFotos('${a.id}')" title="Fotos">📷</button> ` : ''}<button class="btn btn-outline btn-sm" onclick="abEditar('${a.id}')">✎</button> <button class="btn btn-outline btn-sm" onclick="abExcluir('${a.id}')" title="Excluir">🗑</button></td></tr>`; }).join('')
+    : '<tr><td colspan="14" style="text-align:center;color:var(--text-3);padding:2rem">Nenhum abastecimento' + (todos.length ? ' com esse filtro' : '') + '. Lance pelo app (Abastecimento → Veículo leve) ou em <b>+ Novo abastecimento</b>.</td></tr>';
+  window._abvFiltrados = l;
+}
+function _mesN(s) { const m = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'].findIndex(x => s.toLowerCase().includes(x + '/')); return String(m + 1).padStart(2, '0'); }
+function _abVeicOpts(obra, atual, comDevolvidos) {
+  const l = (dados.frota || []).filter(v => (!obra || v.obra === obra) && (comDevolvidos || v.status !== 'Devolvido' || v.id === atual)).sort((a, b) => String(a.tag || a.placa).localeCompare(String(b.tag || b.placa)));
+  return '<option value="">Escolha o veículo…</option>' + l.map(v => `<option value="${v.id}">${_e((v.tag ? v.tag + ' · ' : '') + v.placa + ' · ' + (v.modelo || ''))}${v.status === 'Devolvido' ? ' (devolvido)' : ''}</option>`).join('');
+}
+function _abPostos() { return [...new Set((dados.abastVeic || []).map(a => a.posto).filter(Boolean).concat(['Auto Posto Petromoc', 'Auto Posto Vale Azul']))].sort(); }
+function abNovo() { abEditar(null); }
+function abEditar(id) {
+  const a = id ? (dados.abastVeic || []).find(x => x.id === id) : null, $ = k => document.getElementById(k);
+  $('abv-titulo').textContent = a ? 'Editar abastecimento' : 'Novo abastecimento'; $('abv-id').value = a ? a.id : '';
+  popularSelectObra('abv-obra', a ? a.obra : (_okObraAtual() !== 'todas' ? _okObraAtual() : ''));
+  $('abv-veiculo').innerHTML = _abVeicOpts($('abv-obra').value, a && a.veicId); $('abv-veiculo').value = a ? a.veicId : '';
+  $('abv-data').value = a ? a.data : _hojeLocal(); $('abv-hora').value = a ? (a.hora || '') : new Date().toTimeString().slice(0, 5);
+  $('abv-mot').value = a ? (a.motorista || '') : ''; $('abv-comb').value = a ? (a.combustivel || AB_COMB[0]) : AB_COMB[0];
+  $('abv-litros').value = a ? a.litros : ''; $('abv-preco').value = a && +a.precoL ? a.precoL : ''; $('abv-valor').value = a && +a.valor ? a.valor : '';
+  $('abv-km').value = a && +a.km ? a.km : ''; $('abv-posto').value = a ? (a.posto || '') : ''; $('abv-obs').value = a ? (a.obs || '') : '';
+  $('abv-postos').innerHTML = _abPostos().map(p => `<option value="${_e(p)}">`).join('');
+  $('abv-mots').innerHTML = [...new Set((dados.funcionarios || []).filter(f => !f.demissao).map(f => f.nome).concat((dados.abastVeic || []).map(a => a.motorista)).filter(Boolean))].sort().map(n => `<option value="${_e(n)}">`).join('');
+  _abInfo(); openModal('modal-abv');
+}
+function _abInfo() {
+  const $ = k => document.getElementById(k), v = _abVeic($('abv-veiculo').value), el = $('abv-info'); if (!el) return;
+  if (!v) { el.innerHTML = ''; return; } const r = frRespAtual(v), ult = _abSerie(v.id).filter(x => x.a.id !== $('abv-id').value).slice(-1)[0];
+  if (!$('abv-mot').value && r) $('abv-mot').value = r.nome;
+  el.innerHTML = `Km atual: <b>${frKmAtual(v).toLocaleString('pt-BR')}</b>${ult ? ' · último abastecimento ' + _abFmtD(ult.a.data) + ' com ' + (+ult.a.km || 0).toLocaleString('pt-BR') + ' km' : ''}${r ? ' · responsável: <b>' + _e(r.nome) + '</b>' : ''}`;
+}
+function _abTotal(campo) { const $ = k => document.getElementById(k), L = +$('abv-litros').value || 0, P = +$('abv-preco').value || 0, V = +$('abv-valor').value || 0;
+  if (campo !== 'valor' && L && P) $('abv-valor').value = (L * P).toFixed(2); else if (campo === 'valor' && L && V) $('abv-preco').value = (V / L).toFixed(3); }
+function salvarAbastVeic() {
+  const $ = k => document.getElementById(k), id = $('abv-id').value, v = _abVeic($('abv-veiculo').value);
+  const a = { obra: $('abv-obra').value, veicId: v ? v.id : '', data: $('abv-data').value, hora: $('abv-hora').value, motorista: $('abv-mot').value.trim(), combustivel: $('abv-comb').value,
+    litros: +String($('abv-litros').value).replace(',', '.') || 0, precoL: +$('abv-preco').value || 0, valor: +$('abv-valor').value || 0, km: +$('abv-km').value || 0, posto: $('abv-posto').value.trim(), obs: $('abv-obs').value.trim() };
+  if (!a.obra) { toast('Escolha a obra.', 'error'); return; } if (!v) { toast('Escolha o veículo.', 'error'); return; } if (!a.data) { toast('Informe a data.', 'error'); return; }
+  if (!a.litros) { toast('Informe os litros.', 'error'); return; } if (!a.valor && a.precoL) a.valor = +(a.litros * a.precoL).toFixed(2);
+  if (!a.km) { toast('Informe o km do hodômetro.', 'error'); return; }
+  const ant = _abSerie(v.id).filter(x => x.a.id !== id && String(x.a.data + (x.a.hora || '')) <= String(a.data + (a.hora || ''))).slice(-1)[0];
+  if (ant && +ant.a.km > a.km && !confirm('O km ' + a.km.toLocaleString('pt-BR') + ' é menor que o do abastecimento anterior (' + (+ant.a.km).toLocaleString('pt-BR') + ' em ' + _abFmtD(ant.a.data) + '). Salvar assim mesmo?')) return;
+  const lista = dados.abastVeic || (dados.abastVeic = []);
+  const it = id ? lista.find(x => x.id === id) : { id: 'av' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), origem: 'painel', lancadoPor: usuarioLogado?.nome || '', lancadoEm: new Date().toISOString() };
+  Object.assign(it, a, { tag: v.tag || '', placa: v.placa, atualizadoEm: new Date().toISOString() }); if (!id) lista.push(it);
+  if (db && _firebaseReady) fbSave('abastVeic', it.id, it).catch(() => toast('Salvo aqui, mas não no servidor.', 'error'));
+  closeModal('modal-abv'); renderAbastVeic(); toast('Abastecimento salvo.');
+}
+function abExcluir(id) { const a = (dados.abastVeic || []).find(x => x.id === id); if (!a || !confirm('Excluir o abastecimento de ' + _abFmtD(a.data) + ' (' + (a.tag || a.placa) + ')?')) return;
+  dados.abastVeic = dados.abastVeic.filter(x => x.id !== id); if (db && _firebaseReady) fbDelete('abastVeic', id).catch(() => {}); renderAbastVeic(); toast('Excluído.'); }
+async function abFotos(id) { const a = (dados.abastVeic || []).find(x => x.id === id); if (!a) return;
+  const ov = document.createElement('div'); ov.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.8);display:flex;gap:14px;align-items:center;justify-content:center;flex-wrap:wrap;padding:20px'; ov.onclick = () => ov.remove();
+  ov.innerHTML = [[a.fotoKm, 'Painel (km)'], [a.fotoCupom, 'Cupom fiscal']].filter(x => x[0]).map(([f, r]) => `<figure style="margin:0;text-align:center;color:#fff"><div data-f="${_e(f)}" style="width:min(420px,85vw);aspect-ratio:3/4;background:#222 center/contain no-repeat;border-radius:10px"></div><figcaption style="margin-top:6px">${r}</figcaption></figure>`).join('');
+  document.body.appendChild(ov); ov.querySelectorAll('[data-f]').forEach(async el => { const img = await _mobFotoImg(el.dataset.f); if (img) el.style.backgroundImage = `url('${img}')`; }); }
+function exportarAbastVeic() {
+  const l = window._abvFiltrados || [], c = _abCalc(); if (!l.length) { toast('Nada para exportar.', 'error'); return; }
+  const rows = [['Data', 'Hora', 'TAG', 'Placa', 'Veículo', 'Motorista', 'Combustível', 'Litros', 'Preço/L', 'Valor (R$)', 'KM atual', 'KM anterior', 'KM rodado', 'Média (km/L)', 'Custo por km', 'Posto', 'Quinzena', 'Obra', 'Observações']]
+    .concat(l.map(a => { const v = _abVeic(a.veicId) || {}, x = c[a.id] || {}; return [_abFmtD(a.data), a.hora || '', v.tag || '', v.placa || a.placa || '', v.modelo || '', a.motorista || '', a.combustivel || '', +a.litros || 0, +a.precoL || 0, +a.valor || 0, +a.km || 0, x.kmAnt || '', x.rod != null ? x.rod : '', x.kml != null ? +x.kml.toFixed(2) : '', x.rpk != null ? +x.rpk.toFixed(3) : '', a.posto || '', _abQuinz(a.data), getNomeObra(a.obra), a.obs || '']; }));
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'Abastecimentos'); XLSX.writeFile(wb, 'Abastecimentos_veiculos_leves.xlsx');
+}
+// importação da planilha "Controle de Frota e Abastecimento" (abas Controle de Frota e Abastecimentos)
+async function abImportarPlanilha(input) {
+  const f = input.files && input.files[0]; input.value = ''; if (!f) return;
+  const obra = _okObraAtual(); if (!obra || obra === 'todas') { toast('Escolha a obra no topo do painel antes de importar.', 'error'); return; }
+  let wb; try { wb = XLSX.read(await f.arrayBuffer(), { type: 'array', cellDates: true }); } catch (e) { toast('Não consegui ler o arquivo.', 'error'); return; }
+  const N = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+  const aba = re => wb.SheetNames.find(n => re.test(N(n)));
+  const tabela = nome => { if (!nome) return []; const rows = XLSX.utils.sheet_to_json(wb.Sheets[nome], { header: 1, raw: true, defval: null });
+    const hi = rows.findIndex(r => r.some(c => N(c) === 'placa')); if (hi < 0) return []; const h = rows[hi].map(N);
+    return rows.slice(hi + 1).map(r => { const o = {}; h.forEach((k, i) => { if (k) o[k] = r[i]; }); return o; }); };
+  const col = (o, ...ks) => { for (const k of ks) { const key = Object.keys(o).find(x => x.startsWith(N(k))); if (key && o[key] !== null && o[key] !== '' && !(typeof o[key] === 'string' && o[key].startsWith('='))) return o[key]; } return ''; };
+  const dt = v => { if (!v) return ''; if (v instanceof Date) return _hojeLocal(new Date(v.getTime() + 12 * 3600e3)); const m = /(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(v); return m ? m[3] + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0') : String(v).slice(0, 10); };
+  const placaN = p => String(p || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  let nv = 0, na = 0, dup = 0, semV = 0; const novosV = [], novosA = [];
+  tabela(aba(/controle de frota/)).forEach(o => { const p = placaN(col(o, 'placa')); if (!/^[A-Z]{3}\d[A-Z0-9]\d{2}$/.test(p)) return;
+    if ((dados.frota || []).some(v => v.placa === p && v.obra === obra)) return;
+    const st = String(col(o, 'status do veiculo')), dev = /devolv/i.test(st), resp = String(col(o, 'responsavel')).trim(), ini = dt(col(o, 'data inicio'));
+    const v = { id: 'vc' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), obra, placa: p, modelo: String(col(o, 'veiculo')).trim(), tipo: /strada|saveiro|hilux|s10|ranger|toro|oroch|montana/i.test(col(o, 'veiculo')) ? 'Picape' : 'Carro', ano: String(col(o, 'ano')),
+      locadora: String(col(o, 'locadora')).trim(), valorMes: +col(o, 'valor mensal') || 0, franquiaKm: +col(o, 'franquia') || 0, kmMob: +col(o, 'km inicial') || 0, kmAjuste: +col(o, 'km ajuste') || 0, setor: String(col(o, 'setor')).trim(),
+      kmRevisao: +col(o, 'km proxima revisao') || 0, contatoLoc: String(col(o, 'contato')).trim(), mobData: ini, status: dev ? 'Devolvido' : 'Em uso', devData: dev ? dt(col(o, 'data de devolucao')) : '', obs: String(col(o, 'observacoes') || '').trim(),
+      resp: resp ? [{ nome: resp, inicio: ini, ...(dev ? { fim: dt(col(o, 'data de devolucao')) } : {}) }] : [], origem: 'importado', criadoEm: new Date().toISOString() };
+    v.tag = ''; (dados.frota = dados.frota || []).push(v); v.tag = _frTagProx(obra, v.id); novosV.push(v); nv++; });
+  tabela(aba(/abastec/)).forEach(o => { const p = placaN(col(o, 'placa')), d = dt(col(o, 'data')), L = +col(o, 'quantidade', 'litros') || 0; if (!p || !d || !L) return;
+    const v = (dados.frota || []).find(x => x.placa === p && x.obra === obra) || (dados.frota || []).find(x => x.placa === p); if (!v) { semV++; return; }
+    const km = +col(o, 'km atual') || 0, pr = +col(o, 'preco') || 0;
+    if ((dados.abastVeic || []).some(a => a.veicId === v.id && a.data === d && +a.km === km && Math.abs(+a.litros - L) < .01)) { dup++; return; }
+    const a = { id: 'av' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), obra, veicId: v.id, tag: v.tag || '', placa: p, data: d, hora: '', motorista: String(col(o, 'motorista')).trim(), combustivel: String(col(o, 'tipo de combustivel')).trim() || AB_COMB[0],
+      litros: L, precoL: pr, valor: +col(o, 'valor total') || +(L * pr).toFixed(2), km, posto: String(col(o, 'posto')).trim(), obs: String(col(o, 'observacoes') || '').trim(), origem: 'importado', lancadoPor: usuarioLogado?.nome || '', lancadoEm: new Date().toISOString() };
+    (dados.abastVeic = dados.abastVeic || []).push(a); novosA.push(a); na++; });
+  if (db && _firebaseReady) { for (const v of novosV) await fbSave('frota', v.id, v).catch(() => {}); for (const a of novosA) await fbSave('abastVeic', a.id, a).catch(() => {}); }
+  renderAbastVeic(); try { renderFrota(); } catch (e) {}
+  toast(`Importado: ${nv} veículo(s) e ${na} abastecimento(s)` + (dup ? ` · ${dup} repetido(s) ignorado(s)` : '') + (semV ? ` · ${semV} sem veículo cadastrado` : '') + '.');
+}
+// ── MULTAS E INFRAÇÕES (só painel)
+function _muLista() { const o = _okObraAtual(); return (dados.multas || []).filter(m => o === 'todas' || m.obra === o); }
+function _muAberta(m) { return !['Paga', 'Descontada em folha', 'Cancelada'].includes(m.status); }
+function renderMultas() {
+  const tb = document.getElementById('tbody-multas'); if (!tb) return; const $ = k => document.getElementById(k);
+  const busca = ($('mu-busca').value || '').toLowerCase(), st = $('mu-st').value, todas = _muLista();
+  const ab = todas.filter(_muAberta), venc = ab.filter(m => m.prazo && _frDias(m.prazo) <= 7), pts = todas.filter(m => m.status !== 'Cancelada' && m.data && m.data.slice(0, 4) === _hojeLocal().slice(0, 4)).reduce((s, m) => s + (+m.pontos || 0), 0);
+  const kpi = (lb, v, sub, cor) => `<div class="stat-card"><div class="stat-label">${lb}</div><div class="stat-value" style="${cor ? 'color:' + cor : ''}">${v}</div><div class="stat-sub">${sub}</div></div>`;
+  $('mu-kpis').innerHTML = kpi('Em aberto', ab.length, _repMoeda(ab.reduce((s, m) => s + (+m.valor || 0), 0)), ab.length ? 'var(--amber)' : '') + kpi('Prazo vencendo', venc.length, 'recurso / indicação em até 7 dias', venc.length ? 'var(--red)' : '')
+    + kpi('Pontos no ano', pts, 'somando todos os condutores') + kpi('Total de multas', todas.length, _repMoeda(todas.filter(m => m.status !== 'Cancelada').reduce((s, m) => s + (+m.valor || 0), 0)));
+  const l = todas.filter(m => (!st || (st === 'abertas' ? _muAberta(m) : m.status === st)) && (!busca || [m.placa, m.tag, m.condutor, m.tipo, m.ait, m.orgao].some(x => String(x || '').toLowerCase().includes(busca))))
+    .sort((a, b) => _muAberta(b) - _muAberta(a) || String(b.data).localeCompare(String(a.data)));
+  const cor = s => /paga|descontada/i.test(s) ? 'green' : /cancel/i.test(s) ? 'gray' : /recurso/i.test(s) ? 'blue' : 'amber';
+  tb.innerHTML = l.length ? l.map(m => { const d = m.prazo ? _frDias(m.prazo) : null; return `<tr>
+      <td class="td-mono">${_abFmtD(m.data)}${m.hora ? '<div style="font-size:11px;color:var(--text-3)">' + _e(m.hora) + '</div>' : ''}</td>
+      <td><b>${_e(m.tag || '')}</b> <span class="td-mono">${_e(m.placa || '')}</span></td>
+      <td style="font-size:12.5px"><b>${_e(m.condutor || '—')}</b>${m.condutorAuto ? '<div style="font-size:11px;color:var(--text-3)">responsável na data</div>' : ''}</td>
+      <td style="font-size:12.5px">${_e(m.tipo || '—')}<div style="font-size:11px;color:var(--text-3)">${_e([m.orgao, m.ait ? 'AIT ' + m.ait : ''].filter(Boolean).join(' · '))}</div></td>
+      <td>${_e(m.gravidade || '—')}<div style="font-size:11px;color:var(--text-3)">${+m.pontos || 0} ponto(s)</div></td>
+      <td class="td-mono" style="text-align:right;font-weight:700">${_repMoeda(+m.valor || 0)}</td>
+      <td class="td-mono">${m.prazo ? `<span style="color:${_muAberta(m) && d < 0 ? 'var(--red)' : _muAberta(m) && d <= 7 ? 'var(--amber)' : 'inherit'}">${_abFmtD(m.prazo)}</span>${_muAberta(m) ? '<div style="font-size:11px;color:var(--text-3)">' + (d < 0 ? 'vencido' : d === 0 ? 'hoje' : 'em ' + d + ' dia(s)') + '</div>' : ''}` : '—'}</td>
+      <td>${tag(_e(m.status || '—'), cor(m.status || ''))}${m.dataPag ? '<div style="font-size:11px;color:var(--text-3)">' + _abFmtD(m.dataPag) + '</div>' : ''}</td>
+      <td style="white-space:nowrap;text-align:right"><button class="btn btn-outline btn-sm" onclick="muEditar('${m.id}')">✎ Editar</button> <button class="btn btn-outline btn-sm" onclick="muExcluir('${m.id}')" title="Excluir">🗑</button></td></tr>`; }).join('')
+    : '<tr><td colspan="9" style="text-align:center;color:var(--text-3);padding:2rem">Nenhuma multa' + (todas.length ? ' com esse filtro' : '') + '. Clique em <b>+ Nova multa</b>.</td></tr>';
+}
+function muNova() { muEditar(null); }
+function muEditar(id) {
+  const m = id ? (dados.multas || []).find(x => x.id === id) : null, $ = k => document.getElementById(k);
+  $('mu-titulo').textContent = m ? 'Editar multa' : 'Nova multa'; $('mu-id').value = m ? m.id : '';
+  popularSelectObra('mu-obra', m ? m.obra : (_okObraAtual() !== 'todas' ? _okObraAtual() : ''));
+  $('mu-veiculo').innerHTML = _abVeicOpts($('mu-obra').value, m && m.veicId, true); $('mu-veiculo').value = m ? m.veicId : '';
+  [['data', 'data'], ['hora', 'hora'], ['ait', 'ait'], ['orgao', 'orgao'], ['tipo', 'tipo'], ['local', 'local'], ['condutor', 'condutor'], ['prazo', 'prazo'], ['pag', 'dataPag'], ['obs', 'obs']].forEach(([c, k]) => $('mu-' + c).value = m ? (m[k] || '') : '');
+  $('mu-grav').value = m ? (m.gravidade || 'Média') : 'Média'; $('mu-pontos').value = m ? (m.pontos ?? '') : 4; $('mu-valor').value = m && +m.valor ? m.valor : ''; $('mu-status').value = m ? (m.status || MU_ST[0]) : MU_ST[0];
+  $('mu-conds').innerHTML = [...new Set((dados.funcionarios || []).map(f => f.nome).concat((dados.frota || []).flatMap(v => (v.resp || []).map(r => r.nome))).filter(Boolean))].sort().map(n => `<option value="${_e(n)}">`).join('');
+  _muCond(); openModal('modal-multa');
+}
+function _muCond(forcar) { const $ = k => document.getElementById(k), v = _abVeic($('mu-veiculo').value), d = $('mu-data').value, el = $('mu-cond-info'); if (!el) return;
+  const r = v && d ? muCondutorNaData(v, d) : null;
+  el.innerHTML = !v || !d ? 'Escolha o veículo e a data: o condutor responsável naquele dia vem sozinho.' : r ? `Responsável pelo veículo em ${_abFmtD(d)}: <b>${_e(r.nome)}</b>${r.cnhCat ? ' · CNH ' + _e(r.cnhCat) : ''}` : `<span style="color:var(--amber)">Nenhum responsável registrado para ${_e(v.placa)} em ${_abFmtD(d)}.</span>`;
+  if (r && (forcar || !$('mu-condutor').value)) $('mu-condutor').value = r.nome; }
+function salvarMulta() {
+  const $ = k => document.getElementById(k), id = $('mu-id').value, v = _abVeic($('mu-veiculo').value);
+  if (!$('mu-obra').value) { toast('Escolha a obra.', 'error'); return; } if (!v) { toast('Escolha o veículo.', 'error'); return; } if (!$('mu-data').value) { toast('Informe a data da infração.', 'error'); return; }
+  const r = muCondutorNaData(v, $('mu-data').value), cond = $('mu-condutor').value.trim();
+  const lista = dados.multas || (dados.multas = []);
+  const m = id ? lista.find(x => x.id === id) : { id: 'mu' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), criadoPor: usuarioLogado?.nome || '', criadoEm: new Date().toISOString() };
+  Object.assign(m, { obra: $('mu-obra').value, veicId: v.id, tag: v.tag || '', placa: v.placa, data: $('mu-data').value, hora: $('mu-hora').value, ait: $('mu-ait').value.trim(), orgao: $('mu-orgao').value.trim(), tipo: $('mu-tipo').value.trim(), local: $('mu-local').value.trim(),
+    gravidade: $('mu-grav').value, pontos: +$('mu-pontos').value || 0, valor: +$('mu-valor').value || 0, condutor: cond, condutorAuto: !!(r && r.nome === cond), condutorMat: r && r.nome === cond ? (r.mat || '') : '',
+    prazo: $('mu-prazo').value, status: $('mu-status').value, dataPag: $('mu-pag').value, obs: $('mu-obs').value.trim(), atualizadoEm: new Date().toISOString() });
+  if (!id) lista.push(m); if (db && _firebaseReady) fbSave('multas', m.id, m).catch(() => toast('Salvo aqui, mas não no servidor.', 'error'));
+  closeModal('modal-multa'); renderMultas(); toast('Multa salva.');
+}
+function muExcluir(id) { const m = (dados.multas || []).find(x => x.id === id); if (!m || !confirm('Excluir a multa de ' + _abFmtD(m.data) + ' (' + (m.tag || m.placa) + ')?')) return;
+  dados.multas = dados.multas.filter(x => x.id !== id); if (db && _firebaseReady) fbDelete('multas', id).catch(() => {}); renderMultas(); toast('Excluída.'); }
+// ── montagem das telas, menu, campos do veículo e alertas
+(function () {
+  const $ = id => document.getElementById(id);
+  const ref = $('page-frota-resp');
+  const ico = { ab: '<svg viewBox="0 0 24 24"><path d="M3 22V5a2 2 0 012-2h8a2 2 0 012 2v17"/><path d="M3 22h12"/><path d="M15 9h2a2 2 0 012 2v6a1.5 1.5 0 003 0V8l-3-3"/><rect x="6" y="6" width="6" height="5"/></svg>', mu: '<svg viewBox="0 0 24 24"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg>' };
+  if (ref && !$('page-frota-abast')) ref.insertAdjacentHTML('afterend', `
+    <div class="page" id="page-frota-abast"><div class="page-header"><div><div class="page-title">Abastecimento de veículos leves</div><div class="page-sub">Lançado no app (Abastecimento → Veículo leve) ou aqui. Km rodado, média km/L e custo por km saem sozinhos.</div></div>
+      <div class="btn-group"><label class="btn btn-outline btn-sm" style="cursor:pointer" title="Abas 'Controle de Frota' e 'Abastecimentos'">↑ Importar planilha<input type="file" accept=".xlsx,.xls" style="display:none" onchange="abImportarPlanilha(this)"/></label><button class="btn btn-outline btn-sm" onclick="exportarAbastVeic()">↓ Excel</button><button class="btn btn-primary" onclick="abNovo()">+ Novo abastecimento</button></div></div>
+      <div id="abv-kpis" class="stats-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:12px"></div>
+      <div class="card"><div class="card-body">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center">
+          <select class="form-control" id="abvf-veic" onchange="renderAbastVeic()" style="max-width:210px"></select><select class="form-control" id="abvf-mot" onchange="renderAbastVeic()" style="max-width:200px"></select>
+          <select class="form-control" id="abvf-posto" onchange="renderAbastVeic()" style="max-width:200px"></select><select class="form-control" id="abvf-quinz" onchange="renderAbastVeic()" style="max-width:210px"></select>
+          <span style="font-size:12px;color:var(--text-3)">de</span><input type="date" class="form-control" id="abv-ini" onchange="renderAbastVeic()" style="max-width:150px"/><span style="font-size:12px;color:var(--text-3)">até</span><input type="date" class="form-control" id="abv-fim" onchange="renderAbastVeic()" style="max-width:150px"/></div>
+        <div class="table-wrap"><table><thead><tr><th>Data</th><th>Veículo</th><th>Motorista</th><th>Combustível</th><th style="text-align:right">Litros</th><th style="text-align:right">R$/L</th><th style="text-align:right">Valor</th><th style="text-align:right">Km</th><th style="text-align:right">Km rodado</th><th style="text-align:right">km/L</th><th style="text-align:right">R$/km</th><th>Posto</th><th>Alerta</th><th></th></tr></thead><tbody id="tbody-abv"></tbody></table></div>
+      </div></div></div>
+    <div class="page" id="page-frota-multas"><div class="page-header"><div><div class="page-title">Multas e infrações</div><div class="page-sub">O condutor responsável pelo veículo na data da infração vem sozinho do registro de entrega.</div></div>
+      <div class="btn-group"><button class="btn btn-primary" onclick="muNova()">+ Nova multa</button></div></div>
+      <div id="mu-kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:12px"></div>
+      <div class="card"><div class="card-body"><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px"><input class="form-control" id="mu-busca" placeholder="Buscar placa, TAG, condutor, AIT…" oninput="renderMultas()" style="max-width:300px"/>
+        <select class="form-control" id="mu-st" onchange="renderMultas()" style="max-width:220px"><option value="abertas">Em aberto</option><option value="">Todas</option>${MU_ST.map(s => `<option>${s}</option>`).join('')}</select></div>
+        <div class="table-wrap"><table><thead><tr><th>Data</th><th>Veículo</th><th>Condutor</th><th>Infração</th><th>Gravidade</th><th style="text-align:right">Valor</th><th>Prazo</th><th>Situação</th><th></th></tr></thead><tbody id="tbody-multas"></tbody></table></div></div></div></div>`);
+  document.body.insertAdjacentHTML('beforeend', `
+    <div class="modal-overlay" id="modal-abv"><div class="modal" style="max-width:620px"><div class="modal-header"><span class="modal-title" id="abv-titulo">Novo abastecimento</span><button class="modal-close" onclick="closeModal('modal-abv')">×</button></div>
+      <div class="modal-body"><input type="hidden" id="abv-id"/><div class="form-grid">
+        <div class="form-group"><label class="form-label">Obra *</label><select class="form-control" id="abv-obra" onchange="document.getElementById('abv-veiculo').innerHTML=_abVeicOpts(this.value);_abInfo()"></select></div>
+        <div class="form-group"><label class="form-label">Veículo *</label><select class="form-control" id="abv-veiculo" onchange="_abInfo()"></select></div>
+        <div class="form-group form-full" id="abv-info" style="font-size:12px;color:var(--text-2);margin-top:-6px"></div>
+        <div class="form-group"><label class="form-label">Data *</label><input type="date" class="form-control" id="abv-data"/></div><div class="form-group"><label class="form-label">Hora</label><input type="time" class="form-control" id="abv-hora"/></div>
+        <div class="form-group"><label class="form-label">Motorista</label><input class="form-control" id="abv-mot" list="abv-mots" placeholder="Responsável ou outro"/><datalist id="abv-mots"></datalist></div>
+        <div class="form-group"><label class="form-label">Combustível *</label><select class="form-control" id="abv-comb">${AB_COMB.map(c => `<option>${c}</option>`).join('')}</select></div>
+        <div class="form-group"><label class="form-label">Litros *</label><input type="number" step="0.001" class="form-control" id="abv-litros" oninput="_abTotal('litros')"/></div>
+        <div class="form-group"><label class="form-label">Preço por litro (R$)</label><input type="number" step="0.001" class="form-control" id="abv-preco" oninput="_abTotal('preco')"/></div>
+        <div class="form-group"><label class="form-label">Valor total (R$)</label><input type="number" step="0.01" class="form-control" id="abv-valor" oninput="_abTotal('valor')"/></div>
+        <div class="form-group"><label class="form-label">Km do hodômetro *</label><input type="number" class="form-control td-mono" id="abv-km"/></div>
+        <div class="form-group form-full"><label class="form-label">Posto / local</label><input class="form-control" id="abv-posto" list="abv-postos"/><datalist id="abv-postos"></datalist></div>
+        <div class="form-group form-full"><label class="form-label">Observações</label><input class="form-control" id="abv-obs"/></div></div></div>
+      <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-abv')">Cancelar</button><button class="btn btn-primary" onclick="salvarAbastVeic()">Salvar</button></div></div></div>
+    <div class="modal-overlay" id="modal-multa"><div class="modal" style="max-width:660px"><div class="modal-header"><span class="modal-title" id="mu-titulo">Nova multa</span><button class="modal-close" onclick="closeModal('modal-multa')">×</button></div>
+      <div class="modal-body"><input type="hidden" id="mu-id"/><div class="form-grid">
+        <div class="form-group"><label class="form-label">Obra *</label><select class="form-control" id="mu-obra" onchange="document.getElementById('mu-veiculo').innerHTML=_abVeicOpts(this.value,'',true);_muCond(true)"></select></div>
+        <div class="form-group"><label class="form-label">Veículo *</label><select class="form-control" id="mu-veiculo" onchange="_muCond(true)"></select></div>
+        <div class="form-group"><label class="form-label">Data da infração *</label><input type="date" class="form-control" id="mu-data" onchange="_muCond(true)"/></div><div class="form-group"><label class="form-label">Hora</label><input type="time" class="form-control" id="mu-hora"/></div>
+        <div class="form-group form-full" id="mu-cond-info" style="font-size:12px;color:var(--text-2);margin-top:-6px"></div>
+        <div class="form-group form-full"><label class="form-label">Condutor</label><input class="form-control" id="mu-condutor" list="mu-conds"/><datalist id="mu-conds"></datalist></div>
+        <div class="form-group"><label class="form-label">Nº do auto (AIT)</label><input class="form-control" id="mu-ait"/></div><div class="form-group"><label class="form-label">Órgão autuador</label><input class="form-control" id="mu-orgao" placeholder="Ex.: DER-SP, PRF, Prefeitura"/></div>
+        <div class="form-group form-full"><label class="form-label">Infração</label><input class="form-control" id="mu-tipo" placeholder="Ex.: excesso de velocidade até 20%"/></div>
+        <div class="form-group form-full"><label class="form-label">Local</label><input class="form-control" id="mu-local"/></div>
+        <div class="form-group"><label class="form-label">Gravidade</label><select class="form-control" id="mu-grav" onchange="document.getElementById('mu-pontos').value=(MU_GRAV.find(g=>g[0]===this.value)||[0,0])[1]">${MU_GRAV.map(([g, p]) => `<option>${g}</option>`).join('')}</select></div>
+        <div class="form-group"><label class="form-label">Pontos na CNH</label><input type="number" class="form-control" id="mu-pontos"/></div>
+        <div class="form-group"><label class="form-label">Valor (R$)</label><input type="number" step="0.01" class="form-control" id="mu-valor"/></div>
+        <div class="form-group"><label class="form-label">Prazo (indicação / recurso)</label><input type="date" class="form-control" id="mu-prazo"/></div>
+        <div class="form-group"><label class="form-label">Situação</label><select class="form-control" id="mu-status">${MU_ST.map(s => `<option>${s}</option>`).join('')}</select></div>
+        <div class="form-group"><label class="form-label">Data do pagamento / desconto</label><input type="date" class="form-control" id="mu-pag"/></div>
+        <div class="form-group form-full"><label class="form-label">Observações</label><input class="form-control" id="mu-obs"/></div></div></div>
+      <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-multa')">Cancelar</button><button class="btn btn-primary" onclick="salvarMulta()">Salvar</button></div></div></div>`);
+  // menu do grupo Frota
+  const box = $('grp-frota')?.querySelector('.nav-group-items') || $('grp-frota');
+  if (box && !box.querySelector(`[onclick*="showPage('frota-abast'"]`)) {
+    const r = box.querySelector(`[onclick*="showPage('frota-resp'"]`);
+    const html = `<div class="nav-item" onclick="showPage('frota-abast',this)" title="Abastecimento de veículos leves">${ico.ab}<span>Abastecimentos</span></div><div class="nav-item" onclick="showPage('frota-multas',this)" title="Multas e infrações">${ico.mu}<span>Multas e infrações</span></div>`;
+    if (r) r.insertAdjacentHTML('afterend', html); else box.insertAdjacentHTML('beforeend', html);
+  }
+  OK_MOD_PAGINAS.frota.push('frota-abast', 'frota-multas');
+  const oInit = window.pageInit;
+  window.pageInit = function (id) { const r = oInit.apply(this, arguments); if (id === 'frota-abast') renderAbastVeic(); if (id === 'frota-multas') renderMultas(); return r; };
+  const oSel = window.selecionarObra;
+  window.selecionarObra = function () { const r = oSel.apply(this, arguments); try { if ($('page-frota-abast')?.classList.contains('active')) renderAbastVeic(); if ($('page-frota-multas')?.classList.contains('active')) renderMultas(); } catch (e) {} return r; };
+  // campos de gestão no cadastro do veículo
+  const ancora = $('fr-valor')?.closest('.form-group');
+  if (ancora && !$('fr-franquia')) ancora.insertAdjacentHTML('afterend', `
+    <div class="form-group"><label class="form-label" for="fr-franquia">Franquia de km por mês</label><input type="number" class="form-control" id="fr-franquia" placeholder="Em branco = livre"/></div>
+    <div class="form-group"><label class="form-label" for="fr-revisao">Km da próxima revisão</label><input type="number" class="form-control" id="fr-revisao" placeholder="Ex.: 20000"/></div>
+    <div class="form-group"><label class="form-label" for="fr-kmaj">Km atual (ajuste manual)</label><input type="number" class="form-control" id="fr-kmaj" placeholder="Leitura fora do abastecimento"/><div id="fr-kmatual" style="font-size:11px;color:var(--text-3);margin-top:2px"></div></div>
+    <div class="form-group"><label class="form-label" for="fr-setor">Setor</label><input class="form-control" id="fr-setor" placeholder="Ex.: Gerência, Qualidade"/></div>
+    <div class="form-group form-full"><label class="form-label" for="fr-contato">Contato da locadora</label><input class="form-control" id="fr-contato" placeholder="Nome, telefone ou e-mail"/></div>`);
+  const oEd = frEditar;
+  frEditar = window.frEditar = function (id) { const r = oEd.apply(this, arguments), v = id && _abVeic(id);
+    [['franquia', 'franquiaKm'], ['revisao', 'kmRevisao'], ['kmaj', 'kmAjuste'], ['setor', 'setor'], ['contato', 'contatoLoc']].forEach(([c, k]) => { if ($('fr-' + c)) $('fr-' + c).value = v && v[k] ? v[k] : ''; });
+    if ($('fr-kmatual')) $('fr-kmatual').textContent = v ? 'Km atual calculado: ' + frKmAtual(v).toLocaleString('pt-BR') + ' (maior leitura entre chegada, entregas, abastecimentos e ajuste)' : ''; return r; };
+  const oSv = salvarVeiculo;
+  salvarVeiculo = window.salvarVeiculo = function () { const id = $('fr-id').value, antes = new Set((dados.frota || []).map(v => v.id));
+    const ex = { franquiaKm: +$('fr-franquia').value || 0, kmRevisao: +$('fr-revisao').value || 0, kmAjuste: +$('fr-kmaj').value || 0, setor: $('fr-setor').value.trim(), contatoLoc: $('fr-contato').value.trim() };
+    const r = oSv.apply(this, arguments), v = id ? _abVeic(id) : (dados.frota || []).find(x => !antes.has(x.id));
+    if (v && Object.keys(ex).some(k => (v[k] || '') !== (ex[k] || ''))) { Object.assign(v, ex); if (db && _firebaseReady) fbSave('frota', v.id, v).catch(() => {}); try { renderFrota(); } catch (e) {} } return r; };
+  // alertas: revisão, franquia de km do mês e multas em aberto
+  const oAl = frAlertas;
+  frAlertas = window.frAlertas = function (v) { const a = oAl.apply(this, arguments); if (v.status === 'Devolvido') return a; const km = frKmAtual(v);
+    if (+v.kmRevisao) { const f = +v.kmRevisao - km; if (f <= 0) a.push({ t: 'Revisar agora (passou ' + Math.abs(f).toLocaleString('pt-BR') + ' km)', nivel: 'red' }); else if (f <= 1000) a.push({ t: 'Revisão em ' + f.toLocaleString('pt-BR') + ' km', nivel: 'amber' }); }
+    if (+v.franquiaKm) { const m = frKmMes(v, _hojeLocal().slice(0, 7)); if (m > +v.franquiaKm) a.push({ t: 'Franquia estourada: ' + m.toLocaleString('pt-BR') + ' de ' + (+v.franquiaKm).toLocaleString('pt-BR') + ' km no mês', nivel: 'red' }); else if (m > +v.franquiaKm * .85) a.push({ t: 'Franquia: ' + m.toLocaleString('pt-BR') + ' de ' + (+v.franquiaKm).toLocaleString('pt-BR') + ' km no mês', nivel: 'amber' }); }
+    const mu = (dados.multas || []).filter(m => m.veicId === v.id && _muAberta(m)); if (mu.length) a.push({ t: mu.length + ' multa(s) em aberto', nivel: 'amber' });
+    return a; };
+  // coleções carregadas e ao vivo
+  try { _COLS_AO_VIVO.push('abastVeic', 'multas'); } catch (e) {}
+})();
+
+// v3.19: Dashboard de Frota com abastecimento (por período) e multas
+(function () {
+  const oF = _dxFiltrosSimples;
+  _dxFiltrosSimples = function (tipo) { const h = oF.apply(this, arguments); if (tipo !== 'frota') return h;
+    const ms = [...new Set((dados.abastVeic || []).map(a => String(a.data).slice(0, 7)).filter(Boolean))].sort().reverse().map(m => [m, _mesTxt(m)]);
+    return h.replace('<button class="dx-btn" onclick="exportarDashPDF', _dxSel('Combustível', 'mesF', ms, 'Todo o período') + '<button class="dx-btn" onclick="exportarDashPDF'); };
+  const oR = dxRenderFrota;
+  dxRenderFrota = window.dxRenderFrota = function () {
+    if (_dx.mesF === undefined) _dx.mesF = _hojeLocal().slice(0, 7);
+    const r = oR.apply(this, arguments);
+    const main = document.querySelector('#page-dash-frota .dx-main'); if (!main) return r;
+    const custo = _dx.modo === 'custo', calc = _abCalc(), per = _dx.mesF ? _mesTxt(_dx.mesF) : 'todo o período';
+    const ab = (dados.abastVeic || []).filter(a => (!_dx.obra || a.obra === _dx.obra) && (!_dx.mesF || String(a.data).slice(0, 7) === _dx.mesF));
+    const L = ab.reduce((s, a) => s + (+a.litros || 0), 0), R = ab.reduce((s, a) => s + (+a.valor || 0), 0);
+    const comKm = ab.filter(a => (calc[a.id] || {}).rod > 0), KM = comKm.reduce((s, a) => s + calc[a.id].rod, 0), Lk = comKm.reduce((s, a) => s + (+a.litros || 0), 0);
+    const nomeV = id => { const v = _abVeic(id) || {}; return (v.tag ? v.tag + ' · ' : '') + (v.placa || id); };
+    const por = (k, val) => { const g = {}; ab.forEach(a => { const c = typeof k === 'function' ? k(a) : (a[k] || '—'); g[c] = (g[c] || 0) + val(a); }); return Object.entries(g).sort((a, b) => b[1] - a[1]).map(([l, v]) => ({ l, v })); };
+    const veic = {}; ab.forEach(a => { const x = veic[a.veicId] = veic[a.veicId] || { l: 0, r: 0, km: 0, lk: 0, n: 0 }; x.l += +a.litros || 0; x.r += +a.valor || 0; x.n++; const c = calc[a.id] || {}; if (c.rod > 0) { x.km += c.rod; x.lk += +a.litros || 0; } });
+    const linhas = Object.entries(veic).sort((a, b) => nomeV(a[0]).localeCompare(nomeV(b[0])));
+    const mu = (dados.multas || []).filter(m => (!_dx.obra || m.obra === _dx.obra) && (!_dx.mesF || String(m.data).slice(0, 7) === _dx.mesF));
+    let h = `<div class="dx-sec-t">⛽ Combustível · ${_e(per)}</div>`;
+    if (!custo) {
+      h += `<div class="dx-kpis">${_kpi(_ic.drop, _fmtN(L) + ' L', 'Litros abastecidos', ab.length + ' abastecimento(s)')}${_kpi(_ic_carro, KM.toLocaleString('pt-BR'), 'Km rodados', 'entre abastecimentos')}${_kpi(_ic.gauge2, Lk ? _fmtN(KM / Lk) + ' km/L' : '—', 'Média da frota', 'km ÷ litros', '#F59E0B')}${_kpi(_ic.alert || _ic.timer, mu.filter(_muAberta).length, 'Multas em aberto', mu.length + ' no período', mu.filter(_muAberta).length ? '#F59E0B' : '')}</div>
+        <div class="dx-grid" style="grid-template-columns:1fr 1fr;margin-bottom:12px">
+          ${_pn(_ic.gauge2, 'Média km/L por veículo', _hbars(linhas.filter(([, x]) => x.lk).map(([id, x]) => ({ l: nomeV(id), v: x.km / x.lk, t: _fmtN(x.km / x.lk) + ' km/L' })).sort((a, b) => a.v - b.v), '#F59E0B'), 'menor primeiro')}
+          ${(() => { const m = por('motorista', a => +a.litros || 0); return _pn(_ic.users, 'Litros por motorista', _hbars(m.slice(0, 15).map(x => ({ ...x, t: _fmtN(x.v) + ' L' }))), m.length > 15 ? '15 maiores de ' + m.length : ''); })()}</div>
+        ${_pn(_ic.cal, 'Abastecimento por veículo', `<div class="dx-scroll">${_tb(['Veículo', 'Abastecimentos', 'Litros', 'Km rodados', 'Média km/L', 'Km atual', 'Próxima revisão'], linhas.map(([id, x]) => { const v = _abVeic(id) || {}, ka = frKmAtual(v), f = +v.kmRevisao ? +v.kmRevisao - ka : null;
+            return `<tr>${_td('<b>' + _e(nomeV(id)) + '</b><div class="mu" style="font-size:10.5px">' + _e(v.modelo || '') + '</div>')}${_td(x.n, 'n')}${_td(_fmtN(x.l) + ' L', 'n')}${_td(x.km.toLocaleString('pt-BR'), 'n')}${_td(x.lk ? _fmtN(x.km / x.lk) : '—', 'n')}${_td(ka.toLocaleString('pt-BR'), 'n')}${_td(f == null ? '—' : `<span style="color:${f <= 0 ? '#FF5A60' : f <= 1000 ? '#F59E0B' : 'inherit'}">${f <= 0 ? 'revisar agora' : 'em ' + f.toLocaleString('pt-BR') + ' km'}</span>`, 'n')}</tr>`; }), ['', 'n', 'n', 'n', 'n', 'n', 'n'])}</div>`, '', 'margin-bottom:12px')}`;
+    } else {
+      const loc = (dados.frota || []).filter(v => (!_dx.obra || v.obra === _dx.obra) && v.status !== 'Devolvido').reduce((s, v) => s + (+v.valorMes || 0), 0);
+      const quinz = {}; ab.forEach(a => { const q = _abQuinz(a.data); quinz[q] = quinz[q] || { k: a.data.slice(0, 7) + (+a.data.slice(8, 10) <= 15 ? 'a' : 'b'), v: 0 }; quinz[q].v += +a.valor || 0; });
+      h += `<div class="dx-kpis">${_kpi(_ic.coin, _moeda(R), 'Combustível', ab.length + ' abastecimento(s)', '#E30613', true)}${_kpi(_ic.drop, L ? _moeda(R / L) : '—', 'Preço médio do litro', _fmtN(L) + ' L')}${_kpi(_ic_carro, KM ? _moeda(R / KM) : '—', 'Custo por km', KM.toLocaleString('pt-BR') + ' km rodados', '#F59E0B')}${_kpi(_ic.alert || _ic.timer, _moeda(mu.filter(m => m.status !== 'Cancelada').reduce((s, m) => s + (+m.valor || 0), 0)), 'Multas', mu.length + ' no período')}</div>
+        ${_dx.mesF ? `<div class="dx-pn" style="margin-bottom:12px;display:flex;gap:18px;flex-wrap:wrap;align-items:center"><div class="dx-pn-t">${_ic.coin}Custo da frota no mês</div><div style="font-size:13px">Locação <b>${_moeda(loc)}</b> + combustível <b>${_moeda(R)}</b> = <b style="color:#FF5A60;font-size:16px">${_moeda(loc + R)}</b></div></div>` : ''}
+        <div class="dx-grid" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:12px">
+          ${_pn(_ic.chart, 'Custo por km por veículo', _hbars(linhas.filter(([, x]) => x.km).map(([id, x]) => ({ l: nomeV(id), v: x.r / x.km, t: _moeda(x.r / x.km) })).sort((a, b) => b.v - a.v), '#F59E0B'), 'maior primeiro')}
+          ${_pn(_ic.grid, 'Gastos por posto', _hbars(por('posto', a => +a.valor || 0).map(x => ({ ...x, t: _moeda(x.v) }))))}
+          ${_pn(_ic.trend, 'Combustível por quinzena', _vbars(Object.entries(quinz).sort((a, b) => a[1].k.localeCompare(b[1].k)).map(([q, x]) => ({ l: q.slice(0, 2) + ' ' + q.slice(-8, -5), v: x.v })), ''))}</div>
+        ${_pn(_ic.cal, 'Combustível por veículo', `<div class="dx-scroll">${_tb(['Veículo', 'Abastecimentos', 'Litros', 'Valor', 'R$ por litro', 'Km rodados', 'R$ por km'], linhas.map(([id, x]) => `<tr>${_td('<b>' + _e(nomeV(id)) + '</b>')}${_td(x.n, 'n')}${_td(_fmtN(x.l) + ' L', 'n')}${_td(_moeda(x.r), 'n')}${_td(x.l ? _moeda(x.r / x.l) : '—', 'n')}${_td(x.km.toLocaleString('pt-BR'), 'n')}${_td(x.km ? _moeda(x.r / x.km) : '—', 'n tot')}</tr>`)
+            .concat(linhas.length ? [`<tr class="sub">${_td('Total')}${_td(ab.length, 'n')}${_td(_fmtN(L) + ' L', 'n')}${_td(_moeda(R), 'n')}${_td(L ? _moeda(R / L) : '—', 'n')}${_td(KM.toLocaleString('pt-BR'), 'n')}${_td(KM ? _moeda(R / KM) : '—', 'n')}</tr>`] : []), ['', 'n', 'n', 'n', 'n', 'n', 'n'])}</div>`, '', 'margin-bottom:12px')}`;
+    }
+    main.insertAdjacentHTML('beforeend', h);
+    return r;
+  };
+  const css = document.createElement('style');
+  css.textContent = `.dx-sec-t{font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--mu);margin:18px 0 10px;padding-top:14px;border-top:1px solid var(--ln)}`;
+  document.head.appendChild(css);
 })();
 
 // Apply configs on load
