@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.23 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.24 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -14994,6 +14994,62 @@ function muExcluir(id) { const m = (dados.multas || []).find(x => x.id === id); 
   const css = document.createElement('style');
   css.textContent = `.dx-sec-t{font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--mu);margin:18px 0 10px;padding-top:14px;border-top:1px solid var(--ln)}`;
   document.head.appendChild(css);
+})();
+
+
+// ═══════════════════════════════════════════════════════════════
+// v3.24: PERFIL "VER SALÁRIOS E CUSTOS" — desmarcado, o usuário não vê salário (Funcionários),
+// custo/hora (Funções), nem o modo Custo das dashboards (ficam só em Quantidade).
+// ═══════════════════════════════════════════════════════════════
+function _podeValores() {
+  if (!usuarioLogado || usuarioLogado.perfil === 'Admin') return true;
+  const p = perfilPorNome(usuarioLogado.perfil); return !p || p.verValores !== false;
+}
+function _ocultaCols(tbodyId, re) {
+  const tb = document.getElementById(tbodyId), t = tb && tb.closest('table'); if (!t) return;
+  const ths = [...t.querySelectorAll('thead th')], idx = ths.map((th, i) => re.test(th.textContent.trim()) ? i : -1).filter(i => i >= 0), esc = !_podeValores();
+  idx.forEach(i => { ths[i].style.display = esc ? 'none' : ''; t.querySelectorAll('tbody tr').forEach(tr => { if (tr.children.length === ths.length && tr.children[i]) tr.children[i].style.display = esc ? 'none' : ''; }); });
+}
+(function () {
+  const css = document.createElement('style'); css.textContent = 'body.ok-sem-valores .ok-val{display:none!important}'; document.head.appendChild(css);
+  const sal = document.getElementById('func-salario'); if (sal && sal.closest('.form-group')) sal.closest('.form-group').classList.add('ok-val');
+  // quem não vê valores: só Quantidade nas dashboards
+  const _trava = () => { if (!_podeValores()) _dx.modo = 'qtd'; };
+  const oModo = window.dxModo; window.dxModo = dxModo = function (m) { if (!_podeValores()) m = 'qtd'; return oModo.call(this, m); };
+  const oRen = window.dxRender; window.dxRender = dxRender = function () { _trava(); return oRen.apply(this, arguments); };
+  const oB1 = window._dxModoBar; window._dxModoBar = _dxModoBar = function () { return _podeValores() ? oB1.apply(this, arguments) : ''; };
+  const oB2 = window._dxModoBar2; if (oB2) window._dxModoBar2 = _dxModoBar2 = function () { return _podeValores() ? oB2.apply(this, arguments) : ''; };
+  const oSal = window._dxSalarios; window._dxSalarios = _dxSalarios = function () { if (!_podeValores()) { document.querySelector('#page-dash-mo .dx-sal')?.remove(); return; } return oSal.apply(this, arguments); };
+  // tabelas
+  const oRF = window.renderFuncionarios; window.renderFuncionarios = renderFuncionarios = function () { const r = oRF.apply(this, arguments); _ocultaCols('tbody-func', /^Salário/); return r; };
+  const oRC = window.renderCargos; window.renderCargos = renderCargos = function () { const r = oRC.apply(this, arguments); _ocultaCols('tbody-cargos', /^Custo/); return r; };
+  // salvar funcionário sem ver salário: mantém o salário que já estava
+  const oSv = window.salvarFuncionario; window.salvarFuncionario = function () {
+    if (_podeValores()) return oSv.apply(this, arguments);
+    const id = document.getElementById('func-edit-id')?.value, f = id && (dados.funcionarios || []).find(x => x.id === id), ant = f ? f.salario : undefined;
+    const el = document.getElementById('func-salario'); if (el) el.value = ant || '';
+    return oSv.apply(this, arguments);
+  };
+  // a Visão Geral é toda em R$: quem não vê valores não a vê
+  const oPV = window.podeVerPagina; window.podeVerPagina = function (pag) { if (pag === 'dashboard' && !_podeValores()) return false; return oPV.apply(this, arguments); };
+  // ao entrar: aplica
+  const oPerm = window.aplicarPermissoes; window.aplicarPermissoes = function () { const r = oPerm.apply(this, arguments);
+    document.body.classList.toggle('ok-sem-valores', !_podeValores()); _trava(); try { renderFuncionarios(); renderCargos(); } catch (e) {} return r; };
+  // editor de perfil: caixa "Ver salários e custos"
+  const bl = document.getElementById('pf-telas-bloco');
+  if (bl) bl.insertAdjacentHTML('beforeend', `<label style="display:flex;gap:10px;align-items:flex-start;margin-top:12px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;cursor:pointer">
+      <input type="checkbox" id="pf-valores" checked style="margin-top:3px"/><span><b style="font-size:13px">Ver salários e custos</b><span style="display:block;font-size:11.5px;color:var(--text-3)">Desmarcado: não vê o salário dos funcionários, o custo/hora das funções, a Visão Geral (que é toda em R$) nem o modo Custo das dashboards (ficam só em Quantidade).</span></span></label>`);
+  const oEd = window.editarPerfil; window.editarPerfil = function (id) { const r = oEd.apply(this, arguments);
+    const p = id ? listaPerfis().find(x => x.id === id) : null, c = document.getElementById('pf-valores'); if (c) c.checked = !p || p.verValores !== false; return r; };
+  const oSP = window.salvarPerfil; window.salvarPerfil = function () {
+    const idAnt = document.getElementById('pf-id').value, nome = (document.getElementById('pf-nome').value || '').trim(), ver = document.getElementById('pf-valores')?.checked !== false;
+    const r = oSP.apply(this, arguments);
+    if (document.getElementById('modal-perfil')?.classList.contains('open')) return r;
+    const obj = (dados.perfis || []).find(x => (idAnt && x.id === idAnt) || x.nome === nome);
+    if (obj) { obj.verValores = ver; if (db && _firebaseReady) fbSave('perfis', obj.id, obj).catch(() => {}); }
+    try { renderListaPerfis(); } catch (e) {}
+    return r;
+  };
 })();
 
 // Apply configs on load
