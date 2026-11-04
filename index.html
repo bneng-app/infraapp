@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.24 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.25 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -15050,6 +15050,45 @@ function _ocultaCols(tbodyId, re) {
     try { renderListaPerfis(); } catch (e) {}
     return r;
   };
+})();
+
+
+// ═══════════════════════════════════════════════════════════════
+// v3.25: SÓ O MASTER CRIA OU EXCLUI OBRA — os outros editam e alimentam as obras liberadas para eles.
+// (botão Nova obra, Importar/Template de obras e a lixeira somem; no pacote, obra nova é ignorada)
+// ═══════════════════════════════════════════════════════════════
+(function () {
+  const aviso = () => toast('Só o Master cria ou exclui obras. Peça para ele liberar a obra para você.', 'error');
+  const oNova = window.novaObra; window.novaObra = novaObra = function () { if (!_ehMaster()) return aviso(); return oNova.apply(this, arguments); };
+  const oDel = window.deletar; window.deletar = deletar = function (col) { if (col === 'obras' && !_ehMaster()) return aviso(); return oDel.apply(this, arguments); };
+  const oAbr = window.abrirImportacao; window.abrirImportacao = abrirImportacao = function (tipo) { if (tipo === 'obras' && !_ehMaster()) return aviso(); return oAbr.apply(this, arguments); };
+  const _botoes = () => { const m = _ehMaster();
+    document.querySelectorAll(`#page-obras .page-header [onclick="novaObra()"], #page-obras .page-header [onclick="abrirImportacao('obras')"], #page-obras .page-header [onclick="baixarTemplate('obras')"]`).forEach(b => b.style.display = m ? '' : 'none');
+    if (!m) document.querySelectorAll(`#tbody-obras [onclick*="deletar('obras'"]`).forEach(b => b.style.display = 'none');
+    const sub = document.querySelector('#page-obras .page-sub'); if (sub) sub.textContent = m ? 'Gerencie as obras ativas' : 'Obras liberadas para você — novas obras são criadas pelo Master'; };
+  const oRO = window.renderObras; window.renderObras = renderObras = function () { const r = oRO.apply(this, arguments); _botoes(); return r; };
+  const oPerm = window.aplicarPermissoes; window.aplicarPermissoes = function () { const r = oPerm.apply(this, arguments); _botoes(); return r; };
+  // pacote: quem não é Master não cria obra (as que já existem continuam valendo para o resto do pacote)
+  const oImp = _importarLinhas;
+  _importarLinhas = window._importarLinhas = function (tipo, rows, resumo) {
+    if (tipo !== 'obras' || _ehMaster()) return oImp.apply(this, arguments);
+    const h = (rows[0] || []).map(x => String(x || '').toLowerCase()), ic = h.findIndex(x => x.includes('cód') || x.includes('cod'));
+    const existe = c => (dados.obras || []).some(o => String(o.cod || '').toLowerCase() === String(c || '').trim().toLowerCase());
+    const fora = []; const rows2 = [rows[0]].concat(rows.slice(1).filter(r => { const c = ic >= 0 ? r[ic] : ''; if (!String(c || '').trim() || existe(c)) return true; fora.push(String(c).trim()); return false; }));
+    const novos = oImp.call(this, tipo, rows2, resumo);
+    if (fora.length && resumo.obras) { resumo.obras.erro = (resumo.obras.erro || 0) + fora.length; resumo.obras.avisos.push('obra(s) ' + fora.join(', ') + ' não existem — só o Master cria obra'); }
+    return novos;
+  };
+})();
+
+// v3.25: cadastros mostram só a obra escolhida no topo (o que não tem obra — banco/padrão — aparece em todas)
+(function () {
+  const _filtra = (nome, cols) => { const o = window[nome]; if (typeof o !== 'function') return;
+    const nv = function () { const ob = obraAtiva && obraAtiva.id && obraAtiva.id !== 'todas' ? obraAtiva.id : ''; if (!ob) return o.apply(this, arguments);
+      const ant = {}; cols.forEach(c => { ant[c] = dados[c]; dados[c] = (ant[c] || []).filter(x => !x.obra || x.obra === ob); });
+      try { return o.apply(this, arguments); } finally { cols.forEach(c => { dados[c] = ant[c]; }); } };
+    window[nome] = nv; try { eval(nome + ' = nv'); } catch (e) {} };
+  [['renderCargos', ['cargos']], ['renderFamilias', ['familias']], ['renderModelos', ['modelos']], ['renderTiposServico', ['tiposServico']], ['renderEquipes', ['equipes']], ['renderMmAprov', ['familias', 'modelos']]].forEach(([f, c]) => _filtra(f, c));
 })();
 
 // Apply configs on load
