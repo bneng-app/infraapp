@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.04 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.05 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -13076,6 +13076,241 @@ async function diaDetalhe(id) {
 // v3.04: QR da frente vira link — a câmera do celular abre o app de campo na tela "Frente hoje" (o app também lê para escolher a frente)
 function _qrFrenteLink(cod) { let base = 'https://obrakontrol.github.io/campo.html'; try { if (/^https?:/.test(location.protocol) && !/localhost|127\.0\.0\.1/.test(location.host)) base = new URL('campo.html', location.href).href.split('?')[0]; } catch (e) {}
   return base + '?c=' + encodeURIComponent(window.OK_CLIENTE || 'tenco') + '&frente=' + encodeURIComponent(cod); }
+
+// ═══════════════════════════════════════════════════════════════
+// v3.05: UA DO RM (EAP) · RAMO DA EAP NA FRENTE · TIPO DE SERVIÇO → UAs QUE CUSTEIA · UA ACHADA NA APROVAÇÃO
+// UA = item da EAP importado do relatório do RM (Código da Tarefa/UA). Atualização compara pelo código:
+// novas entram, alteradas atualizam, as que saíram ficam inativas (nunca apaga — o histórico aponta para elas).
+// ═══════════════════════════════════════════════════════════════
+function _uaN(t) { return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/\s+/g, ' ').trim(); }
+function _uasDa(obra) { return (dados.ua || []).filter(u => u.obra === obra && u.origem === 'RM'); }
+function _uaFolhas(obra, todas) { return _uasDa(obra).filter(u => u.folha && (todas || u.ativo !== false)); }
+function _uaId(obra, cod) { return 'ua-' + obra + '-' + String(cod).replace(/[^\w]/g, '_'); }
+// UA do lançamento: folha cujo nome está entre as UAs do tipo de serviço, dentro do ramo da frente
+function uaResolver(obra, frenteCod, servicoNome) {
+  const fr = (dados.frentes || []).find(f => f.cod === frenteCod && (!obra || !f.obra || f.obra === obra)) || (dados.frentes || []).find(f => f.cod === frenteCod);
+  const sv = (dados.tiposServico || []).find(s => (s.nome || s.desc || s.cod) === servicoNome && (!s.obra || !obra || s.obra === obra)) || (dados.tiposServico || []).find(s => (s.nome || s.desc || s.cod) === servicoNome);
+  const nomes = ((sv && sv.uaNomes) || []).map(_uaN), ramo = (fr && fr.ramoUA) || '';
+  if (!sv) return { motivo: 'serviço sem cadastro', cands: [] };
+  if (!nomes.length) return { motivo: 'o tipo de serviço não tem UA vinculada', cands: [] };
+  const cands = _uaFolhas(obra).filter(u => nomes.includes(_uaN(u.nome)) && (!ramo || u.cod === ramo || u.cod.startsWith(ramo + '.')));
+  if (cands.length === 1) return { ua: cands[0], cands };
+  return { motivo: cands.length ? 'mais de uma UA possível — defina o ramo da EAP na frente' : (ramo ? 'nenhuma UA do serviço dentro do ramo ' + ramo : 'nenhuma UA encontrada'), cands };
+}
+// ── importar / atualizar do RM
+let _uaImp = null;
+function _uaModal() {
+  if (document.getElementById('modal-ua-rm')) return;
+  document.body.insertAdjacentHTML('beforeend', `<div class="modal-overlay" id="modal-ua-rm"><div class="modal" style="max-width:860px;width:96vw">
+    <div class="modal-header"><span class="modal-title">Atualizar UAs do RM</span><button class="modal-close" onclick="closeModal('modal-ua-rm')">×</button></div>
+    <div class="modal-body" id="uarm-corpo" style="max-height:72vh;overflow:auto"></div><div class="modal-footer" id="uarm-rod"></div></div></div>`);
+}
+function uaRmAbrir() {
+  const obra = _okObraAtual(); if (obra === 'todas') { toast('Escolha a obra no topo antes de atualizar as UAs.', 'error'); return; }
+  _uaModal(); _uaImp = { obra };
+  document.getElementById('uarm-corpo').innerHTML = `<div style="border:1.5px solid #E30613;background:rgba(227,6,19,.06);border-radius:10px;padding:10px 14px;margin-bottom:14px"><span style="font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--text-3)">OBRA</span><div style="font-weight:800">${_e(getNomeObra(obra))}</div></div>
+    <p style="margin:0 0 10px">Escolha o relatório da EAP exportado do RM (colunas <b>Código da Tarefa/UA, Nome, Quantidade, Cód. Unidade, Unidade, Custo Unitário, Custo Parcial</b>). Você confere as mudanças antes de aplicar.</p>
+    <input type="file" class="form-control" accept=".xlsx,.xls,.csv" style="padding:6px" onchange="_uaLer(this)"/>`;
+  document.getElementById('uarm-rod').innerHTML = `<button class="btn btn-outline" onclick="closeModal('modal-ua-rm')">Cancelar</button>`;
+  openModal('modal-ua-rm');
+}
+function _uaLer(inp) {
+  const f = inp.files && inp.files[0]; if (!f || typeof XLSX === 'undefined') return;
+  const rd = new FileReader();
+  rd.onload = ev => { try {
+    const wb = XLSX.read(ev.target.result, { type: 'binary' }), rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '' });
+    const hi = rows.findIndex(r => r.some(c => /c[oó]digo.*(tarefa|ua)/i.test(String(c)))); if (hi < 0) { toast('Não achei a coluna "Código da Tarefa/UA".', 'error'); return; }
+    const H = rows[hi].map(h => _uaN(h)), ix = re => H.findIndex(h => re.test(h));
+    const c = { cod: ix(/CODIGO.*(TAREFA|UA)/), nome: ix(/^NOME$/), qtd: ix(/QUANTIDADE/), cu: ix(/COD.*UNIDADE/), un: ix(/^UNIDADE$/), vu: ix(/CUSTO UNIT/), vt: ix(/CUSTO PARCIAL|CUSTO TOTAL/) };
+    const num = v => typeof v === 'number' ? v : parseFloat(String(v).replace(/\./g, '').replace(',', '.')) || 0;
+    const lst = rows.slice(hi + 1).filter(r => String(r[c.cod]).trim()).map(r => ({ cod: String(r[c.cod]).trim(), nome: String(r[c.nome] || '').trim(), qtd: num(r[c.qtd]), unid: String(c.cu >= 0 ? r[c.cu] : '').trim(), unidNome: String(c.un >= 0 ? r[c.un] : '').trim(), custoUnit: num(r[c.vu]), custoTotal: num(r[c.vt]) }));
+    const cods = new Set(lst.map(x => x.cod));
+    lst.forEach(x => { x.nivel = x.cod.split('.').length; x.pai = x.cod.includes('.') ? x.cod.slice(0, x.cod.lastIndexOf('.')) : ''; });
+    const pais = new Set(lst.map(x => x.pai)); lst.forEach(x => { x.folha = !pais.has(x.cod); });
+    const atuais = new Map(_uasDa(_uaImp.obra).map(u => [u.cod, u]));
+    const novas = [], alt = [], reat = [];
+    lst.forEach(x => { const a = atuais.get(x.cod); if (!a) { novas.push(x); return; }
+      const ch = ['nome', 'unid', 'qtd', 'custoUnit', 'custoTotal'].filter(k => String(a[k] ?? '') !== String(x[k] ?? '') && !(typeof x[k] === 'number' && Math.abs((+a[k] || 0) - x[k]) < 0.005));
+      if (a.ativo === false) reat.push({ x, a }); else if (ch.length) alt.push({ x, a, ch }); });
+    const inat = [...atuais.values()].filter(u => u.ativo !== false && !cods.has(u.cod));
+    Object.assign(_uaImp, { lst, novas, alt, reat, inat });
+    const sec = (t, cor, itens, fmt) => itens.length ? `<details ${itens.length < 15 ? 'open' : ''} style="margin-top:10px"><summary style="cursor:pointer;font-weight:800;color:${cor}">${t} (${itens.length})</summary><div style="font-size:12.5px;margin-top:6px;max-height:240px;overflow:auto">${itens.map(fmt).join('')}</div></details>` : '';
+    const lin = (cod, nome, extra) => `<div style="padding:3px 0;border-bottom:1px solid var(--border)"><span class="td-mono">${_e(cod)}</span> ${_e(nome)}${extra ? ' <span style="color:var(--text-3)">' + extra + '</span>' : ''}</div>`;
+    const card = (n, l, cor) => `<div style="flex:1;min-width:120px;border:1px solid var(--border);border-radius:10px;padding:10px 12px"><div style="font-size:22px;font-weight:800;color:${cor}">${n}</div><div style="font-size:12px;color:var(--text-3)">${l}</div></div>`;
+    document.getElementById('uarm-corpo').innerHTML = `<div style="font-size:13px;margin-bottom:10px">Arquivo com <b>${lst.length}</b> itens (${lst.filter(x => x.folha).length} UAs de lançamento).</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">${card(novas.length, 'novas', '#16A34A')}${card(alt.length, 'alteradas', '#2563EB')}${card(reat.length, 'voltam a ficar ativas', '#7C3AED')}${card(inat.length, 'ficam inativas', '#E30613')}</div>
+      ${sec('Novas', '#16A34A', novas, x => lin(x.cod, x.nome, x.unid ? x.qtd.toLocaleString('pt-BR') + ' ' + x.unid : ''))}
+      ${sec('Alteradas', '#2563EB', alt, o => lin(o.x.cod, o.x.nome, o.ch.map(k => k + ': ' + _e(String(o.a[k] ?? '—')) + ' → ' + _e(String(o.x[k]))).join(' · ')))}
+      ${sec('Voltam a ficar ativas', '#7C3AED', reat, o => lin(o.x.cod, o.x.nome))}
+      ${sec('Ficam inativas (não estão mais no RM)', '#E30613', inat, u => lin(u.cod, u.nome, 'o histórico continua apontando para ela'))}
+      ${!novas.length && !alt.length && !reat.length && !inat.length ? '<p style="margin-top:14px;color:var(--text-3)">Nada mudou: as UAs já estão iguais ao RM.</p>' : ''}`;
+    document.getElementById('uarm-rod').innerHTML = `<button class="btn btn-outline" onclick="uaRmAbrir()">← Outro arquivo</button><button class="btn btn-primary" onclick="_uaAplicar()" ${novas.length || alt.length || reat.length || inat.length ? '' : 'disabled'}>Aplicar</button>`;
+  } catch (e) { toast('Não consegui ler a planilha.', 'error'); } };
+  rd.readAsBinaryString(f);
+}
+async function _uaAplicar() {
+  const { obra, lst, inat } = _uaImp, quando = new Date().toISOString(), salvar = [];
+  const atuais = new Map(_uasDa(obra).map(u => [u.cod, u]));
+  lst.forEach(x => { const a = atuais.get(x.cod);
+    const u = { ...(a || { id: _uaId(obra, x.cod), obra, origem: 'RM', criadoEm: quando }), cod: x.cod, desc: x.nome, nome: x.nome, qtd: x.qtd, unid: x.unid, unidNome: x.unidNome, custoUnit: x.custoUnit, custoTotal: x.custoTotal, nivel: x.nivel, pai: x.pai, folha: x.folha, ativo: true, tipo: (a && a.tipo) || 'Serviço', atualizadoEm: quando };
+    if (!a || JSON.stringify(a) !== JSON.stringify({ ...u, atualizadoEm: a.atualizadoEm })) salvar.push(u); });
+  inat.forEach(u => salvar.push({ ...u, ativo: false, inativadoEm: quando }));
+  salvar.forEach(u => { const i = (dados.ua = dados.ua || []).findIndex(y => y.id === u.id); if (i >= 0) dados.ua[i] = u; else dados.ua.push(u); });
+  if (db && _firebaseReady) { const rs = await Promise.allSettled(salvar.map(u => fbSave('ua', u.id, u))); const fl = rs.filter(r => r.status === 'rejected').length; if (fl) toast(fl + ' não foram gravadas no servidor. Tente de novo.', 'error'); }
+  closeModal('modal-ua-rm'); renderUA(); toast('UAs atualizadas: ' + salvar.length + ' item(ns) gravado(s).');
+}
+// ── tela de UA: árvore da EAP da obra
+function renderUA() {
+  const tb = document.getElementById('tbody-ua'); if (!tb) return;
+  const obra = _okObraAtual(), sit = document.getElementById('filtro-ua-sit')?.value || 'ativas', busca = _uaN(document.getElementById('search-ua')?.value || '');
+  const head = document.querySelector('#tabela-ua thead tr'); if (head && !head.dataset.rm) { head.dataset.rm = '1'; head.innerHTML = '<th>Código</th><th>Nome</th><th>Unid.</th><th style="text-align:right">Quantidade</th><th style="text-align:right">Custo</th><th>Situação</th><th></th>'; }
+  if (obra === 'todas') { tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-3);padding:2rem">Escolha a obra no topo para ver a EAP dela.</td></tr>'; return; }
+  const todas = (dados.ua || []).filter(u => u.obra === obra);
+  const l = todas.filter(u => sit === 'todas' || (sit === 'inativas' ? u.ativo === false : u.ativo !== false))
+    .filter(u => !busca || _uaN(u.cod + ' ' + (u.nome || u.desc)).includes(busca))
+    .sort((a, b) => String(a.cod).localeCompare(String(b.cod), 'pt-BR', { numeric: true }));
+  const rm = todas.filter(u => u.origem === 'RM'), at = rm.filter(u => u.ativo !== false);
+  const res = document.getElementById('ua-resumo'); if (res) res.innerHTML = rm.length ? `${at.filter(u => u.folha).length} UAs de lançamento ativas · ${rm.length - at.length} inativa(s) · última atualização ${_e(fmtData(String(rm.map(u => u.atualizadoEm || '').sort().pop() || '').slice(0, 10)))}` : 'Nenhuma UA do RM nesta obra. Clique em <b>↑ Atualizar do RM</b>.';
+  const brl = v => (+v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+  tb.innerHTML = l.length ? l.map(u => { const nv = Math.max(0, (u.nivel || 1) - 1), grupo = u.origem === 'RM' && !u.folha;
+    return `<tr style="${u.ativo === false ? 'opacity:.55' : ''}${grupo ? ';background:var(--bg)' : ''}"><td class="td-mono" style="white-space:nowrap">${_e(u.cod)}</td>
+      <td style="padding-left:${8 + nv * 14}px;${grupo ? 'font-weight:800' : ''}">${_e(u.nome || u.desc || '')}</td>
+      <td>${_e(u.unid || (u.origem === 'RM' ? '' : u.tipo || ''))}</td><td class="td-mono" style="text-align:right">${u.folha && u.qtd ? (+u.qtd).toLocaleString('pt-BR') : ''}</td>
+      <td class="td-mono" style="text-align:right">${u.custoTotal ? brl(u.custoTotal) : ''}</td>
+      <td>${u.ativo === false ? tag('Inativa', 'gray') : u.origem === 'RM' ? (grupo ? '<span style="font-size:11px;color:var(--text-3)">grupo</span>' : tag('Ativa', 'green')) : tag('Manual', 'amber')}</td>
+      <td>${u.origem === 'RM' ? '' : acoesCell(`editarUA('${u.id}')`, `deletar('ua','${u.id}')`)}</td></tr>`; }).join('')
+    : '<tr><td colspan="7" style="text-align:center;color:var(--text-3);padding:2rem">Nenhuma UA com esse filtro.</td></tr>';
+}
+(function () {
+  const $ = id => document.getElementById(id);
+  // tela de UA
+  const pg = $('page-ua');
+  if (pg) {
+    const t = pg.querySelector('.page-title'); if (t) t.textContent = 'UA — EAP do RM';
+    const sb = pg.querySelector('.page-sub'); if (sb) sb.textContent = 'Unidades de apropriação da obra, vindas do RM. Atualize sempre que o RM mudar.';
+    const bg = pg.querySelector('.btn-group'); if (bg) bg.innerHTML = '<button class="btn btn-outline btn-sm" onclick="openModal(\'modal-nova-ua\')">+ UA manual</button><button class="btn btn-primary" onclick="uaRmAbrir()">↑ Atualizar do RM</button>';
+    const s = $('search-ua'); if (s) { s.removeAttribute('oninput'); s.placeholder = 'Buscar código ou nome…'; s.addEventListener('input', renderUA);
+      s.closest('.search-wrap').insertAdjacentHTML('afterend', '<div style="display:flex;gap:10px;align-items:center;margin:.5rem 0"><select class="form-control" id="filtro-ua-sit" onchange="renderUA()" style="max-width:200px"><option value="ativas">Ativas</option><option value="inativas">Inativas</option><option value="todas">Todas</option></select><div id="ua-resumo" style="font-size:12.5px;color:var(--text-3)"></div></div>'); }
+  }
+  const oSel = window.selecionarObra;
+  window.selecionarObra = function () { const r = oSel.apply(this, arguments); try { if ($('page-ua')?.classList.contains('active')) renderUA(); } catch (e) {} return r; };
+
+  // ── frente: Ramo da EAP no lugar do responsável
+  const rg = $('frente-resp')?.closest('.form-group');
+  if (rg && !$('frente-ramo')) {
+    rg.classList.add('form-full');
+    rg.innerHTML = `<label class="form-label" for="frente-ramo">Ramo da EAP <span style="font-size:10px;color:var(--text-3);text-transform:none;letter-spacing:0">(onde o custo da frente cai)</span></label><select class="form-control" id="frente-ramo"><option value="">— EAP inteira (obra sem divisão)</option></select><input type="hidden" id="frente-resp"/>
+      <div style="font-size:11.5px;color:var(--text-3);margin-top:4px">Ex.: <b>FORMAL ESGOTO</b>, <b>RURAL ÁGUA</b>. Junto com o tipo de serviço, define a UA de cada lançamento.</div>`;
+    buscaSelect('frente-ramo', 'Digite o código ou nome do grupo da EAP…');
+  }
+  const ramoOpts = (obra, sel) => { const s = $('frente-ramo'); if (!s) return;
+    const gs = _uasDa(obra).filter(u => !u.folha && u.ativo !== false && (u.nivel || 0) >= 2).sort((a, b) => String(a.cod).localeCompare(String(b.cod), 'pt-BR', { numeric: true }));
+    s.innerHTML = '<option value="">— EAP inteira (obra sem divisão)</option>' + gs.map(u => `<option value="${_e(u.cod)}">${_e(u.cod)} · ${_e(u.nome)}</option>`).join('');
+    if (sel && !gs.some(u => u.cod === sel)) s.insertAdjacentHTML('beforeend', `<option value="${_e(sel)}">${_e(sel)} · (inativo)</option>`);
+    s.value = sel || ''; buscaSelectSync('frente-ramo'); };
+  $('frente-obra')?.addEventListener('change', () => ramoOpts($('frente-obra').value, ''));
+  const oEdF = window.editarFrente;
+  window.editarFrente = function (id) { const r = oEdF.apply(this, arguments); const f = (dados.frentes || []).find(x => x.id === id) || {}; ramoOpts(f.obra || _okObraAtual(), f.ramoUA || ''); return r; };
+  const oSvF = window.salvarFrente;
+  window.salvarFrente = function () {
+    const id = $('frente-edit-id')?.value || '', ramo = $('frente-ramo')?.value || '', antes = new Set((dados.frentes || []).map(x => x.id));
+    const r = oSvF.apply(this, arguments);
+    if ($('modal-nova-frente')?.classList.contains('open')) return r;
+    const f = id ? (dados.frentes || []).find(x => x.id === id) : (dados.frentes || []).find(x => !antes.has(x.id));
+    if (f && (f.ramoUA || '') !== ramo) { f.ramoUA = ramo; if (db && _firebaseReady) fbSave('frentes', f.id, f).catch(() => {}); }
+    try { renderFrentes(); } catch (e) {} return r;
+  };
+  // abrir "+ Nova frente" já com os ramos da obra
+  document.querySelectorAll(`[onclick*="openModal('modal-nova-frente')"]`).forEach(b => b.addEventListener('click', () => setTimeout(() => ramoOpts($('frente-obra')?.value || (_okObraAtual() !== 'todas' ? _okObraAtual() : ''), ''), 50)));
+  // lista de frentes: sai Responsável e Tipos vinculados, entra Ramo da EAP
+  const oRF = window.renderFrentes || renderFrentes;
+  renderFrentes = window.renderFrentes = function () {
+    const r = oRF.apply(this, arguments);
+    const h = document.querySelector('#tabela-frentes thead tr'); if (h && h.children.length >= 6) { h.children[3].textContent = 'Ramo da EAP'; h.children[4].remove(); }
+    const vis = new Map((dados.frentes || []).map(f => [f.cod, f]));
+    document.querySelectorAll('#tbody-frentes tr').forEach(tr => { if (tr.children.length < 6) return; const f = vis.get(tr.children[0].textContent.trim()); tr.children[4].remove();
+      const u = f && f.ramoUA ? _uasDa(f.obra).find(x => x.cod === f.ramoUA) : null;
+      tr.children[3].innerHTML = f && f.ramoUA ? `<span class="td-mono" style="font-size:11.5px">${_e(f.ramoUA)}</span> ${_e(u ? u.nome : '')}` : '<span style="color:var(--text-3)">EAP inteira</span>'; });
+    return r;
+  };
+  // template / importação de frentes: "Ramo da EAP (código)" no lugar de Responsável
+  try { const d = IMPORT_DEF.frentes; d.col = ['Descrição', 'Código (deixe em branco: o sistema gera)', 'Ramo da EAP (código, ex.: 1.002.004.001)', 'Coordenada (lat, long)'];
+    const oMap = d.map; d.map = g => ({ ...oMap(g), ramoUA: String(g(['ramo', 'eap']) || '').trim() }); } catch (e) {}
+
+  // ── tipo de serviço: obra (opcional) e as UAs que ele custeia
+  const mg = $('srv-obs')?.closest('.form-group');
+  if (mg && !$('srv-uas')) {
+    mg.insertAdjacentHTML('beforebegin', `<div class="form-group form-full"><label class="form-label" for="srv-obra">Obra</label><select class="form-control" id="srv-obra" onchange="_srvUasRender()"><option value="">Todas as obras</option></select></div>
+      <div class="form-group form-full"><label class="form-label">Custeia nas UAs (RM) *</label><input class="form-control" id="srv-uas-busca" placeholder="Filtrar: VCA, ligação, MND…" oninput="_srvUasRender()" style="margin-bottom:6px"/>
+        <div id="srv-uas" style="max-height:220px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:6px 8px"></div>
+        <div style="font-size:11.5px;color:var(--text-3);margin-top:4px">Marque todas em que este serviço pode cair (ex.: VCA ESGOTO e VCA ÁGUA). O <b>ramo da frente</b> decide qual vale em cada lançamento.</div></div>`);
+  }
+  window._srvSel = new Set();
+  window._srvUasRender = function () {
+    const box = $('srv-uas'); if (!box) return; const obra = $('srv-obra')?.value || '', q = _uaN($('srv-uas-busca')?.value || '');
+    const fol = (dados.ua || []).filter(u => u.origem === 'RM' && u.folha && u.ativo !== false && (!obra || u.obra === obra));
+    const nomes = [...new Map(fol.map(u => [_uaN(u.nome), u])).values()].sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
+    const vis = nomes.filter(u => !q || _uaN(u.nome).includes(q) || _srvSel.has(_uaN(u.nome)));
+    box.innerHTML = vis.length ? vis.map(u => { const k = _uaN(u.nome), n = fol.filter(x => _uaN(x.nome) === k).length;
+      return `<label style="display:flex;gap:8px;align-items:flex-start;padding:4px 2px;font-size:12.5px;cursor:pointer"><input type="checkbox" ${_srvSel.has(k) ? 'checked' : ''} onchange="this.checked?_srvSel.add('${_e(k).replace(/'/g, '&#39;')}'):_srvSel.delete('${_e(k).replace(/'/g, '&#39;')}');_srvUasCont()"/><span>${_e(u.nome)} <span style="color:var(--text-3)">${_e(u.unid || '')}${n > 1 ? ' · em ' + n + ' ramos' : ''}</span></span></label>`; }).join('')
+      : `<div style="font-size:12.5px;color:var(--text-3);padding:6px">${fol.length ? 'Nada com esse filtro.' : 'Nenhuma UA do RM ainda. Importe em Obra → UA → ↑ Atualizar do RM.'}</div>`;
+    _srvUasCont();
+  };
+  window._srvUasCont = function () { const l = $('srv-uas')?.previousElementSibling?.previousElementSibling; if (l && l.tagName === 'LABEL') l.textContent = 'Custeia nas UAs (RM) * — ' + _srvSel.size + ' marcada(s)'; };
+  const srvAbrir = s => { popularSelectObra('srv-obra', s ? (s.obra || '') : (_okObraAtual() !== 'todas' ? _okObraAtual() : '')); const o0 = $('srv-obra'); if (o0 && o0.options[0]) o0.options[0].textContent = 'Todas as obras';
+    window._srvSel = new Set(((s && s.uaNomes) || []).map(_uaN)); if ($('srv-uas-busca')) $('srv-uas-busca').value = ''; _srvUasRender(); };
+  const oEdS = window.editarTipoServico;
+  window.editarTipoServico = function (id) { const r = oEdS.apply(this, arguments); srvAbrir((dados.tiposServico || []).find(x => x.id === id)); return r; };
+  document.querySelectorAll(`[onclick*="openModal('modal-novo-tipo-servico')"]`).forEach(b => b.addEventListener('click', () => setTimeout(() => srvAbrir(null), 30)));
+  const oSvS = window.salvarTipoServico;
+  window.salvarTipoServico = function () {
+    const id = $('srv-edit-id')?.value || '', cod = ($('srv-cod')?.value || '').trim(), obra = $('srv-obra')?.value || '', nomes = [..._srvSel];
+    const temRM = (dados.ua || []).some(u => u.origem === 'RM' && (!obra || u.obra === obra));
+    if (temRM && !nomes.length) { toast('Marque pelo menos uma UA que este serviço custeia.', 'error'); return; }
+    const r = oSvS.apply(this, arguments);
+    if ($('modal-novo-tipo-servico')?.classList.contains('open')) return r;
+    const s = (dados.tiposServico || []).find(x => id ? x.id === id : x.cod === cod);
+    if (s) { s.obra = obra; s.uaNomes = (dados.ua || []).filter(u => u.origem === 'RM' && nomes.includes(_uaN(u.nome))).map(u => u.nome).filter((v, i, a) => a.indexOf(v) === i); if (db && _firebaseReady) fbSave('tiposServico', s.id, s).catch(() => {}); try { renderTiposServico(); } catch (e) {} }
+    return r;
+  };
+  const oRS = window.renderTiposServico || renderTiposServico;
+  renderTiposServico = window.renderTiposServico = function () {
+    const r = oRS.apply(this, arguments); const h = document.querySelector('#page-tipos-servico thead tr');
+    if (h && !h.dataset.ua) { h.dataset.ua = '1'; h.children[h.children.length - 1].insertAdjacentHTML('beforebegin', '<th>Custeia nas UAs (RM)</th>'); }
+    const m = new Map((dados.tiposServico || []).map(s => [String(s.cod), s]));
+    document.querySelectorAll('#tbody-tipos-servico tr').forEach(tr => { const s = m.get(tr.children[0]?.textContent.trim()); if (!s || tr.dataset.ua) return; tr.dataset.ua = '1';
+      tr.children[tr.children.length - 1].insertAdjacentHTML('beforebegin', `<td style="font-size:11.5px">${(s.uaNomes || []).length ? s.uaNomes.map(n => _e(n)).join('<br>') : '<span style="color:var(--amber)">⚠ sem UA</span>'}</td>`); });
+    return r;
+  };
+
+  // ── aprovação: mostra a UA achada; se não achar, escolhe; grava no lançamento ao aprovar
+  window._aprUA = window._aprUA || {};
+  const oDet = _aprDetalheHTML;
+  _aprDetalheHTML = function (g, pend) {
+    const h = oDet.apply(this, arguments), ref = [...(g.mo || []), ...(g.eq || [])][0] || {};
+    if (!(dados.ua || []).some(u => u.origem === 'RM' && u.obra === g.obra) && !ref.ua) return h;
+    const res = uaResolver(g.obra, g.frente, g.servico), esc = window._aprUA[g.chave], gr = ref.ua ? { cod: ref.ua, nome: ref.uaNome } : null;
+    const atual = esc ? _uasDa(g.obra).find(u => u.cod === esc) : gr || res.ua;
+    let corpo;
+    if (!pend) corpo = gr ? `<b class="td-mono">${_e(gr.cod)}</b> ${_e(gr.nome || '')}` : '<span style="color:var(--text-3)">não registrada</span>';
+    else { const ops = (res.cands.length ? res.cands : _uaFolhas(g.obra)).sort((a, b) => String(a.cod).localeCompare(String(b.cod), 'pt-BR', { numeric: true }));
+      corpo = `${res.ua && !esc ? `<b class="td-mono">${_e(res.ua.cod)}</b> ${_e(res.ua.nome)} <span class="tag tag-green" style="font-size:10px">automática</span>` : `<span class="tag tag-amber" style="font-size:10.5px">UA a definir</span> <span style="font-size:11.5px;color:var(--text-3)">${_e(res.motivo || '')}</span>`}
+        <select class="form-control" style="margin-top:6px;max-width:560px" onchange="_aprUA['${_e(g.chave)}']=this.value"><option value="">${res.ua ? 'Usar a automática' : 'Escolha a UA…'}</option>${ops.map(u => `<option value="${_e(u.cod)}" ${esc === u.cod ? 'selected' : ''}>${_e(u.cod)} · ${_e(u.nome)}</option>`).join('')}</select>`; }
+    return h + `<div style="margin-top:10px;padding:10px 12px;border-radius:10px;border:1px solid var(--border)"><div class="form-label" style="margin-bottom:4px">UA do RM (custo)</div>${corpo}</div>`;
+  };
+  const oApr = window.aprAprovar;
+  window.aprAprovar = async function (chaves) {
+    const sem = [];
+    (chaves || []).forEach(k => { const g = _aprGrupos('campo').find(x => x.chave === k); if (!g) return;
+      if (!(dados.ua || []).some(u => u.origem === 'RM' && u.obra === g.obra)) return;
+      const esc = window._aprUA[k], u = esc ? _uasDa(g.obra).find(x => x.cod === esc) : uaResolver(g.obra, g.frente, g.servico).ua;
+      _aprItens(k).forEach(([col, x]) => { if (col === 'perdas') return; if (u) { x.ua = u.cod; x.uaNome = u.nome; } else { delete x.ua; } });
+      if (!u) sem.push(g.frente + ' · ' + (g.servico || '—')); });
+    if (sem.length && !confirm(sem.length + ' apontamento(s) sem UA definida:\n' + sem.slice(0, 6).join('\n') + (sem.length > 6 ? '\n…' : '') + '\n\nAprovar mesmo assim? (a UA pode ser definida depois)')) return;
+    const r = await oApr.apply(this, arguments); (chaves || []).forEach(k => delete window._aprUA[k]); return r;
+  };
+})();
+
 // Apply configs on load
 setTimeout(applyConfigs, 200);
 setTimeout(function() {
