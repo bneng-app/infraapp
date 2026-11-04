@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.06 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.07 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -13083,7 +13083,9 @@ function _qrFrenteLink(cod) { let base = 'https://obrakontrol.github.io/campo.ht
 // novas entram, alteradas atualizam, as que saíram ficam inativas (nunca apaga — o histórico aponta para elas).
 // ═══════════════════════════════════════════════════════════════
 function _uaN(t) { return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/\s+/g, ' ').trim(); }
-function _uasDa(obra) { return (dados.ua || []).filter(u => u.obra === obra && u.origem === 'RM'); }
+function _uaEap(u) { return u && (u.origem === 'RM' || u.origem === 'manual'); }
+function _uasDa(obra) { return (dados.ua || []).filter(u => u.obra === obra && _uaEap(u)); }
+function _uasRM(obra) { return (dados.ua || []).filter(u => u.obra === obra && u.origem === 'RM'); }
 function _uaFolhas(obra, todas) { return _uasDa(obra).filter(u => u.folha && (todas || u.ativo !== false)); }
 function _uaId(obra, cod) { return 'ua-' + obra + '-' + String(cod).replace(/[^\w]/g, '_'); }
 // UA do lançamento: folha cujo nome está entre as UAs do tipo de serviço, dentro do ramo da frente
@@ -13127,7 +13129,7 @@ function _uaLer(inp) {
     const cods = new Set(lst.map(x => x.cod));
     lst.forEach(x => { x.nivel = x.cod.split('.').length; x.pai = x.cod.includes('.') ? x.cod.slice(0, x.cod.lastIndexOf('.')) : ''; });
     const pais = new Set(lst.map(x => x.pai)); lst.forEach(x => { x.folha = !pais.has(x.cod); });
-    const atuais = new Map(_uasDa(_uaImp.obra).map(u => [u.cod, u]));
+    const atuais = new Map(_uasRM(_uaImp.obra).map(u => [u.cod, u]));
     const novas = [], alt = [], reat = [];
     lst.forEach(x => { const a = atuais.get(x.cod); if (!a) { novas.push(x); return; }
       const ch = ['nome', 'unid', 'qtd', 'custoUnit', 'custoTotal'].filter(k => String(a[k] ?? '') !== String(x[k] ?? '') && !(typeof x[k] === 'number' && Math.abs((+a[k] || 0) - x[k]) < 0.005));
@@ -13150,9 +13152,9 @@ function _uaLer(inp) {
 }
 async function _uaAplicar() {
   const { obra, lst, inat } = _uaImp, quando = new Date().toISOString(), salvar = [];
-  const atuais = new Map(_uasDa(obra).map(u => [u.cod, u]));
-  lst.forEach(x => { const a = atuais.get(x.cod);
-    const u = { ...(a || { id: _uaId(obra, x.cod), obra, origem: 'RM', criadoEm: quando }), cod: x.cod, desc: x.nome, nome: x.nome, qtd: x.qtd, unid: x.unid, unidNome: x.unidNome, custoUnit: x.custoUnit, custoTotal: x.custoTotal, nivel: x.nivel, pai: x.pai, folha: x.folha, ativo: true, tipo: (a && a.tipo) || 'Serviço', atualizadoEm: quando };
+  const atuais = new Map(_uasRM(obra).map(u => [u.cod, u])), manuais = new Map(_uasDa(obra).filter(u => u.origem === 'manual').map(u => [u.cod, u]));
+  lst.forEach(x => { const a = atuais.get(x.cod) || manuais.get(x.cod);   // manual com o mesmo código passa a ser do RM
+    const u = { ...(a || { id: _uaId(obra, x.cod), criadoEm: quando }), obra, origem: 'RM', cod: x.cod, desc: x.nome, nome: x.nome, qtd: x.qtd, unid: x.unid, unidNome: x.unidNome, custoUnit: x.custoUnit, custoTotal: x.custoTotal, nivel: x.nivel, pai: x.pai, folha: x.folha, ativo: true, tipo: (a && a.tipo) || 'Serviço', atualizadoEm: quando };
     if (!a || JSON.stringify(a) !== JSON.stringify({ ...u, atualizadoEm: a.atualizadoEm })) salvar.push(u); });
   inat.forEach(u => salvar.push({ ...u, ativo: false, inativadoEm: quando }));
   salvar.forEach(u => { const i = (dados.ua = dados.ua || []).findIndex(y => y.id === u.id); if (i >= 0) dados.ua[i] = u; else dados.ua.push(u); });
@@ -13172,12 +13174,12 @@ function renderUA() {
   const rm = todas.filter(u => u.origem === 'RM'), at = rm.filter(u => u.ativo !== false);
   const res = document.getElementById('ua-resumo'); if (res) res.innerHTML = rm.length ? `${at.filter(u => u.folha).length} UAs de lançamento ativas · ${rm.length - at.length} inativa(s) · última atualização ${_e(fmtData(String(rm.map(u => u.atualizadoEm || '').sort().pop() || '').slice(0, 10)))}` : 'Nenhuma UA do RM nesta obra. Clique em <b>↑ Atualizar do RM</b>.';
   const brl = v => (+v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
-  tb.innerHTML = l.length ? l.map(u => { const nv = Math.max(0, (u.nivel || 1) - 1), grupo = u.origem === 'RM' && !u.folha;
+  tb.innerHTML = l.length ? l.map(u => { const nv = Math.max(0, (u.nivel || 1) - 1), grupo = _uaEap(u) && !u.folha;
     return `<tr style="${u.ativo === false ? 'opacity:.55' : ''}${grupo ? ';background:var(--bg)' : ''}"><td class="td-mono" style="white-space:nowrap">${_e(u.cod)}</td>
       <td style="padding-left:${8 + nv * 14}px;${grupo ? 'font-weight:800' : ''}">${_e(u.nome || u.desc || '')}</td>
-      <td>${_e(u.unid || (u.origem === 'RM' ? '' : u.tipo || ''))}</td><td class="td-mono" style="text-align:right">${u.folha && u.qtd ? (+u.qtd).toLocaleString('pt-BR') : ''}</td>
+      <td>${_e(u.unid || (_uaEap(u) ? '' : u.tipo || ''))}</td><td class="td-mono" style="text-align:right">${u.folha && u.qtd ? (+u.qtd).toLocaleString('pt-BR') : ''}</td>
       <td class="td-mono" style="text-align:right">${u.custoTotal ? brl(u.custoTotal) : ''}</td>
-      <td>${u.ativo === false ? tag('Inativa', 'gray') : u.origem === 'RM' ? (grupo ? '<span style="font-size:11px;color:var(--text-3)">grupo</span>' : tag('Ativa', 'green')) : tag('Manual', 'amber')}</td>
+      <td>${u.ativo === false ? tag('Inativa', 'gray') : grupo ? '<span style="font-size:11px;color:var(--text-3)">grupo</span>' + (u.origem === 'manual' ? ' ' + tag('Manual', 'amber') : '') : u.origem === 'RM' ? tag('Ativa', 'green') : tag('Manual', 'amber')}</td>
       <td>${u.origem === 'RM' ? '' : acoesCell(`editarUA('${u.id}')`, `deletar('ua','${u.id}')`)}</td></tr>`; }).join('')
     : '<tr><td colspan="7" style="text-align:center;color:var(--text-3);padding:2rem">Nenhuma UA com esse filtro.</td></tr>';
 }
@@ -13248,7 +13250,7 @@ function renderUA() {
   window._srvSel = new Set();
   window._srvUasRender = function () {
     const box = $('srv-uas'); if (!box) return; const obra = $('srv-obra')?.value || '', q = _uaN($('srv-uas-busca')?.value || '');
-    const fol = (dados.ua || []).filter(u => u.origem === 'RM' && u.folha && u.ativo !== false && (!obra || u.obra === obra));
+    const fol = (dados.ua || []).filter(u => _uaEap(u) && u.folha && u.ativo !== false && (!obra || u.obra === obra));
     const nomes = [...new Map(fol.map(u => [_uaN(u.nome), u])).values()].sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
     const vis = nomes.filter(u => !q || _uaN(u.nome).includes(q) || _srvSel.has(_uaN(u.nome)));
     box.innerHTML = vis.length ? vis.map(u => { const k = _uaN(u.nome), n = fol.filter(x => _uaN(x.nome) === k).length;
@@ -13265,12 +13267,12 @@ function renderUA() {
   const oSvS = window.salvarTipoServico;
   window.salvarTipoServico = function () {
     const id = $('srv-edit-id')?.value || '', cod = ($('srv-cod')?.value || '').trim(), obra = $('srv-obra')?.value || '', nomes = [..._srvSel];
-    const temRM = (dados.ua || []).some(u => u.origem === 'RM' && (!obra || u.obra === obra));
+    const temRM = (dados.ua || []).some(u => _uaEap(u) && (!obra || u.obra === obra));
     if (temRM && !nomes.length) { toast('Marque pelo menos uma UA que este serviço custeia.', 'error'); return; }
     const r = oSvS.apply(this, arguments);
     if ($('modal-novo-tipo-servico')?.classList.contains('open')) return r;
     const s = (dados.tiposServico || []).find(x => id ? x.id === id : x.cod === cod);
-    if (s) { s.obra = obra; s.uaNomes = (dados.ua || []).filter(u => u.origem === 'RM' && nomes.includes(_uaN(u.nome))).map(u => u.nome).filter((v, i, a) => a.indexOf(v) === i); if (db && _firebaseReady) fbSave('tiposServico', s.id, s).catch(() => {}); try { renderTiposServico(); } catch (e) {} }
+    if (s) { s.obra = obra; s.uaNomes = (dados.ua || []).filter(u => _uaEap(u) && nomes.includes(_uaN(u.nome))).map(u => u.nome).filter((v, i, a) => a.indexOf(v) === i); if (db && _firebaseReady) fbSave('tiposServico', s.id, s).catch(() => {}); try { renderTiposServico(); } catch (e) {} }
     return r;
   };
   const oRS = window.renderTiposServico || renderTiposServico;
@@ -13288,7 +13290,7 @@ function renderUA() {
   const oDet = _aprDetalheHTML;
   _aprDetalheHTML = function (g, pend) {
     const h = oDet.apply(this, arguments), ref = [...(g.mo || []), ...(g.eq || [])][0] || {};
-    if (!(dados.ua || []).some(u => u.origem === 'RM' && u.obra === g.obra) && !ref.ua) return h;
+    if (!(dados.ua || []).some(u => _uaEap(u) && u.obra === g.obra) && !ref.ua) return h;
     const res = uaResolver(g.obra, g.frente, g.servico), esc = window._aprUA[g.chave], gr = ref.ua ? { cod: ref.ua, nome: ref.uaNome } : null;
     const atual = esc ? _uasDa(g.obra).find(u => u.cod === esc) : gr || res.ua;
     let corpo;
@@ -13302,7 +13304,7 @@ function renderUA() {
   window.aprAprovar = async function (chaves) {
     const sem = [];
     (chaves || []).forEach(k => { const g = _aprGrupos('campo').find(x => x.chave === k); if (!g) return;
-      if (!(dados.ua || []).some(u => u.origem === 'RM' && u.obra === g.obra)) return;
+      if (!(dados.ua || []).some(u => _uaEap(u) && u.obra === g.obra)) return;
       const esc = window._aprUA[k], u = esc ? _uasDa(g.obra).find(x => x.cod === esc) : uaResolver(g.obra, g.frente, g.servico).ua;
       _aprItens(k).forEach(([col, x]) => { if (col === 'perdas') return; if (u) { x.ua = u.cod; x.uaNome = u.nome; } else { delete x.ua; } });
       if (!u) sem.push(g.frente + ' · ' + (g.servico || '—')); });
@@ -13324,6 +13326,48 @@ async function uaExcluirManuais() {
 }
 (function () { const oR = renderUA; renderUA = window.renderUA = function () { const r = oR.apply(this, arguments); const b = document.getElementById('ua-btn-limpar'), o = _okObraAtual();
   if (b) b.style.display = o !== 'todas' && (dados.ua || []).some(u => u.obra === o && u.origem !== 'RM') ? '' : 'none'; return r; }; })();
+
+
+// v3.07: UA manual com os mesmos dados do RM (código da EAP, nome, quantidade, unidade, custo)
+(function () {
+  const $ = id => document.getElementById(id), m = $('modal-nova-ua'); if (!m) return;
+  const corpo = m.querySelector('.modal-body');
+  corpo.innerHTML = `<input type="hidden" id="ua-edit-id"/><div class="form-grid">
+    <div class="form-group form-full" style="background:var(--blue-light);border:1px solid #B5D4F4;border-radius:8px;padding:10px 12px"><label class="form-label" style="font-weight:600;color:var(--blue)">🏗️ Obra *</label><select class="form-control" id="ua-obra"><option value="">Selecione a obra…</option></select></div>
+    <div class="form-group"><label class="form-label" for="ua-cod">Código da Tarefa / UA *</label><input class="form-control td-mono" id="ua-cod" placeholder="Ex.: 1.002.004.001.005" oninput="_uaManPai()"/><div id="ua-pai" style="font-size:11.5px;color:var(--text-3);margin-top:3px"></div></div>
+    <div class="form-group"><label class="form-label" for="ua-unid">Unidade</label><input class="form-control" id="ua-unid" list="ua-unids" placeholder="M, M², UN, VB, Mês…"/><datalist id="ua-unids"><option value="M"><option value="M²"><option value="M³"><option value="UN"><option value="VB"><option value="Mês"><option value="KG"><option value="T"><option value="H"></datalist></div>
+    <div class="form-group form-full"><label class="form-label" for="ua-nome">Nome *</label><input class="form-control" id="ua-nome" placeholder="Como está no RM"/></div>
+    <div class="form-group"><label class="form-label" for="ua-qtd">Quantidade</label><input class="form-control" type="number" step="0.01" id="ua-qtd" oninput="_uaManTot()"/></div>
+    <div class="form-group"><label class="form-label" for="ua-cu">Custo unitário (R$)</label><input class="form-control" type="number" step="0.01" id="ua-cu" oninput="_uaManTot()"/></div>
+    <div class="form-group form-full"><div id="ua-tot" style="padding:10px 12px;border-radius:8px;background:var(--bg);font-size:13px"></div></div>
+  </div>
+  <div style="font-size:11.5px;color:var(--text-3)">Use só para o que ainda não está no RM. Quando o código vier na próxima atualização do RM, ela passa a ser do RM automaticamente.</div>`;
+  const t = m.querySelector('.modal-title'); if (t) t.textContent = 'Nova UA manual';
+  window._uaManTot = () => { const q = parseFloat($('ua-qtd').value) || 0, c = parseFloat($('ua-cu').value) || 0; $('ua-tot').innerHTML = 'Custo parcial: <b>' + (q * c).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) + '</b>'; };
+  window._uaManPai = () => { const cod = $('ua-cod').value.trim(), obra = $('ua-obra').value, el = $('ua-pai'); if (!cod.includes('.')) { el.textContent = ''; return; }
+    const pai = cod.slice(0, cod.lastIndexOf('.')), p = _uasDa(obra).find(u => u.cod === pai); el.innerHTML = p ? 'Fica dentro de: <b>' + _e(p.nome) + '</b>' : '<span style="color:var(--amber)">O grupo ' + _e(pai) + ' não existe nesta obra.</span>'; };
+  $('ua-obra').addEventListener('change', _uaManPai);
+  const abrir = u => { popularSelectObra('ua-obra', u ? u.obra : (_okObraAtual() !== 'todas' ? _okObraAtual() : ''));
+    $('ua-edit-id').value = u ? u.id : ''; $('ua-cod').value = u ? u.cod : ''; $('ua-nome').value = u ? (u.nome || u.desc || '') : ''; $('ua-unid').value = u ? (u.unid || '') : '';
+    $('ua-qtd').value = u && u.qtd ? u.qtd : ''; $('ua-cu').value = u && u.custoUnit ? u.custoUnit : ''; if (t) t.textContent = u ? 'Editar UA manual' : 'Nova UA manual'; _uaManTot(); _uaManPai(); openModal('modal-nova-ua'); };
+  document.querySelectorAll(`[onclick="openModal('modal-nova-ua')"]`).forEach(b => b.setAttribute('onclick', 'uaManualNova()'));
+  window.uaManualNova = () => abrir(null);
+  editarUA = window.editarUA = id => abrir((dados.ua || []).find(x => x.id === id));
+  salvarUA = window.salvarUA = function () {
+    const obra = $('ua-obra').value, cod = $('ua-cod').value.trim(), nome = $('ua-nome').value.trim(), id = $('ua-edit-id').value;
+    if (!obra) { toast('Selecione a obra.', 'error'); return; } if (!cod || !nome) { toast('Preencha o código e o nome.', 'error'); return; }
+    const dup = (dados.ua || []).find(u => u.obra === obra && u.cod === cod && u.id !== id); if (dup) { toast('Já existe a UA ' + cod + ' nesta obra' + (dup.origem === 'RM' ? ' (vinda do RM)' : '') + '.', 'error'); return; }
+    const q = parseFloat($('ua-qtd').value) || 0, c = parseFloat($('ua-cu').value) || 0, quando = new Date().toISOString(), pai = cod.includes('.') ? cod.slice(0, cod.lastIndexOf('.')) : '';
+    const ant = id ? (dados.ua || []).find(u => u.id === id) : null;
+    const u = { ...(ant || { id: 'uam' + Date.now().toString(36), criadoEm: quando }), obra, origem: 'manual', cod, nome, desc: nome, unid: $('ua-unid').value.trim(), qtd: q, custoUnit: c, custoTotal: q * c, nivel: cod.split('.').length, pai,
+      folha: !(dados.ua || []).some(x => x.obra === obra && x.pai === cod), ativo: true, atualizadoEm: quando };
+    (dados.ua = dados.ua || []); const i = dados.ua.findIndex(x => x.id === u.id); if (i >= 0) dados.ua[i] = u; else dados.ua.push(u);
+    // o grupo de cima deixa de ser "UA de lançamento"
+    const p = dados.ua.find(x => x.obra === obra && x.cod === pai && x.folha); if (p) { p.folha = false; if (db && _firebaseReady) fbSave('ua', p.id, p).catch(() => {}); }
+    if (db && _firebaseReady) fbSave('ua', u.id, u).catch(() => toast('Salvo aqui, mas não no servidor. Tente de novo.', 'error'));
+    closeModal('modal-nova-ua'); renderUA(); toast('UA ' + cod + ' salva.');
+  };
+})();
 
 // Apply configs on load
 setTimeout(applyConfigs, 200);
