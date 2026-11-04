@@ -883,7 +883,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.74</div>
+  <div class="login-versao">ObraKontrol Campo · v2.75</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -5272,7 +5272,7 @@ function abvRender() {
       <div class="form-group"><label class="form-label">Veículo *</label><div class="vle-row">${sel(vs.map(x => [x.id, (x.tag ? x.tag + ' · ' : '') + x.placa + ' · ' + (x.modelo || '')]), abv.veicId, vs.length ? 'Escolha…' : 'Nenhum veículo nesta obra', "abvCampo('veicId',this.value,1)")}
         <button type="button" class="btn btn-outline" onclick="abrirQR('abvv')"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-4px;margin-right:4px"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 17h4v4"/></svg>Ler TAG</button></div></div>
       ${v ? `<div class="vl-info"><b>${E(v.tag || '')}</b> · ${E(v.placa)} · ${E(v.modelo || '')}<br>Último km: <b>${u.kmMax.toLocaleString('pt-BR')}</b>${u.u ? ' · abasteceu em ' + E(String(u.u.data).split('-').reverse().join('/')) : ''}</div>` : ''}
-      <div class="form-group"><label class="form-label">Motorista (funcionário) *</label>${sel(funcs.map(x => [x.id, x.nome + ' · Mat. ' + (x.mat || '—')]), abv.motoristaId, 'Escolha o funcionário…', "abvCampo('motoristaId',this.value,1)")}</div>
+      <div class="form-group"><label class="form-label">Motorista (funcionário) *</label><div class="vle-row">${sel(funcs.map(x => [x.id, x.nome + ' · Mat. ' + (x.mat || '—')]), abv.motoristaId, 'Escolha o funcionário…', "abvCampo('motoristaId',this.value,1)")}<button type="button" class="btn btn-outline" onclick="abrirQR('abvc')"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-4px;margin-right:4px"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 17h4v4"/></svg>Ler crachá</button></div></div>
       <div style="display:flex;gap:10px"><div class="form-group" style="flex:1"><label class="form-label">Data</label><input class="form-control" type="date" value="${abv.data}" oninput="abv.data=this.value"/></div><div class="form-group" style="flex:1"><label class="form-label">Hora</label><input class="form-control" type="time" value="${abv.hora}" oninput="abv.hora=this.value"/></div></div>
     </div></div>
     <div class="card"><div class="card-body">
@@ -5326,6 +5326,9 @@ async function abvSalvar() {
   try { _modulosAplicar(); } catch (e) {}
   const oQR = processarQR;
   processarQR = function (texto, contexto) {
+    if (contexto === 'abvc') { const t = String(texto || '').trim(); let f = null; const c = typeof _funcPorCracha === 'function' ? _funcPorCracha(t) : null; if (c && c.f) f = c.f;
+      if (!f) { let mat = t; try { const o = JSON.parse(t); mat = o.mat || o.matricula || t; } catch (e) { if (/^mat:/i.test(t)) mat = t.slice(4).trim(); } f = (dadosCampo.funcionarios || []).find(x => String(x.mat) === String(mat) || x.id === mat); }
+      if (!f) { toast('Funcionário não encontrado no cadastro.', 'err'); return; } abvCampo('motoristaId', f.id, 1); toast('✓ ' + f.nome, 'ok'); return { ok: true }; }
     if (contexto !== 'abvv') return oQR.apply(this, arguments);
     const t = String(texto || '').trim(); let tag = t; try { const o = JSON.parse(t); tag = o.tag || t; } catch (e) { if (/^tag:/i.test(t)) tag = t.slice(4).trim(); }
     const v = (window._vlFrota || []).find(x => _mobNorm(x.tag) === _mobNorm(tag) || _mobNorm(x.placa) === _mobNorm(tag));
