@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.22 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.23 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -1222,10 +1222,11 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
   </div>
   <div class="card"><div class="card-body">
-    <div class="search-wrap"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="busca-func" placeholder="Buscar por matrícula, nome ou cargo…" oninput="renderFuncionarios(0)"/></div>
+    <div style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:center;margin-bottom:.75rem"><div class="search-wrap" style="flex:1;min-width:240px;margin:0"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="busca-func" placeholder="Buscar por matrícula, nome ou cargo…" oninput="renderFuncionarios(0)"/></div>
+      <select class="form-control" id="filtro-func-vinculo" style="width:auto;min-width:150px" onchange="renderFuncionarios(0)" aria-label="Vínculo"><option value="">CLT e PJ</option><option value="CLT">Só CLT</option><option value="PJ">Só PJ</option></select></div>
     <div class="table-wrap">
       <table id="tabela-func">
-        <thead><tr><th style="width:36px"><input type="checkbox" class="cb-row-check" id="cb-master-funcionarios" onchange="toggleSelectAll('funcionarios',this)" title="Selecionar todos"></th><th>Obra</th><th>Matrícula</th><th>Nome</th><th>Cód. Função</th><th>Função</th><th>Tipo de custo</th><th style="text-align:right">Salário</th><th>CPF</th><th>Admissão</th><th>Situação</th><th>Gera apont.</th><th>Apropriador</th><th>Telefone</th><th></th></tr></thead>
+        <thead><tr><th style="width:36px"><input type="checkbox" class="cb-row-check" id="cb-master-funcionarios" onchange="toggleSelectAll('funcionarios',this)" title="Selecionar todos"></th><th>Obra</th><th>Matrícula</th><th>Nome</th><th>Vínculo</th><th>Cód. Função</th><th>Função</th><th>Tipo de custo</th><th style="text-align:right">Salário</th><th>CPF</th><th>Admissão</th><th>Situação</th><th>Gera apont.</th><th>Apropriador</th><th>Telefone</th><th></th></tr></thead>
         <tbody id="tbody-func"><tr><td colspan="10" class="empty-row">Carregando…</td></tr></tbody>
       </table>
     </div>
@@ -3024,6 +3025,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
         <div class="form-group"><label class="form-label">Tipo de custo</label>
           <select class="form-control" id="func-direto" onchange="const g=document.getElementById('func-gera'); if(g) g.value=this.value==='Não'?'Não':'Sim'"><option value="Sim">Direto</option><option value="Não">Indireto</option></select>
         </div>
+        <div class="form-group"><label class="form-label">Vínculo</label><select class="form-control" id="func-vinculo"><option value="CLT">CLT</option><option value="PJ">PJ</option></select></div>
         <div class="form-group"><label class="form-label">Gera apontamento</label>
           <select class="form-control" id="func-gera"><option value="Sim">Sim — precisa ser apontado todo dia</option><option value="Não">Não — indireto, administrativo…</option></select>
         </div>
@@ -5187,13 +5189,14 @@ function renderFuncionarios(pagina) {
   const _funcsAll = (!_obraId||_obraId==='todas') ? (dados.funcionarios||[]) : (dados.funcionarios||[]).filter(x=>!x.obra||x.obra===_obraId);
   
   // Filtro por busca
-  const busca = document.getElementById('busca-func')?.value?.toLowerCase()||'';
-  const _funcs = busca ? _funcsAll.filter(f =>
+  const busca = document.getElementById('busca-func')?.value?.toLowerCase()||'', _fv = document.getElementById('filtro-func-vinculo')?.value || '';
+  const _funcsV = _fv ? _funcsAll.filter(f => (f.vinculo || 'CLT') === _fv) : _funcsAll;
+  const _funcs = busca ? _funcsV.filter(f =>
     (f.mat||'').toLowerCase().includes(busca) ||
     (f.nome||'').toLowerCase().includes(busca) ||
     (f.codFuncao||'').toLowerCase().includes(busca) ||
     String(f.cpf||'').replace(/\D/g,'').includes(busca.replace(/\D/g,'') || '§')
-  ) : _funcsAll;
+  ) : _funcsV;
 
   const total = _funcs.length;
   const totalPags = Math.ceil(total / _PG_SIZE);
@@ -5211,6 +5214,7 @@ function renderFuncionarios(pagina) {
         return `<tr>${cbTD('funcionarios',f.id)}<td style='font-size:11px;color:var(--text-3)'>${getNomeObra(f.obra)}</td>
         <td class="td-mono"><strong>${f.mat}</strong></td>
         <td>${f.nome}</td>
+        <td>${tag(f.vinculo === 'PJ' ? 'PJ' : 'CLT', f.vinculo === 'PJ' ? 'amber' : 'gray')}</td>
         <td class="td-mono">${f.codFuncao}</td>
         <td>${nomeFunc}</td>
         <td>${tag(f.direto === 'Não' ? 'Indireto' : 'Direto', f.direto === 'Não' ? 'gray' : 'green')}</td>
@@ -5223,7 +5227,7 @@ function renderFuncionarios(pagina) {
         <td style="white-space:nowrap">${f.tel ? _e(f.tel) + ' ' + _waBotao(f.tel, '', 'mini') : '<span style="color:var(--text-3)">—</span>'}</td>
         <td>${acoesCell(`editarFuncionario('${f.id}')`,`deletar('funcionarios','${f.id}')`)}</td>
       </tr>`;}).join('')
-    : '<tr><td colspan="14" style="text-align:center;color:var(--text-3);padding:2rem">Nenhum funcionário cadastrado</td></tr>';
+    : '<tr><td colspan="15" style="text-align:center;color:var(--text-3);padding:2rem">Nenhum funcionário cadastrado</td></tr>';
 
   // Paginação
   const pgBar = document.getElementById('pag-func');
@@ -10336,14 +10340,14 @@ async function _sincApropriadores() {
   window.editarFuncionario = function (id) {
     const r = oEdit.apply(this, arguments);
     const f = (dados.funcionarios || []).find(x => x.id === id);
-    if (f) { if ($('func-salario')) $('func-salario').value = f.salario || ''; if ($('func-cpf')) $('func-cpf').value = f.cpf || '';
+    if (f) { if ($('func-vinculo')) $('func-vinculo').value = f.vinculo === 'PJ' ? 'PJ' : 'CLT'; if ($('func-salario')) $('func-salario').value = f.salario || ''; if ($('func-cpf')) $('func-cpf').value = f.cpf || '';
       if ($('func-gera')) $('func-gera').value = _geraApont(f); if ($('func-aprop')) $('func-aprop').value = f.apropriador === 'Sim' ? 'Sim' : 'Não'; if ($('func-tel')) $('func-tel').value = f.tel || ''; if ($('func-aprop-dica')) $('func-aprop-dica').style.display = f.apropriador === 'Sim' ? '' : 'none'; }
     return r;
   };
   const oSave = window.salvarFuncionario;
   window.salvarFuncionario = function () {
     const v = id => ($(id)?.value || '');
-    const extra = { geraApont: v('func-gera') || 'Sim', apropriador: v('func-aprop') === 'Sim' ? 'Sim' : 'Não', tel: v('func-tel').trim(), salario: parseFloat(v('func-salario')) || 0, cpf: _cpfFmt(v('func-cpf')) };
+    const extra = { vinculo: v('func-vinculo') === 'PJ' ? 'PJ' : 'CLT', geraApont: v('func-gera') || 'Sim', apropriador: v('func-aprop') === 'Sim' ? 'Sim' : 'Não', tel: v('func-tel').trim(), salario: parseFloat(v('func-salario')) || 0, cpf: _cpfFmt(v('func-cpf')) };
     if (extra.cpf && !_cpfValido(extra.cpf)) { toast('CPF inválido: confira os números.', 'error'); return; }
     const mat = v('func-mat').trim(), obra = v('func-obra'), idEd = v('func-edit-id');
     const r = oSave.apply(this, arguments);
@@ -10354,13 +10358,13 @@ async function _sincApropriadores() {
     if (db && _firebaseReady) fbSave('funcionarios', f.id, f).catch(() => {});
     try { renderFuncionarios(); } catch (e) {}
     if (f.apropriador === 'Sim') _garantirApropriador(f);
-    ['func-gera', 'func-aprop'].forEach(i => { if ($(i)) $(i).selectedIndex = 0; }); ['func-tel', 'func-salario', 'func-cpf'].forEach(i => { if ($(i)) $(i).value = ''; }); if ($('func-aprop-dica')) $('func-aprop-dica').style.display = 'none';
+    ['func-gera', 'func-aprop', 'func-vinculo'].forEach(i => { if ($(i)) $(i).selectedIndex = 0; }); ['func-tel', 'func-salario', 'func-cpf'].forEach(i => { if ($(i)) $(i).value = ''; }); if ($('func-aprop-dica')) $('func-aprop-dica').style.display = 'none';
     return r;
   };
   const oClose = window.closeModal;
   window.closeModal = function (id) {
     const r = oClose.apply(this, arguments);
-    if (id === 'modal-novo-func') { ['func-gera', 'func-aprop'].forEach(i => { if ($(i)) $(i).selectedIndex = 0; }); ['func-tel', 'func-salario', 'func-cpf'].forEach(i => { if ($(i)) $(i).value = ''; }); if ($('func-aprop-dica')) $('func-aprop-dica').style.display = 'none'; }
+    if (id === 'modal-novo-func') { ['func-gera', 'func-aprop', 'func-vinculo'].forEach(i => { if ($(i)) $(i).selectedIndex = 0; }); ['func-tel', 'func-salario', 'func-cpf'].forEach(i => { if ($(i)) $(i).value = ''; }); if ($('func-aprop-dica')) $('func-aprop-dica').style.display = 'none'; }
     return r;
   };
   // importação: depois de gravar os funcionários, cria os acessos dos apropriadores
@@ -13457,6 +13461,9 @@ async function uaExcluirManuais() {
       else { it.resp.push({ id: 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 4), func: f.id, nome: f.nome, mat: f.mat || '', funcao: f.funcao || '', cnhCat: it._cat, cnhVal: it._cnhv, inicio: it.mobData, registradoPor: 'importação' });
         if (!it._cat || !it._cnhv) it.__aviso = 'veículo ' + it.placa + ': responsável sem categoria/validade da CNH (complete em Frota → Responsáveis)'; } }
     delete it._resp; delete it._cat; delete it._cnhv; return ''; };
+  // ── v3.23: Funcionários com Vínculo (CLT / PJ)
+  D.funcionarios.col = D.funcionarios.col.concat(['Vínculo (CLT/PJ)']);
+  { const m = D.funcionarios.map; D.funcionarios.map = g => ({ ...m(g), vinculo: /pj/i.test(String(g(['vínculo', 'vinculo']) || '')) ? 'PJ' : 'CLT' }); }
   // ── REPÚBLICAS
   D.republicas = { rotulo: 'Repúblicas e alojamentos', porObra: true, chave: 'nome',
     col: ['Código (deixe em branco: o sistema gera)', 'Nome', 'Tipo (República / Alojamento / Hotel / Outro)', 'Endereço', 'Vagas', 'Proprietário (nome completo)', 'CPF / CNPJ do proprietário', 'Telefone', 'Início do contrato (DD/MM/AAAA)', 'Fim do contrato (DD/MM/AAAA)', 'Aluguel (R$/mês)', 'IPTU / seguro / condomínio (R$/mês)', 'Água (R$/mês)', 'Luz (R$/mês)', 'Internet (R$/mês)', 'Moradores (matrícula ou nome, separe por ;)', 'Entrada dos moradores (DD/MM/AAAA)'],
@@ -13477,7 +13484,7 @@ async function uaExcluirManuais() {
     mats.forEach(tx => { const md = /\(\s*([\d\/.-]+)\s*\)\s*$/.exec(tx), ent = (md && dt(md[1])) || ent0; let mt = (md ? tx.slice(0, md.index) : tx).trim(), fn = '';
       const iBar = mt.indexOf(' / '); if (iBar > 0) { fn = mt.slice(iBar + 3).trim(); mt = mt.slice(0, iBar).trim(); }
       const fs = (dados.funcionarios || []).filter(x => !x.obra || x.obra === it.obra);
-      const f = /^\d+$/.test(mt) ? fs.find(x => String(x.mat) === mt) : fs.find(x => _nn(x.nome) === _nn(mt));
+      const f = fs.find(x => String(x.mat).toUpperCase() === mt.toUpperCase()) || (/^\d+$/.test(mt) ? null : fs.find(x => _nn(x.nome) === _nn(mt)));
       const mid = 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
       if (!f) { if (/^\d+$/.test(mt)) { nao.push(mt); return; } it.moradores.push({ id: mid, func: '', mat: '', nome: mt, funcao: fn, entrada: ent, externo: true }); return; }
       if (ocupados.has(f.id)) { nao.push(mt); return; } ocupados.add(f.id);
