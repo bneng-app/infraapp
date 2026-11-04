@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.07 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.08 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -3777,7 +3777,7 @@ async function fbLoadAll(colecao) {
 // TEMPLATE EXCEL + IMPORTAÇÃO CSV/XLSX
 // ═══════════════════════════════════════════════════════════════
 
-const _COLUNAS = {'obras': ['Código', 'Nome da Obra', 'Local/Município', 'Status'], 'empresas': ['Código', 'Razão Social', 'CNPJ', 'Tipo', 'Responsável'], 'ua': ['Código UA', 'Descrição', 'Tipo'], 'cargos': ['Cód. Função', 'Nome da Função', 'Cód. Recurso', 'Direto (Sim/Não)', 'Operador (Sim/Não)'], 'funcionarios': ['Matrícula', 'Nome Completo', 'Cód. Função', 'Direto (Sim/Não)', 'Data Admissão (DD/MM/AAAA)', 'Data Demissão', 'Matr. Líder', 'Cód. Equipe'], 'familias': ['Código', 'Descrição'], 'modelos': ['Código', 'Nome do Modelo', 'Família'], 'equipamentos': ['TAG', 'Placa/Série', 'Cód. Modelo', 'Família', 'Proprietário', 'Status', 'Data Mobilização']};
+// (v3.08: lista antiga de colunas removida — os templates usam IMPORT_DEF)
 
 function baixarTemplate(tipo) {
   if (typeof XLSX === 'undefined') {
@@ -8754,7 +8754,7 @@ window.abrirImportacao = function (tipo) {
   if ($('import-custo-wrap')) { $('import-custo-wrap').style.display = ['pacote','historico','cargos','equipamentos','funcionarios','tanques','frentes','modelos'].includes(tipo) ? 'flex' : 'none'; $('import-atualizar-custo').checked = false; }
   const f = $('import-file'); if (f) { f.value = ''; f.onchange = function () { previewImport(this); }; }
   const pv = $('import-preview'); if (pv) { pv.innerHTML = tipo === 'pacote'
-    ? 'Um arquivo Excel com <strong>uma aba por cadastro</strong>: Obras, Empresas, UA, Cargos, Frentes, Tipos de serviço, Turnos, Funcionários, Modelos (tanque e consumo previsto) e Equipamentos (com família e modelo). Não precisa de coluna "Obra": vale a obra da aba Obras ou a escolhida no topo. Registros com código que já existe são ignorados.<br><span style="color:var(--text-3)">Apontamentos e abastecimentos antigos vão no arquivo de <strong>histórico</strong>. Tipos de perda e tanques são cadastrados no painel.</span>'
+    ? 'Um arquivo Excel com <strong>uma aba por cadastro</strong>: Obras, Fornecedores (pelo CNPJ do banco), Funções, Frentes, Tipos de serviço, Turnos, Funcionários, Modelos (tanque e consumo previsto) e Equipamentos (com família e modelo). Não precisa de coluna "Obra": vale a obra da aba Obras ou a escolhida no topo. Registros com código que já existe são ignorados.<br><span style="color:var(--text-3)">Apontamentos e abastecimentos antigos vão no arquivo de <strong>histórico</strong>. Tipos de perda e tanques são cadastrados no painel.</span>'
     : tipo === 'historico'
     ? 'Um arquivo com as abas <strong>Apontamentos MO</strong>, <strong>Apontamentos EQ</strong> e/ou <strong>Abastecimentos</strong>. Os funcionários, equipamentos e frentes já precisam estar cadastrados. Escolha a obra no topo antes de importar.'
     : 'Registros com código que já existe são ignorados.' + (IMPORT_DEF[tipo]?.porObra ? ' Vale a obra escolhida no topo.' : ''); pv.style.display = 'block'; }
@@ -8824,7 +8824,7 @@ window.confirmarImportacao = async function () {
       ['renderObras','renderEmpresas','renderUA','renderCargos','renderTurnos','renderFuncionarios','renderFamilias','renderModelos','renderEquipamentos','renderFrentes','renderTiposServico','renderServicos','renderTiposPerdas']
         .forEach(fn => { try { if (typeof window[fn] === 'function') window[fn](); } catch (x) {} });
       try { popularSelects(); } catch (x) {}
-      const linhas = Object.entries(resumo).map(([t, r]) => '<strong>' + IMPORT_DEF[t].rotulo + ':</strong> ' + r.ok + ' importado(s)' + (r.atual ? ', <strong>' + r.atual + ' atualizado(s)</strong>' : '') + (r.dup ? ', ' + r.dup + ' já existiam' : '') + (r.erro ? ', <span style="color:var(--red)">' + r.erro + ' com erro</span> (' + r.avisos.join('; ') + ')' : ''));
+      const linhas = Object.entries(resumo).map(([t, r]) => '<strong>' + IMPORT_DEF[t].rotulo + ':</strong> ' + r.ok + ' importado(s)' + (r.atual ? ', <strong>' + r.atual + ' atualizado(s)</strong>' : '') + (r.dup ? ', ' + r.dup + ' já existiam' : '') + (r.erro ? ', <span style="color:var(--red)">' + r.erro + ' com erro</span> (' + r.avisos.join('; ') + ')' : (r.avisos && r.avisos.length ? ' <span style="color:var(--amber)">⚠ ' + r.avisos.join('; ') + '</span>' : '')));
       const nf = (window.__impCriados||[]).filter(x => x[0] === 'familias').length, nm = (window.__impCriados||[]).filter(x => x[0] === 'modelos').length;
       if (nf || nm) linhas.push('<strong>Famílias e modelos:</strong> ' + nf + ' família(s) e ' + nm + ' modelo(s) criados a partir de Equipamentos');
       const total = Object.values(resumo).reduce((a, r) => a + r.ok, 0), atual = Object.values(resumo).reduce((a, r) => a + (r.atual || 0), 0), erros = Object.values(resumo).reduce((a, r) => a + (r.erro || 0), 0);
@@ -13367,6 +13367,112 @@ async function uaExcluirManuais() {
     if (db && _firebaseReady) fbSave('ua', u.id, u).catch(() => toast('Salvo aqui, mas não no servidor. Tente de novo.', 'error'));
     closeModal('modal-nova-ua'); renderUA(); toast('UA ' + cod + ' salva.');
   };
+})();
+
+
+// ═══════════════════════════════════════════════════════════════
+// v3.08: TEMPLATES DE IMPORTAÇÃO conforme o desenho novo
+// Fornecedores pelo CNPJ (do banco) · UA só pelo RM · Tipos de serviço por obra com UAs · frente com ramo conferido ·
+// Equipamentos com chassi/série/ano/validade · histórico com UA · NOVOS: Frota (veículos) e Repúblicas
+// ═══════════════════════════════════════════════════════════════
+(function () {
+  const D = IMPORT_DEF, dig = v => String(v || '').replace(/\D/g, ''), N = v => _uaN(v);
+  const num = v => _numImport(v), dt = v => { try { return excelDataParaISO(v) || ''; } catch (e) { return ''; } };
+  // pós-processamento por tipo: devolve texto de erro (linha recusada) ou '' (ok); pode deixar aviso em item.__aviso
+  const POS = {};
+  const oImp = _importarLinhas;
+  _importarLinhas = window._importarLinhas = function (tipo, rows, resumo) {
+    const novos = oImp.apply(this, arguments), fn = POS[tipo]; if (!fn || !novos.length) return novos;
+    const r = resumo[tipo], lista = dados[tipo] || [], ok = [];
+    novos.forEach(it => { const erro = fn(it, ok);
+      if (it.__aviso) { if (r.avisos.length < 6) r.avisos.push(it.__aviso); delete it.__aviso; }
+      if (erro) { r.ok--; r.erro++; if (r.avisos.length < 6) r.avisos.push(erro); const i = lista.indexOf(it); if (i >= 0) lista.splice(i, 1); } else ok.push(it); });
+    return ok;
+  };
+  // ── Obras: crachá do cliente
+  D.obras.col = D.obras.col.concat(['Crachá do cliente (Sim/Não)']);
+  { const m = D.obras.map; D.obras.map = g => ({ ...m(g), qrCracha: /^s/i.test(String(g(['crachá', 'cracha']) || '')) ? 'cliente' : '' }); }
+  // ── Fornecedores: pelo CNPJ, nome vem do banco
+  D.empresas.rotulo = 'Fornecedores';
+  D.empresas.col = ['Código', 'CNPJ / CPF', 'Tipo (Própria / Locadora / Empreiteira / Fornecedora / Prestadora)', 'Responsável'];
+  D.empresas.map = g => ({ cod: g(['código', 'codigo', 'cod']), cnpj: String(g(['cnpj', 'cpf']) || ''), tipo: g(['tipo']) || 'Fornecedora', resp: g(['responsável', 'responsavel']) });
+  D.empresas.ok = x => x.cod && x.cnpj;
+  POS.empresas = it => { const b = (dados.fornBanco || []).find(x => dig(x.doc) === dig(it.cnpj));
+    if (!b) return 'CNPJ ' + it.cnpj + ' (' + it.cod + ') não está no banco de fornecedores — peça ao Master para incluir';
+    it.nome = b.razao; it.cnpj = b.doc; it.bancoId = b.id; const t = String(it.tipo || ''); it.tipo = /pr[oó]pria/i.test(t) ? 'Própria' : /loca/i.test(t) ? 'Locadora' : /empreit/i.test(t) ? 'Empreiteira' : /presta/i.test(t) ? 'Prestadora' : 'Fornecedora'; return ''; };
+  // ── UA: só pelo "Atualizar do RM"
+  delete D.ua;
+  [IMPORT_PACOTE, IMPORT_PACOTE_MODELO].forEach(a => { const i = a.indexOf('ua'); if (i >= 0) a.splice(i, 1); });
+  // ── Funções e Tipos de parada (só o nome)
+  D.cargos.rotulo = 'Funções'; D.tiposPerdas.rotulo = 'Tipos de parada';
+  // ── Frentes: confere o ramo da EAP
+  POS.frentes = it => { if (!it.ramoUA) return ''; const temEap = _uasDa(it.obra).length;
+    if (temEap && !_uasDa(it.obra).some(u => u.cod === it.ramoUA && !u.folha)) { it.__aviso = 'frente ' + (it.cod || it.desc) + ': ramo ' + it.ramoUA + ' não existe na EAP desta obra — importada sem ramo'; it.ramoUA = ''; } return ''; };
+  // ── Tipos de serviço: da obra, com as UAs que custeia
+  D.tiposServico.porObra = true;
+  D.tiposServico.col = ['Código', 'Nome do serviço', 'Unidade', 'Meta diária', 'UAs do RM que custeia (nomes, separe por ;)'];
+  { const m = D.tiposServico.map; D.tiposServico.map = g => ({ ...m(g), uaNomes: String(g(['uas do rm', 'uas', 'custeia']) || '').split(/;|\n/).map(s => s.trim()).filter(Boolean) }); }
+  POS.tiposServico = it => { const fol = _uaFolhas(it.obra), ach = [], falta = [];
+    (it.uaNomes || []).forEach(n => { const u = fol.find(x => N(x.nome) === N(n)); if (u) { if (!ach.includes(u.nome)) ach.push(u.nome); } else falta.push(n); });
+    it.uaNomes = ach; if (falta.length) it.__aviso = 'serviço ' + it.cod + ': UA não encontrada na EAP — ' + falta.slice(0, 3).join('; ');
+    else if (fol.length && !ach.length) it.__aviso = 'serviço ' + it.cod + ': sem UA vinculada (complete em Tipos de serviço)'; return ''; };
+  // ── Equipamentos: chassi, série, ano e validade do documento
+  D.equipamentos.col = D.equipamentos.col.concat(['Chassi', 'Nº de série', 'Ano de fabricação', 'Validade do documento (DD/MM/AAAA)']);
+  { const m = D.equipamentos.map; D.equipamentos.map = g => ({ ...m(g), chassi: String(g(['chassi']) || '').toUpperCase(), serie: String(g(['nº de série', 'n° de série', 'numero de serie', 'número de série']) || ''), ano: String(g(['ano de fab']) || ''), docValidade: dt(g(['validade do doc'])) }); }
+  // ── Histórico de MO / EQ: UA do RM (opcional)
+  ['aponMO', 'aponEQ'].forEach(t => { D[t].col = D[t].col.concat(['UA (código RM, opcional)']); const m = D[t].map; D[t].map = g => ({ ...m(g), ua: String(g(['ua (código', 'código rm', 'codigo rm']) || '').trim() });
+    POS[t] = it => { if (it.ua) { const u = _uasDa(it.obra).find(x => x.cod === it.ua); if (u) it.uaNome = u.nome; else { it.__aviso = 'UA ' + it.ua + ' não existe na EAP — lançamento importado sem UA'; delete it.ua; } }
+      if (!it.ua) { const r = uaResolver(it.obra, it.frente, it.servico); if (r.ua) { it.ua = r.ua.cod; it.uaNome = r.ua.nome; } else delete it.ua; } return ''; }; });
+  // ── FROTA (veículos)
+  D.frota = { rotulo: 'Frota (veículos)', porObra: true, chave: 'placa',
+    col: ['Placa', 'Marca / modelo (como no cadastro de Modelos)', 'Tipo (Carro / Picape / Van / Moto)', 'Ano', 'Cor', 'Chassi', 'Renavam', 'Locadora', 'Nº do contrato', 'Valor mensal (R$)', 'Fim do contrato (DD/MM/AAAA)', 'Chegou na obra em (DD/MM/AAAA)', 'Validade do CRLV (DD/MM/AAAA)', 'Responsável (matrícula)', 'CNH categoria', 'CNH validade (DD/MM/AAAA)'],
+    map: g => ({ placa: String(g(['placa']) || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase(), modelo: g(['marca', 'modelo']), tipo: g(['tipo']) || 'Carro', ano: String(g(['ano']) || ''), cor: g(['cor']), chassi: String(g(['chassi']) || '').toUpperCase(), renavam: String(g(['renavam']) || ''),
+      locadora: g(['locadora']), contrato: String(g(['nº do contrato', 'n° do contrato', 'contrato']) || ''), valorMes: num(g(['valor'])), fimContrato: dt(g(['fim do contrato'])), mobData: dt(g(['chegou'])), crlvVal: dt(g(['crlv'])),
+      _resp: String(g(['responsável', 'responsavel']) || '').trim(), _cat: String(g(['cnh categoria', 'categoria']) || '').toUpperCase().replace(/[^A-E]/g, ''), _cnhv: dt(g(['cnh validade'])) }),
+    ok: x => x.placa && x.modelo && x.locadora };
+  POS.frota = it => {
+    if (!/^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/.test(it.placa)) return 'placa ' + it.placa + ' inválida';
+    const m = (dados.modelos || []).find(x => (!x.obra || x.obra === it.obra) && (N(x.nome) === N(it.modelo) || N(x.cod) === N(it.modelo)));
+    if (!m) return 'veículo ' + it.placa + ': modelo "' + it.modelo + '" não cadastrado (cadastre em Equipamentos → Modelos)';
+    it.modelo = m.nome || m.cod; it.codModelo = m.cod || ''; it.modeloId = m.id; it.familia = m.familia || '';
+    const tp = String(it.tipo || ''); it.tipo = /pic/i.test(tp) ? 'Picape' : /van|util/i.test(tp) ? 'Van / utilitário' : /moto/i.test(tp) ? 'Moto' : /carro/i.test(tp) || !tp ? 'Carro' : 'Outro';
+    it.status = 'Em uso'; it.resp = []; it.criadoEm = new Date().toISOString(); if (!it.mobData) it.mobData = _hojeLocal();
+    if (it._resp) { const f = (dados.funcionarios || []).find(x => String(x.mat) === it._resp && (!x.obra || x.obra === it.obra));
+      if (!f) it.__aviso = 'veículo ' + it.placa + ': matrícula ' + it._resp + ' não encontrada — importado sem responsável';
+      else { it.resp.push({ id: 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 4), func: f.id, nome: f.nome, mat: f.mat || '', funcao: f.funcao || '', cnhCat: it._cat, cnhVal: it._cnhv, inicio: it.mobData, registradoPor: 'importação' });
+        if (!it._cat || !it._cnhv) it.__aviso = 'veículo ' + it.placa + ': responsável sem categoria/validade da CNH (complete em Frota → Responsáveis)'; } }
+    delete it._resp; delete it._cat; delete it._cnhv; return ''; };
+  // ── REPÚBLICAS
+  D.republicas = { rotulo: 'Repúblicas', porObra: true, chave: 'nome',
+    col: ['Nome', 'Tipo (República / Alojamento / Hotel / Outro)', 'Endereço', 'Vagas', 'Proprietário (nome completo)', 'CPF / CNPJ do proprietário', 'Telefone', 'Início do contrato (DD/MM/AAAA)', 'Fim do contrato (DD/MM/AAAA)', 'Aluguel (R$/mês)', 'Água (R$/mês)', 'Luz (R$/mês)', 'Internet (R$/mês)', 'Moradores (matrículas, separe por ;)', 'Entrada dos moradores (DD/MM/AAAA)'],
+    map: g => ({ nome: g(['nome']), tipo: g(['tipo']) || 'República', endereco: g(['endereço', 'endereco']), vagas: parseInt(g(['vagas'])) || 0, responsavel: g(['proprietário (nome', 'proprietario (nome', 'proprietário', 'proprietario']), propDoc: String(g(['cpf', 'cnpj']) || ''), tel: String(g(['telefone']) || ''),
+      inicio: dt(g(['início', 'inicio'])), fim: dt(g(['fim do contrato'])), aluguel: num(g(['aluguel'])), agua: num(g(['água', 'agua'])), luz: num(g(['luz'])), internet: num(g(['internet'])), _mor: String(g(['moradores']) || ''), _ent: dt(g(['entrada'])) }),
+    ok: x => x.nome && x.vagas };
+  POS.republicas = (it, feitos) => {
+    if (!it.responsavel) return 'república ' + it.nome + ': falta o proprietário';
+    if (it.propDoc) { const d = dig(it.propDoc); if (!(d.length === 11 ? _cpfValido(d) : d.length === 14 ? _cnpjValido(d) : false)) { it.__aviso = 'república ' + it.nome + ': CPF/CNPJ do proprietário inválido — importada sem ele'; it.propDoc = ''; } else it.propDoc = _docFmt(d); }
+    const t = String(it.tipo || ''); it.tipo = /aloj/i.test(t) ? 'Alojamento' : /hot|pous/i.test(t) ? 'Hotel / pousada' : /rep/i.test(t) || !t ? 'República' : 'Outro';
+    let mx = 0; (dados.republicas || []).concat(feitos).forEach(r => { const m = /^REP-(\d+)$/i.exec(r.cod || ''); if (m) mx = Math.max(mx, +m[1]); }); it.cod = 'REP-' + String(mx + 1).padStart(3, '0');
+    it.status = 'Ativa'; it.extras = []; it.moradores = []; it.criadoEm = new Date().toISOString();
+    const ent = it._ent || _hojeLocal(), mats = it._mor.split(/[;,\n]/).map(s => s.trim()).filter(Boolean), nao = [];
+    const ocupados = new Set((dados.republicas || []).concat(feitos).flatMap(r => (r.moradores || []).filter(m => !m.saida).map(m => m.func)));
+    mats.forEach(mt => { const f = (dados.funcionarios || []).find(x => String(x.mat) === mt && (!x.obra || x.obra === it.obra));
+      if (!f || ocupados.has(f.id)) { nao.push(mt); return; } ocupados.add(f.id);
+      it.moradores.push({ id: 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), func: f.id, mat: f.mat || '', nome: f.nome, funcao: f.funcao || '', entrada: ent }); });
+    if (nao.length) it.__aviso = 'república ' + it.nome + ': matrícula(s) não encontrada(s) ou já em outra república — ' + nao.slice(0, 5).join(', ');
+    if (it.moradores.length > it.vagas && !it.__aviso) it.__aviso = 'república ' + it.nome + ': mais moradores que vagas';
+    delete it._mor; delete it._ent; return ''; };
+  ['frota', 'republicas'].forEach(t => { if (!IMPORT_ORDEM.includes(t)) IMPORT_ORDEM.push(t); });
+  Object.assign(_ABA_TIPO, { fornecedores: 'empresas', funcoes: 'cargos', tiposdeparada: 'tiposPerdas', paradas: 'tiposPerdas', frota: 'frota', veiculos: 'frota', frotaveiculos: 'frota', republicas: 'republicas', alojamentos: 'republicas' });
+  // UA: o botão antigo de importar leva para o "Atualizar do RM"
+  const oAbr = window.abrirImportacao;
+  window.abrirImportacao = function (tipo) { if (tipo === 'ua') { uaRmAbrir(); return; } return oAbr.apply(this, arguments); };
+  // botões de importar / template nas telas de Frota e Repúblicas
+  const bt = (pg, tipo) => { const g = document.querySelector('#page-' + pg + ' .page-header .btn-group'); if (g && !g.querySelector('.imp-bt')) g.insertAdjacentHTML('afterbegin', `<button class="btn btn-outline btn-sm imp-bt" onclick="abrirImportacao('${tipo}')">↑ Importar</button><button class="btn btn-outline btn-sm" onclick="baixarTemplate('${tipo}')">↓ Template</button>`); };
+  bt('frota', 'frota'); bt('republicas', 'republicas');
+  // depois de importar, as telas novas também se atualizam
+  const oRe = window._rerenderTelaAtual;
+  if (typeof oRe === 'function') window._rerenderTelaAtual = _rerenderTelaAtual = function () { const r = oRe.apply(this, arguments); ['renderFrota', 'renderFrotaResp', 'renderRepublicas', 'renderAlojados'].forEach(fn => { try { if (typeof window[fn] === 'function') window[fn](); } catch (e) {} }); return r; };
 })();
 
 // Apply configs on load
