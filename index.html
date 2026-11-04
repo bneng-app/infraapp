@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.17 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.18 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -13992,7 +13992,7 @@ async function _diaFotos(el) {
       ${abs.map(d => { const al = typeof _absAlertas === 'function' ? _absAlertas(d) : []; return `<tr><td class="td-mono">${E(d.hora || String(d.dt || '').slice(11, 16) || '—')}</td><td><b>${E(d.equip || '—')}</b></td><td class="td-mono" style="text-align:right">${_fmtN(+d.litros || 0)}</td>
         <td class="td-mono" style="text-align:right">${E(d.hor || d.horimetro || '—')}</td><td>${E(tq(d.tanqueId || d.tanque))}</td><td class="mu">${E(d.lancadoPor || '—')}</td><td>${al.length ? al.map(x => `<span class="dia-tg al">⚠ ${E(x.txt)}</span>`).join(' ') : '<span class="mu">—</span>'}</td></tr>`; }).join('')}</tbody></table></div>`;
     // Mobilizações
-    const rotMob = m => m.tipo === 'veiculo_entrada' ? ['ent', 'Veículo chegou'] : m.tipo === 'veiculo_saida' ? ['sai', 'Veículo devolvido'] : ['ent', 'Equipamento chegou'];
+    const rotMob = m => m.tipo === 'veiculo_entrada' ? ['ent', 'Veículo chegou'] : m.tipo === 'veiculo_saida' ? ['sai', 'Veículo devolvido à locadora'] : m.tipo === 'veiculo_entrega' ? ['ent', 'Entregue a ' + String(m.condutor || '').split(' ')[0]] : m.tipo === 'veiculo_dev_condutor' ? ['sai', 'Devolvido por ' + String(m.condutor || '').split(' ')[0]] : ['ent', 'Equipamento chegou'];
     const corpoMob = `<div class="table-wrap"><table class="dx-tb"><thead><tr><th>Hora</th><th>Movimento</th><th>TAG / placa</th><th>Modelo</th><th>Proprietária / locadora</th><th style="text-align:right">Horím. / km</th><th>Registrado por</th><th></th></tr></thead><tbody>
       ${mobs.map(m => { const [c, t] = rotMob(m), veic = /^veiculo/.test(m.tipo || ''); return `<tr><td class="td-mono">${E(m.hora || '—')}</td><td><span class="dia-tg ${c}">${t}</span></td><td><b>${E(m.tag || m.placa || '—')}</b></td><td>${E(m.modeloNome || '—')}</td>
         <td>${E(m.empresaNome || m.locadora || '—')}</td><td class="td-mono" style="text-align:right">${E(m.hor || m.km || '—')}${m.rodados != null && m.rodados !== '' ? '<div class="mu" style="font-size:10.5px">' + E(m.rodados) + ' km rodados</div>' : ''}</td><td class="mu">${E(m.lancadoPor || '—')}</td>
@@ -14398,9 +14398,9 @@ function dxRenderFrota() {
         ${_pn(_ic.chart, 'Veículos por tipo', _hbars(grp(na, 'tipo', () => 1).map(x => ({ ...x, t: x.v + '' }))))}
         ${_pn(_ic.cal, 'Vencimentos (próximos 60 dias)', _dxVenc(venc))}</div>
       ${_pn(_ic.trend, 'Chegadas e devoluções por mês', `<div class="dx-leg" style="margin-bottom:8px"><span><i style="background:#22C55E"></i>Chegadas</span><span><i style="background:#7A7A82"></i>Devoluções</span></div>` + _vbars(meses.map(m => ({ l: _mesTxt(m).slice(0, 3) + '/' + m.slice(2, 4), e: porMes[m].e, s: porMes[m].s })), '', [{ k: 'e', cor: '#22C55E' }, { k: 's', cor: '#7A7A82' }]), '', 'margin-bottom:12px')}
-      ${_pn(_ic_carro, 'Veículos na obra', `<div class="dx-scroll">${_tb(['Placa', 'Modelo', 'Tipo', 'Locadora', 'Responsável', 'CNH', 'Desde', 'Km chegada', 'Situação'],
+      ${_pn(_ic_carro, 'Veículos na obra', `<div class="dx-scroll">${_tb(['TAG · placa', 'Modelo', 'Tipo', 'Locadora', 'Responsável', 'CNH', 'Desde', 'Km chegada', 'Situação'],
           na.sort((a, b) => String(a.placa).localeCompare(String(b.placa))).map(v => { const r = frRespAtual(v), al = frAlertas(v);
-            return `<tr>${_td('<b>' + _e(v.placa) + '</b>')}${_td(_e(v.modelo || '—'))}${_td(_e(v.tipo || '—'), 'mu')}${_td(_e(v.locadora || '—'))}${_td(r ? _e(r.nome) : '<span style="color:#FF5A60">sem responsável</span>')}${_td(r ? _e(r.cnhCat || '—') + (r.cnhVal ? ' · ' + _e(String(r.cnhVal).split('-').reverse().join('/')) : '') : '—', 'mu')}${_td(v.mobData ? _e(String(v.mobData).split('-').reverse().join('/')) : '—', 'n')}${_td(v.kmMob ? (+v.kmMob).toLocaleString('pt-BR') : '—', 'n')}
+            return `<tr>${_td((v.tag ? '<b>' + _e(v.tag) + '</b> · ' : '') + '<b>' + _e(v.placa) + '</b>')}${_td(_e(v.modelo || '—'))}${_td(_e(v.tipo || '—'), 'mu')}${_td(_e(v.locadora || '—'))}${_td(r ? _e(r.nome) : '<span style="color:#FF5A60">sem responsável</span>')}${_td(r ? _e(r.cnhCat || '—') + (r.cnhVal ? ' · ' + _e(String(r.cnhVal).split('-').reverse().join('/')) : '') : '—', 'mu')}${_td(v.mobData ? _e(String(v.mobData).split('-').reverse().join('/')) : '—', 'n')}${_td(v.kmMob ? (+v.kmMob).toLocaleString('pt-BR') : '—', 'n')}
               ${_td(`<span class="dx-badge" style="background:rgba(127,127,127,.15)">${_e(v.status || 'Em uso')}</span>${al.length ? ' <span style="color:#F59E0B" title="' + _e(al.map(a => a.t).join(' · ')) + '">⚠ ' + al.length + '</span>' : ''}`)}</tr>`; }), ['', '', '', '', '', '', 'n', 'n', ''])}</div>`)}`;
   } else {
     const tot = na.reduce((s, v) => s + (+v.valorMes || 0), 0), semValor = na.filter(v => !+v.valorMes).length;
@@ -14417,9 +14417,9 @@ function dxRenderFrota() {
         ${_pn(_ic.chart, 'Locação por locadora', _hbars(grp(na, 'locadora', v => +v.valorMes || 0).map(x => ({ ...x, t: _moeda(x.v) }))))}
         ${_pn(_ic.pie, 'Locação por tipo', _donut(grp(na, 'tipo', v => +v.valorMes || 0).filter(x => x.v), _moeda(tot), 'por mês', v => _moeda(v)))}
         ${_dx.obra ? '' : _pn(_ic.grid, 'Locação por obra', _hbars(porObra.map(x => ({ ...x, t: _moeda(x.v) })), '#F59E0B'))}</div>
-      ${_pn(_ic.cal, 'Contratos de locação', `<div class="dx-scroll">${_tb(['Placa', 'Modelo', 'Locadora', 'Contrato', 'Valor mensal', 'Fim do contrato', 'Responsável', 'Na obra há'],
+      ${_pn(_ic.cal, 'Contratos de locação', `<div class="dx-scroll">${_tb(['TAG · placa', 'Modelo', 'Locadora', 'Contrato', 'Valor mensal', 'Fim do contrato', 'Responsável', 'Na obra há'],
           na.sort((a, b) => (+b.valorMes || 0) - (+a.valorMes || 0)).map(v => { const r = frRespAtual(v), d = _dxDias(v.fimContrato), dias = v.mobData ? -_dxDias(v.mobData) : null;
-            return `<tr>${_td('<b>' + _e(v.placa) + '</b>')}${_td(_e(v.modelo || '—'))}${_td(_e(v.locadora || '—'))}${_td(_e(v.contrato || '—'), 'mu')}${_td(+v.valorMes ? _moeda(v.valorMes) : '<span style="color:#F59E0B">preencher</span>', 'n tot')}
+            return `<tr>${_td((v.tag ? '<b>' + _e(v.tag) + '</b> · ' : '') + '<b>' + _e(v.placa) + '</b>')}${_td(_e(v.modelo || '—'))}${_td(_e(v.locadora || '—'))}${_td(_e(v.contrato || '—'), 'mu')}${_td(+v.valorMes ? _moeda(v.valorMes) : '<span style="color:#F59E0B">preencher</span>', 'n tot')}
               ${_td(v.fimContrato ? `<span style="color:${d < 0 ? '#FF5A60' : d <= 30 ? '#F59E0B' : 'inherit'}">${_e(String(v.fimContrato).split('-').reverse().join('/'))}</span>` : '—', 'n')}${_td(r ? _e(r.nome) : '<span style="color:#FF5A60">—</span>')}${_td(dias != null ? dias + ' dia(s)' : '—', 'n')}</tr>`; })
           .concat(na.length ? [`<tr class="sub">${_td('Total')}${_td('')}${_td('')}${_td('')}${_td(_moeda(tot), 'n')}${_td('')}${_td('')}${_td('')}</tr>`] : []), ['', '', '', '', 'n', 'n', '', 'n'])}</div>`)}`;
   }
@@ -14508,6 +14508,115 @@ function _dxModoBar2(tipo) {
     <button class="${q ? 'on' : ''}" onclick="dxModo('qtd')"><span class="ic">${_ic.chart}</span><span><b>Quantidade</b><small>${d[0]}</small></span></button>
     <button class="${q ? '' : 'on'}" onclick="dxModo('custo')"><span class="ic">${_ic.coin}</span><span><b>Custo</b><small>${d[1]}</small></span></button></div>`;
 }
+
+
+// ═══════════════════════════════════════════════════════════════
+// v3.18: VEÍCULO LEVE COM TAG (VL-01…) + TERMOS DE ENTREGA/DEVOLUÇÃO DO CONDUTOR (feitos no app de campo)
+// ═══════════════════════════════════════════════════════════════
+function _frTagProx(obra, excetoId) {
+  const fr = (dados.frota || []).filter(v => v.id !== excetoId); let mx = 0, larg = 2;
+  fr.filter(v => (v.obra || '') === obra).forEach(v => { const m = /^VL-(\d+)$/i.exec(String(v.tag || '')); if (m) { mx = Math.max(mx, +m[1]); larg = Math.max(larg, m[1].length); } });
+  const usadas = new Set(fr.map(v => String(v.tag || '').toUpperCase())); let n = mx + 1, t;
+  do { t = 'VL-' + String(n++).padStart(larg, '0'); } while (usadas.has(t)); return t;
+}
+let _frTagFeito = false;
+function _frTagsGarantir() { // veículos sem TAG ganham, na ordem da placa
+  if (!usuarioLogado || !(dados.frota || []).length) return;
+  const sem = (dados.frota || []).filter(v => !v.tag).sort((a, b) => String(a.obra).localeCompare(String(b.obra)) || String(a.mobData || '').localeCompare(String(b.mobData || '')) || String(a.placa).localeCompare(String(b.placa)));
+  sem.forEach(v => { v.tag = _frTagProx(v.obra || '', v.id); if (db && _firebaseReady) fbSave('frota', v.id, v).catch(() => {}); });
+  if (sem.length && !_frTagFeito) { _frTagFeito = true; toast(sem.length + ' veículo(s) ganharam TAG (VL-…).'); }
+}
+const _VLE_ST = { bom: ['Bom', '#15803D'], reg: ['Reg', '#B45309'], ruim: ['Ruim', '#B91C1C'] };
+async function verTermoEntrega(m) {
+  const dev = m.tipo === 'veiculo_dev_condutor', fd = d => String(d || '').split('-').reverse().join('/');
+  let ov = document.getElementById('mob-ov'); if (ov) ov.remove();
+  ov = document.createElement('div'); ov.id = 'mob-ov'; ov.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.75);overflow:auto;padding:24px 16px';
+  ov.onclick = e => { if (e.target === ov) ov.remove(); };
+  const L = (k, v) => v === '' || v == null ? '' : `<div><div style="font-size:10.5px;color:#666;text-transform:uppercase;letter-spacing:.06em">${k}</div><div style="font-weight:700">${_e(v)}</div></div>`;
+  const ft = (fid, rot) => fid ? `<figure style="margin:0"><div class="mob-foto" data-f="${_e(fid)}" style="aspect-ratio:4/3;border-radius:8px;background:#eee center/cover;display:flex;align-items:center;justify-content:center;font-size:11px;color:#888">carregando…</div><figcaption style="font-size:11px;color:#555;margin-top:3px">${_e(rot)}</figcaption></figure>` : '';
+  const grupos = []; (m.checklist || []).forEach((c, i) => { let g = grupos.find(x => x.g === (c.g || '')); if (!g) grupos.push(g = { g: c.g || '', l: [] }); g.l.push({ ...c, n: i + 1 }); });
+  const piorou = new Set(m.piorou || []);
+  const tab = `<table style="width:100%;border-collapse:collapse;font-size:11.5px"><tr style="font-size:10.5px;color:#555;font-weight:800"><td></td><td></td><td style="text-align:center;width:42px">BOM</td><td style="text-align:center;width:42px">REG</td><td style="text-align:center;width:42px">RUIM</td></tr>${grupos.map(g => `<tr><td colspan="5" style="background:#F3F4F6;font-weight:800;padding:4px 6px;text-transform:uppercase;font-size:10.5px;letter-spacing:.06em">${_e(g.g)}</td></tr>`
+    + g.l.map(c => `<tr style="border-bottom:1px solid #eee;${piorou.has(c.t) ? 'background:#FEF2F2' : ''}"><td style="padding:3px 6px;width:24px;color:#888">${c.n}</td><td style="padding:3px 6px">${_e(c.t)}${piorou.has(c.t) ? ' <b style="color:#B91C1C">· piorou</b>' : ''}</td>
+      ${['bom', 'reg', 'ruim'].map(s => `<td style="padding:3px 6px;text-align:center;width:42px;font-weight:800;color:${_VLE_ST[s][1]}">${c.st === s ? 'X' : ''}</td>`).join('')}</tr>${c.obs ? `<tr><td></td><td colspan="4" style="padding:0 6px 4px;color:#555;font-style:italic">${_e(c.obs)}</td></tr>` : ''}`).join('')).join('')}</table>`;
+  const decl = dev ? '' : `<h3 style="font-size:14px;margin:20px 0 8px">Declaração de vistoria do veículo e autorização de desconto</h3><div style="font-size:12.5px;line-height:1.55;text-align:justify">
+    Declaro para os devidos fins que antes de iniciar minha prestação de serviços com a utilização do <b>veículo ${_e(m.modeloNome || '')} placa ${_e(m.placa || '')}${m.tag ? ' (TAG ' + _e(m.tag) + ')' : ''}</b> vistoriei o mesmo, sendo que o encontrei em perfeitas condições de funcionamento e estado de conservação, conforme check list.<br><br>
+    Declaro ainda que estou ciente e atesto total concordância em manter o referido veículo nas mesmas condições que o recebi, bem como ciência de que a utilização é exclusiva para o trabalho estando vedada a utilização para fins particulares. Diariamente completarei a respectiva caderneta de inspeção e, caso encontre alguma irregularidade, encaminharei imediatamente a "Comunicação de irregularidade veicular" ao meu superior direto ou administrativo da obra.<br><br>
+    Ademais, desde logo autorizo expressamente que seja descontado de meus recebimentos todo e qualquer prejuízo que eu venha a dar causa com a utilização de referido veículo, como consertos diversos (sejam elétricos, mecânicos, de lataria ou pintura), multas (das quais me responsabilizarei pelos pontos na CNH da infração), prejuízos a terceiros e outras avarias. Exceto em casos de desgaste natural.<br><br>
+    Por ser verdade, firmo a presente declaração e autorização de descontos.</div>`;
+  ov.innerHTML = `<div id="mob-termo" style="background:#fff;color:#111;max-width:860px;margin:0 auto;border-radius:14px;padding:24px;font-family:Arial,sans-serif">
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap"><div><img src="${typeof _TK_LOGO !== 'undefined' ? _TK_LOGO : ''}" style="width:200px" alt="ObraKontrol"><div style="font-size:12px;color:#555;margin-top:4px">${_e(getNomeObra(m.obra) || m.obraNome || '')}</div></div>
+      <div style="text-align:right"><div style="font-size:12px;letter-spacing:.1em;color:#555">${dev ? 'TERMO DE DEVOLUÇÃO PELO CONDUTOR' : 'TERMO DE ENTREGA DE VEÍCULO · CHECKLIST'}</div><div style="font-size:34px;font-weight:900;color:#E30613;font-family:monospace">${_e(m.tag || m.placa)}</div><div style="font-size:12px;color:#555">${_e(fd(m.data))} ${_e(m.hora || '')}</div></div></div>
+    <hr style="border:0;border-top:1px solid #ddd;margin:16px 0">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px">${L('Veículo', m.modeloNome)}${L('Placa', m.placa)}${L('Locadora', m.locadora)}${L('Condutor', m.condutor)}${L('Matrícula', m.mat)}${L('CPF', m.cpf)}${L('Equipe', m.equipe)}${L('Telefone', m.tel)}
+      ${dev ? '' : L('CNH', (m.cnhCat || '') + ' · até ' + fd(m.cnhVal))}${L(dev ? 'Km na devolução' : 'Km na entrega', m.km)}${dev ? L('Km na entrega', m.kmEntrega) + L('Data da entrega', fd(m.dataEntrega)) + (m.rodados != null && m.rodados !== '' ? L('Km rodados', m.rodados) : '') : ''}${L('Combustível', m.comb)}</div>
+    ${dev && (m.piorou || []).length ? `<div style="margin-top:14px;padding:10px 12px;border-radius:8px;background:#FEF2F2;color:#991B1B;font-size:13px"><b>Pioraram desde a entrega:</b> ${(m.piorou || []).map(_e).join(', ')}</div>` : ''}
+    ${dev && m.entregaId ? `<div style="margin-top:8px;font-size:12px"><a href="#" onclick="event.preventDefault();verTermoVeic('${_e(m.entregaId)}')">Abrir o termo de entrega</a></div>` : ''}
+    ${decl}
+    <h3 style="font-size:14px;margin:20px 0 8px">Checklist do veículo</h3>
+    ${tab}
+    ${m.obs ? `<h3 style="font-size:14px;margin:20px 0 8px">Observações</h3><div style="font-size:13px">${_e(m.obs)}</div>` : ''}
+    <h3 style="font-size:14px;margin:20px 0 8px">Fotos</h3><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px">${ft(m.fotoKm, 'Painel (km)')}${(m.fotosCnh || []).map((f, i) => ft(f, 'CNH ' + (i + 1))).join('')}${(m.checklist || []).filter(c => c.foto).map(c => ft(c.foto, 'Ruim: ' + c.t)).join('')}</div>
+    <div style="display:flex;gap:24px;margin-top:24px;flex-wrap:wrap">${[['Condutor', (m.condutor || '') + (m.cpf ? ' · CPF ' + m.cpf : ''), m.sigCond], ['Responsável pela verificação', m.nomeVer, m.sigVer]].map(([r, n, s]) => `<div style="flex:1;min-width:220px;text-align:center">${s ? `<img src="${s}" style="width:100%;max-width:300px;height:70px;object-fit:contain;border-bottom:1px solid #999">` : '<div style="height:70px;border-bottom:1px solid #999"></div>'}<div style="font-size:12px;color:#555">${r}: ${_e(n || '')}</div></div>`).join('')}</div>
+    <div style="margin-top:16px;font-size:12px;color:#15803D;font-weight:700">✓ Validado no app de campo em ${_e(new Date(m.validadoEm).toLocaleString('pt-BR'))} · por ${_e(m.lancadoPor || '')}</div></div>
+  <div style="display:flex;gap:8px;justify-content:center;margin-top:14px"><button class="btn btn-outline" style="background:#fff" onclick="document.getElementById('mob-ov').remove()">Fechar</button><button class="btn btn-primary" onclick="imprimirTermoMob()">🖨 Imprimir / PDF</button></div>`;
+  document.body.appendChild(ov);
+  ov.querySelectorAll('.mob-foto').forEach(async el => { const img = await _mobFotoImg(el.dataset.f); if (img) { el.style.backgroundImage = `url('${img}')`; el.textContent = ''; el.style.cursor = 'zoom-in'; el.onclick = () => window.open().document.write('<img src="' + img + '" style="max-width:100%">'); } else el.textContent = 'sem foto'; });
+}
+(function () {
+  const $ = id => document.getElementById(id);
+  // termo certo para cada tipo
+  const oV = verTermoVeic;
+  verTermoVeic = window.verTermoVeic = async function (id) {
+    let m = (dados.mobilizacoes || []).find(x => x.id === id);
+    if (!m) { try { const d = await db.collection('mobilizacoes').doc(id).get(); if (d.exists) m = { id, ...d.data() }; } catch (e) {} }
+    if (m && (m.tipo === 'veiculo_entrega' || m.tipo === 'veiculo_dev_condutor')) return verTermoEntrega(m);
+    return oV.apply(this, arguments);
+  };
+  // TAG no cadastro do veículo
+  const pl = $('fr-placa')?.closest('.form-group');
+  if (pl && !$('fr-tag')) pl.insertAdjacentHTML('beforebegin', '<div class="form-group"><label class="form-label" for="fr-tag">TAG *</label><input class="form-control td-mono" id="fr-tag" maxlength="12" placeholder="VL-01" style="text-transform:uppercase;font-weight:700" oninput="this.value=this.value.toUpperCase()"/><div style="font-size:11px;color:var(--text-3);margin-top:2px">Gerada sozinha (VL-01, VL-02…). Pode ajustar.</div></div>');
+  const oEd = frEditar;
+  frEditar = window.frEditar = function (id) { const r = oEd.apply(this, arguments), v = id && (dados.frota || []).find(x => x.id === id);
+    if ($('fr-tag')) $('fr-tag').value = v ? (v.tag || '') : _frTagProx($('fr-obra')?.value || (_okObraAtual() !== 'todas' ? _okObraAtual() : ''), ''); return r; };
+  $('fr-obra')?.addEventListener('change', () => { if ($('fr-tag') && !$('fr-id').value) $('fr-tag').value = _frTagProx($('fr-obra').value, ''); });
+  const oSv = salvarVeiculo;
+  salvarVeiculo = window.salvarVeiculo = function () {
+    const id = $('fr-id').value, tag = ($('fr-tag')?.value || '').trim().toUpperCase().replace(/\s+/g, '');
+    if (tag && (dados.frota || []).some(v => v.id !== id && String(v.tag || '').toUpperCase() === tag)) { toast('A TAG ' + tag + ' já é de outro veículo.', 'error'); return; }
+    const antes = new Set((dados.frota || []).map(v => v.id)), r = oSv.apply(this, arguments);
+    const v = id ? (dados.frota || []).find(x => x.id === id) : (dados.frota || []).find(x => !antes.has(x.id));
+    if (v) { const t = tag || v.tag || _frTagProx(v.obra || '', v.id); if (v.tag !== t) { v.tag = t; if (db && _firebaseReady) fbSave('frota', v.id, v).catch(() => {}); try { renderFrota(); } catch (e) {} } }
+    return r; };
+  // lista: TAG em destaque e responsável vindo do app com o termo
+  const oR = renderFrota;
+  renderFrota = window.renderFrota = function () { _frTagsGarantir(); const r = oR.apply(this, arguments);
+    (dados.frota || []).forEach(v => { const b = document.querySelector(`#tbody-frota button[onclick="frEditar('${v.id}')"]`), td = b && b.closest('tr')?.children[0];
+      if (td && v.tag && !td.querySelector('.vl-tag')) td.insertAdjacentHTML('afterbegin', `<span class="tag tag-red vl-tag" style="font-family:var(--mono);font-size:11px;margin-bottom:3px;display:inline-block">${_e(v.tag)}</span>`); });
+    return r; };
+  const oRR = renderFrotaResp;
+  renderFrotaResp = window.renderFrotaResp = function () { _frTagsGarantir(); const r = oRR.apply(this, arguments);
+    document.querySelectorAll('#tbody-frota-resp tr').forEach(tr => { const b = tr.querySelector('[onclick*="frRespAbrir("]'); const m = b && /frRespAbrir\('([^']+)'\)/.exec(b.getAttribute('onclick')); const v = m && (dados.frota || []).find(x => x.id === m[1]); if (!v) return;
+      const td0 = tr.children[0]; if (v.tag && !td0.querySelector('.vl-tag')) td0.insertAdjacentHTML('afterbegin', `<span class="tag tag-red vl-tag" style="font-family:var(--mono);font-size:11px;margin-bottom:3px;display:inline-block">${_e(v.tag)}</span>`);
+      const rs = frRespAtual(v); if (rs && rs.entregaId && !tr.querySelector('.vl-ent')) b.insertAdjacentHTML('beforebegin', `<button class="btn btn-outline btn-sm vl-ent" onclick="verTermoVeic('${rs.entregaId}')" title="Checklist e declaração assinados no app">📋 Termo de entrega</button> `); });
+    return r; };
+  // QR das placas: veículos entram junto com os equipamentos
+  const oQ = _qrItens;
+  _qrItens = function (semFiltro) { const it = oQ.apply(this, arguments); try {
+      const b = semFiltro ? '' : (document.getElementById('qr-busca')?.value || '').toLowerCase(), st = semFiltro ? '' : (document.getElementById('qr-status')?.value ?? 'pend');
+      const okSt = r => !st || (st === 'pend' ? !r.qrGeradoEm : !!r.qrGeradoEm);
+      const vs = _qrDaObra(dados.frota || []).filter(v => v.tag && v.status !== 'Devolvido').filter(okSt).filter(v => !b || String(v.tag).toLowerCase().includes(b) || String(v.placa).toLowerCase().includes(b))
+        .map(v => ({ id: 'VL-' + v.id, col: 'frota', rid: v.id, ger: v.qrGeradoEm || '', texto: 'tag:' + v.tag, label: v.tag, sub: [v.placa, v.modelo].filter(Boolean).join(' · ') }));
+      if (it && Array.isArray(it.equip)) it.equip = it.equip.concat(vs);
+    } catch (e) {} return it; };
+  // importação da frota: coluna TAG (opcional)
+  try { const D = IMPORT_DEF.frota; if (D && !D.col.includes('TAG')) { D.col = ['TAG (em branco: o sistema gera)'].concat(D.col); const m = D.map; D.map = g => ({ ...m(g), tag: String(g(['tag']) || '').trim().toUpperCase() }); } } catch (e) {}
+  const oImp = _importarLinhas;
+  _importarLinhas = window._importarLinhas = function (tipo, rows, resumo) { const n = oImp.apply(this, arguments); if (tipo === 'frota') (n || []).forEach(v => { if (!v.tag) v.tag = _frTagProx(v.obra || '', v.id); }); return n; };
+  // dashboard da frota mostra a TAG
+  const oDF = dxRenderFrota;
+  dxRenderFrota = window.dxRenderFrota = function () { _frTagsGarantir(); return oDF.apply(this, arguments); };
+})();
 
 // Apply configs on load
 setTimeout(applyConfigs, 200);

@@ -883,7 +883,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.68</div>
+  <div class="login-versao">ObraKontrol Campo · v2.69</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -4962,6 +4962,257 @@ async function vlValidar() {
   // modelos pendentes marcados com ⏳ na mobilização de equipamento
   const oR = mobRender;
   mobRender = function () { const r = oR.apply(this, arguments); document.querySelectorAll('#mob-content select option').forEach(o => { const m = (dadosCampo.modelos || []).find(x => x.cod === o.value); if (m && _vlPend(m) && !o.textContent.includes('⏳')) o.textContent += ' ⏳'; }); return r; };
+})();
+
+// ══════════════════════════════════════════════════════════════
+// v2.69: VEÍCULO LEVE — TAG automática (VL-01…) + ENTREGA AO COLABORADOR e DEVOLUÇÃO DO COLABORADOR
+// Entrega: veículo (QR da TAG), colaborador (crachá), CNH com foto, km, checklist de 35 itens (Bom/Reg/Ruim),
+// declaração de vistoria e autorização de desconto assinada à mão → o colaborador vira o responsável do veículo.
+// Devolução: mesmo checklist, compara com a entrega e fecha o termo de entrega.
+// ══════════════════════════════════════════════════════════════
+const VLE_CHECK = [['Interno', ['Ar condicionado', 'Buzina', 'Chave de roda', 'Cinto de segurança', 'Espelhos retrovisores', 'Reservatório de água do para-brisa', 'Freio de estacionamento', 'Pneu estepe', 'Palheta do limpador de para-brisa', 'Luz interna', 'Luz do painel e demais indicadores', 'Macaco', 'Triângulo de advertência']],
+  ['Dianteira', ['Luz alta LE - LD', 'Luz baixa LE - LD', 'Meia luz', 'Alerta', 'Luz pisca LD - LE']],
+  ['Traseira', ['Luz de freio', 'Luz de ré', 'Luz de alerta', 'Luz pisca LD - LE', 'Luz da placa']],
+  ['Geral', ['Embreagem', 'Fechamento das portas', 'Freio', 'Lataria', 'Motor de partida', 'Nível de óleo', 'Nível do fluido de freio', 'Nível do fluido do radiador', 'Parte mecânica', 'Pneus', 'Revisão em dia', 'Vidros em geral']]];
+const VLE_ITENS = VLE_CHECK.flatMap(([g, l]) => l.map(t => ({ g, t })));
+const VLE_ST = [['bom', 'Bom'], ['reg', 'Reg'], ['ruim', 'Ruim']];
+function _vlTagProx(obra, frota) { // VL-01, VL-02… por obra, sem repetir
+  let mx = 0, larg = 2; (frota || []).filter(v => (v.obra || '') === obra).forEach(v => { const m = /^VL-(\d+)$/i.exec(String(v.tag || '')); if (m) { mx = Math.max(mx, +m[1]); larg = Math.max(larg, m[1].length); } });
+  const usadas = new Set((frota || []).map(v => String(v.tag || '').toUpperCase())); let n = mx + 1, t;
+  do { t = 'VL-' + String(n++).padStart(larg, '0'); } while (usadas.has(t)); return t;
+}
+function _vleDecl(t) {
+  return `Declaro para os devidos fins que antes de iniciar minha prestação de serviços com a utilização do <b>veículo ${_mobEsc(t.modelo || '')} placa ${_mobEsc(t.placa || '')}${t.tag ? ' (TAG ' + _mobEsc(t.tag) + ')' : ''}</b> vistoriei o mesmo, sendo que o encontrei em perfeitas condições de funcionamento e estado de conservação, conforme check list abaixo.<br><br>
+    Declaro ainda que estou ciente e atesto total concordância em manter o referido veículo nas mesmas condições que o recebi, bem como ciência de que a utilização é exclusiva para o trabalho estando vedada a utilização para fins particulares. Diariamente completarei a respectiva caderneta de inspeção e, caso encontre alguma irregularidade, encaminharei imediatamente a "Comunicação de irregularidade veicular" ao meu superior direto ou administrativo da obra.<br><br>
+    Ademais, desde logo autorizo expressamente que seja descontado de meus recebimentos todo e qualquer prejuízo que eu venha a dar causa com a utilização de referido veículo, como consertos diversos (sejam elétricos, mecânicos, de lataria ou pintura), multas (das quais me responsabilizarei pelos pontos na CNH da infração), prejuízos a terceiros e outras avarias. Exceto em casos de desgaste natural.<br><br>
+    Por ser verdade, firmo a presente declaração e autorização de descontos.`;
+}
+let vle = null;
+function _vleVeic() { return (window._vlFrota || []).find(v => v.id === vle.veicId) || null; }
+function _vleResp(v) { return v ? (v.resp || []).find(r => !r.fim) || null : null; }
+function _vleFunc() { return (dadosCampo.funcionarios || []).find(f => f.id === vle.funcId) || null; }
+function _vleTela() {
+  if (document.getElementById('screen-vle')) return;
+  const back = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>';
+  document.getElementById('screen-mob').insertAdjacentHTML('afterend', `<div class="screen" id="screen-vle"><div class="topbar"><div class="topbar-row"><div class="tb-left"><button class="tb-back" onclick="vleSair()" aria-label="Voltar">${back}</button><div><div class="topbar-title" id="vle-tit"></div><div class="topbar-sub" id="vle-sub"></div></div></div></div></div>
+    <div class="content" id="vle-content"></div>
+    <div class="mob-bar"><button class="btn btn-outline" onclick="vleSair()">Cancelar</button><button class="btn btn-green" onclick="vleConferir()">Ver termo e validar</button></div></div>`);
+}
+async function vleAbrir(modo) {
+  _vleTela();
+  vle = { modo, obra: (usuarioCampo && usuarioCampo.obra) || '', veicId: '', funcId: '', cpf: '', equipe: '', tel: '', cnhCat: '', cnhVal: '', fotosCnh: [], km: '', fotoKm: [], comb: '',
+    ck: VLE_ITENS.map(x => ({ ...x, st: '', obs: '', foto: null })), obs: '', data: _hojeISO(), hora: new Date().toTimeString().slice(0, 5),
+    sigCond: '', sigCondTipo: null, nomeVer: usuarioCampo ? usuarioCampo.nome : '', sigVer: '', sigVerTipo: null };
+  if (!vle.obra) { try { window._mobObras = (await fbCarregar('obras')) || window._mobObras || []; } catch (e) {} const at = (window._mobObras || []).filter(o => !/encerr/i.test(o.status || '')); if (at.length === 1) vle.obra = at[0].id; }
+  try { const fr = await fbCarregar('frota'); if (fr) window._vlFrota = fr; } catch (e) {} window._vlFrota = window._vlFrota || [];
+  if (modo === 'dev') { try { const ms = await fbCarregar('mobilizacoes'); if (ms) window._vleMobs = ms; } catch (e) {} }
+  document.getElementById('vle-tit').textContent = modo === 'dev' ? 'Devolução do colaborador' : 'Entrega ao colaborador';
+  document.getElementById('vle-sub').textContent = modo === 'dev' ? 'Checklist e termo de devolução' : 'Checklist, CNH e declaração assinada';
+  showScreen('vle'); vleRender();
+}
+function vleSair() { if (!vle || (!vle.veicId && !vle.km) || confirm('Sair? O que foi preenchido será perdido.')) { vle = null; showScreen('home'); } }
+function vleCampo(k, v, re) { vle[k] = v; if (k === 'funcId') { const f = _vleFunc(); if (f) { vle.cpf = f.cpf ? _cpfFmt(f.cpf) : ''; vle.equipe = f.equipe || ''; vle.tel = f.tel || f.telefone || ''; } }
+  if (k === 'veicId' && vle.modo === 'dev') { const r = _vleResp(_vleVeic()); if (r) { vle.funcId = r.func || ''; vle.cpf = r.cpf || ''; } } if (re) vleRender(); }
+async function vleFoto(k, input, max) { const f = input.files && input.files[0]; input.value = ''; if (!f) return; const l = vle[k];
+  if (l.length >= max) { toast('Máximo de ' + max + ' foto(s).', 'err'); return; }
+  try { l.push({ img: await _reduzirFoto(f), em: new Date().toISOString() }); vleRender(); toast('Foto registrada', 'ok'); } catch (e) { toast('Não consegui usar essa foto.', 'err'); } }
+async function vleCkFoto(i, input) { const f = input.files && input.files[0]; input.value = ''; if (!f) return; try { vle.ck[i].foto = { img: await _reduzirFoto(f), em: new Date().toISOString() }; vleRender(); } catch (e) { toast('Não consegui usar essa foto.', 'err'); } }
+function _vleFotos(k, rot, max) { const l = vle[k];
+  return `<div class="mob-mais">${l.map((f, i) => `<div class="mm"><img src="${f.img}"/><button type="button" onclick="vle.${k}.splice(${i},1);vleRender()" aria-label="Remover foto">×</button></div>`).join('')}
+    ${l.length < max ? `<label>📷 ${l.length ? 'Mais uma' : rot}<input type="file" accept="image/*" capture="environment" style="display:none" onchange="vleFoto('${k}',this,${max})"/></label>` : ''}</div>`; }
+function _vleEntregaDe(v) { const r = _vleResp(v); if (!r) return null; return (window._vleMobs || []).find(m => m.id === r.entregaId) || null; }
+function vleRender() {
+  const el = document.getElementById('vle-content'); if (!el || !vle) return;
+  const E = _mobEsc, dev = vle.modo === 'dev', o = vle.obra || (usuarioCampo && usuarioCampo.obra) || '';
+  const sel = (ops, val, ph, on) => `<select class="form-control" onchange="${on}"><option value="">${ph}</option>${ops.map(([v, t]) => `<option value="${E(v)}" ${v === val ? 'selected' : ''}>${E(t)}</option>`).join('')}</select>`;
+  const obras = usuarioCampo.obra ? [] : (window._mobObras || []).filter(x => !/encerr/i.test(x.status || ''));
+  const vs = (window._vlFrota || []).filter(v => v.status !== 'Devolvido' && (!o || v.obra === o) && (dev ? !!_vleResp(v) : !_vleResp(v))).sort((a, b) => String(a.tag || a.placa).localeCompare(String(b.tag || b.placa)));
+  const v = _vleVeic(), r = _vleResp(v), f = _vleFunc(), ent = dev ? _vleEntregaDe(v) : null;
+  let h = !usuarioCampo.obra ? `<div class="card"><div class="card-body"><div class="form-group"><label class="form-label">Obra *</label>${sel(obras.map(x => [x.id, (x.cod ? x.cod + ' · ' : '') + x.nome]), vle.obra, 'Escolha a obra…', "vleCampo('obra',this.value,1)")}</div></div></div>` : '';
+  h += `<div class="card"><div class="card-body">
+    <div class="form-group"><label class="form-label">Veículo *</label><div class="vle-row">${sel(vs.map(x => [x.id, (x.tag ? x.tag + ' · ' : '') + x.placa + ' · ' + (x.modelo || '') + (dev && _vleResp(x) ? ' · com ' + _vleResp(x).nome : '')]), vle.veicId, vs.length ? 'Escolha…' : (dev ? 'Nenhum veículo com condutor' : 'Nenhum veículo sem condutor'), "vleCampo('veicId',this.value,1)")}
+      <button type="button" class="btn btn-outline" style="flex:0 0 auto" onclick="abrirQR('vlev')">📷 TAG</button></div></div>
+    ${v ? `<div class="vl-info"><b>${E(v.tag || '—')}</b> · ${E(v.placa)} · ${E(v.modelo || '')}${v.locadora ? '<br>Locadora: ' + E(v.locadora) : ''}${dev && r ? `<br>Com <b>${E(r.nome)}</b> desde ${E(String(r.inicio || '').split('-').reverse().join('/'))}${r.km ? ' · saiu com ' + E((+r.km).toLocaleString('pt-BR')) + ' km' : ''}` : ''}</div>` : ''}
+  </div></div>`;
+  if (!dev) {
+    const fs = (dadosCampo.funcionarios || []).filter(x => (!o || !x.obra || x.obra === o) && x.status !== 'Desligado' && !(x.demissao && x.demissao <= _hojeISO())).sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
+    const dCnh = vle.cnhVal ? Math.round((new Date(vle.cnhVal + 'T12:00') - new Date(_hojeISO() + 'T12:00')) / 864e5) : null;
+    h += `<div class="card"><div class="card-header"><span class="card-title">Colaborador (condutor)</span></div><div class="card-body">
+      <div class="form-group"><label class="form-label">Colaborador *</label><div class="vle-row">${sel(fs.map(x => [x.id, x.nome + ' · Mat. ' + (x.mat || '—')]), vle.funcId, 'Escolha…', "vleCampo('funcId',this.value,1)")}<button type="button" class="btn btn-outline" style="flex:0 0 auto" onclick="abrirQR('vlec')">📷 Crachá</button></div></div>
+      <div style="display:flex;gap:10px"><div class="form-group" style="flex:1"><label class="form-label">CPF *</label><input class="form-control" inputmode="numeric" value="${E(vle.cpf)}" oninput="this.value=_cpfFmt(this.value);vle.cpf=this.value;this.classList.toggle('mob-cpf-ruim',_cpfDig(this.value).length===11&&!_cpfValido(this.value))"/></div>
+        <div class="form-group" style="flex:1"><label class="form-label">Telefone</label><input class="form-control" inputmode="tel" value="${E(vle.tel)}" oninput="vle.tel=this.value"/></div></div>
+      <div class="form-group"><label class="form-label">Equipe</label><input class="form-control" value="${E(vle.equipe)}" oninput="vle.equipe=this.value"/></div>
+      <div class="form-group"><label class="form-label">Categoria da CNH *</label><div class="mob-seg">${['A', 'B', 'AB', 'C', 'D', 'E'].map(c => `<button type="button" class="${vle.cnhCat === c ? 'on' : ''}" onclick="vleCampo('cnhCat','${c}',1)">${c}</button>`).join('')}</div></div>
+      <div class="form-group"><label class="form-label">Validade da CNH *</label><input class="form-control" type="date" data-futuro="1" value="${E(vle.cnhVal)}" onchange="vleCampo('cnhVal',this.value,1)"/>
+        ${dCnh != null ? (dCnh < 0 ? '<div style="color:var(--red);font-weight:700;font-size:13px;margin-top:4px">CNH vencida — não pode receber o veículo.</div>' : dCnh <= 30 ? `<div style="color:#B45309;font-weight:700;font-size:13px;margin-top:4px">CNH vence em ${dCnh} dia(s).</div>` : '') : ''}</div>
+      <div class="form-group"><label class="form-label">Foto da CNH * <span style="font-weight:400;color:var(--text2)">(frente e verso, até 2)</span></label>${_vleFotos('fotosCnh', 'Foto da CNH', 2)}</div>
+    </div></div>`;
+  } else if (ent) h += `<div class="vl-info" style="margin:-4px 0 12px">Comparando com a entrega de ${E(String(ent.data || '').split('-').reverse().join('/'))}: itens que pioraram ficam marcados em vermelho.</div>`;
+  const ckAnt = ent ? Object.fromEntries((ent.checklist || []).map(c => [c.t, c.st])) : {};
+  const nok = vle.ck.filter(c => c.st === 'ruim').length, feitos = vle.ck.filter(c => c.st).length; let gAtual = '';
+  h += `<div class="card"><div class="card-body">
+      <div class="form-group"><label class="form-label">${dev ? 'Km na devolução' : 'Km na entrega'} *</label><input class="form-control" type="number" inputmode="numeric" value="${E(vle.km)}" oninput="vle.km=this.value" placeholder="Ex.: 23450" style="font-size:24px;font-weight:800;text-align:center"/>${_vleFotos('fotoKm', 'Foto do painel (km) *', 1)}</div>
+      <div class="form-group"><label class="form-label">Combustível *</label><div class="mob-seg">${['Vazio', '1/4', '1/2', '3/4', 'Cheio'].map(c => `<button type="button" class="${vle.comb === c ? 'on' : ''}" onclick="vleCampo('comb','${c}',1)">${c}</button>`).join('')}</div></div>
+    </div></div>
+    <div class="mob-resumo">${feitos} de ${vle.ck.length} conferidos${nok ? ` · <b style="color:var(--red)">${nok} ruim</b>` : ''} <button type="button" class="mob-link" onclick="vle.ck.forEach(c=>{if(!c.st)c.st='bom'});vleRender()">Marcar o resto como Bom</button></div>
+    <div class="card"><div class="card-body" style="padding:4px 14px">${vle.ck.map((c, i) => { const cab = c.g !== gAtual ? (gAtual = c.g, `<div class="vle-g">${E(c.g)}</div>`) : '';
+      const piorou = ckAnt[c.t] && c.st && ['bom', 'reg', 'ruim'].indexOf(c.st) > ['bom', 'reg', 'ruim'].indexOf(ckAnt[c.t]);
+      return cab + `<div class="mob-ck ${c.st === 'ruim' || piorou ? 'nok' : ''}"><div class="mob-ck-t">${i + 1}. ${E(c.t)}${ckAnt[c.t] ? ` <span style="font-size:11px;color:var(--text2);font-weight:600">(na entrega: ${ckAnt[c.t] === 'bom' ? 'Bom' : ckAnt[c.t] === 'reg' ? 'Reg' : 'Ruim'})</span>` : ''}</div>
+        <div class="mob-seg mob-seg-sm">${VLE_ST.map(([s, t]) => `<button type="button" class="${c.st === s ? 'on ' + (s === 'ruim' ? 'nok' : s === 'reg' ? 'na' : '') : ''}" onclick="vle.ck[${i}].st='${s}';vleRender()">${t}</button>`).join('')}</div>
+        ${c.st === 'ruim' || c.st === 'reg' ? `<input class="form-control" style="margin-top:8px" placeholder="${c.st === 'ruim' ? 'O que está errado? (obrigatório)' : 'Observação (opcional)'}" value="${E(c.obs)}" oninput="vle.ck[${i}].obs=this.value"/>` : ''}
+        ${c.st === 'ruim' ? `<div class="hor-linha" style="margin-top:6px">${c.foto ? `<img class="hor-thumb" src="${c.foto.img}"/>` : ''}<label class="hor-foto-btn ${c.foto ? 'ok' : ''}" style="display:flex;align-items:center;justify-content:center;flex:1;min-height:44px">📷 ${c.foto ? 'Trocar foto' : 'Foto (obrigatória)'}<input type="file" accept="image/*" capture="environment" style="display:none" onchange="vleCkFoto(${i},this)"/></label></div>` : ''}</div>`; }).join('')}</div></div>
+    <div class="card"><div class="card-body"><div class="form-group"><label class="form-label">Observações</label><textarea class="form-control" rows="2" oninput="vle.obs=this.value">${E(vle.obs)}</textarea></div></div></div>`;
+  const nomeCond = dev ? (r ? r.nome : '') : (f ? f.nome : '');
+  if (!dev && v) h += `<div class="card"><div class="card-header"><span class="card-title">Declaração de vistoria e autorização de desconto</span></div><div class="card-body vle-decl">${_vleDecl({ modelo: v.modelo, placa: v.placa, tag: v.tag })}</div></div>`;
+  h += `<div class="card"><div class="card-body">
+      <div class="form-group"><label class="form-label">${dev ? 'Condutor que devolveu' : 'Condutor (colaborador)'} *</label><div style="font-weight:800;font-size:15px;margin-bottom:4px">${E(nomeCond || '—')}</div>
+        <div class="mob-sig"><canvas id="vlesig-cond" width="600" height="180" aria-label="Assinatura do condutor"></canvas><button type="button" class="mob-link" onclick="vleSigLimpar('cond')">Limpar</button><span>O condutor assina com o dedo (obrigatório)</span></div></div>
+      <div class="form-group"><label class="form-label">Responsável pela verificação *</label><input class="form-control" value="${E(vle.nomeVer)}" oninput="vle.nomeVer=this.value"/>
+        <div class="mob-sig"><canvas id="vlesig-ver" width="600" height="180" aria-label="Assinatura de quem verificou"></canvas><button type="button" class="mob-link" onclick="vleSigLimpar('ver')">Limpar</button><span>Assine com o dedo ou gere pelo nome</span></div>
+        <button type="button" class="btn btn-outline" style="width:100%;margin-top:8px" onclick="vleSigNome()">✍ Gerar assinatura pelo nome</button></div>
+    </div></div>`;
+  el.innerHTML = h; _vleSig('cond'); _vleSig('ver');
+}
+function _vleSig(k) {
+  const c = document.getElementById('vlesig-' + k); if (!c) return; const g = c.getContext('2d'), campo = k === 'cond' ? 'sigCond' : 'sigVer';
+  g.lineWidth = 3.2; g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = '#111';
+  if (vle[campo]) { const im = new Image(); im.onload = () => g.drawImage(im, 0, 0, c.width, c.height); im.src = vle[campo]; }
+  let des = false; const pos = e => { const r = c.getBoundingClientRect(); return [(e.clientX - r.left) * c.width / r.width, (e.clientY - r.top) * c.height / r.height]; };
+  c.onpointerdown = e => { des = true; c.setPointerCapture(e.pointerId); const [x, y] = pos(e); g.beginPath(); g.moveTo(x, y); e.preventDefault(); };
+  c.onpointermove = e => { if (!des) return; const [x, y] = pos(e); g.lineTo(x, y); g.stroke(); e.preventDefault(); };
+  c.onpointerup = c.onpointercancel = () => { if (!des) return; des = false; vle[campo] = c.toDataURL('image/png'); vle[campo + 'Tipo'] = { tipo: 'manuscrita', em: new Date().toISOString() }; };
+}
+async function vleSigNome() {
+  const nome = vle.nomeVer.trim(); if (!nome) { toast('Preencha o nome primeiro.', 'err'); return; }
+  const c = document.getElementById('vlesig-ver'); if (!c) return; const g = c.getContext('2d');
+  try { await document.fonts.load("600 64px 'Dancing Script'"); } catch (e) {}
+  g.clearRect(0, 0, c.width, c.height); g.fillStyle = '#0B2E6B'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  let tam = 70; do { g.font = `600 ${tam}px 'Dancing Script', 'Brush Script MT', cursive`; tam -= 4; } while (g.measureText(nome).width > c.width - 40 && tam > 24);
+  g.fillText(nome, c.width / 2, c.height / 2 - 6); g.font = '15px Arial'; g.fillStyle = '#64748B'; g.fillText('assinado eletronicamente · ' + new Date().toLocaleString('pt-BR').replace(',', '').slice(0, 16), c.width / 2, c.height - 18);
+  vle.sigVer = c.toDataURL('image/png'); vle.sigVerTipo = { tipo: 'nome', em: new Date().toISOString(), login: (usuarioCampo && (usuarioCampo.mat || usuarioCampo.nome)) || '' };
+}
+function vleSigLimpar(k) { const campo = k === 'cond' ? 'sigCond' : 'sigVer'; vle[campo] = ''; vle[campo + 'Tipo'] = null; const c = document.getElementById('vlesig-' + k); if (c) c.getContext('2d').clearRect(0, 0, c.width, c.height); }
+function _vleFalta() {
+  const f = [], dev = vle.modo === 'dev', v = _vleVeic(), r = _vleResp(v);
+  if (!vle.veicId) f.push('o veículo');
+  if (!dev) {
+    if (!vle.funcId) f.push('o colaborador'); if (!_cpfValido(vle.cpf)) f.push('o CPF válido'); if (!vle.cnhCat) f.push('a categoria da CNH');
+    if (!vle.cnhVal) f.push('a validade da CNH'); else if (vle.cnhVal < _hojeISO()) f.push('CNH vencida — não pode receber');
+    if (vle.cnhCat && v && (v.tipo === 'Moto' ? !vle.cnhCat.includes('A') : !/[BCDE]/.test(vle.cnhCat))) f.push('categoria ' + vle.cnhCat + ' não serve para ' + (v.tipo || 'o veículo').toLowerCase());
+    if (!vle.fotosCnh.length) f.push('a foto da CNH');
+  }
+  if (!String(vle.km).trim()) f.push('o km'); if (!vle.fotoKm.length) f.push('a foto do painel'); if (!vle.comb) f.push('o combustível');
+  if (dev && r && +r.km && +vle.km < +r.km) f.push('km menor que o da entrega (' + r.km + ')');
+  const sem = vle.ck.filter(c => !c.st).length; if (sem) f.push(sem + ' item(ns) do checklist');
+  vle.ck.forEach((c, i) => { if (c.st === 'ruim' && (!c.obs.trim() || !c.foto)) f.push('observação e foto do item ' + (i + 1)); });
+  if (!vle.sigCond || !vle.sigCondTipo || vle.sigCondTipo.tipo !== 'manuscrita') f.push('a assinatura à mão do condutor');
+  if (!vle.nomeVer.trim()) f.push('o nome de quem verificou'); if (!vle.sigVer) f.push('a assinatura de quem verificou');
+  return f;
+}
+function _vleTermoDados() {
+  const dev = vle.modo === 'dev', v = _vleVeic() || {}, r = _vleResp(v) || {}, f = _vleFunc() || {}, ent = dev ? _vleEntregaDe(v) : null;
+  const ob = (window._mobObras || []).find(o => o.id === (vle.obra || usuarioCampo.obra)); let cliente = 'TENCO'; try { cliente = localStorage.getItem('ok_cliente_nome') || 'TENCO'; } catch (e) {}
+  return { dev, cliente, obra: v.obra || vle.obra || usuarioCampo.obra || '', obraNome: ob ? ob.nome : ((document.getElementById('home-obra-label') || {}).textContent || ''), veicId: v.id, tag: v.tag || '', placa: v.placa, modelo: v.modelo, locadora: v.locadora,
+    condutor: dev ? r.nome : f.nome, mat: dev ? r.mat : f.mat, func: dev ? r.func : f.id, cpf: dev ? (r.cpf || vle.cpf) : vle.cpf, equipe: dev ? r.equipe : vle.equipe, tel: dev ? r.tel : vle.tel, cnhCat: dev ? r.cnhCat : vle.cnhCat, cnhVal: dev ? r.cnhVal : vle.cnhVal,
+    km: vle.km, comb: vle.comb, data: vle.data, hora: vle.hora, checklist: vle.ck.map(c => ({ g: c.g, t: c.t, st: c.st, obs: c.obs })), obs: vle.obs.trim(),
+    sigCond: vle.sigCond, nomeVer: vle.nomeVer.trim(), sigVer: vle.sigVer, entregaId: dev ? r.entregaId || '' : '', kmEntrega: dev ? r.km || '' : '', dataEntrega: dev ? r.inicio || '' : '',
+    rodados: dev && +r.km ? +vle.km - +r.km : null, piorou: ent ? vle.ck.filter(c => { const a = (ent.checklist || []).find(x => x.t === c.t); return a && ['bom', 'reg', 'ruim'].indexOf(c.st) > ['bom', 'reg', 'ruim'].indexOf(a.st); }).map(c => c.t) : [] };
+}
+function termoVleHtml(t) {
+  const L = (k, v) => v === '' || v == null ? '' : `<div class="tk-l"><span>${k}</span><b>${_mobEsc(v)}</b></div>`, fd = d => String(d || '').split('-').reverse().join('/');
+  const ruins = t.checklist.filter(c => c.st === 'ruim'), regs = t.checklist.filter(c => c.st === 'reg');
+  return `<div class="tk" style="width:330px"><img class="tk-logo" src="${typeof _TK_LOGO !== 'undefined' ? _TK_LOGO : ''}" alt="ObraKontrol">
+    <div class="tk-c" style="font-size:11px;color:#555">${_mobEsc(t.cliente)}${t.obraNome ? ' · ' + _mobEsc(t.obraNome) : ''}</div>
+    <div class="tk-t">${t.dev ? 'DEVOLUÇÃO DO VEÍCULO PELO CONDUTOR' : 'ENTREGA DE VEÍCULO AO CONDUTOR'}</div><div class="tk-big" style="font-size:28px">${_mobEsc(t.tag || t.placa)}</div><hr>
+    ${L('Data', fd(t.data) + ' ' + (t.hora || ''))}${L('Veículo', t.modelo)}${L('Placa', t.placa)}${L('Condutor', t.condutor)}${L('CPF', t.cpf)}${L('Equipe', t.equipe)}${t.dev ? '' : L('CNH', (t.cnhCat || '') + ' · até ' + fd(t.cnhVal))}
+    <hr>${L(t.dev ? 'Km na devolução' : 'Km na entrega', t.km)}${t.dev ? L('Km na entrega', t.kmEntrega) + (t.rodados != null ? L('Km rodados', t.rodados) : '') : ''}${L('Combustível', t.comb)}
+    <hr><div class="tk-c" style="color:#555">CHECKLIST · ${t.checklist.filter(c => c.st === 'bom').length} BOM · ${regs.length} REG · ${ruins.length} RUIM</div>
+    ${ruins.concat(regs).map(c => `<div style="color:${c.st === 'ruim' ? '#B91C1C' : '#B45309'};font-weight:700">${c.st === 'ruim' ? '✕' : '~'} ${_mobEsc(c.t)}</div>${c.obs ? `<div style="color:#555;margin-bottom:4px">${_mobEsc(c.obs)}</div>` : ''}`).join('') || '<div class="tk-c" style="color:#15803D;font-weight:700">Todos os itens em bom estado</div>'}
+    ${t.dev && t.piorou.length ? `<hr><div style="color:#B91C1C;font-weight:800">Pioraram desde a entrega: ${t.piorou.map(_mobEsc).join(', ')}</div>` : ''}
+    ${t.obs ? `<hr><div style="color:#555">Obs.: ${_mobEsc(t.obs)}</div>` : ''}
+    ${t.dev ? '' : `<hr><div style="font-size:9.5px;line-height:1.35;color:#333;text-align:justify">${_vleDecl(t)}</div>`}
+    <hr><div style="display:flex;gap:10px">${[['Condutor', t.condutor, t.sigCond], ['Verificou', t.nomeVer, t.sigVer]].map(([r, n, s]) => `<div style="flex:1;text-align:center">${s ? `<img src="${s}" style="width:100%;height:46px;object-fit:contain;border-bottom:1px solid #999"/>` : '<div style="height:46px;border-bottom:1px solid #999"></div>'}<div style="font-size:10.5px;color:#555">${r}: ${_mobEsc(n || '')}</div></div>`).join('')}</div>
+    ${t.validadoEm ? `<div class="tk-ok">✓ ${t.dev ? 'DEVOLVIDO' : 'ENTREGUE'} · ${_mobEsc(new Date(t.validadoEm).toLocaleString('pt-BR').replace(',', '').slice(0, 16))}</div>` : '<div class="tk-pend">CONFIRA ANTES DE VALIDAR</div>'}
+    <div class="tk-rod">ObraKontrol · Gestão operacional de obras</div></div>`;
+}
+function vleConferir() {
+  const f = _vleFalta(); if (f.length) { toast('Falta ' + f.slice(0, 3).join(', ') + (f.length > 3 ? '…' : '') + '.', 'err'); if (navigator.vibrate) { try { navigator.vibrate([60, 60, 60]); } catch (e) {} } return; }
+  _tkModal(termoVleHtml(_vleTermoDados()), `<button class="btn btn-outline" style="flex:1;background:#fff" onclick="document.getElementById('tk-ov').remove()">Corrigir</button><button class="btn btn-green" style="flex:1.4" onclick="vleValidar()">✓ Validar</button>`);
+}
+async function vleValidar() {
+  const b = document.querySelector('#tk-ov .btn-green'); if (b) { b.disabled = true; b.textContent = 'Salvando…'; }
+  try {
+    if (navigator.onLine) { try { const fr = await fbCarregar('frota'); if (fr) window._vlFrota = fr; } catch (e) {} }
+    const t = _vleTermoDados(), v = _vleVeic(); if (!v) throw new Error('veículo não encontrado');
+    const r0 = _vleResp(v); if (!t.dev && r0) throw new Error(v.placa + ' já está com ' + r0.nome); if (t.dev && !r0) throw new Error(v.placa + ' não tem condutor');
+    const ag = new Date().toISOString(), suf = Date.now().toString(36) + Math.random().toString(36).slice(2, 5), idMob = 'mb' + suf, quem = usuarioCampo.nome; let nf = 0;
+    const foto = async (x, tipo, rot) => { if (!x) return ''; const id = 'fv' + suf + (nf++); await fbSalvar('fotos', { id, tipo: 'veiculo_' + tipo, rotulo: rot, mobilizacao: idMob, veicId: v.id, placa: v.placa, obra: t.obra, data: t.data, lancadoPor: quem, tiradaEm: x.em || '', img: x.img }); return id; };
+    const fKm = await foto(vle.fotoKm[0], 'painel', 'Painel (km)'), fCnh = []; for (const x of vle.fotosCnh) fCnh.push(await foto(x, 'cnh', 'CNH'));
+    const ck = []; for (const c of vle.ck) ck.push({ g: c.g, t: c.t, st: c.st, obs: c.obs, foto: c.foto ? await foto(c.foto, 'check', c.t) : '' });
+    let resp;
+    if (!t.dev) resp = (v.resp || []).concat([{ id: 'rs' + suf, func: t.func, nome: t.condutor, mat: t.mat || '', cpf: t.cpf, equipe: t.equipe, tel: t.tel, cnhCat: t.cnhCat, cnhVal: t.cnhVal, fotosCnh: fCnh, inicio: t.data, km: +t.km || 0, entregaId: idMob, entreguePor: quem }]);
+    else resp = (v.resp || []).map(r => r.fim ? r : { ...r, fim: t.data, kmFim: +t.km || 0, devolucaoId: idMob });
+    await fbSalvar('frota', { id: v.id, resp, ...(t.dev ? {} : { status: 'Em uso' }), atualizadoEm: ag }); v.resp = resp;
+    await fbSalvar('mobilizacoes', { id: idMob, tipo: t.dev ? 'veiculo_dev_condutor' : 'veiculo_entrega', veicId: v.id, tag: t.tag, placa: t.placa, obra: t.obra, obraNome: t.obraNome, data: t.data, hora: t.hora, modeloNome: t.modelo, locadora: t.locadora,
+      condutor: t.condutor, func: t.func || '', mat: t.mat || '', cpf: t.cpf, equipe: t.equipe || '', tel: t.tel || '', cnhCat: t.cnhCat || '', cnhVal: t.cnhVal || '', fotosCnh: fCnh, km: t.km, comb: t.comb, fotoKm: fKm, checklist: ck, obs: t.obs,
+      sigCond: t.sigCond, sigCondTipo: vle.sigCondTipo, nomeVer: t.nomeVer, sigVer: t.sigVer, sigVerTipo: vle.sigVerTipo, entregaId: t.entregaId, kmEntrega: t.kmEntrega, dataEntrega: t.dataEntrega, rodados: t.rodados, piorou: t.piorou,
+      declaracao: t.dev ? '' : 'Declaração de vistoria do veículo e autorização de desconto', lancadoPor: quem, validadoEm: ag });
+    if (t.dev && t.entregaId) await fbSalvar('mobilizacoes', { id: t.entregaId, devolucaoId: idMob, devolvidoEm: t.data });
+    t.validadoEm = ag;
+    _tkModal(termoVleHtml(t), `<button class="btn btn-green" style="flex:1" onclick="document.getElementById('tk-ov').remove();showScreen('home')">Concluir</button>`);
+    toast('✓ ' + (t.tag || t.placa) + (t.dev ? ' devolvido por ' : ' entregue a ') + t.condutor, 'ok'); vle = null;
+  } catch (e) { toast('Não consegui salvar: ' + (e.message || e), 'err'); if (b) { b.disabled = false; b.textContent = '✓ Validar'; } }
+}
+(function () {
+  const css = document.createElement('style');
+  css.textContent = `.vle-g{font-size:11px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:var(--red);padding:12px 0 2px}
+    .vle-decl{font-size:13px;line-height:1.5;color:var(--text);text-align:justify}
+    .vle-row{display:flex;gap:8px;align-items:stretch}.vle-row select{flex:1;min-width:0}.vle-row .btn{width:auto!important;flex:0 0 auto;padding:0 14px}`;
+  document.head.appendChild(css);
+  // escolha da mobilização: entrega e devolução do condutor
+  const oEsc = _vlEscolha;
+  _vlEscolha = function () {
+    const p = oEsc.apply(this, arguments);
+    setTimeout(() => { const sh = document.querySelector('#vl-esc .vl-sheet'); if (!sh || sh.querySelector('[data-k="vent"]')) return;
+      const b = (k, ic, t, s) => `<button type="button" data-k="${k}"><span class="vl-ic">${ic}</span><span><b>${t}</b><small>${s}</small></span></button>`;
+      const sai = sh.querySelector('[data-k="sai"]'); if (sai) { sai.querySelector('b').textContent = 'Veículo leve — devolução à locadora'; }
+      (sai || sh.querySelector('.vl-canc')).insertAdjacentHTML('beforebegin', b('vent', '🔑', 'Entregar veículo ao colaborador', 'Checklist, CNH e declaração assinada') + b('vdev', '🔁', 'Colaborador devolve o veículo', 'Checklist e termo de devolução')); }, 0);
+    return p;
+  };
+  const oAb = abrirMobilizacao;
+  abrirMobilizacao = async function () {
+    const pode = typeof okModuloAtivo !== 'function' || okModuloAtivo('frota', usuarioCampo && usuarioCampo.obra);
+    if (!pode) return oAb.apply(this, arguments);
+    const oE = _vlEscolha; let esc = null;
+    _vlEscolha = function () { const p = oE.apply(this, arguments); p.then(k => esc = k); return p.then(k => (k === 'vent' || k === 'vdev') ? '' : k); };
+    try { await oAb.apply(this, arguments); } finally { _vlEscolha = oE; }
+    if (esc === 'vent') return vleAbrir('ent'); if (esc === 'vdev') return vleAbrir('dev');
+  };
+  // TAG automática na chegada do veículo
+  const oR = vlRender;
+  vlRender = function () { const r = oR.apply(this, arguments);
+    if (vl && vl.modo === 'ent') { const o = _vlObra(), el = document.querySelector('#vl-content .card .card-body'); const tag = o ? _vlTagProx(o, window._vlFrota) : '';
+      if (el && !el.querySelector('.mob-tag')) el.insertAdjacentHTML('afterbegin', `<div class="mob-tag ${tag ? '' : 'vazia'}"><span>TAG do veículo</span><b>${tag || '—'}</b><small>${tag ? 'Escreva esta TAG no veículo' : 'Escolha a obra para gerar'}</small></div>`); }
+    if (vl && vl.modo === 'sai') { document.querySelectorAll('#vl-content select option').forEach(op => { const v = (window._vlFrota || []).find(x => x.id === op.value); if (v && v.tag && !op.textContent.startsWith(v.tag)) op.textContent = v.tag + ' · ' + op.textContent; }); }
+    return r; };
+  const oSal = fbSalvar;
+  fbSalvar = async function (col, item) {
+    if (col === 'frota' && item && !item.tag && item.placa && item.origem === 'campo' && !(window._vlFrota || []).some(v => v.id === item.id)) item.tag = _vlTagProx(item.obra, window._vlFrota);
+    if (col === 'mobilizacoes' && item && item.tipo === 'veiculo_entrada' && !item.tag) { const v = (window._vlFrota || []).find(x => x.id === item.veicId); if (v && v.tag) item.tag = v.tag; }
+    return oSal.apply(this, arguments);
+  };
+  // QR: TAG do veículo e crachá do colaborador
+  const oQR = processarQR;
+  processarQR = function (texto, contexto) {
+    if (contexto !== 'vlev' && contexto !== 'vlec') return oQR.apply(this, arguments);
+    const t = String(texto || '').trim();
+    if (contexto === 'vlev') { let tag = t; try { const o = JSON.parse(t); tag = o.tag || o.equip || t; } catch (e) { if (/^tag:/i.test(t)) tag = t.slice(4).trim(); }
+      const v = (window._vlFrota || []).find(x => _mobNorm(x.tag) === _mobNorm(tag) || _mobNorm(x.placa) === _mobNorm(tag));
+      if (!v) { toast('Veículo não encontrado: ' + tag, 'err'); return; } vleCampo('veicId', v.id, 1); toast('✓ ' + (v.tag || v.placa), 'ok'); return { ok: true }; }
+    let f = null; const c = typeof _funcPorCracha === 'function' ? _funcPorCracha(t) : null; if (c && c.f) f = c.f;
+    if (!f) { let mat = t; try { const o = JSON.parse(t); mat = o.mat || o.matricula || t; } catch (e) { if (/^mat:/i.test(t)) mat = t.slice(4).trim(); } f = (dadosCampo.funcionarios || []).find(x => String(x.mat) === String(mat) || x.id === mat); }
+    if (!f) { toast('Colaborador não encontrado.', 'err'); return; } vleCampo('funcId', f.id, 1); toast('✓ ' + f.nome, 'ok'); return { ok: true };
+  };
 })();
 
 // Salvar sessão ao entrar
