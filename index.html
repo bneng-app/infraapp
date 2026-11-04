@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.15 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.16 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -9906,7 +9906,7 @@ document.addEventListener('fullscreenchange', () => { if (!document.fullscreenEl
 function _dxNav(tipo) {
   const it = (id, pag, rot, ic) => `<a class="${tipo === id ? 'on' : ''}" onclick="showPage('${pag}')">${ic}${rot}</a>`;
   return `<nav class="dx-nav"><div class="dx-nav-logo"><svg viewBox="0 0 312 60" style="width:96px"><g fill="#E30613"><rect x="0" y="0" width="48" height="12"/><rect x="18" y="0" width="12" height="60"/><rect x="62" y="0" width="44" height="12"/><rect x="62" y="24" width="44" height="12"/><rect x="62" y="48" width="44" height="12"/><rect x="120" y="0" width="12" height="60"/><rect x="168" y="0" width="12" height="60"/><polygon points="120,0 133,0 180,60 167,60"/></g><g fill="none" stroke="#E30613" stroke-width="12"><path d="M240.4 14.6 A24 24 0 1 0 240.4 45.4"/><circle cx="282" cy="30" r="24"/></g></svg><b>ObraKontrol</b></div>
-    ${it('geral', 'dashboard', 'Visão Geral', _ic.grid)}${it('mo', 'dash-mo', 'Mão de Obra', _ic.user)}${it('eq', 'dash-eq', 'Equipamentos', _ic.truck)}${it('abs', 'dash-abs', 'Abastecimento', _ic.fuel)}${it('dia', 'diario', 'Acompanhamento do dia', _ic.clock)}
+    ${it('dia', 'diario', 'Acompanhamento do dia', _ic.clock)}<div class="dx-nav-sep"></div>${it('geral', 'dashboard', 'Visão Geral', _ic.grid)}${it('mo', 'dash-mo', 'Mão de Obra', _ic.user)}${it('eq', 'dash-eq', 'Equipamentos', _ic.truck)}${it('abs', 'dash-abs', 'Abastecimento', _ic.fuel)}
     <a class="dx-nav-sair" onclick="dxTelaCheia(true)" style="margin-top:14px;color:#aaa;font-weight:500">← Sair da tela cheia</a>
     <div class="dx-nav-foto" style="background-image:url('${_DX_FOTOS[tipo] || _DX_FOTOS.geral}')"></div></nav>`;
 }
@@ -10220,7 +10220,7 @@ function dxRender() {
 // ═══════════════════════════════════════════════════════════════
 const _DASH_PAGS = ['diario', 'dashboard', 'dash-mo', 'dash-eq', 'dash-abs'];
 let _amb = '';
-const _ambUlt = { dash: 'dashboard', gestao: '' };
+const _ambUlt = { dash: 'diario', gestao: '' };   // v3.16: Dashboards abre no Acompanhamento do dia
 function _ambPagsGestao() {
   const vistas = new Set();
   document.querySelectorAll('.sidebar .nav-item[onclick*="showPage("]').forEach(el => {
@@ -10255,7 +10255,7 @@ function ambDefinir(a) {
   if (!_ambPode(a)) return;
   _ambClasses(a);
   const ativa = document.querySelector('.page.active')?.id?.replace('page-', '') || '';
-  if (a === 'dash' && !_DASH_PAGS.includes(ativa)) { const alvo = [_ambUlt.dash, 'dashboard', ..._DASH_PAGS].find(p => p && podeVerPagina(p)); _ambIr(alvo || 'dashboard'); }
+  if (a === 'dash' && !_DASH_PAGS.includes(ativa)) { const alvo = [_ambUlt.dash, 'diario', 'dashboard', ..._DASH_PAGS].find(p => p && podeVerPagina(p)); _ambIr(alvo || 'dashboard'); }
   if (a === 'gestao' && (_DASH_PAGS.includes(ativa) || !ativa)) {
     const ps = _ambPagsGestao();
     _ambIr(ps.includes(_ambUlt.gestao) ? _ambUlt.gestao : (ps.includes('aprovacao') ? 'aprovacao' : ps[0]));
@@ -10267,6 +10267,7 @@ function _ambIniciar() {
   const sw = document.getElementById('amb-sw'); if (sw) sw.style.display = dash && gest ? '' : 'none';
   const a = dash ? 'dash' : 'gestao';   // v2.60: ao entrar, sempre abre nas Dashboards (se o perfil tiver acesso)
   ambDefinir(a);
+  if (a === 'dash' && podeVerPagina('diario')) _ambIr('diario');   // v3.16: entra no Acompanhamento do dia
 }
 (function () {
   // abrir uma tela leva junto o ambiente dela (ex.: link para Aprovação a partir de um painel)
@@ -14337,7 +14338,8 @@ function dxRenderAbs2() {
   const oM = _dxMontar;
   _dxMontar = function (tipo, pagina, titulo, sub, corpo) { return oM.call(this, tipo, pagina, titulo, sub, ['mo', 'eq', 'abs'].includes(tipo) ? _dxModoBar(tipo) + corpo : corpo); };
   const css = document.createElement('style');
-  css.textContent = `.dx-modobar{display:flex;align-items:stretch;gap:8px;margin:0 0 14px;flex-wrap:wrap}
+  css.textContent = `.dx-nav-sep{height:1px;background:var(--ln);margin:8px 10px}
+    .dx-modobar{display:flex;align-items:stretch;gap:8px;margin:0 0 14px;flex-wrap:wrap}
     .dx-modobar-l{align-self:center;font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--mu);margin-right:4px}
     .dx-modobar button{display:flex;align-items:center;gap:10px;min-width:220px;padding:10px 16px;border-radius:12px;border:1.5px solid var(--ln);background:var(--pn);color:var(--tx);cursor:pointer;text-align:left;transition:border-color .15s,background .15s}
     .dx-modobar button:hover{border-color:var(--rd)}
