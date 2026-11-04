@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.10 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.11 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -10516,10 +10516,13 @@ function _diaMapaMontar(turnos, frentes) {
     });
     turnos.forEach(t => {
       const g = t.geoIni, fr = (dados.frentes || []).find(x => x.cod === t.frente);
+      // v3.11: encerrado em cinza · aberto longe da frente (> 500 m) em amarelo · aberto na frente em vermelho
+      const _gf = typeof _geoFrente === 'function' ? _geoFrente(t.frente, t.obra) : null, _dist = _gf ? _geoDist(g, _gf) : 0, _enc = t.status !== 'aberto';
+      const _cor = _enc ? '#6B7280' : _dist > _GEO_RAIO ? '#F59E0B' : '#E30613', _halo = _enc ? 'rgba(107,114,128,.25)' : _dist > _GEO_RAIO ? 'rgba(245,158,11,.3)' : 'rgba(227,6,19,.28)';
       const mk = L.marker([g.lat, g.lng], { icon: L.divIcon({ className: '', iconSize: [34, 34], iconAnchor: [17, 17],
-        html: `<div style="width:34px;height:34px;border-radius:50%;background:#E30613;border:3px solid #fff;box-shadow:0 0 0 6px rgba(227,6,19,.28),0 4px 10px rgba(0,0,0,.5);color:#fff;font:800 11px Inter,Arial,sans-serif;display:flex;align-items:center;justify-content:center">${(t.mo || []).length}</div>` }) }).addTo(m);
+        html: `<div style="width:34px;height:34px;border-radius:50%;background:${_cor};border:3px solid #fff;box-shadow:0 0 0 6px ${_halo},0 4px 10px rgba(0,0,0,.5);color:#fff;font:800 11px Inter,Arial,sans-serif;display:flex;align-items:center;justify-content:center">${(t.mo || []).length}</div>` }) }).addTo(m);
       mk.bindPopup(`<div style="font:13px Inter,Arial,sans-serif;min-width:200px"><b>${_e(t.frente)}</b> ${_e(fr ? fr.desc || '' : '')}<br><span style="color:#666">${_e(t.servico || '—')}</span>
-        <div style="margin-top:6px">Apropriador: <b>${_e(t.apontador || '—')}</b><br>Entrada: <b>${_e(t.horaIni || '—')}</b> · ${(t.mo || []).length} pessoa(s) · ${(t.eq || []).length} equip.</div>
+        <div style="margin-top:6px">Apropriador: <b>${_e(t.apontador || '—')}</b><br>Entrada: <b>${_e(t.horaIni || '—')}</b>${t.horaFim ? ' · Saída: <b>' + _e(t.horaFim) + '</b>' : ''} · ${_enc ? '<span style="color:#6B7280">encerrado</span>' : '<span style="color:#16A34A">aberto</span>'}${_dist > _GEO_RAIO ? '<br><span style="color:#B45309;font-weight:700">⚠ abriu a ' + (_dist >= 1000 ? (_dist / 1000).toFixed(1).replace('.', ',') + ' km' : Math.round(_dist) + ' m') + ' da frente</span>' : ''}<br>${(t.mo || []).length} pessoa(s) · ${(t.eq || []).length} equip.</div>
         <div style="margin-top:6px"><a href="https://www.google.com/maps?q=${g.lat},${g.lng}" target="_blank" rel="noopener">Abrir no Google Maps</a> <span style="color:#888">±${_e(g.acc || '?')} m</span></div></div>`);
       pts.push([g.lat, g.lng]);
     });
@@ -10539,12 +10542,13 @@ function _diaMapaMontar(turnos, frentes) {
     const r = oRender.apply(this, arguments);
     const pg = document.getElementById('page-diario'); const main = pg && pg.querySelector('.dx-main'); if (!main) return r;
     const ob = _dx.obra, dataSel = _dia.dataSel || _hojeLocal();
-    const abertos = _dia.lista.filter(t => (!ob || t.obra === ob) && t.status === 'aberto' && t.data === dataSel);
+    const abertos = _dia.lista.filter(t => (!ob || t.obra === ob) && (t.status === 'aberto' || (window._mapaModo === 'dia' && t.status === 'encerrado')) && t.data === dataSel);
     const comGeo = abertos.filter(t => t.geoIni && t.geoIni.lat != null);
     const frentes = (dados.frentes || []).filter(f => (!ob || !f.obra || f.obra === ob)).map(f => { const c = typeof _geoFrente === 'function' ? _geoFrente(f.cod, f.obra) : null; return c ? { ...c, cod: f.cod, desc: f.desc } : null; }).filter(Boolean);
-    const leg = `<span class="dx-leg"><span><i style="background:#E30613;border-radius:50%"></i>equipe aberta (nº de pessoas)</span>${frentes.length ? '<span><i style="background:#6B7280;border-radius:50%"></i>frente cadastrada</span>' : ''}</span>`;
-    const aviso = abertos.length > comGeo.length ? `<div class="dx-sub" style="margin:8px 0 0">${abertos.length - comGeo.length} turno(s) aberto(s) sem localização (abertos antes da versão 2.21 do app).</div>` : '';
-    main.insertAdjacentHTML('beforeend', _pn(_ic.target, 'Mapa das equipes abertas (' + comGeo.length + ')',
+    const _md = window._mapaModo === 'dia';
+    const leg = `<span class="dx-leg"><span><i style="background:#E30613;border-radius:50%"></i>aberta (nº de pessoas)</span><span><i style="background:#F59E0B;border-radius:50%"></i>abriu longe da frente</span>${_md ? '<span><i style="background:#6B7280;border-radius:50%"></i>encerrada</span>' : ''}${frentes.length ? '<span><i style="background:transparent;border:2px solid #9CA3AF;border-radius:50%"></i>frente cadastrada</span>' : ''}<span class="dia-seg"><button class="${_md ? '' : 'on'}" onclick="window._mapaModo='';renderDiario()">Só abertos</button><button class="${_md ? 'on' : ''}" onclick="window._mapaModo='dia';renderDiario()">Dia inteiro</button></span></span>`;
+    const aviso = abertos.length > comGeo.length ? `<div class="dx-sub" style="margin:8px 0 0">${abertos.length - comGeo.length} turno(s) sem localização (abertos antes da versão 2.21 do app).</div>` : '';
+    main.insertAdjacentHTML('beforeend', _pn(_ic.target, (_md ? 'Mapa do dia (' : 'Mapa das equipes abertas (') + comGeo.length + ')',
       `<div id="dia-mapa" style="height:440px;border-radius:10px;overflow:hidden;background:#151519"></div>${aviso}`, leg, 'margin-bottom:12px'));
     if (_mapaDia) { try { _mapaVista = { c: _mapaDia.getCenter(), z: _mapaDia.getZoom() }; _mapaDia.remove(); } catch (e) {} _mapaDia = null; }
     _diaMapaMontar(comGeo, frentes);
@@ -13905,6 +13909,106 @@ async function verTermoVeic(id) {
     const mp = { contrato: 'fr-contrato', valorMes: 'fr-valor', fimContrato: 'fr-fimc', crlvVal: 'fr-crlv', chassi: 'fr-chassi', renavam: 'fr-renavam' };
     Object.entries(mp).forEach(([k, el]) => { const e = $(el); if (e) e.style.borderColor = v && v.cadastroPendente && !(k === 'valorMes' ? +v[k] : String(v[k] || '').trim()) ? '#F59E0B' : ''; });
     return r; };
+})();
+
+
+// ═══════════════════════════════════════════════════════════════
+// v3.11: ACOMPANHAMENTO DO DIA COMPLETO — mantém apropriação, turnos e mapa; acrescenta
+// litros e mobilizações nos números, barras de progresso na apropriação e blocos separados
+// (recolhíveis) de Paradas, Abastecimentos, Mobilizações e Fotos das frentes.
+// ═══════════════════════════════════════════════════════════════
+window._diaAberto = window._diaAberto || {};
+function _diaBloco(id, ic, titulo, total, corpo, n) {
+  const ab = id in window._diaAberto ? window._diaAberto[id] : n > 0;
+  return `<details class="dx-pn dia-blk" data-b="${id}" ${ab ? 'open' : ''} ontoggle="window._diaAberto['${id}']=this.open" style="margin-bottom:12px">
+    <summary class="dx-pn-h" style="margin-bottom:0"><div class="dx-pn-t">${ic}${titulo} <span class="dia-cnt">${n}</span></div><div class="dx-pn-x">${total || ''} <span class="dia-chev">▾</span></div></summary>
+    <div style="margin-top:10px">${n ? corpo : '<div class="dx-vazio">Nada neste dia.</div>'}</div></details>`;
+}
+function _diaBarra(rot, a, b) {
+  if (!b) return ''; const p = Math.round(a / b * 100), cor = p >= 100 ? '#22C55E' : p >= 70 ? '#F59E0B' : '#FF5A60';
+  return `<div class="dia-bar"><div class="dia-bar-l"><span>${rot}</span><b style="color:${cor}">${a} de ${b} · ${p}%</b></div><div class="dia-bar-t"><i style="width:${Math.min(100, p)}%;background:${cor}"></i></div></div>`;
+}
+function _diaHm(ini, fim) { const m = x => { const [a, b] = String(x || '').split(':').map(Number); return a * 60 + (b || 0); }; if (!ini || !fim) return 0; let d = m(fim) - m(ini); if (d < 0) d += 1440; return d / 60; }
+async function _diaFotos(el) {
+  el.querySelectorAll('.dia-ft[data-f]').forEach(async d => { if (d.dataset.ok) return; d.dataset.ok = 1;
+    const _c = (window._diaFtC = window._diaFtC || {}), img = _c[d.dataset.f] || (_c[d.dataset.f] = await _mobFotoImg(d.dataset.f)); if (img) { d.style.backgroundImage = `url('${img}')`; d.onclick = () => window.open().document.write('<img src="' + img + '" style="max-width:100%">'); } else d.classList.add('sem'); });
+}
+(function () {
+  const css = document.createElement('style');
+  css.textContent = `#page-diario .dx-kpis{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}#page-diario .dx-kpi{padding:12px;gap:10px}#page-diario .dx-kpi-ic{width:30px;height:30px;flex:0 0 30px}#page-diario .dx-kpi-ic svg{width:26px;height:26px}#page-diario .dx-kpi-l{font-size:12px}
+    .dia-blk>summary{list-style:none;cursor:pointer;user-select:none}.dia-blk>summary::-webkit-details-marker{display:none}
+    .dia-cnt{background:rgba(227,6,19,.18);color:var(--tx);border-radius:10px;padding:0 8px;font-size:11.5px;font-weight:800;margin-left:4px}
+    .dia-chev{display:inline-block;transition:transform .15s;margin-left:6px}.dia-blk:not([open]) .dia-chev{transform:rotate(-90deg)}
+    .dia-bar{margin:0 0 10px}.dia-bar-l{display:flex;justify-content:space-between;font-size:12px;color:var(--mu);margin-bottom:4px}
+    .dia-bar-t{height:8px;border-radius:5px;background:rgba(255,255,255,.07);overflow:hidden}.dx.claro .dia-bar-t{background:rgba(0,0,0,.07)}.dia-bar-t i{display:block;height:100%;border-radius:5px}
+    .dia-par{display:grid;grid-template-columns:minmax(140px,32%) 1fr auto;gap:6px 12px;align-items:start;padding:8px 0;border-top:1px solid var(--ln);font-size:12.5px}
+    .dia-par:first-child{border-top:0}.dia-par .ch{display:flex;flex-wrap:wrap;gap:4px}.dia-par .ch span{background:rgba(255,255,255,.05);border:1px solid var(--ln);border-radius:7px;padding:2px 7px;font-size:11.5px;color:var(--mu)}
+    .dx.claro .dia-par .ch span{background:#F4F4F6}.dia-par .ch span.ag{border-color:#F59E0B;color:#F59E0B}
+    .dia-fts{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}.dia-fc{font-size:11px;color:var(--mu);margin-top:3px}
+    .dia-ft{aspect-ratio:4/3;border-radius:9px;background:rgba(255,255,255,.05) center/cover;cursor:zoom-in}.dia-ft.sem{cursor:default}
+    .dia-seg{display:inline-flex;border:1px solid var(--ln);border-radius:8px;overflow:hidden;margin-left:10px}.dia-seg button{background:transparent;border:0;color:var(--mu);font-size:11px;padding:4px 9px;cursor:pointer}
+    .dia-seg button.on{background:var(--rd);color:#fff}
+    .dia-tg{display:inline-block;font-size:10.5px;font-weight:700;border-radius:6px;padding:1px 7px}.dia-tg.ent{background:rgba(34,197,94,.15);color:#22C55E}.dia-tg.sai{background:rgba(148,163,184,.18);color:var(--mu)}.dia-tg.al{background:rgba(255,90,96,.15);color:#FF5A60;white-space:normal}`;
+  document.head.appendChild(css);
+  const oR = renderDiario;
+  renderDiario = function () {
+    const r = oR.apply(this, arguments);
+    const pg = document.getElementById('page-diario'), main = pg && pg.querySelector('.dx-main'); if (!main) return r;
+    const ob = _dx.obra, dataSel = _dia.dataSel || _hojeLocal(), daObra = x => !ob || !x.obra || x.obra === ob;
+    const doDia = _dia.lista.filter(t => (!ob || t.obra === ob) && t.status !== 'descartado' && t.data === dataSel);
+    // dados do dia
+    const abs = (dados.diesel || []).filter(d => daObra(d) && (d.data || String(d.dt || '').slice(0, 10)) === dataSel && d.status !== 'rejeitado')
+      .sort((a, b) => String(a.dt || a.hora || '').localeCompare(String(b.dt || b.hora || '')));
+    const litros = abs.reduce((s, d) => s + (+d.litros || 0), 0);
+    const mobs = (dados.mobilizacoes || []).filter(m => daObra(m) && m.data === dataSel).sort((a, b) => String(a.hora).localeCompare(String(b.hora)));
+    const nEnt = mobs.filter(m => m.tipo !== 'veiculo_saida').length, nSai = mobs.length - nEnt;
+    // 1) números: litros e mobilizações
+    const k = main.querySelector('.dx-kpis');
+    if (k && !k.querySelector('.dia-k2')) k.insertAdjacentHTML('beforeend', `<span class="dia-k2" style="display:none"></span>`
+      + _kpi(_ic.fuel, _fmtN(litros) + ' L', 'Abastecido no dia', abs.length + ' abastecimento(s)', '')
+      + _kpi(_ic.truck, nEnt + ' · ' + nSai, 'Chegadas · devoluções', 'equipamentos e veículos', ''));
+    // 2) apropriação: barras de progresso (usa os mesmos números dos cartões)
+    const kv = l => { const e = [...main.querySelectorAll('.dx-kpi')].find(x => x.querySelector('.dx-kpi-l')?.textContent.trim() === l); const m = e && /(\d+)\s*\/\s*(\d+)/.exec(e.querySelector('.dx-kpi-v').textContent); return m ? [+m[1], +m[2]] : null; };
+    const pn = t => [...main.querySelectorAll('.dx-pn')].find(x => x.querySelector('.dx-pn-t')?.textContent.trim().startsWith(t));
+    const pAp = pn('Apropriadores'), pFal = pn('Faltando apontar'), ap = kv('Apropriadores com apontamento'), pe = kv('Pessoas apontadas'), eq = kv('Equipamentos apontados');
+    if (pAp && ap && !pAp.querySelector('.dia-bar')) pAp.querySelector('.dx-pn-h').insertAdjacentHTML('afterend', _diaBarra('Apropriadores que já abriram', ap[0], ap[1]));
+    if (pFal && !pFal.querySelector('.dia-bar')) pFal.querySelector('.dx-pn-h').insertAdjacentHTML('afterend', (pe ? _diaBarra('Pessoas apontadas', pe[0], pe[1]) : '') + (eq ? _diaBarra('Equipamentos apontados', eq[0], eq[1]) : ''));
+    // 3) blocos novos
+    const E = _e;
+    // Paradas (dos turnos; se o dia não tiver, usa as perdas lançadas)
+    const par = doDia.flatMap(t => (t.paradas || []).map(p => ({ ...p, frente: t.frente, h: p.fim ? _diaHm(p.ini, p.fim) : _diaHm(p.ini, new Date().toTimeString().slice(0, 5)), aberta: !p.fim })));
+    const perdas = par.length ? [] : (dados.perdas || []).filter(p => daObra(p) && p.data === dataSel).map(p => ({ motivo: p.motivo, quem: p.tipo, frente: p.frente, h: +p.horas || 0 }));
+    const todasPar = par.concat(perdas), porMot = {};
+    todasPar.forEach(p => { const m = p.motivo || 'Sem motivo'; (porMot[m] = porMot[m] || []).push(p); });
+    const hPar = todasPar.reduce((s, p) => s + p.h, 0);
+    const corpoPar = Object.entries(porMot).sort((a, b) => b[1].reduce((s, p) => s + p.h, 0) - a[1].reduce((s, p) => s + p.h, 0)).map(([m, l]) =>
+      `<div class="dia-par"><div><b>${E(m)}</b><div class="dx-kpi-s">${l.length} parada(s)</div></div><div class="ch">${l.map(p => `<span class="${p.aberta ? 'ag' : ''}">${E(p.frente || '—')}${p.quem ? ' · ' + E(p.quem) : ''}${p.ini ? ' · ' + E(p.ini) + (p.fim ? '–' + E(p.fim) : ' (parado agora)') : ''}</span>`).join('')}</div>
+        <div class="td-mono" style="font-weight:800">${_n1(l.reduce((s, p) => s + p.h, 0))} h</div></div>`).join('');
+    // Abastecimentos
+    const tq = id => { const t = (dados.tanques || []).find(x => x.id === id); return t ? (t.nome || t.cod) : (id || '—'); };
+    const nAl = abs.filter(d => typeof _absAlertas === 'function' && _absAlertas(d).length).length;
+    const corpoAbs = `<div class="table-wrap" style="max-height:420px;overflow:auto"><table class="dx-tb"><thead><tr><th>Hora</th><th>TAG</th><th style="text-align:right">Litros</th><th style="text-align:right">Horímetro / km</th><th>Tanque</th><th>Lançado por</th><th>Alerta</th></tr></thead><tbody>
+      ${abs.map(d => { const al = typeof _absAlertas === 'function' ? _absAlertas(d) : []; return `<tr><td class="td-mono">${E(d.hora || String(d.dt || '').slice(11, 16) || '—')}</td><td><b>${E(d.equip || '—')}</b></td><td class="td-mono" style="text-align:right">${_fmtN(+d.litros || 0)}</td>
+        <td class="td-mono" style="text-align:right">${E(d.hor || d.horimetro || '—')}</td><td>${E(tq(d.tanqueId || d.tanque))}</td><td class="mu">${E(d.lancadoPor || '—')}</td><td>${al.length ? al.map(x => `<span class="dia-tg al">⚠ ${E(x.txt)}</span>`).join(' ') : '<span class="mu">—</span>'}</td></tr>`; }).join('')}</tbody></table></div>`;
+    // Mobilizações
+    const rotMob = m => m.tipo === 'veiculo_entrada' ? ['ent', 'Veículo chegou'] : m.tipo === 'veiculo_saida' ? ['sai', 'Veículo devolvido'] : ['ent', 'Equipamento chegou'];
+    const corpoMob = `<div class="table-wrap"><table class="dx-tb"><thead><tr><th>Hora</th><th>Movimento</th><th>TAG / placa</th><th>Modelo</th><th>Proprietária / locadora</th><th style="text-align:right">Horím. / km</th><th>Registrado por</th><th></th></tr></thead><tbody>
+      ${mobs.map(m => { const [c, t] = rotMob(m), veic = /^veiculo/.test(m.tipo || ''); return `<tr><td class="td-mono">${E(m.hora || '—')}</td><td><span class="dia-tg ${c}">${t}</span></td><td><b>${E(m.tag || m.placa || '—')}</b></td><td>${E(m.modeloNome || '—')}</td>
+        <td>${E(m.empresaNome || m.locadora || '—')}</td><td class="td-mono" style="text-align:right">${E(m.hor || m.km || '—')}${m.rodados != null && m.rodados !== '' ? '<div class="mu" style="font-size:10.5px">' + E(m.rodados) + ' km rodados</div>' : ''}</td><td class="mu">${E(m.lancadoPor || '—')}</td>
+        <td><button class="dx-btn" style="padding:4px 9px" onclick="${veic ? 'verTermoVeic' : 'verTermoMob'}('${E(m.id)}')">📋 termo</button></td></tr>`; }).join('')}</tbody></table></div>`;
+    // Fotos das frentes
+    const fts = doDia.flatMap(t => (t.fotosFrente || []).map((f, i) => ({ f, frente: t.frente, serv: t.servico, i })));
+    const corpoFt = `<div class="dia-fts">${fts.slice(0, 40).map(x => `<div><div class="dia-ft" data-f="${E(x.f)}"></div><div class="dia-fc">${E(x.frente || '')}${x.serv ? ' · ' + E(x.serv) : ''}</div></div>`).join('')}</div>${fts.length > 40 ? `<div class="dx-sub">Mostrando 40 de ${fts.length}. Veja todas na Aprovação.</div>` : ''}`;
+    main.querySelectorAll('.dia-blk').forEach(x => x.remove());
+    main.insertAdjacentHTML('beforeend',
+      _diaBloco('par', _ic.timer, 'Paradas do dia', todasPar.length ? _n1(hPar) + ' h paradas' + (par.some(p => p.aberta) ? ' · ' + par.filter(p => p.aberta).length + ' agora' : '') : '', corpoPar, todasPar.length)
+      + _diaBloco('abs', _ic.fuel, 'Abastecimentos', abs.length ? _fmtN(litros) + ' L' + (nAl ? ' · <span style="color:#FF5A60">' + nAl + ' com alerta</span>' : '') : '', corpoAbs, abs.length)
+      + _diaBloco('mob', _ic.truck, 'Mobilizações', mobs.length ? nEnt + ' chegada(s) · ' + nSai + ' devolução(ões)' : '', corpoMob, mobs.length)
+      + _diaBloco('ft', _ic.grid, 'Fotos das frentes', fts.length ? fts.length + ' foto(s) em ' + new Set(fts.map(x => x.frente)).size + ' frente(s)' : '', corpoFt, fts.length));
+    const bft = main.querySelector('.dia-blk[data-b="ft"]');
+    if (bft) { if (bft.open) _diaFotos(bft); bft.addEventListener('toggle', () => { if (bft.open) _diaFotos(bft); }); }
+    return r;
+  };
 })();
 
 // Apply configs on load
