@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.21 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.22 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -801,7 +801,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <div class="nav-group-items">
       <div class="nav-item" onclick="showPage('republicas',this)" title="Repúblicas e alojamentos">
         <svg viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M5 21V9l7-5 7 5v12"/><path d="M10 21v-5h4v5"/><path d="M9 11h.01M15 11h.01"/></svg>
-        <span>Repúblicas</span>
+        <span>Repúblicas e alojamentos</span>
       </div>
       <div class="nav-item" onclick="showPage('alojados',this)" title="Lista de alojados">
         <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" y1="8" x2="23" y2="8"/><line x1="17" y1="12" x2="23" y2="12"/><line x1="19" y1="16" x2="23" y2="16"/></svg>
@@ -1300,12 +1300,15 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
 <div class="page" id="page-republicas">
   <div class="page-header">
     <div><div class="page-title">Repúblicas e alojamentos</div><div class="page-sub">Onde o pessoal da obra mora, quantas vagas tem e quanto custa por pessoa</div></div>
-    <div class="btn-group"><button class="btn btn-primary" onclick="repNova()">+ Nova república</button></div>
+    <div class="btn-group"><button class="btn btn-primary" onclick="repNova()">+ Novo cadastro</button></div>
   </div>
   <div class="stats-grid" id="rep-kpis" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:.875rem"></div>
   <div class="card"><div class="card-body">
-    <div class="search-wrap"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="search-rep" placeholder="Buscar república, endereço ou morador…" oninput="renderRepublicas()"/></div>
-    <div class="table-wrap"><table><thead><tr><th>República</th><th>Obra</th><th>Ocupação</th><th style="text-align:right">Custo mensal</th><th style="text-align:right">Por pessoa</th><th style="text-align:right">Por vaga</th><th>Situação</th><th></th></tr></thead>
+    <div style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:flex-end;margin-bottom:.75rem">
+      <div class="search-wrap" style="flex:1;min-width:240px;margin:0"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="search-rep" placeholder="Buscar código, nome, endereço ou morador…" oninput="renderRepublicas()"/></div>
+      <div class="form-group" style="min-width:190px;margin:0"><label class="form-label" for="filtro-rep-tipo">Tipo</label><select class="form-control" id="filtro-rep-tipo" onchange="renderRepublicas()"><option value="">Todos</option><option>República</option><option>Alojamento</option><option>Hotel / pousada</option><option>Outro</option></select></div>
+    </div>
+    <div class="table-wrap"><table><thead><tr><th>Código</th><th>Nome</th><th>Tipo</th><th>Endereço</th><th>Proprietário</th><th>Obra</th><th>Ocupação</th><th style="text-align:right">Custo mensal</th><th style="text-align:right">Por pessoa</th><th style="text-align:right">Por vaga</th><th>Situação</th><th></th></tr></thead>
       <tbody id="tbody-republicas"></tbody></table></div>
   </div></div>
 </div>
@@ -1318,10 +1321,11 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
   <div class="card"><div class="card-body">
     <div style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:flex-end;margin-bottom:.75rem">
       <div class="search-wrap" style="flex:1;min-width:240px;margin:0"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="search-aloj" placeholder="Buscar nome, matrícula ou função…" oninput="renderAlojados()"/></div>
-      <div class="form-group" style="min-width:220px;margin:0"><label class="form-label" for="filtro-aloj-rep">República</label><select class="form-control" id="filtro-aloj-rep" onchange="renderAlojados()"><option value="">Todas</option></select></div>
+      <div class="form-group" style="min-width:170px;margin:0"><label class="form-label" for="filtro-aloj-tipo">Tipo</label><select class="form-control" id="filtro-aloj-tipo" onchange="renderAlojados()"><option value="">Todos</option><option>República</option><option>Alojamento</option><option>Hotel / pousada</option><option>Outro</option></select></div>
+      <div class="form-group" style="min-width:220px;margin:0"><label class="form-label" for="filtro-aloj-rep">República / alojamento</label><select class="form-control" id="filtro-aloj-rep" onchange="renderAlojados()"><option value="">Todas</option></select></div>
     </div>
     <div id="aloj-resumo" style="font-size:12.5px;color:var(--text-3);margin-bottom:.5rem"></div>
-    <div class="table-wrap"><table><thead><tr><th>Nome</th><th>Matrícula</th><th>Função</th><th>República</th><th>Obra</th><th>Entrada</th><th style="text-align:right">Dias</th><th style="text-align:right">Custo/mês</th><th></th></tr></thead>
+    <div class="table-wrap"><table><thead><tr><th>Nome</th><th>Matrícula</th><th>Função</th><th>República / alojamento</th><th>Obra</th><th>Entrada</th><th style="text-align:right">Dias</th><th style="text-align:right">Custo/mês</th><th></th></tr></thead>
       <tbody id="tbody-alojados"></tbody></table></div>
   </div></div>
 </div>
@@ -11983,24 +11987,28 @@ function repCusto(r) { return _REP_CUSTOS.reduce((s, [k]) => s + (+r[k] || 0), 0
 function repMoradores(r) { return (r.moradores || []).filter(m => !m.saida); }
 function _repLista() { const o = _okObraAtual(); return (dados.republicas || []).filter(r => (o === 'todas' || r.obra === o) && okModuloAtivo('republicas', r.obra)); }
 function renderRepublicas() {
-  const busca = (document.getElementById('search-rep')?.value || '').toLowerCase();
-  const todas = _repLista(), ativas = todas.filter(r => r.status !== 'Encerrada');
+  const busca = (document.getElementById('search-rep')?.value || '').toLowerCase(), ftipo = document.getElementById('filtro-rep-tipo')?.value || '';
+  const todas = _repLista().filter(r => !ftipo || (r.tipo || 'República') === ftipo), ativas = todas.filter(r => r.status !== 'Encerrada');
   const vagas = ativas.reduce((s, r) => s + (+r.vagas || 0), 0), ocup = ativas.reduce((s, r) => s + repMoradores(r).length, 0), custo = ativas.reduce((s, r) => s + repCusto(r), 0);
   const vazio = ativas.reduce((s, r) => { const v = +r.vagas || 0, o = repMoradores(r).length; return s + (v > o && v ? repCusto(r) / v * (v - o) : 0); }, 0);
   const kpi = (l, v, sub, cor) => `<div class="stat-card"><div class="stat-label">${l}</div><div class="stat-value" style="${cor ? 'color:' + cor : ''}">${v}</div><div class="stat-sub">${sub}</div></div>`;
   const kp = document.getElementById('rep-kpis');
-  if (kp) kp.innerHTML = kpi('Repúblicas ativas', ativas.length, todas.length - ativas.length ? (todas.length - ativas.length) + ' encerrada(s)' : 'em uso')
+  if (kp) kp.innerHTML = kpi(ftipo ? ftipo + ' · ativos' : 'Repúblicas e alojamentos ativos', ativas.length, todas.length - ativas.length ? (todas.length - ativas.length) + ' encerrada(s)' : 'em uso')
     + kpi('Ocupação', ocup + ' / ' + vagas, vagas ? Math.round(ocup / vagas * 100) + '% das vagas' : 'sem vagas cadastradas')
     + kpi('Custo mensal', _repMoeda(custo), 'aluguel, contas e extras')
     + kpi('Custo por pessoa', ocup ? _repMoeda(custo / ocup) : '—', 'média do mês')
     + kpi('Custo das vagas vazias', _repMoeda(vazio), (vagas - ocup) + ' vaga(s) livre(s)', vazio ? 'var(--amber)' : '');
   const lista = todas.filter(r => !busca || [r.nome, r.cod, r.endereco, ...(repMoradores(r).map(m => m.nome))].some(x => String(x || '').toLowerCase().includes(busca)))
-    .sort((a, b) => (a.status === 'Encerrada') - (b.status === 'Encerrada') || String(a.cod).localeCompare(String(b.cod), 'pt-BR', { numeric: true }));
+    .sort((a, b) => (a.status === 'Encerrada') - (b.status === 'Encerrada') || _repTipoOrd(a) - _repTipoOrd(b) || String(a.cod).localeCompare(String(b.cod), 'pt-BR', { numeric: true }));
   const tb = document.getElementById('tbody-republicas'); if (!tb) return;
   tb.innerHTML = lista.length ? lista.map(r => {
     const c = repCusto(r), m = repMoradores(r).length, v = +r.vagas || 0, pc = v ? Math.min(100, m / v * 100) : 0;
     return `<tr>
-      <td><div style="font-weight:700">${_e(r.nome)}</div><div style="font-size:11.5px;color:var(--text-3)">${_e(r.cod)}${r.tipo ? ' · ' + _e(r.tipo) : ''}${r.endereco ? ' · ' + _e(r.endereco) : ''}</div>${r.responsavel ? `<div style="font-size:11.5px;color:var(--text-2)">Proprietário: <b>${_e(r.responsavel)}</b>${r.propDoc ? ' · ' + _e(r.propDoc) : ''}</div>` : '<div style="font-size:11px;color:var(--amber)">⚠ sem proprietário</div>'}</td>
+      <td class="td-mono" style="font-weight:700;white-space:nowrap">${_e(r.cod || '—')}</td>
+      <td style="font-weight:700;min-width:140px">${_e(r.nome)}</td>
+      <td style="white-space:nowrap">${tag(_e(r.tipo || 'República'), /aloj/i.test(r.tipo || '') ? 'amber' : /hot|pous/i.test(r.tipo || '') ? 'blue' : /outro/i.test(r.tipo || '') ? 'gray' : 'green')}</td>
+      <td style="font-size:12.5px;min-width:180px">${_e(r.endereco || '—')}</td>
+      <td style="font-size:12px;min-width:120px">${r.responsavel ? _e(r.responsavel) + (r.propDoc ? '<div style="font-size:11px;color:var(--text-3)">' + _e(r.propDoc) + '</div>' : '') : '<span style="color:var(--amber)">⚠ falta</span>'}</td>
       <td style="font-size:12px">${_e(getNomeObra(r.obra) || '—')}</td>
       <td style="min-width:150px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><b>${m} de ${v}</b><span style="color:var(--text-3)">${v - m > 0 ? (v - m) + ' livre(s)' : v ? 'lotada' : ''}</span></div>
         <div style="height:7px;border-radius:4px;background:var(--border);overflow:hidden"><div style="height:7px;width:${pc}%;background:${m > v ? 'var(--red)' : 'var(--blue, #2563EB)'}"></div></div></td>
@@ -12009,13 +12017,14 @@ function renderRepublicas() {
       <td class="td-mono" style="text-align:right;color:var(--text-2)">${v ? _repMoeda(c / v) : '—'}</td>
       <td>${tag(r.status || 'Ativa', r.status === 'Encerrada' ? 'gray' : 'green')}</td>
       <td style="white-space:nowrap;text-align:right"><button class="btn btn-outline btn-sm" onclick="repMoradoresAbrir('${r.id}')">👥 Moradores</button> <button class="btn btn-outline btn-sm" onclick="repEditar('${r.id}')">✎ Editar</button></td></tr>`; }).join('')
-    : '<tr><td colspan="8" style="text-align:center;color:var(--text-3);padding:2rem">Nenhuma república cadastrada' + (_okObraAtual() !== 'todas' ? ' nesta obra' : '') + '. Clique em <b>+ Nova república</b>.</td></tr>';
+    : '<tr><td colspan="12" style="text-align:center;color:var(--text-3);padding:2rem">Nada cadastrado' + (ftipo ? ' do tipo ' + _e(ftipo) : '') + (_okObraAtual() !== 'todas' ? ' nesta obra' : '') + '. Clique em <b>+ Novo cadastro</b> ou em <b>↑ Importar</b>.</td></tr>';
 }
+function _repTipoOrd(r) { const t = r.tipo || 'República'; return /rep/i.test(t) ? 0 : /aloj/i.test(t) ? 1 : /hot|pous/i.test(t) ? 2 : 3; }
 function _repProxCod() { let mx = 0; (dados.republicas || []).forEach(r => { const m = /^REP-(\d+)$/i.exec(r.cod || ''); if (m) mx = Math.max(mx, +m[1]); }); return 'REP-' + String(mx + 1).padStart(3, '0'); }
 function repNova() { repEditar(null); }
 function repEditar(id) {
   const r = id ? (dados.republicas || []).find(x => x.id === id) : null, $ = k => document.getElementById(k);
-  $('rep-titulo').textContent = r ? 'Editar república · ' + r.cod : 'Nova república';
+  $('rep-titulo').textContent = r ? 'Editar · ' + r.cod : 'Nova república / alojamento';
   $('rep-id').value = r ? r.id : '';
   popularSelectObra('rep-obra', r ? r.obra : (_okObraAtual() !== 'todas' ? _okObraAtual() : ''));
   $('rep-cod').value = r ? r.cod : _repProxCod();
@@ -12040,8 +12049,8 @@ function _repTotal() {
 function salvarRepublica() {
   const $ = k => document.getElementById(k), id = $('rep-id').value;
   const nome = $('rep-nome').value.trim(), obra = $('rep-obra').value, vagas = parseInt($('rep-vagas').value) || 0;
-  if (!obra) { toast('Escolha a obra da república.', 'error'); return; }
-  if (!nome) { toast('Informe o nome da república.', 'error'); return; }
+  if (!obra) { toast('Escolha a obra.', 'error'); return; }
+  if (!nome) { toast('Informe o nome.', 'error'); return; }
   if (!vagas) { toast('Informe a quantidade de vagas.', 'error'); return; }
   const lista = dados.republicas || (dados.republicas = []);
   const r = id ? lista.find(x => x.id === id) : { id: 'rp' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), moradores: [], criadoEm: new Date().toISOString() };
@@ -12051,7 +12060,7 @@ function salvarRepublica() {
   if (!id) lista.push(r);
   if (repMoradores(r).length > vagas) toast('Atenção: ' + repMoradores(r).length + ' moradores para ' + vagas + ' vagas.', 'error');
   if (db && _firebaseReady) fbSave('republicas', r.id, r).catch(() => toast('Salvo aqui, mas não no servidor. Tente de novo.', 'error'));
-  closeModal('modal-republica'); renderRepublicas(); toast('República ' + r.cod + ' salva!');
+  closeModal('modal-republica'); renderRepublicas(); toast(r.cod + ' salvo!');
 }
 function repMoradoresAbrir(id) { window._repAtual = id; _repMoradoresRender(); openModal('modal-moradores'); }
 function _repMoradoresRender() {
@@ -12082,9 +12091,9 @@ function _alojLista() {
 }
 function renderAlojados() {
   const sel = document.getElementById('filtro-aloj-rep'); if (!sel) return;
-  const v = sel.value; sel.innerHTML = '<option value="">Todas</option>' + _repLista().filter(r => r.status !== 'Encerrada').map(r => `<option value="${r.id}">${_e(r.cod)} · ${_e(r.nome)}</option>`).join(''); sel.value = v;
+  const v = sel.value, ft = document.getElementById('filtro-aloj-tipo')?.value || '', okT = r => !ft || (r.tipo || 'República') === ft; sel.innerHTML = '<option value="">Todas</option>' + _repLista().filter(r => r.status !== 'Encerrada' && okT(r)).map(r => `<option value="${r.id}">${_e(r.cod)} · ${_e(r.nome)}</option>`).join(''); sel.value = v;
   const busca = (document.getElementById('search-aloj')?.value || '').toLowerCase();
-  const l = _alojLista().filter(x => (!v || x.r.id === v) && (!busca || [x.nome, x.mat, x.funcao].some(t => String(t).toLowerCase().includes(busca))))
+  const l = _alojLista().filter(x => okT(x.r) && (!v || x.r.id === v) && (!busca || [x.nome, x.mat, x.funcao].some(t => String(t).toLowerCase().includes(busca))))
     .sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
   const tot = l.reduce((s, x) => s + x.custo, 0);
   document.getElementById('aloj-resumo').textContent = l.length + ' alojado(s)' + (l.length ? ' · custo do mês ' + _repMoeda(tot) + ' · média ' + _repMoeda(tot / l.length) + ' por pessoa' : '');
@@ -12096,7 +12105,7 @@ function renderAlojados() {
       <td class="td-mono" style="text-align:right">${x.dias}</td>
       <td class="td-mono" style="text-align:right">${_repMoeda(x.custo)}</td>
       <td style="text-align:right"><button class="btn btn-outline btn-sm" onclick="repMoradoresAbrir('${x.r.id}')">👥 República</button></td></tr>`).join('')
-    : '<tr><td colspan="9" style="text-align:center;color:var(--text-3);padding:2rem">Ninguém alojado' + (busca || v ? ' com esse filtro' : '') + '. Coloque os moradores em <b>Repúblicas → 👥 Moradores</b>.</td></tr>';
+    : '<tr><td colspan="9" style="text-align:center;color:var(--text-3);padding:2rem">Ninguém alojado' + (busca || v ? ' com esse filtro' : '') + '. Coloque os moradores em <b>Repúblicas e alojamentos → 👥 Moradores</b>.</td></tr>';
 }
 function exportarAlojados() {
   if (typeof XLSX === 'undefined') { toast('Aguarde o carregamento do Excel e tente novamente.', 'error'); return; }
@@ -13449,24 +13458,32 @@ async function uaExcluirManuais() {
         if (!it._cat || !it._cnhv) it.__aviso = 'veículo ' + it.placa + ': responsável sem categoria/validade da CNH (complete em Frota → Responsáveis)'; } }
     delete it._resp; delete it._cat; delete it._cnhv; return ''; };
   // ── REPÚBLICAS
-  D.republicas = { rotulo: 'Repúblicas', porObra: true, chave: 'nome',
-    col: ['Nome', 'Tipo (República / Alojamento / Hotel / Outro)', 'Endereço', 'Vagas', 'Proprietário (nome completo)', 'CPF / CNPJ do proprietário', 'Telefone', 'Início do contrato (DD/MM/AAAA)', 'Fim do contrato (DD/MM/AAAA)', 'Aluguel (R$/mês)', 'Água (R$/mês)', 'Luz (R$/mês)', 'Internet (R$/mês)', 'Moradores (matrículas, separe por ;)', 'Entrada dos moradores (DD/MM/AAAA)'],
-    map: g => ({ nome: g(['nome']), tipo: g(['tipo']) || 'República', endereco: g(['endereço', 'endereco']), vagas: parseInt(g(['vagas'])) || 0, responsavel: g(['proprietário (nome', 'proprietario (nome', 'proprietário', 'proprietario']), propDoc: String(g(['cpf', 'cnpj']) || ''), tel: String(g(['telefone']) || ''),
+  D.republicas = { rotulo: 'Repúblicas e alojamentos', porObra: true, chave: 'nome',
+    col: ['Código (deixe em branco: o sistema gera)', 'Nome', 'Tipo (República / Alojamento / Hotel / Outro)', 'Endereço', 'Vagas', 'Proprietário (nome completo)', 'CPF / CNPJ do proprietário', 'Telefone', 'Início do contrato (DD/MM/AAAA)', 'Fim do contrato (DD/MM/AAAA)', 'Aluguel (R$/mês)', 'IPTU / seguro / condomínio (R$/mês)', 'Água (R$/mês)', 'Luz (R$/mês)', 'Internet (R$/mês)', 'Moradores (matrícula ou nome, separe por ;)', 'Entrada dos moradores (DD/MM/AAAA)'],
+    map: g => ({ cod: String(g(['código', 'codigo']) || '').trim(), _iptu: num(g(['iptu', 'condom'])), nome: g(['nome']), tipo: g(['tipo']) || 'República', endereco: g(['endereço', 'endereco']), vagas: parseInt(g(['vagas'])) || 0, responsavel: g(['proprietário (nome', 'proprietario (nome', 'proprietário', 'proprietario']), propDoc: String(g(['cpf', 'cnpj']) || ''), tel: String(g(['telefone']) || ''),
       inicio: dt(g(['início', 'inicio'])), fim: dt(g(['fim do contrato'])), aluguel: num(g(['aluguel'])), agua: num(g(['água', 'agua'])), luz: num(g(['luz'])), internet: num(g(['internet'])), _mor: String(g(['moradores']) || ''), _ent: dt(g(['entrada'])) }),
     ok: x => x.nome && x.vagas };
   POS.republicas = (it, feitos) => {
-    if (!it.responsavel) return 'república ' + it.nome + ': falta o proprietário';
+    if (!it.responsavel) it.__aviso = it.nome + ': sem proprietário — complete depois em Editar';
     if (it.propDoc) { const d = dig(it.propDoc); if (!(d.length === 11 ? _cpfValido(d) : d.length === 14 ? _cnpjValido(d) : false)) { it.__aviso = 'república ' + it.nome + ': CPF/CNPJ do proprietário inválido — importada sem ele'; it.propDoc = ''; } else it.propDoc = _docFmt(d); }
     const t = String(it.tipo || ''); it.tipo = /aloj/i.test(t) ? 'Alojamento' : /hot|pous/i.test(t) ? 'Hotel / pousada' : /rep/i.test(t) || !t ? 'República' : 'Outro';
-    let mx = 0; (dados.republicas || []).concat(feitos).forEach(r => { const m = /^REP-(\d+)$/i.exec(r.cod || ''); if (m) mx = Math.max(mx, +m[1]); }); it.cod = 'REP-' + String(mx + 1).padStart(3, '0');
-    it.status = 'Ativa'; it.extras = []; it.moradores = []; it.criadoEm = new Date().toISOString();
-    const ent = it._ent || _hojeLocal(), mats = it._mor.split(/[;,\n]/).map(s => s.trim()).filter(Boolean), nao = [];
+    const jaCod = c => (dados.republicas || []).concat(feitos).some(r => r !== it && r.obra === it.obra && String(r.cod || '').toUpperCase() === c.toUpperCase());
+    if (!it.cod || jaCod(it.cod)) { if (it.cod) it.__aviso = it.nome + ': código ' + it.cod + ' já existe — recebeu um novo'; let mx = 0; (dados.republicas || []).concat(feitos).forEach(r => { const m = /^REP-(\d+)$/i.exec(r.cod || ''); if (m) mx = Math.max(mx, +m[1]); }); it.cod = 'REP-' + String(mx + 1).padStart(3, '0'); }
+    it.status = 'Ativa'; it.extras = it._iptu ? [{ desc: 'IPTU / seguro / condomínio', valor: it._iptu }] : []; delete it._iptu; it.moradores = []; it.criadoEm = new Date().toISOString();
+    const ent0 = it._ent || _hojeLocal(), nao = [], _nn = v => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+    // v3.22: cada morador pode ter a própria data "173 (27/06/2026)" e pode ser só o nome (quem não está no efetivo): "Fulano / Função (27/06/2026)"
+    const mats = it._mor.split(/[;\n]/).map(s => s.trim()).filter(Boolean);
     const ocupados = new Set((dados.republicas || []).concat(feitos).flatMap(r => (r.moradores || []).filter(m => !m.saida).map(m => m.func)));
-    mats.forEach(mt => { const f = (dados.funcionarios || []).find(x => String(x.mat) === mt && (!x.obra || x.obra === it.obra));
-      if (!f || ocupados.has(f.id)) { nao.push(mt); return; } ocupados.add(f.id);
-      it.moradores.push({ id: 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), func: f.id, mat: f.mat || '', nome: f.nome, funcao: f.funcao || '', entrada: ent }); });
-    if (nao.length) it.__aviso = 'república ' + it.nome + ': matrícula(s) não encontrada(s) ou já em outra república — ' + nao.slice(0, 5).join(', ');
-    if (it.moradores.length > it.vagas && !it.__aviso) it.__aviso = 'república ' + it.nome + ': mais moradores que vagas';
+    mats.forEach(tx => { const md = /\(\s*([\d\/.-]+)\s*\)\s*$/.exec(tx), ent = (md && dt(md[1])) || ent0; let mt = (md ? tx.slice(0, md.index) : tx).trim(), fn = '';
+      const iBar = mt.indexOf(' / '); if (iBar > 0) { fn = mt.slice(iBar + 3).trim(); mt = mt.slice(0, iBar).trim(); }
+      const fs = (dados.funcionarios || []).filter(x => !x.obra || x.obra === it.obra);
+      const f = /^\d+$/.test(mt) ? fs.find(x => String(x.mat) === mt) : fs.find(x => _nn(x.nome) === _nn(mt));
+      const mid = 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+      if (!f) { if (/^\d+$/.test(mt)) { nao.push(mt); return; } it.moradores.push({ id: mid, func: '', mat: '', nome: mt, funcao: fn, entrada: ent, externo: true }); return; }
+      if (ocupados.has(f.id)) { nao.push(mt); return; } ocupados.add(f.id);
+      it.moradores.push({ id: mid, func: f.id, mat: f.mat || '', nome: f.nome, funcao: f.funcao || '', entrada: ent }); });
+    if (nao.length) it.__aviso = it.nome + ': matrícula(s) não encontrada(s) ou já em outro lugar — ' + nao.slice(0, 5).join(', ');
+    if (it.moradores.length > it.vagas && !it.__aviso) it.__aviso = it.nome + ': mais moradores que vagas';
     delete it._mor; delete it._ent; return ''; };
   ['frota', 'republicas'].forEach(t => { if (!IMPORT_ORDEM.includes(t)) IMPORT_ORDEM.push(t); });
   Object.assign(_ABA_TIPO, { fornecedores: 'empresas', funcoes: 'cargos', tiposdeparada: 'tiposPerdas', paradas: 'tiposPerdas', frota: 'frota', veiculos: 'frota', frotaveiculos: 'frota', republicas: 'republicas', alojamentos: 'republicas' });
