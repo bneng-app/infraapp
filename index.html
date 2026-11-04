@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.12 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.13 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -8851,7 +8851,7 @@ window.confirmarImportacao = async function () {
 // - botão ↻ Atualizar busca tudo de novo
 // - F5 não desloga mais (retoma a sessão)
 // ═══════════════════════════════════════════════════════════════
-const _COLS_AO_VIVO = ['aponMO','aponEQ','diesel','perdas'];
+const _COLS_AO_VIVO = ['aponMO','aponEQ','diesel','perdas','mobilizacoes','frota','equipamentos'];   // v3.13: mobilizações, frota e equipamentos também ao vivo
 let _escutas = [];
 let _avisoNovos = 0;
 function _rerenderTelaAtual() {
