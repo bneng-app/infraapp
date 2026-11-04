@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.20 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.21 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -8185,7 +8185,7 @@ const MODULOS = [
   ['qrcodes',      'QR Codes',                   []],
   ['config',       'Configurações ADM',          []],
   ['abastecimento', 'Abastecimento no app de campo', []],
-  ['mobilizacao', 'Mobilização no app de campo', []],
+  ['mobilizacao', 'Movimentação no app de campo (equipamentos e veículos)', []],
 ];
 const PERFIS_PADRAO = [
   { id:'pf-admin',       nome:'Admin',       tipo:'painel', cor:'red',   sistema:true, desc:'acesso total',
@@ -8279,7 +8279,7 @@ function salvarPerfil() {
   const tipo = $('pf-tipo').value;
   // v2.52: perfil de campo escolhe Apropriação e/ou Abastecimento no app
   const perms = {}; MODULOS.forEach(([k]) => perms[k] = tipo === 'campo' ? ((k === 'apontamentos' || k === 'abastecimento' || k === 'mobilizacao') && !!$('pf-perm-' + k)?.checked) : !!$('pf-perm-' + k)?.checked);
-  if (tipo === 'campo' && !perms.apontamentos && !perms.abastecimento && !perms.mobilizacao) { toast('Marque pelo menos um módulo do app de campo (Apropriação, Abastecimento ou Mobilização).', 'error'); return; }
+  if (tipo === 'campo' && !perms.apontamentos && !perms.abastecimento && !perms.mobilizacao) { toast('Marque pelo menos um módulo do app de campo (Apropriação, Abastecimento ou Movimentação).', 'error'); return; }
   const obj = { id: id || ('pf' + Date.now()), nome, desc: ($('pf-desc').value||'').trim(), cor: $('pf-cor').value, tipo, perms };
   dados.perfis = (dados.perfis || []).filter(x => x.id !== obj.id && x.nome !== obj.nome);
   dados.perfis.push(obj);
@@ -11702,7 +11702,7 @@ function _pfGrupoSync() { document.querySelectorAll('#pf-telas .pf-tg').forEach(
     MODULOS.forEach(([k, l]) => { const c = $('pf-perm-' + k); const lb = c && c.closest('label'); if (!lb) return;
       const doApp = k === 'apontamentos' || k === 'abastecimento' || k === 'mobilizacao';
       lb.style.display = doApp ? '' : 'none';
-      lb.lastChild.textContent = k === 'apontamentos' ? ' Apropriação (mão de obra e equipamentos)' : k === 'abastecimento' ? ' Abastecimento (diesel)' : k === 'mobilizacao' ? ' Mobilização de equipamentos' : ' ' + l; });
+      lb.lastChild.textContent = k === 'apontamentos' ? ' Apropriação (mão de obra e equipamentos)' : k === 'abastecimento' ? ' Abastecimento (diesel)' : k === 'mobilizacao' ? ' Movimentação (chegada, entrega e devolução de equipamentos e veículos)' : ' ' + l; });
     if ($('pf-perms-tit')) $('pf-perms-tit').textContent = campo ? 'O que essa pessoa faz no app de campo' : 'App de campo (só se essa pessoa também usar o celular)';
     if ($('pf-perms-hint')) $('pf-perms-hint').textContent = campo ? 'Marque pelo menos um.' : 'Não muda nada no painel — o painel segue as telas marcadas acima. Pode deixar desmarcado se ela não aponta pelo celular.';
     return r;
