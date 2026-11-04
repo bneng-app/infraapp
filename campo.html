@@ -883,7 +883,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.70</div>
+  <div class="login-versao">ObraKontrol Campo · v2.71</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -5031,14 +5031,14 @@ function vleRender() {
   let h = !usuarioCampo.obra ? `<div class="card"><div class="card-body"><div class="form-group"><label class="form-label">Obra *</label>${sel(obras.map(x => [x.id, (x.cod ? x.cod + ' · ' : '') + x.nome]), vle.obra, 'Escolha a obra…', "vleCampo('obra',this.value,1)")}</div></div></div>` : '';
   h += `<div class="card"><div class="card-body">
     <div class="form-group"><label class="form-label">Veículo *</label><div class="vle-row">${sel(vs.map(x => [x.id, (x.tag ? x.tag + ' · ' : '') + x.placa + ' · ' + (x.modelo || '') + (dev && _vleResp(x) ? ' · com ' + _vleResp(x).nome : '')]), vle.veicId, vs.length ? 'Escolha…' : (dev ? 'Nenhum veículo com condutor' : 'Nenhum veículo sem condutor'), "vleCampo('veicId',this.value,1)")}
-      <button type="button" class="btn btn-outline" style="flex:0 0 auto" onclick="abrirQR('vlev')">📷 TAG</button></div></div>
+      <button type="button" class="btn btn-outline" style="flex:0 0 auto" onclick="abrirQR('vlev')"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-4px;margin-right:4px"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 17h4v4"/></svg>Ler TAG</button></div></div>
     ${v ? `<div class="vl-info"><b>${E(v.tag || '—')}</b> · ${E(v.placa)} · ${E(v.modelo || '')}${v.locadora ? '<br>Locadora: ' + E(v.locadora) : ''}${dev && r ? `<br>Com <b>${E(r.nome)}</b> desde ${E(String(r.inicio || '').split('-').reverse().join('/'))}${r.km ? ' · saiu com ' + E((+r.km).toLocaleString('pt-BR')) + ' km' : ''}` : ''}</div>` : ''}
   </div></div>`;
   if (!dev) {
     const fs = (dadosCampo.funcionarios || []).filter(x => (!o || !x.obra || x.obra === o) && x.status !== 'Desligado' && !(x.demissao && x.demissao <= _hojeISO())).sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
     const dCnh = vle.cnhVal ? Math.round((new Date(vle.cnhVal + 'T12:00') - new Date(_hojeISO() + 'T12:00')) / 864e5) : null;
     h += `<div class="card"><div class="card-header"><span class="card-title">Colaborador (condutor)</span></div><div class="card-body">
-      <div class="form-group"><label class="form-label">Colaborador *</label><div class="vle-row">${sel(fs.map(x => [x.id, x.nome + ' · Mat. ' + (x.mat || '—')]), vle.funcId, 'Escolha…', "vleCampo('funcId',this.value,1)")}<button type="button" class="btn btn-outline" style="flex:0 0 auto" onclick="abrirQR('vlec')">📷 Crachá</button></div></div>
+      <div class="form-group"><label class="form-label">Colaborador *</label><div class="vle-row">${sel(fs.map(x => [x.id, x.nome + ' · Mat. ' + (x.mat || '—')]), vle.funcId, 'Escolha…', "vleCampo('funcId',this.value,1)")}<button type="button" class="btn btn-outline" style="flex:0 0 auto" onclick="abrirQR('vlec')"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-4px;margin-right:4px"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 17h4v4"/></svg>Ler crachá</button></div></div>
       <div style="display:flex;gap:10px"><div class="form-group" style="flex:1"><label class="form-label">CPF *</label><input class="form-control" inputmode="numeric" value="${E(vle.cpf)}" oninput="this.value=_cpfFmt(this.value);vle.cpf=this.value;this.classList.toggle('mob-cpf-ruim',_cpfDig(this.value).length===11&&!_cpfValido(this.value))"/></div>
         <div class="form-group" style="flex:1"><label class="form-label">Telefone</label><input class="form-control" inputmode="tel" value="${E(vle.tel)}" oninput="vle.tel=this.value"/></div></div>
       <div class="form-group"><label class="form-label">Equipe</label><input class="form-control" value="${E(vle.equipe)}" oninput="vle.equipe=this.value"/></div>
