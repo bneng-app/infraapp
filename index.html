@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.13 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.14 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -14105,6 +14105,95 @@ async function exApagar(silencioso) {
     f.insertAdjacentHTML('afterbegin', `<button class="dx-btn ex-b" onclick="exGerarDia()" title="Só no DEMO">✨ Gerar dia de exemplo</button>${tem ? '<button class="dx-btn ex-b" onclick="exApagar()">🗑 Apagar exemplo</button>' : ''}`);
     return r;
   };
+})();
+
+
+// ═══════════════════════════════════════════════════════════════
+// v3.14: DASHBOARD MÃO DE OBRA COM DUAS VISÕES — Quantidade | Custo (botão no topo, fica lembrado)
+// Quantidade: pessoas, horas, paradas, produção por serviço (cada um na sua unidade), horas por frente e função, efetivo por dia.
+// Custo: custo normal/extra/dom.-feriado, custo por mês, por frente e por função, custo unitário e salário real × previsto.
+// ═══════════════════════════════════════════════════════════════
+_dx.modo = (() => { try { return localStorage.getItem('ok_dx_modo') || 'qtd'; } catch (e) { return 'qtd'; } })();
+function dxModo(m) { _dx.modo = m; try { localStorage.setItem('ok_dx_modo', m); } catch (e) {} dxRender(); }
+function _dxModoSeg() { const q = _dx.modo !== 'custo';
+  return `<div class="dx-modo" role="tablist"><button class="${q ? 'on' : ''}" onclick="dxModo('qtd')">Quantidade</button><button class="${q ? '' : 'on'}" onclick="dxModo('custo')">Custo</button></div>`; }
+function _dxNomeFuncao(a) { const c = (dados.cargos || []).find(x => x.cod === a.codFuncao || x.cod === a.funcao || x.nome === a.funcao); return c ? c.nome : (a.funcao || 'Sem função'); }
+function dxRenderMO2() {
+  const { mo, pe } = _dxBase('mo'), custo = _dx.modo === 'custo';
+  const pessoas = new Set(mo.map(a => a.func)).size, hn = mo.reduce((s, a) => s + (+a.hn || 0), 0), he = mo.reduce((s, a) => s + (+a.he || 0), 0), hh = hn + he;
+  const imp = pe.filter(p => /m[ãa]o de obra|^mo$/i.test(p.tipo || '')).reduce((s, p) => s + (+p.horas || 0), 0);
+  const porDia = {}; mo.forEach(a => { (porDia[a.data] = porDia[a.data] || new Set()).add(a.func); });
+  const dias = Object.keys(porDia).sort(), mediaDia = dias.length ? dias.reduce((s, d) => s + porDia[d].size, 0) / dias.length : 0;
+  const pct = (a, b) => b ? Math.round(a / b * 100) + '%' : '—';
+  const serv = Object.values(_custoAgrupar(mo, [], _chServ).g).sort(_ordServ);
+  const cMO = l => l.mo + l.he + l.df;
+  let corpo;
+  if (!custo) {
+    const bySv = {}, byFr = {}, byFn = {}, byEmp = {};
+    mo.forEach(a => { const sv = a.tipoServico || a.servico || '—';
+      bySv[sv] = bySv[sv] || { v: 0, u: '' }; bySv[sv].v += +a.qtd || 0; if (a.unid && +a.qtd) bySv[sv].u = a.unid;
+      const fr = a.frente || '—'; byFr[fr] = byFr[fr] || { a: 0, b: 0 }; byFr[fr].a += +a.hn || 0; byFr[fr].b += +a.he || 0;
+      const fn = _dxNomeFuncao(a); byFn[fn] = byFn[fn] || { a: 0, b: 0 }; byFn[fn].a += +a.hn || 0; byFn[fn].b += +a.he || 0;
+      byEmp[a.empresa || '—'] = (byEmp[a.empresa || '—'] || 0) + (+a.hn || 0) + (+a.he || 0); });
+    const leg = `<div class="dx-leg" style="margin-bottom:8px"><span><i style="background:var(--gr)"></i>H. normais</span><span><i style="background:#F59E0B"></i>H. extras</span></div>`;
+    const fmtH = r => _n1(r.a) + ' h' + (r.b ? ' + <span style="color:#F59E0B">' + _n1(r.b) + '</span>' : '');
+    const linhas = serv.map(l => { const [m, fr, sv] = l.k.split('|'), us = Object.keys(l.unid), u = us.length === 1 ? us[0] : _unidServ(sv), hhl = l.hn + l.hhe;
+      return `<tr>${_td(_mesTxt(m))}${_td('<b>' + _e(fr) + '</b>')}${_td(_e(_nomeFrente(fr)), 'mu')}${_td(_e(sv))}${_td(l.prod ? _n1(l.prod) + ' ' + _e(u) : '—', 'n')}${_td(_h(hhl), 'n')}${_td(l.prod && hhl ? _n1(l.prod / hhl) + ' ' + _e(u) + '/Hh' : '—', 'n')}${_td(l.pessoas.size, 'n')}</tr>`; });
+    corpo = `<div class="dx-kpis">
+        ${_kpi(_ic.users, pessoas, 'Pessoas no período', dias.length ? 'em ' + dias.length + ' dia(s) trabalhado(s)' : '')}
+        ${_kpi(_ic.user, _n1(mediaDia), 'Média de pessoas por dia', 'efetivo apontado')}
+        ${_kpi(_ic.clock, _h(hh), 'Homem-hora', _h(hn) + ' normais')}
+        ${_kpi(_ic.clock, _h(he), 'Horas extras', pct(he, hh) + ' do total', '#F59E0B')}
+        ${_kpi(_ic.timer, _h(imp), 'Horas paradas', imp && hh ? pct(imp, hh) + ' do homem-hora' : 'paradas de mão de obra', imp ? '#E30613' : '', imp > 0)}</div>
+      <div class="dx-grid" style="grid-template-columns:1.2fr 1fr;margin-bottom:12px">
+        ${_pn(_ic.chart, 'Produção por serviço', _hbars(Object.entries(bySv).filter(([, x]) => x.v).sort((a, b) => b[1].v - a[1].v).map(([l, x]) => ({ l, v: x.v, t: _n1(x.v) + ' ' + _e(x.u || _unidServ(l) || 'un') }))), 'cada serviço na sua unidade')}
+        ${_pn(_ic.trend, 'Efetivo por dia', _vbars(dias.map(d => ({ l: d.slice(8, 10) + '/' + d.slice(5, 7), v: porDia[d].size }))), 'pessoas apontadas')}
+      </div>
+      <div class="dx-grid" style="grid-template-columns:1fr 1fr 0.9fr;margin-bottom:12px">
+        ${_pn(_ic.target, 'Horas por frente', leg + _hstack(Object.entries(byFr).sort((a, b) => (b[1].a + b[1].b) - (a[1].a + a[1].b)).map(([l, x]) => ({ l, ...x })), ['var(--gr)', '#F59E0B'], fmtH))}
+        ${_pn(_ic.users, 'Horas por função', leg + _hstack(Object.entries(byFn).sort((a, b) => (b[1].a + b[1].b) - (a[1].a + a[1].b)).map(([l, x]) => ({ l, ...x })), ['var(--gr)', '#F59E0B'], fmtH))}
+        ${_pn(_ic.pie, 'Homem-hora por empresa', _donut(Object.entries(byEmp).sort((a, b) => b[1] - a[1]).map(([l, v]) => ({ l, v })), _h(hh), 'Total', v => _h(v)))}
+      </div>
+      ${_pn(_ic.chart, 'Produção mensal por frente e serviço', `<div class="dx-scroll">${_tb(['Mês', 'Frente', '', 'Serviço', 'Executado', 'Homem-hora', 'Produtividade', 'Pessoas'], linhas, ['', '', '', '', 'n', 'n', 'n', 'n'])}</div>`)}`;
+  } else {
+    const { g: gMes } = _custoAgrupar(mo, [], _chMes), meses = Object.values(gMes).sort((a, b) => a.k.localeCompare(b.k));
+    const t = { mo: _soma(meses, l => l.mo), he: _soma(meses, l => l.he), df: _soma(meses, l => l.df) }, tot = t.mo + t.he + t.df;
+    const gFr = Object.values(_custoAgrupar(mo, [], a => a.frente || '—').g).sort((a, b) => cMO(b) - cMO(a));
+    const gFn = Object.values(_custoAgrupar(mo, [], a => _dxNomeFuncao(a)).g).sort((a, b) => cMO(b) - cMO(a));
+    const linhas = serv.map(l => { const [m, fr, sv] = l.k.split('|'), us = Object.keys(l.unid), u = us.length === 1 ? us[0] : _unidServ(sv);
+      return `<tr>${_td(_mesTxt(m))}${_td('<b>' + _e(fr) + '</b>')}${_td(_e(_nomeFrente(fr)), 'mu')}${_td(_e(sv))}${_td(l.prod ? _n1(l.prod) + ' ' + _e(u) : '—', 'n')}${_td(_moeda(cMO(l)), 'n')}${_td(l.prod ? _moeda(cMO(l) / l.prod) + '/' + _e(u) : '—', 'n tot')}</tr>`; });
+    corpo = `<div class="dx-kpis">
+        ${_kpi(_ic.coin, _moeda(tot), 'Custo total de MO', _sufPeriodo(), '#E30613', true)}
+        ${_kpi(_ic.coin, _moeda(t.mo), 'MO normal', pct(t.mo, tot) + ' do total')}
+        ${_kpi(_ic.clock, _moeda(t.he), 'Hora extra', pct(t.he, tot) + ' do total', '#F59E0B')}
+        ${_kpi(_ic.cal, _moeda(t.df), 'Domingo / feriado', pct(t.df, tot) + ' do total')}
+        ${_kpi(_ic.users, hh ? _moeda(tot / hh) : '—', 'Custo médio por hora', 'total ÷ homem-hora')}</div>
+      <div class="dx-grid" style="grid-template-columns:1.2fr 1fr;margin-bottom:12px">
+        ${_pn(_ic.trend, _dx.mes ? 'Custo por dia' : 'Custo por mês', `<div class="dx-leg" style="margin-bottom:8px"><span><i style="background:#E30613"></i>Normal</span><span><i style="background:#C9C9CF"></i>Dom./feriado</span><span><i style="background:#F59E0B"></i>Extra</span></div>`
+          + _vbars((_dx.mes ? Object.values(_custoAgrupar(mo, [], a => a.data).g).sort((a, b) => a.k.localeCompare(b.k)).map(l => ({ l: l.k.slice(8, 10) + '/' + l.k.slice(5, 7), n: l.mo, x: l.he, d: l.df }))
+            : meses.map(l => ({ l: _mesTxt(l.k).slice(0, 3) + '/' + l.k.slice(2, 4), n: l.mo, x: l.he, d: l.df }))), '', [{ k: 'n', cor: '#E30613' }, { k: 'd', cor: '#C9C9CF' }, { k: 'x', cor: '#F59E0B' }]))}
+        ${_pn(_ic.pie, 'Composição do custo', _donut([{ l: 'MO normal', v: t.mo }, { l: 'Domingo / feriado', v: t.df }, { l: 'Hora extra', v: t.he }], _moeda(tot), 'Total', v => _moeda(v)))}
+      </div>
+      <div class="dx-grid" style="grid-template-columns:1fr 1fr;margin-bottom:12px">
+        ${_pn(_ic.target, 'Custo por frente', _hbars(gFr.map(l => ({ l: l.k, v: cMO(l), t: _moeda(cMO(l)) }))))}
+        ${_pn(_ic.users, 'Custo por função', _hbars(gFn.map(l => ({ l: l.k, v: cMO(l), t: _moeda(cMO(l)) })), '#F59E0B'))}
+      </div>
+      ${_pn(_ic.cal, 'Custo de mão de obra por mês', _tb(['Mês', 'Pessoas', 'Homem-hora', 'MO normal', 'MO extra', 'MO dom./feriado', 'Total MO', 'R$ por hora'],
+          meses.slice().reverse().map(l => `<tr>${_td('<b>' + _mesTxt(l.k) + '</b>')}${_td(l.pessoas.size, 'n')}${_td(_h(l.hn + l.hhe), 'n')}${_td(_moeda(l.mo), 'n')}${_td(_moeda(l.he), 'n')}${_td(_moeda(l.df), 'n')}${_td(_moeda(cMO(l)), 'n tot')}${_td(l.hn + l.hhe ? _moeda(cMO(l) / (l.hn + l.hhe)) : '—', 'n')}</tr>`), ['', 'n', 'n', 'n', 'n', 'n', 'n', 'n']), '', 'margin-bottom:12px')}
+      ${_pn(_ic.chart, 'Custo unitário por frente e serviço', `<div class="dx-scroll">${_tb(['Mês', 'Frente', '', 'Serviço', 'Executado', 'Custo MO', 'Custo unitário'], linhas, ['', '', '', '', 'n', 'n', 'n'])}</div>`)}`;
+  }
+  _dxMontar('mo', 'page-dash-mo', 'Dashboard – Mão de Obra', (custo ? 'Custos da mão de obra · ' : 'Efetivo, horas e produção · ') + _sufPeriodo(), corpo);
+  if (custo) { try { _dxSalarios(); } catch (e) {} }
+}
+(function () {
+  dxRenderMO = window.dxRenderMO = dxRenderMO2;
+  const oF = _dxFiltros;
+  _dxFiltros = function (tipo) { const h = oF.apply(this, arguments); return tipo === 'mo' ? _dxModoSeg() + h : h; };
+  const css = document.createElement('style');
+  css.textContent = `.dx-modo{display:inline-flex;background:var(--pn);border:1px solid var(--ln);border-radius:9px;padding:3px;gap:2px}
+    .dx-modo button{background:transparent;border:0;color:var(--mu);font-size:12.5px;font-weight:700;padding:5px 14px;border-radius:7px;cursor:pointer}
+    .dx-modo button.on{background:var(--rd);color:#fff}.dx-modo button:not(.on):hover{color:var(--tx)}`;
+  document.head.appendChild(css);
 })();
 
 // Apply configs on load
