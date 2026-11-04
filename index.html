@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.05 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.06 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -13188,7 +13188,7 @@ function renderUA() {
   if (pg) {
     const t = pg.querySelector('.page-title'); if (t) t.textContent = 'UA — EAP do RM';
     const sb = pg.querySelector('.page-sub'); if (sb) sb.textContent = 'Unidades de apropriação da obra, vindas do RM. Atualize sempre que o RM mudar.';
-    const bg = pg.querySelector('.btn-group'); if (bg) bg.innerHTML = '<button class="btn btn-outline btn-sm" onclick="openModal(\'modal-nova-ua\')">+ UA manual</button><button class="btn btn-primary" onclick="uaRmAbrir()">↑ Atualizar do RM</button>';
+    const bg = pg.querySelector('.btn-group'); if (bg) bg.innerHTML = '<button class="btn btn-outline btn-sm" id="ua-btn-limpar" onclick="uaExcluirManuais()" style="color:var(--red)">🗑 Excluir UAs manuais</button><button class="btn btn-outline btn-sm" onclick="openModal(\'modal-nova-ua\')">+ UA manual</button><button class="btn btn-primary" onclick="uaRmAbrir()">↑ Atualizar do RM</button>';
     const s = $('search-ua'); if (s) { s.removeAttribute('oninput'); s.placeholder = 'Buscar código ou nome…'; s.addEventListener('input', renderUA);
       s.closest('.search-wrap').insertAdjacentHTML('afterend', '<div style="display:flex;gap:10px;align-items:center;margin:.5rem 0"><select class="form-control" id="filtro-ua-sit" onchange="renderUA()" style="max-width:200px"><option value="ativas">Ativas</option><option value="inativas">Inativas</option><option value="todas">Todas</option></select><div id="ua-resumo" style="font-size:12.5px;color:var(--text-3)"></div></div>'); }
   }
@@ -13310,6 +13310,20 @@ function renderUA() {
     const r = await oApr.apply(this, arguments); (chaves || []).forEach(k => delete window._aprUA[k]); return r;
   };
 })();
+
+
+// v3.06: apagar de uma vez as UAs manuais (antigas, de teste) da obra
+async function uaExcluirManuais() {
+  const obra = _okObraAtual(); if (obra === 'todas') { toast('Escolha a obra no topo.', 'error'); return; }
+  const l = (dados.ua || []).filter(u => u.obra === obra && u.origem !== 'RM');
+  if (!l.length) { toast('Não há UAs manuais nesta obra.'); return; }
+  if (!confirm('Excluir as ' + l.length + ' UA(s) manuais de ' + getNomeObra(obra) + '?\n\n' + l.map(u => u.cod + ' — ' + (u.desc || u.nome || '')).join('\n') + '\n\nAs UAs do RM não são afetadas.')) return;
+  const ids = new Set(l.map(u => u.id)); dados.ua = dados.ua.filter(u => !ids.has(u.id));
+  if (db && _firebaseReady) { const rs = await Promise.allSettled(l.map(u => fbDelete('ua', u.id))); const fl = rs.filter(r => r.status === 'rejected').length; if (fl) toast(fl + ' não foram apagadas no servidor. Tente de novo.', 'error'); }
+  renderUA(); toast(l.length + ' UA(s) manual(is) excluída(s).');
+}
+(function () { const oR = renderUA; renderUA = window.renderUA = function () { const r = oR.apply(this, arguments); const b = document.getElementById('ua-btn-limpar'), o = _okObraAtual();
+  if (b) b.style.display = o !== 'todas' && (dados.ua || []).some(u => u.obra === o && u.origem !== 'RM') ? '' : 'none'; return r; }; })();
 
 // Apply configs on load
 setTimeout(applyConfigs, 200);
