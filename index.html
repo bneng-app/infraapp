@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.19 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.20 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -14696,15 +14696,20 @@ function abEditar(id) {
   $('abv-litros').value = a ? a.litros : ''; $('abv-preco').value = a && +a.precoL ? a.precoL : ''; $('abv-valor').value = a && +a.valor ? a.valor : '';
   $('abv-km').value = a && +a.km ? a.km : ''; $('abv-posto').value = a ? (a.posto || '') : ''; $('abv-obs').value = a ? (a.obs || '') : '';
   $('abv-postos').innerHTML = _abPostos().map(p => `<option value="${_e(p)}">`).join('');
-  $('abv-mots').innerHTML = [...new Set((dados.funcionarios || []).filter(f => !f.demissao).map(f => f.nome).concat((dados.abastVeic || []).map(a => a.motorista)).filter(Boolean))].sort().map(n => `<option value="${_e(n)}">`).join('');
+  _abMotOpts($('abv-obra').value, a ? (a.motorista || '') : '');
   _abInfo(); openModal('modal-abv');
 }
 function _abInfo() {
   const $ = k => document.getElementById(k), v = _abVeic($('abv-veiculo').value), el = $('abv-info'); if (!el) return;
   if (!v) { el.innerHTML = ''; return; } const r = frRespAtual(v), ult = _abSerie(v.id).filter(x => x.a.id !== $('abv-id').value).slice(-1)[0];
-  if (!$('abv-mot').value && r) $('abv-mot').value = r.nome;
+  if (!$('abv-mot').value && r) { const o = [...$('abv-mot').options].find(x => _mmNorm(x.value) === _mmNorm(r.nome)); if (o) $('abv-mot').value = o.value; }
   el.innerHTML = `Km atual: <b>${frKmAtual(v).toLocaleString('pt-BR')}</b>${ult ? ' · último abastecimento ' + _abFmtD(ult.a.data) + ' com ' + (+ult.a.km || 0).toLocaleString('pt-BR') + ' km' : ''}${r ? ' · responsável: <b>' + _e(r.nome) + '</b>' : ''}`;
 }
+function _abMotOpts(obra, atual) { const s = document.getElementById('abv-mot'); if (!s) return;
+  const fs = (dados.funcionarios || []).filter(f => (!obra || !f.obra || f.obra === obra) && f.status !== 'Desligado' && !(f.demissao && f.demissao <= _hojeLocal())).sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
+  const tem = atual && fs.some(f => f.nome === atual);
+  s.innerHTML = '<option value="">Escolha o funcionário…</option>' + (atual && !tem ? `<option value="${_e(atual)}">${_e(atual)} (lançado antes, fora do cadastro)</option>` : '') + fs.map(f => `<option value="${_e(f.nome)}" data-id="${f.id}" data-mat="${_e(f.mat || '')}">${_e(f.nome)} · Mat. ${_e(f.mat || '—')}</option>`).join('');
+  s.value = atual || ''; }
 function _abTotal(campo) { const $ = k => document.getElementById(k), L = +$('abv-litros').value || 0, P = +$('abv-preco').value || 0, V = +$('abv-valor').value || 0;
   if (campo !== 'valor' && L && P) $('abv-valor').value = (L * P).toFixed(2); else if (campo === 'valor' && L && V) $('abv-preco').value = (V / L).toFixed(3); }
 function salvarAbastVeic() {
@@ -14714,6 +14719,8 @@ function salvarAbastVeic() {
   if (!a.obra) { toast('Escolha a obra.', 'error'); return; } if (!v) { toast('Escolha o veículo.', 'error'); return; } if (!a.data) { toast('Informe a data.', 'error'); return; }
   if (!a.litros) { toast('Informe os litros.', 'error'); return; } if (!a.valor && a.precoL) a.valor = +(a.litros * a.precoL).toFixed(2);
   if (!a.km) { toast('Informe o km do hodômetro.', 'error'); return; }
+  if (!a.motorista) { toast('Escolha o motorista (funcionário).', 'error'); return; }
+  { const op = $('abv-mot').selectedOptions[0]; if (op && op.dataset.id) { a.motoristaId = op.dataset.id; a.motoristaMat = op.dataset.mat || ''; } }
   const ant = _abSerie(v.id).filter(x => x.a.id !== id && String(x.a.data + (x.a.hora || '')) <= String(a.data + (a.hora || ''))).slice(-1)[0];
   if (ant && +ant.a.km > a.km && !confirm('O km ' + a.km.toLocaleString('pt-BR') + ' é menor que o do abastecimento anterior (' + (+ant.a.km).toLocaleString('pt-BR') + ' em ' + _abFmtD(ant.a.data) + '). Salvar assim mesmo?')) return;
   const lista = dados.abastVeic || (dados.abastVeic = []);
@@ -14846,11 +14853,11 @@ function muExcluir(id) { const m = (dados.multas || []).find(x => x.id === id); 
   document.body.insertAdjacentHTML('beforeend', `
     <div class="modal-overlay" id="modal-abv"><div class="modal" style="max-width:620px"><div class="modal-header"><span class="modal-title" id="abv-titulo">Novo abastecimento</span><button class="modal-close" onclick="closeModal('modal-abv')">×</button></div>
       <div class="modal-body"><input type="hidden" id="abv-id"/><div class="form-grid">
-        <div class="form-group"><label class="form-label">Obra *</label><select class="form-control" id="abv-obra" onchange="document.getElementById('abv-veiculo').innerHTML=_abVeicOpts(this.value);_abInfo()"></select></div>
+        <div class="form-group"><label class="form-label">Obra *</label><select class="form-control" id="abv-obra" onchange="document.getElementById('abv-veiculo').innerHTML=_abVeicOpts(this.value);_abMotOpts(this.value,'');_abInfo()"></select></div>
         <div class="form-group"><label class="form-label">Veículo *</label><select class="form-control" id="abv-veiculo" onchange="_abInfo()"></select></div>
         <div class="form-group form-full" id="abv-info" style="font-size:12px;color:var(--text-2);margin-top:-6px"></div>
         <div class="form-group"><label class="form-label">Data *</label><input type="date" class="form-control" id="abv-data"/></div><div class="form-group"><label class="form-label">Hora</label><input type="time" class="form-control" id="abv-hora"/></div>
-        <div class="form-group"><label class="form-label">Motorista</label><input class="form-control" id="abv-mot" list="abv-mots" placeholder="Responsável ou outro"/><datalist id="abv-mots"></datalist></div>
+        <div class="form-group"><label class="form-label">Motorista (funcionário) *</label><select class="form-control" id="abv-mot"></select></div>
         <div class="form-group"><label class="form-label">Combustível *</label><select class="form-control" id="abv-comb">${AB_COMB.map(c => `<option>${c}</option>`).join('')}</select></div>
         <div class="form-group"><label class="form-label">Litros *</label><input type="number" step="0.001" class="form-control" id="abv-litros" oninput="_abTotal('litros')"/></div>
         <div class="form-group"><label class="form-label">Preço por litro (R$)</label><input type="number" step="0.001" class="form-control" id="abv-preco" oninput="_abTotal('preco')"/></div>
