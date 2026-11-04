@@ -883,7 +883,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.69</div>
+  <div class="login-versao">ObraKontrol Campo · v2.70</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -918,7 +918,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <div class="hcard" onclick="abrirMobilizacao()" id="card-mob" style="display:none">
       <svg class="hic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="11" width="13" height="6" rx="1"/><path d="M14 13h4l3 3v1h-7z"/><circle cx="5" cy="19" r="2"/><circle cx="17" cy="19" r="2"/><path d="M4 11V7h6l2 4"/><path d="M9 3l2 2-2 2"/></svg>
-      <div class="hcard-t">Mobilização</div>
+      <div class="hcard-t">Movimentação</div>
       <div class="hcard-s">Chegada de equipamento</div>
     </div>
     <div class="hcard" onclick="sincronizarPendentes()">
@@ -4775,7 +4775,7 @@ function _vlEscolha() {
     let ov = document.getElementById('vl-esc'); if (ov) ov.remove();
     ov = document.createElement('div'); ov.id = 'vl-esc'; ov.className = 'vl-esc';
     const b = (k, ic, t, s) => `<button type="button" data-k="${k}"><span class="vl-ic">${ic}</span><span><b>${t}</b><small>${s}</small></span></button>`;
-    ov.innerHTML = `<div class="vl-sheet"><div class="vl-sh-t">O que vai mobilizar?</div>${b('eq', '🚜', 'Equipamento', 'Máquina ou caminhão · checklist completo')}${b('ent', '🚗', 'Veículo leve — chegada', 'Carro, picape, van ou moto alugado')}${b('sai', '↩️', 'Veículo leve — devolução', 'Saída do veículo para a locadora')}<button type="button" class="vl-canc" data-k="">Cancelar</button></div>`;
+    ov.innerHTML = `<div class="vl-sheet"><div class="vl-sh-t">O que vai registrar?</div>${b('eq', '🚜', 'Equipamento', 'Máquina ou caminhão · checklist completo')}${b('ent', '🚗', 'Veículo leve — chegada', 'Carro, picape, van ou moto alugado')}${b('sai', '↩️', 'Veículo leve — devolução', 'Saída do veículo para a locadora')}<button type="button" class="vl-canc" data-k="">Cancelar</button></div>`;
     ov.onclick = e => { const k = e.target.closest('[data-k]'); if (!k && e.target !== ov) return; ov.remove(); res(k ? k.dataset.k : ''); };
     document.body.appendChild(ov);
   });
@@ -4958,7 +4958,7 @@ async function vlValidar() {
     if (!pode) return oAb.apply(this, arguments);
     const k = await _vlEscolha(); if (k === 'eq') return oAb.apply(this, arguments); if (k === 'ent' || k === 'sai') return vlAbrir(k);
   };
-  const s = document.querySelector('#card-mob .hcard-s'); if (s) s.textContent = 'Equipamento ou veículo leve';
+  const s = document.querySelector('#card-mob .hcard-s'); if (s) s.textContent = 'Equipamentos e veículos';
   // modelos pendentes marcados com ⏳ na mobilização de equipamento
   const oR = mobRender;
   mobRender = function () { const r = oR.apply(this, arguments); document.querySelectorAll('#mob-content select option').forEach(o => { const m = (dadosCampo.modelos || []).find(x => x.cod === o.value); if (m && _vlPend(m) && !o.textContent.includes('⏳')) o.textContent += ' ⏳'; }); return r; };
