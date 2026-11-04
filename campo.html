@@ -883,7 +883,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.67</div>
+  <div class="login-versao">ObraKontrol Campo · v2.68</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -4738,6 +4738,230 @@ async function abrirFrenteHoje(cod) {
   const oEnt = entrarNoCampo;
   entrarNoCampo = function () { const r = oEnt.apply(this, arguments); let f = ''; try { f = sessionStorage.getItem('ok_fh_pend') || ''; sessionStorage.removeItem('ok_fh_pend'); } catch (e) {}
     if (f) setTimeout(() => { abrirFrenteHoje(f); try { history.replaceState(null, '', location.pathname + (new URLSearchParams(location.search).get('c') ? '?c=' + new URLSearchParams(location.search).get('c') : '')); } catch (e) {} }, 600); return r; };
+})();
+
+// ══════════════════════════════════════════════════════════════
+// v2.68: MOBILIZAÇÃO DE VEÍCULO LEVE (chegada e devolução) — formulário curto.
+// Chegada: placa, modelo (banco), locadora, km + foto do painel, combustível, fotos, avarias, assinaturas
+// → o veículo entra direto na Frota do painel com "Completar cadastro" (contrato, valor, CRLV… ficam com o gestor).
+// Devolução: km + fotos + assinatura de quem recebe pela locadora → veículo fica "Devolvido".
+// Entregador/recebedor da LOCADORA: nome, CPF e assinatura à mão obrigatórios (mesma regra do equipamento).
+// ══════════════════════════════════════════════════════════════
+const VL_FOTOS = [['painel', 'Painel com o km', true], ['frente', 'Frente', true], ['lateral', 'Lateral', true], ['traseira', 'Traseira', false]];
+let vl = null;
+function _vlPlaca(p) { return String(p || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+function _vlPlacaOk(p) { return /^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/.test(_vlPlaca(p)); }
+function _vlObra() { return vl.obra || (usuarioCampo && usuarioCampo.obra) || ''; }
+function _vlEmp() { return (dadosCampo.empresas || []).find(e => e.cod === vl.loc) || null; }
+function _vlFornecedor() { // devolução: a locadora vem do veículo (nome)
+  if (vl.modo === 'sai') { const v = _vlVeic(); const e = v && (dadosCampo.empresas || []).find(x => x.cod === v.locadoraCod || _mobNorm(x.nome) === _mobNorm(v.locadora)); return !(e && /pr[óo]pria|intern/i.test(e.tipo || '')); }
+  const e = _vlEmp(); return !!e && !/pr[óo]pria|intern/i.test(e.tipo || '');
+}
+function _vlVeic() { return (window._vlFrota || []).find(v => v.id === vl.veicId) || null; }
+function _vlModelos() { const o = _vlObra(); const fams = dadosCampo.familias || [];
+  const ehVL = m => { const f = fams.find(x => x.cod === m.familia); return f && /VEIC|CARRO|PICAPE|LEVE|FROTA/.test(_mobNorm(f.desc)); };
+  return (dadosCampo.modelos || []).filter(m => !o || !m.obra || m.obra === o).sort((a, b) => ehVL(b) - ehVL(a) || String(a.nome || a.cod).localeCompare(String(b.nome || b.cod), 'pt-BR')); }
+function _vlPend(m) { return m && (m.obra || m.status === 'pendente'); }
+function _vlTela() {
+  if (document.getElementById('screen-vl')) return;
+  const back = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>';
+  document.getElementById('screen-mob').insertAdjacentHTML('afterend', `<div class="screen" id="screen-vl"><div class="topbar"><div class="topbar-row"><div class="tb-left"><button class="tb-back" onclick="vlSair()" aria-label="Voltar">${back}</button><div><div class="topbar-title" id="vl-tit">Veículo leve</div><div class="topbar-sub" id="vl-sub"></div></div></div></div></div>
+    <div class="content" id="vl-content"></div>
+    <div class="mob-bar"><button class="btn btn-outline" onclick="vlSair()">Cancelar</button><button class="btn btn-green" onclick="vlConferir()">Ver termo e validar</button></div></div>`);
+}
+// escolha: equipamento ou veículo
+function _vlEscolha() {
+  return new Promise(res => {
+    let ov = document.getElementById('vl-esc'); if (ov) ov.remove();
+    ov = document.createElement('div'); ov.id = 'vl-esc'; ov.className = 'vl-esc';
+    const b = (k, ic, t, s) => `<button type="button" data-k="${k}"><span class="vl-ic">${ic}</span><span><b>${t}</b><small>${s}</small></span></button>`;
+    ov.innerHTML = `<div class="vl-sheet"><div class="vl-sh-t">O que vai mobilizar?</div>${b('eq', '🚜', 'Equipamento', 'Máquina ou caminhão · checklist completo')}${b('ent', '🚗', 'Veículo leve — chegada', 'Carro, picape, van ou moto alugado')}${b('sai', '↩️', 'Veículo leve — devolução', 'Saída do veículo para a locadora')}<button type="button" class="vl-canc" data-k="">Cancelar</button></div>`;
+    ov.onclick = e => { const k = e.target.closest('[data-k]'); if (!k && e.target !== ov) return; ov.remove(); res(k ? k.dataset.k : ''); };
+    document.body.appendChild(ov);
+  });
+}
+async function vlAbrir(modo) {
+  _vlTela();
+  vl = { modo, obra: (usuarioCampo && usuarioCampo.obra) || '', placa: '', modeloId: '', modeloNovo: '', tipo: 'Carro', loc: '', veicId: '', km: '', comb: '', data: _hojeISO(), hora: new Date().toTimeString().slice(0, 5),
+    fotos: {}, avarias: [], obs: '', nomeObra: usuarioCampo ? usuarioCampo.nome : '', sigObra: '', sigObraTipo: null, nomeLoc: '', cpfLoc: '', sigLoc: '', sigLocTipo: null };
+  if (!vl.obra) { try { window._mobObras = (await fbCarregar('obras')) || window._mobObras || []; } catch (e) {} const at = (window._mobObras || []).filter(o => !/encerr/i.test(o.status || '')); if (at.length === 1) vl.obra = at[0].id; }
+  try { const fr = await fbCarregar('frota'); if (fr) window._vlFrota = fr; } catch (e) {}
+  window._vlFrota = window._vlFrota || [];
+  document.getElementById('vl-tit').textContent = modo === 'sai' ? 'Devolução de veículo' : 'Chegada de veículo';
+  showScreen('vl'); vlRender();
+}
+function vlSair() { if (!vl || (!vl.placa && !vl.veicId && !vl.km) || confirm('Sair? O que foi preenchido será perdido.')) { vl = null; showScreen('home'); } }
+function vlCampo(k, v, re) { vl[k] = v; if (re) vlRender(); }
+function _vlFotoBox(k, rot, obrig) {
+  const l = vl.fotos[k] || [];
+  return `<div class="form-group"><label class="form-label">${rot}${obrig ? ' *' : ''}</label><div class="mob-mais">${l.map((f, i) => `<div class="mm"><img src="${f.img}" onclick="vlFotoVer('${k}',${i})"/><button type="button" onclick="vlFotoDel('${k}',${i})" aria-label="Remover foto">×</button></div>`).join('')}
+    ${l.length < MOB_FOTO_MAX ? `<label>📷 ${l.length ? 'Mais uma foto' : 'Tirar foto'}<input type="file" accept="image/*" capture="environment" style="display:none" onchange="vlFoto('${k}',this)"/></label>` : ''}</div>${l.length ? `<div style="font-size:11px;color:var(--text2);margin-top:4px">${l.length} de ${MOB_FOTO_MAX}</div>` : ''}</div>`;
+}
+async function vlFoto(k, input) { const f = input.files && input.files[0]; input.value = ''; if (!f) return; const l = vl.fotos[k] = vl.fotos[k] || [];
+  if (l.length >= MOB_FOTO_MAX) { toast('Máximo de ' + MOB_FOTO_MAX + ' fotos neste campo.', 'err'); return; }
+  try { l.push({ img: await _reduzirFoto(f), em: new Date().toISOString() }); vlRender(); toast('Foto registrada', 'ok'); } catch (e) { toast('Não consegui usar essa foto. Tente de novo.', 'err'); } }
+function vlFotoDel(k, i) { (vl.fotos[k] || []).splice(i, 1); vlRender(); }
+function vlFotoVer(k, i) { const v = (vl.fotos[k] || [])[i]; if (!v) return; const ov = document.createElement('div'); ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:3500;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.innerHTML = `<img src="${v.img}" style="max-width:100%;max-height:100%;border-radius:10px"/>`; ov.onclick = () => ov.remove(); document.body.appendChild(ov); }
+async function vlAvFoto(i, input) { const f = input.files && input.files[0]; input.value = ''; if (!f) return; try { vl.avarias[i].foto = { img: await _reduzirFoto(f), em: new Date().toISOString() }; vlRender(); } catch (e) { toast('Não consegui usar essa foto.', 'err'); } }
+function vlCpf(el) { el.value = _cpfFmt(el.value); vl.cpfLoc = el.value; el.classList.toggle('mob-cpf-ruim', _cpfDig(el.value).length === 11 && !_cpfValido(el.value)); }
+function vlRender() {
+  const el = document.getElementById('vl-content'); if (!el || !vl) return;
+  const E = _mobEsc, sai = vl.modo === 'sai', o = _vlObra(), forn = _vlFornecedor();
+  const sel = (ops, val, ph, on) => `<select class="form-control" onchange="${on}"><option value="">${ph}</option>${ops.map(([v, t]) => `<option value="${E(v)}" ${v === val ? 'selected' : ''}>${E(t)}</option>`).join('')}</select>`;
+  const obras = usuarioCampo.obra ? [] : (window._mobObras || []).filter(x => !/encerr/i.test(x.status || ''));
+  let h = !usuarioCampo.obra ? `<div class="card"><div class="card-body"><div class="form-group"><label class="form-label">Obra *</label>${sel(obras.map(x => [x.id, (x.cod ? x.cod + ' · ' : '') + x.nome]), vl.obra, 'Escolha a obra…', "vlCampo('obra',this.value,1)")}</div></div></div>` : '';
+  if (sai) {
+    const vs = (window._vlFrota || []).filter(v => v.status !== 'Devolvido' && (!o || v.obra === o)).sort((a, b) => String(a.placa).localeCompare(String(b.placa)));
+    const v = _vlVeic();
+    h += `<div class="card"><div class="card-body"><div class="form-group"><label class="form-label">Veículo *</label>${sel(vs.map(x => [x.id, x.placa + ' · ' + (x.modelo || '') + (x.locadora ? ' · ' + x.locadora : '')]), vl.veicId, vs.length ? 'Escolha a placa…' : 'Nenhum veículo nesta obra', "vlCampo('veicId',this.value,1)")}</div>
+      ${v ? `<div class="vl-info"><b>${E(v.placa)}</b> · ${E(v.modelo || '')}<br>Locadora: ${E(v.locadora || '—')}${v.kmMob ? ' · chegou com ' + E((+v.kmMob).toLocaleString('pt-BR')) + ' km' : ''}${v.mobData ? ' em ' + E(String(v.mobData).split('-').reverse().join('/')) : ''}</div>` : ''}</div></div>`;
+  } else {
+    const mods = _vlModelos(), emps = (dadosCampo.empresas || []).filter(e => !o || !e.obra || e.obra === o);
+    h += `<div class="card"><div class="card-body">
+      <div class="form-group"><label class="form-label">Placa *</label><input class="form-control" value="${E(vl.placa)}" oninput="vl.placa=this.value.toUpperCase()" placeholder="ABC1D23" style="text-transform:uppercase;font-size:22px;font-weight:800;text-align:center;letter-spacing:.08em"/></div>
+      <div class="form-group"><label class="form-label">Marca / modelo *</label>${sel(mods.map(m => [m.id, (m.nome || m.cod) + (_vlPend(m) ? ' ⏳' : '')]).concat([['__novo', '+ Modelo novo (não está na lista)']]), vl.modeloId, 'Escolha o modelo…', "vlCampo('modeloId',this.value,1)")}
+        ${vl.modeloId === '__novo' ? `<input class="form-control" style="margin-top:8px" placeholder="Ex.: Fiat Strada Freedom 1.3" value="${E(vl.modeloNovo)}" oninput="vl.modeloNovo=this.value"/><div style="font-size:11.5px;color:var(--text2);margin-top:4px">Fica ⏳ pendente até o master aprovar no painel.</div>` : ''}</div>
+      <div class="form-group"><label class="form-label">Tipo *</label><div class="mob-seg">${['Carro', 'Picape', 'Van', 'Moto'].map(t => `<button type="button" class="${vl.tipo === t ? 'on' : ''}" onclick="vlCampo('tipo','${t}',1)">${t}</button>`).join('')}</div></div>
+      <div class="form-group"><label class="form-label">Locadora *</label>${sel(emps.map(e => [e.cod, (e.nome || e.razao || e.cod)]), vl.loc, 'Escolha a locadora…', "vlCampo('loc',this.value,1)")}</div>
+    </div></div>`;
+  }
+  h += `<div class="card"><div class="card-body">
+      <div class="form-group"><label class="form-label">${sai ? 'Km na devolução' : 'Km na chegada'} *</label><input class="form-control" type="number" inputmode="numeric" value="${E(vl.km)}" oninput="vl.km=this.value" placeholder="Ex.: 23450" style="font-size:24px;font-weight:800;text-align:center"/></div>
+      <div class="form-group"><label class="form-label">Combustível *</label><div class="mob-seg">${['Vazio', '1/4', '1/2', '3/4', 'Cheio'].map(c => `<button type="button" class="${vl.comb === c ? 'on' : ''}" onclick="vlCampo('comb','${c}',1)">${c}</button>`).join('')}</div></div>
+      <div style="display:flex;gap:10px"><div class="form-group" style="flex:1"><label class="form-label">Data</label><input class="form-control" type="date" value="${vl.data}" oninput="vl.data=this.value"/></div><div class="form-group" style="flex:1"><label class="form-label">Hora</label><input class="form-control" type="time" value="${vl.hora}" oninput="vl.hora=this.value"/></div></div>
+    </div></div>
+    <div class="card"><div class="card-header"><span class="card-title">Fotos do veículo</span></div><div class="card-body">${VL_FOTOS.map(([k, r, ob]) => _vlFotoBox(k, r, ob)).join('')}</div></div>
+    <div class="card"><div class="card-header"><span class="card-title">${sai ? 'Avarias na devolução' : 'Avarias que já vieram'}</span></div><div class="card-body">
+      ${vl.avarias.map((a, i) => `<div class="mob-av"><div style="display:flex;gap:8px"><input class="form-control" placeholder="Descreva a avaria" value="${E(a.desc)}" oninput="vl.avarias[${i}].desc=this.value"/><button type="button" class="btn btn-outline btn-sm" onclick="vl.avarias.splice(${i},1);vlRender()" aria-label="Remover avaria">✕</button></div>
+        <div class="hor-linha" style="margin-top:6px">${a.foto ? `<img class="hor-thumb" src="${a.foto.img}"/>` : ''}<label class="hor-foto-btn ${a.foto ? 'ok' : ''}" style="display:flex;align-items:center;justify-content:center;flex:1;min-height:48px">📷 ${a.foto ? 'Trocar foto' : 'Foto da avaria (obrigatória)'}<input type="file" accept="image/*" capture="environment" style="display:none" onchange="vlAvFoto(${i},this)"/></label></div></div>`).join('')}
+      <button type="button" class="btn btn-outline" style="width:100%" onclick="vl.avarias.push({desc:'',foto:null});vlRender()">+ Registrar avaria</button>
+      <div class="form-group" style="margin-top:10px"><label class="form-label">Observações</label><textarea class="form-control" rows="2" oninput="vl.obs=this.value" placeholder="Opcional">${E(vl.obs)}</textarea></div></div></div>
+    <div class="card"><div class="card-body">
+      <div class="form-group"><label class="form-label">${sai ? 'Quem devolveu (obra)' : 'Quem recebeu (obra)'} *</label><input class="form-control" value="${E(vl.nomeObra)}" oninput="vl.nomeObra=this.value"/>
+        <div class="mob-sig"><canvas id="vlsig-obra" width="600" height="180" aria-label="Assinatura da obra"></canvas><button type="button" class="mob-link" onclick="vlSigLimpar('obra')">Limpar</button><span>Assine com o dedo ou gere pelo nome</span></div>
+        <button type="button" class="btn btn-outline" style="width:100%;margin-top:8px" onclick="vlSigNome()">✍ Gerar assinatura pelo nome</button></div>
+      <div class="form-group"><label class="form-label">${sai ? 'Quem recebeu pela locadora' : 'Quem entregou (locadora)'}${forn ? ' *' : ''}</label><input class="form-control" value="${E(vl.nomeLoc)}" oninput="vl.nomeLoc=this.value" placeholder="${forn ? 'Nome completo' : 'Opcional'}"/>
+        ${forn ? `<input class="form-control" style="margin-top:8px" inputmode="numeric" placeholder="CPF *" value="${E(vl.cpfLoc)}" oninput="vlCpf(this)"/>` : ''}
+        <div class="mob-sig"><canvas id="vlsig-loc" width="600" height="180" aria-label="Assinatura da locadora"></canvas><button type="button" class="mob-link" onclick="vlSigLimpar('loc')">Limpar</button><span>${forn ? 'Assine com o dedo (obrigatório)' : 'Assine com o dedo (opcional)'}</span></div></div>
+    </div></div>`;
+  el.innerHTML = h;
+  document.getElementById('vl-sub').textContent = sai ? 'Saída para a locadora' : 'Formulário rápido · o gestor completa no painel';
+  _vlSig('obra'); _vlSig('loc');
+}
+function _vlSig(k) {
+  const c = document.getElementById('vlsig-' + k); if (!c) return; const g = c.getContext('2d'), campo = k === 'obra' ? 'sigObra' : 'sigLoc';
+  g.lineWidth = 3.2; g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = '#111';
+  if (vl[campo]) { const im = new Image(); im.onload = () => g.drawImage(im, 0, 0, c.width, c.height); im.src = vl[campo]; }
+  let des = false; const pos = e => { const r = c.getBoundingClientRect(); return [(e.clientX - r.left) * c.width / r.width, (e.clientY - r.top) * c.height / r.height]; };
+  c.onpointerdown = e => { des = true; c.setPointerCapture(e.pointerId); const [x, y] = pos(e); g.beginPath(); g.moveTo(x, y); e.preventDefault(); };
+  c.onpointermove = e => { if (!des) return; const [x, y] = pos(e); g.lineTo(x, y); g.stroke(); e.preventDefault(); };
+  c.onpointerup = c.onpointercancel = () => { if (!des) return; des = false; vl[campo] = c.toDataURL('image/png'); vl[campo + 'Tipo'] = { tipo: 'manuscrita', em: new Date().toISOString() }; };
+}
+async function vlSigNome() {
+  const nome = vl.nomeObra.trim(); if (!nome) { toast('Preencha o nome primeiro.', 'err'); return; }
+  const c = document.getElementById('vlsig-obra'); if (!c) return; const g = c.getContext('2d');
+  try { await document.fonts.load("600 64px 'Dancing Script'"); } catch (e) {}
+  g.clearRect(0, 0, c.width, c.height); g.fillStyle = '#0B2E6B'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  let tam = 70; do { g.font = `600 ${tam}px 'Dancing Script', 'Brush Script MT', cursive`; tam -= 4; } while (g.measureText(nome).width > c.width - 40 && tam > 24);
+  g.fillText(nome, c.width / 2, c.height / 2 - 6); g.font = '15px Arial'; g.fillStyle = '#64748B'; g.fillText('assinado eletronicamente · ' + new Date().toLocaleString('pt-BR').replace(',', '').slice(0, 16), c.width / 2, c.height - 18);
+  vl.sigObra = c.toDataURL('image/png'); vl.sigObraTipo = { tipo: 'nome', em: new Date().toISOString(), login: (usuarioCampo && (usuarioCampo.mat || usuarioCampo.nome)) || '' };
+}
+function vlSigLimpar(k) { const campo = k === 'obra' ? 'sigObra' : 'sigLoc'; vl[campo] = ''; vl[campo + 'Tipo'] = null; const c = document.getElementById('vlsig-' + k); if (c) c.getContext('2d').clearRect(0, 0, c.width, c.height); }
+function _vlFalta() {
+  const f = [], sai = vl.modo === 'sai', forn = _vlFornecedor();
+  if (!_vlObra()) f.push('a obra');
+  if (sai) { if (!vl.veicId) f.push('o veículo'); }
+  else { if (!_vlPlacaOk(vl.placa)) f.push('a placa (ABC1D23)'); if (!vl.modeloId || (vl.modeloId === '__novo' && !vl.modeloNovo.trim())) f.push('o modelo'); if (!vl.loc) f.push('a locadora'); }
+  if (!String(vl.km).trim()) f.push('o km'); if (!vl.comb) f.push('o combustível');
+  VL_FOTOS.forEach(([k, r, ob]) => { if (ob && !(vl.fotos[k] || []).length) f.push('foto ' + r.toLowerCase()); });
+  vl.avarias.forEach((a, i) => { if (!a.desc.trim() || !a.foto) f.push('descrição e foto da avaria ' + (i + 1)); });
+  if (!vl.nomeObra.trim()) f.push('o nome de quem ' + (sai ? 'devolveu' : 'recebeu')); if (!vl.sigObra) f.push('a assinatura da obra');
+  if (forn) { if (!vl.nomeLoc.trim()) f.push('o nome da locadora'); if (!_cpfValido(vl.cpfLoc)) f.push('o CPF de quem ' + (sai ? 'recebeu' : 'entregou')); if (!vl.sigLoc || (vl.sigLocTipo && vl.sigLocTipo.tipo !== 'manuscrita')) f.push('a assinatura à mão da locadora'); }
+  if (sai) { const v = _vlVeic(); if (v && +v.kmMob && +vl.km < +v.kmMob) f.push('km menor que o da chegada (' + v.kmMob + ')'); }
+  return f;
+}
+function _vlTermoDados() {
+  const sai = vl.modo === 'sai', v = sai ? _vlVeic() || {} : null, m = !sai && vl.modeloId !== '__novo' ? (dadosCampo.modelos || []).find(x => x.id === vl.modeloId) || {} : {}, e = _vlEmp() || {};
+  const ob = (window._mobObras || []).find(o => o.id === _vlObra()); let cliente = 'TENCO'; try { cliente = localStorage.getItem('ok_cliente_nome') || 'TENCO'; } catch (x) {}
+  return { sai, cliente, obra: _vlObra(), obraNome: ob ? ob.nome : ((document.getElementById('home-obra-label') || {}).textContent || ''), placa: sai ? v.placa : _vlPlaca(vl.placa),
+    modeloNome: sai ? v.modelo : (vl.modeloId === '__novo' ? vl.modeloNovo.trim() : (m.nome || m.cod || '')), tipoVeic: sai ? v.tipo : vl.tipo, locadora: sai ? v.locadora : (e.nome || e.razao || vl.loc),
+    km: vl.km, kmChegada: sai ? v.kmMob || '' : '', rodados: sai && +v.kmMob ? +vl.km - +v.kmMob : null, comb: vl.comb, data: vl.data, hora: vl.hora,
+    nFotos: Object.values(vl.fotos).reduce((s, l) => s + l.length, 0) + vl.avarias.filter(a => a.foto).length, avarias: vl.avarias.map(a => ({ desc: a.desc })), obs: vl.obs.trim(),
+    nomeObra: vl.nomeObra.trim(), sigObra: vl.sigObra, nomeLoc: vl.nomeLoc.trim(), cpfLoc: vl.cpfLoc, sigLoc: vl.sigLoc };
+}
+function termoVlHtml(t) {
+  const L = (k, v) => v === '' || v == null ? '' : `<div class="tk-l"><span>${k}</span><b>${_mobEsc(v)}</b></div>`;
+  const ass = t.sai ? [['Devolveu', t.nomeObra, t.sigObra], ['Locadora', t.nomeLoc + (t.cpfLoc ? ' · ' + t.cpfLoc : ''), t.sigLoc]] : [['Recebeu', t.nomeObra, t.sigObra], ['Entregou', t.nomeLoc + (t.cpfLoc ? ' · ' + t.cpfLoc : ''), t.sigLoc]];
+  return `<div class="tk" style="width:330px"><img class="tk-logo" src="${typeof _TK_LOGO !== 'undefined' ? _TK_LOGO : ''}" alt="ObraKontrol">
+    <div class="tk-c" style="font-size:11px;color:#555">${_mobEsc(t.cliente)}${t.obraNome ? ' · ' + _mobEsc(t.obraNome) : ''}</div>
+    <div class="tk-t">${t.sai ? 'DEVOLUÇÃO DE VEÍCULO' : 'RECEBIMENTO DE VEÍCULO'}</div><div class="tk-big" style="font-size:30px">${_mobEsc(t.placa)}</div><hr>
+    ${L('Data', String(t.data || '').split('-').reverse().join('/') + ' ' + (t.hora || ''))}${L('Modelo', t.modeloNome)}${L('Tipo', t.tipoVeic)}${L('Locadora', t.locadora)}
+    <hr>${L(t.sai ? 'Km na devolução' : 'Km na chegada', t.km)}${t.sai ? L('Km na chegada', t.kmChegada) + (t.rodados != null ? L('Km rodados', t.rodados) : '') : ''}${L('Combustível', t.comb)}
+    <hr>${L('Fotos', t.nFotos + ' foto(s)')}${L('Avarias', t.avarias.length || 'nenhuma')}${t.avarias.map(a => `<div style="color:#555">• ${_mobEsc(a.desc)}</div>`).join('')}${t.obs ? `<div style="color:#555;margin-top:4px">Obs.: ${_mobEsc(t.obs)}</div>` : ''}
+    <hr><div style="display:flex;gap:10px">${ass.filter(x => x[1] || x[2]).map(([r, n, s]) => `<div style="flex:1;text-align:center">${s ? `<img src="${s}" style="width:100%;height:46px;object-fit:contain;border-bottom:1px solid #999"/>` : '<div style="height:46px;border-bottom:1px solid #999"></div>'}<div style="font-size:10.5px;color:#555">${r}: ${_mobEsc(n || '')}</div></div>`).join('')}</div>
+    ${t.validadoEm ? `<div class="tk-ok">✓ ${t.sai ? 'DEVOLVIDO' : 'RECEBIDO'} · ${_mobEsc(new Date(t.validadoEm).toLocaleString('pt-BR').replace(',', '').slice(0, 16))}</div>` : '<div class="tk-pend">CONFIRA ANTES DE VALIDAR</div>'}
+    <div class="tk-rod">ObraKontrol · Gestão operacional de obras</div></div>`;
+}
+function vlConferir() {
+  const f = _vlFalta(); if (f.length) { toast('Falta ' + f.slice(0, 3).join(', ') + (f.length > 3 ? '…' : '') + '.', 'err'); if (navigator.vibrate) { try { navigator.vibrate([60, 60, 60]); } catch (e) {} } return; }
+  _tkModal(termoVlHtml(_vlTermoDados()), `<button class="btn btn-outline" style="flex:1;background:#fff" onclick="document.getElementById('tk-ov').remove()">Corrigir</button><button class="btn btn-green" style="flex:1.4" onclick="vlValidar()">✓ Validar</button>`);
+}
+async function vlValidar() {
+  const b = document.querySelector('#tk-ov .btn-green'); if (b) { b.disabled = true; b.textContent = 'Salvando…'; }
+  try {
+    if (navigator.onLine) { try { const fr = await fbCarregar('frota'); if (fr) window._vlFrota = fr; } catch (e) {} }
+    const t = _vlTermoDados(), ag = new Date().toISOString(), suf = Date.now().toString(36) + Math.random().toString(36).slice(2, 5), idMob = 'mb' + suf, quem = usuarioCampo.nome;
+    let veic = null;
+    if (t.sai) { veic = _vlVeic(); if (!veic) throw new Error('veículo não encontrado'); if (veic.status === 'Devolvido') throw new Error(veic.placa + ' já foi devolvido'); }
+    else { const dup = (window._vlFrota || []).find(v => _vlPlaca(v.placa) === t.placa && v.status !== 'Devolvido'); if (dup) throw new Error('a placa ' + t.placa + ' já está na frota (' + (dup.obraNome || 'outra obra') + ')'); }
+    const idVeic = t.sai ? veic.id : 'vc' + suf, fotos = {}; let nf = 0;
+    const salvaFoto = async (v, tipo, rotulo) => { const id = 'fv' + suf + (nf++); await fbSalvar('fotos', { id, tipo: 'veiculo_' + tipo, rotulo, mobilizacao: idMob, veicId: idVeic, placa: t.placa, obra: t.obra, data: t.data, lancadoPor: quem, tiradaEm: v.em || '', img: v.img }); return id; };
+    for (const [k, r] of VL_FOTOS) { fotos[k] = []; for (const v of (vl.fotos[k] || [])) fotos[k].push(await salvaFoto(v, k, r)); }
+    const av = []; for (const a of vl.avarias) av.push({ desc: a.desc, foto: a.foto ? await salvaFoto(a.foto, 'avaria', 'Avaria: ' + a.desc) : '' });
+    if (!t.sai) {
+      let mod = vl.modeloId !== '__novo' ? (dadosCampo.modelos || []).find(m => m.id === vl.modeloId) : null;
+      if (!mod) { const nome = vl.modeloNovo.trim(); mod = (dadosCampo.modelos || []).find(m => _mobNorm(m.nome) === _mobNorm(nome) && (!m.obra || m.obra === t.obra));
+        if (!mod) { const fam = (dadosCampo.familias || []).find(f => !f.obra && f.status !== 'pendente' && /VEICULOLEVE|VEICULOSLEVES/.test(_mobNorm(f.desc)));
+          mod = { id: 'md' + suf, obra: t.obra, cod: 'P-' + suf.slice(-5).toUpperCase(), nome, familia: fam ? fam.cod : '', status: 'pendente', criadoNoCampo: true, criadoPor: quem, criadoEm: ag };
+          await fbSalvar('modelos', mod); (dadosCampo.modelos = dadosCampo.modelos || []).push(mod); } }
+      const e = _vlEmp() || {};
+      veic = { id: idVeic, obra: t.obra, placa: t.placa, modelo: mod.nome || mod.cod, modeloId: mod.id, codModelo: mod.cod || '', familia: mod.familia || '', tipo: vl.tipo, locadora: e.nome || e.razao || vl.loc, locadoraCod: vl.loc,
+        status: 'Em uso', mobData: t.data, kmMob: +t.km || 0, combMob: t.comb, resp: [], cadastroPendente: true, origem: 'campo', mobilizacaoId: idMob, criadoPor: quem, criadoEm: ag, obs: t.obs };
+      await fbSalvar('frota', veic); window._vlFrota.push(veic);
+    } else {
+      const resp = (veic.resp || []).map(r => r.fim ? r : { ...r, fim: t.data });
+      Object.assign(veic, { status: 'Devolvido', devData: t.data, kmDev: +t.km || 0, combDev: t.comb, devolucaoId: idMob, resp, atualizadoEm: ag });
+      await fbSalvar('frota', { id: veic.id, status: 'Devolvido', devData: t.data, kmDev: veic.kmDev, combDev: t.comb, devolucaoId: idMob, resp, atualizadoEm: ag });
+    }
+    await fbSalvar('mobilizacoes', { id: idMob, tipo: t.sai ? 'veiculo_saida' : 'veiculo_entrada', veicId: idVeic, placa: t.placa, obra: t.obra, obraNome: t.obraNome, data: t.data, hora: t.hora, modeloNome: t.modeloNome, tipoVeic: t.tipoVeic, locadora: t.locadora,
+      km: t.km, kmChegada: t.kmChegada, rodados: t.rodados, comb: t.comb, fotos, avarias: av, obs: t.obs, nomeObra: t.nomeObra, sigObra: t.sigObra, sigObraTipo: vl.sigObraTipo || null, nomeLoc: t.nomeLoc, cpfLoc: t.cpfLoc, sigLoc: t.sigLoc, sigLocTipo: vl.sigLocTipo || null,
+      lancadoPor: quem, validadoEm: ag });
+    t.validadoEm = ag;
+    _tkModal(termoVlHtml(t), `<button class="btn btn-green" style="flex:1" onclick="document.getElementById('tk-ov').remove();showScreen('home')">Concluir</button>`);
+    toast('✓ ' + t.placa + (t.sai ? ' devolvido' : ' recebido · já está na Frota do painel'), 'ok'); vl = null;
+  } catch (e) { toast('Não consegui salvar: ' + (e.message || e), 'err'); if (b) { b.disabled = false; b.textContent = '✓ Validar'; } }
+}
+(function () {
+  const css = document.createElement('style');
+  css.textContent = `.vl-esc{position:fixed;inset:0;z-index:3200;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center}
+    .vl-sheet{background:var(--bg,#F4F5F7);width:100%;max-width:520px;border-radius:20px 20px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:8px}
+    .vl-sh-t{font-weight:900;font-size:17px;margin:2px 4px 6px}
+    .vl-sheet button[data-k]{display:flex;gap:12px;align-items:center;text-align:left;background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:12px 14px;min-height:62px;color:var(--text)}
+    .vl-sheet button b{display:block;font-size:15px}.vl-sheet button small{display:block;font-size:12px;color:var(--text2)}.vl-ic{font-size:26px}
+    .vl-sheet .vl-canc{justify-content:center;background:none;border:0;color:var(--text2);font-weight:700;min-height:44px}
+    .vl-info{background:#F0F9FF;border:1px solid #BAE6FD;border-radius:10px;padding:8px 10px;font-size:13px;color:#075985}`;
+  document.head.appendChild(css);
+  const oAb = abrirMobilizacao;
+  abrirMobilizacao = async function () {
+    const pode = typeof okModuloAtivo !== 'function' || okModuloAtivo('frota', usuarioCampo && usuarioCampo.obra);
+    if (!pode) return oAb.apply(this, arguments);
+    const k = await _vlEscolha(); if (k === 'eq') return oAb.apply(this, arguments); if (k === 'ent' || k === 'sai') return vlAbrir(k);
+  };
+  const s = document.querySelector('#card-mob .hcard-s'); if (s) s.textContent = 'Equipamento ou veículo leve';
+  // modelos pendentes marcados com ⏳ na mobilização de equipamento
+  const oR = mobRender;
+  mobRender = function () { const r = oR.apply(this, arguments); document.querySelectorAll('#mob-content select option').forEach(o => { const m = (dadosCampo.modelos || []).find(x => x.cod === o.value); if (m && _vlPend(m) && !o.textContent.includes('⏳')) o.textContent += ' ⏳'; }); return r; };
 })();
 
 // Salvar sessão ao entrar

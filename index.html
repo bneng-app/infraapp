@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.09 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.10 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -13561,6 +13561,351 @@ async function baixarConferenciaImportacao() {
   a.download = String(_impArquivo.name || 'importacao.xlsx').replace(/\.(xlsx|xls|csv)$/i, '') + '_conferencia.xlsx'; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
   toast(marcadas + ' linha(s) marcadas na planilha.');
 }
+
+
+// ═══════════════════════════════════════════════════════════════
+// v3.10: FAMÍLIAS E MODELOS PADRONIZADOS (banco master)
+// Banco = cadastro sem obra (todas as obras veem). A obra pode criar, mas fica ⏳ pendente (já pode usar).
+// O Master aprova como novo (código padrão: sigla da família + número, ex.: ESC-001) ou unifica com um do banco;
+// ao unificar, o código é trocado em todos os equipamentos e veículos que usavam o pendente.
+// ═══════════════════════════════════════════════════════════════
+const _MM_ALIAS = { CATERPILLAR: 'CAT', VOLKSWAGEN: 'VW', VOLKS: 'VW', MERCEDES: 'MB', BENZ: 'MB', CHEVROLET: 'GM', CHEVY: 'GM', NEWHOLLAND: 'NH', JOHNDEERE: 'JD', DEERE: 'JD', TOYOTA: 'TOYOTA' };
+function _mmNorm(t) { return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim(); }
+function _mmTok(t) { return _mmNorm(t).replace(/\bMERCEDES BENZ\b/g, 'MB').replace(/\bNEW HOLLAND\b/g, 'NH').replace(/\bJOHN DEERE\b/g, 'JD').split(' ').filter(Boolean).map(w => _MM_ALIAS[w] || w); }
+// 0 a 1: quanto dois nomes parecem ser a mesma coisa
+function _mmSim(a, b) {
+  const A = [...new Set(_mmTok(a))], B = [...new Set(_mmTok(b))]; if (!A.length || !B.length) return 0;
+  const ca = A.join(''), cb = B.join(''); if (ca === cb) return 1;
+  let inter = 0; A.forEach(x => { if (B.includes(x)) inter++; else if (B.some(y => y.length >= 3 && x.length >= 3 && (y.startsWith(x) || x.startsWith(y)))) inter += 0.8; });
+  let s = inter / Math.min(A.length, B.length) * 0.6 + inter / Math.max(A.length, B.length) * 0.4;
+  const na = ca.match(/\d+/g) || [], nb = cb.match(/\d+/g) || [];
+  if (na.length && nb.length) s += na.some(n => nb.includes(n)) ? 0.25 : -0.3;
+  return Math.max(0, Math.min(1, s));
+}
+function _mmBanco(x) { return !!x && !x.obra && x.status !== 'pendente'; }
+function _mmPend(x) { return !!x && !_mmBanco(x); }
+function _mmTemp(p) { return p + '-' + Date.now().toString(36).slice(-3).toUpperCase() + Math.random().toString(36).slice(2, 4).toUpperCase(); }
+function _mmGrava(col, x) { if (db && _firebaseReady) fbSave(col, x.id, x).catch(() => toast('Salvo aqui, mas não no servidor. Tente de novo.', 'error')); }
+function _mmApaga(col, x) { dados[col] = (dados[col] || []).filter(y => y !== x); if (db && _firebaseReady) fbDelete(col, x.id).catch(() => {}); }
+function _mmFamDe(m) { const l = dados.familias || []; return l.find(f => f.cod === m.familia && m.obra && f.obra === m.obra) || l.find(f => f.cod === m.familia && _mmBanco(f)) || l.find(f => f.cod === m.familia) || null; }
+// onde é usado
+function _mmUsoFam(f) { const ok = x => !f.obra || x.obra === f.obra;
+  return (dados.equipamentos || []).filter(e => e.familia === f.cod && ok(e)).length + (dados.frota || []).filter(v => v.familia === f.cod && ok(v)).length; }
+function _mmUsoMod(m) { const ok = x => !m.obra || x.obra === m.obra;
+  return (dados.equipamentos || []).filter(e => e.codModelo === m.cod && ok(e)).length + (dados.frota || []).filter(v => v.modeloId === m.id || (v.codModelo === m.cod && ok(v))).length; }
+// troca o código em tudo que usava o antigo
+function _mmTrocaFam(de, para) {
+  const ok = x => !de.obra || x.obra === de.obra; let n = 0;
+  [['equipamentos', 'familia'], ['frota', 'familia'], ['modelos', 'familia']].forEach(([col, k]) => (dados[col] || []).forEach(x => {
+    if (x.id !== de.id && ok(x) && x[k] === de.cod && x[k] !== para.cod) { x[k] = para.cod; _mmGrava(col, x); n++; } }));
+  return n;
+}
+function _mmTrocaMod(de, para) {
+  const ok = x => !de.obra || x.obra === de.obra; let n = 0;
+  (dados.equipamentos || []).forEach(e => { if (ok(e) && e.codModelo === de.cod) { e.codModelo = para.cod; if (para.familia) e.familia = para.familia; _mmGrava('equipamentos', e); n++; } });
+  (dados.frota || []).forEach(v => { if (v.modeloId === de.id || (ok(v) && v.codModelo === de.cod)) { v.modeloId = para.id; v.codModelo = para.cod; v.modelo = para.nome || para.cod; if (para.familia) v.familia = para.familia; _mmGrava('frota', v); n++; } });
+  return n;
+}
+// códigos padrão
+function _mmSiglaSug(desc) { const w = _mmNorm(desc).split(' ').filter(x => x.length > 1 && !['DE', 'DA', 'DO', 'DAS', 'DOS', 'E', 'PARA', 'COM'].includes(x));
+  return (w.length > 1 ? w.map(x => x[0]).join('') : (w[0] || 'X')).slice(0, 3); }
+function _mmSiglaLivre(s, excetoId) { const base = _mmNorm(s).replace(/ /g, '').slice(0, 5) || 'X'; let c = base, n = 2;
+  while ((dados.familias || []).some(f => f.id !== excetoId && _mmBanco(f) && String(f.cod).toUpperCase() === c)) c = base + n++; return c; }
+function _mmCodModelo(fam) { const pre = String(fam || 'MOD').toUpperCase(), re = new RegExp('^' + pre.replace(/[^A-Z0-9]/g, '') + '-(\\d+)$'); let mx = 0;
+  (dados.modelos || []).forEach(m => { const r = re.exec(String(m.cod || '').toUpperCase()); if (r) mx = Math.max(mx, +r[1]); }); return pre + '-' + String(mx + 1).padStart(3, '0'); }
+function _mmSug(col, txt, menos) { const campo = col === 'familias' ? 'desc' : 'nome';
+  return (dados[col] || []).filter(x => _mmBanco(x) && x !== menos).map(x => ({ x, s: Math.max(_mmSim(txt, x[campo]), _mmNorm(txt) === _mmNorm(x.cod) ? 1 : 0) })).filter(o => o.s >= 0.6).sort((a, b) => b.s - a.s).slice(0, 3); }
+function _mmPendentes() { return { fam: (dados.familias || []).filter(_mmPend), mod: (dados.modelos || []).filter(_mmPend) }; }
+function _mmSit(x) { return _mmBanco(x) ? '<span class="tag tag-green" style="font-size:10.5px">✓ Padrão</span>'
+  : `<span class="tag tag-amber" style="font-size:10.5px" title="Criado pela obra, aguardando o master">⏳ Pendente</span><div style="font-size:10.5px;color:var(--text-3)">${_e(getNomeObra(x.obra))}</div>`; }
+function _mmLista(col) { const o = _okObraAtual(); return (dados[col] || []).filter(x => _mmBanco(x) || o === 'todas' || x.obra === o); }
+function _mmPode(x) { return _ehMaster() || (_mmPend(x) && (_okObraAtual() === 'todas' || x.obra === _okObraAtual())); }
+function _mmAcoes(col, x) { return _mmPode(x) ? acoesCell(`${col === 'familias' ? 'editarFamilia' : 'editarModelo'}('${x.id}')`, `mmExcluir('${col}','${x.id}')`) : '<span title="Cadastro padrão: só o master altera" style="color:var(--text-3);font-size:12px">🔒 padrão</span>'; }
+function _mmAviso(el) {
+  if (!el) return; const p = _mmPendentes(), n = p.fam.length + p.mod.length;
+  el.innerHTML = !n ? '' : _ehMaster() ? `<div class="mm-av">⏳ <b>${n}</b> cadastro(s) pendente(s) de aprovação (${p.fam.length} família(s), ${p.mod.length} modelo(s)). <button class="btn btn-primary btn-sm" onclick="showPage('mm-aprov')">Ir para aprovações</button></div>`
+    : `<div class="mm-av">Família e modelo vêm do <b>banco padrão</b>. Se não achar, crie: ele fica ⏳ pendente até o master aprovar, mas já pode ser usado.</div>`;
+}
+function renderFamilias() {
+  const tb = document.getElementById('tbody-familias'); if (!tb) return;
+  const th = document.querySelector('#tabela-familias thead tr'); if (th && !th.dataset.mm) { th.dataset.mm = 1; th.innerHTML = '<th>Código</th><th>Família</th><th>Situação</th><th style="text-align:center">Em uso</th><th></th>'; }
+  _mmAviso(document.getElementById('mm-av-fam'));
+  const l = _mmLista('familias').sort((a, b) => _mmBanco(a) - _mmBanco(b) || String(a.cod).localeCompare(String(b.cod)));
+  tb.innerHTML = l.length ? l.map(f => `<tr><td class="td-mono"><strong>${_e(f.cod)}</strong></td><td>${_e(f.desc)}</td><td>${_mmSit(f)}</td><td style="text-align:center" class="td-mono">${_mmUsoFam(f) || '—'}</td><td>${_mmAcoes('familias', f)}</td></tr>`).join('')
+    : '<tr><td colspan="5" style="text-align:center;color:var(--text-3);padding:2rem">Nenhuma família cadastrada</td></tr>';
+}
+function renderModelos() {
+  const tb = document.getElementById('tbody-modelos'); if (!tb) return;
+  const th = document.querySelector('#tabela-modelos thead tr'); if (th && !th.dataset.mm) { th.dataset.mm = 1; th.innerHTML = '<th>Código</th><th>Modelo</th><th>Família</th><th style="text-align:right">Tanque (L)</th><th style="text-align:right">Consumo (L/h)</th><th>Situação</th><th style="text-align:center">Em uso</th><th></th>'; }
+  _mmAviso(document.getElementById('mm-av-mod'));
+  const l = _mmLista('modelos').sort((a, b) => _mmBanco(a) - _mmBanco(b) || String(a.nome || a.cod).localeCompare(String(b.nome || b.cod), 'pt-BR'));
+  const pr = v => +v ? (+v).toLocaleString('pt-BR') : '<span style="color:var(--amber)">preencher</span>';
+  tb.innerHTML = l.length ? l.map(m => { const f = _mmFamDe(m); return `<tr><td class="td-mono"><strong>${_e(m.cod)}</strong></td><td>${_e(m.nome)}</td>
+      <td style="font-size:12px;color:var(--text-2)">${f ? _e(f.desc || f.cod) + (_mmPend(f) ? ' ⏳' : '') : _e(m.familia || '—')}</td><td class="td-mono" style="text-align:right">${pr(m.capTanque)}</td><td class="td-mono" style="text-align:right">${pr(m.consumoPrev)}</td>
+      <td>${_mmSit(m)}</td><td style="text-align:center" class="td-mono">${_mmUsoMod(m) || '—'}</td><td>${_mmAcoes('modelos', m)}</td></tr>`; }).join('')
+    : '<tr><td colspan="8" style="text-align:center;color:var(--text-3);padding:2rem">Nenhum modelo cadastrado</td></tr>';
+}
+// ── formulários
+function _mmObraSel(selId, val, banco) {
+  popularSelectObra(selId, val || ''); const s = document.getElementById(selId); if (!s) return;
+  if (_ehMaster()) { s.insertAdjacentHTML('afterbegin', '<option value="__banco">🏛 Banco padrão — todas as obras</option>'); s.value = banco ? '__banco' : (val || '__banco'); }
+  else if (!val && _okObraAtual() !== 'todas') s.value = _okObraAtual();
+}
+function _mmFamOpts(obra, val) {
+  const s = document.getElementById('mod-familia'); if (!s) return;
+  const l = (dados.familias || []).filter(f => _mmBanco(f) || (obra && obra !== '__banco' && f.obra === obra)).sort((a, b) => String(a.desc).localeCompare(String(b.desc), 'pt-BR'));
+  s.innerHTML = '<option value="">Escolha a família…</option>' + l.map(f => `<option value="${_e(f.cod)}">${_e(f.desc || f.cod)} · ${_e(f.cod)}${_mmPend(f) ? ' ⏳' : ''}</option>`).join(''); s.value = val || '';
+}
+function _mmForm(tipo, x) {
+  const fam = tipo === 'fam', $ = k => document.getElementById(k), pre = fam ? 'fam' : 'mod';
+  const cod = $(pre + '-cod'), g = cod && cod.closest('.form-group');
+  const banco = x ? _mmBanco(x) : (_ehMaster() && ($(pre + '-obra')?.value || '__banco') === '__banco');
+  if (g) { g.style.display = fam && _ehMaster() && banco ? '' : 'none'; const lb = g.querySelector('.form-label'); if (lb) lb.textContent = 'Sigla (código da família) *'; cod.placeholder = 'Ex.: ESC, VL, CB'; }
+  let info = $(pre + '-mm-info'); if (!info) { (fam ? $('fam-desc') : $('mod-nome')).closest('.form-group').insertAdjacentHTML('afterend', `<div class="form-group form-full" id="${pre}-mm-info"></div>`); info = $(pre + '-mm-info'); }
+  info.innerHTML = `<div id="${pre}-mm-sug"></div><div style="font-size:11.5px;color:var(--text-3)">${x ? 'Código: <b class="td-mono">' + _e(x.cod) + '</b> · ' : ''}${banco ? (fam ? 'A sigla vira o começo do código dos modelos (ex.: ESC-001).' : 'Código gerado: sigla da família + número (ex.: ESC-001).') : 'Fica ⏳ pendente até o master aprovar — já pode ser usado. O código definitivo sai na aprovação.'}</div>`;
+  const s = $(pre + '-obra'); if (s) { const lb = s.closest('.form-group')?.querySelector('.form-label'); if (lb) lb.textContent = _ehMaster() ? '🏛 Onde fica *' : '🏗️ Obra *'; s.disabled = !!x; }
+}
+function mmSugerir(tipo) {
+  const fam = tipo === 'fam', pre = fam ? 'fam' : 'mod', el = document.getElementById(pre + '-mm-sug'); if (!el) return;
+  const txt = document.getElementById(fam ? 'fam-desc' : 'mod-nome').value, id = document.getElementById(pre + '-edit-id')?.value || '';
+  const atual = id ? (dados[fam ? 'familias' : 'modelos'] || []).find(x => x.id === id) : null;
+  const l = txt.trim().length >= 3 ? _mmSug(fam ? 'familias' : 'modelos', txt, atual) : [];
+  el.innerHTML = l.length ? `<div class="mm-sug"><b>Já existe no banco — você quis dizer?</b>${l.map(o => `<div class="mm-sug-i"><span><b class="td-mono">${_e(o.x.cod)}</b> · ${_e(fam ? o.x.desc : o.x.nome)}${!fam && _mmFamDe(o.x) ? ' <small>(' + _e(_mmFamDe(o.x).desc) + ')</small>' : ''}</span><small>${Math.round(o.s * 100)}%</small></div>`).join('')}<div style="font-size:11.5px;margin-top:4px">Se for um destes, <b>não crie de novo</b>: ele já aparece para todas as obras.</div></div>` : '';
+}
+function mmNovaFamilia() { const $ = k => document.getElementById(k); $('fam-edit-id').value = ''; $('fam-cod').value = ''; $('fam-desc').value = ''; $('modal-fam-titulo').textContent = 'Nova família'; _mmObraSel('fam-obra', '', false); _mmForm('fam', null); openModal('modal-nova-familia'); }
+function mmNovoModelo() { const $ = k => document.getElementById(k); ['mod-edit-id', 'mod-cod', 'mod-nome', 'mod-cap', 'mod-consumo'].forEach(k => { if ($(k)) $(k).value = ''; }); $('modal-mod-titulo').textContent = 'Novo modelo';
+  _mmObraSel('mod-obra', '', false); _mmFamOpts($('mod-obra').value, ''); _mmForm('mod', null); openModal('modal-novo-modelo'); }
+editarFamilia = window.editarFamilia = function (id) { const f = (dados.familias || []).find(x => x.id === id), $ = k => document.getElementById(k); if (!f) return;
+  if (!_mmPode(f)) { toast('Cadastro padrão: só o master altera.', 'error'); return; }
+  $('fam-edit-id').value = f.id; $('fam-cod').value = f.cod || ''; $('fam-desc').value = f.desc || ''; $('modal-fam-titulo').textContent = 'Editar família';
+  _mmObraSel('fam-obra', f.obra, _mmBanco(f)); _mmForm('fam', f); openModal('modal-nova-familia'); };
+editarModelo = window.editarModelo = function (id) { const m = (dados.modelos || []).find(x => x.id === id), $ = k => document.getElementById(k); if (!m) return;
+  if (!_mmPode(m)) { toast('Cadastro padrão: só o master altera.', 'error'); return; }
+  $('mod-edit-id').value = m.id; $('mod-nome').value = m.nome || ''; $('mod-cap').value = m.capTanque || ''; $('mod-consumo').value = m.consumoPrev || ''; $('modal-mod-titulo').textContent = 'Editar modelo';
+  _mmObraSel('mod-obra', m.obra, _mmBanco(m)); _mmFamOpts(m.obra || '__banco', m.familia); _mmForm('mod', m); openModal('modal-novo-modelo'); };
+salvarFamilia = window.salvarFamilia = function () {
+  const $ = k => document.getElementById(k), id = $('fam-edit-id').value, desc = $('fam-desc').value.trim(), sel = $('fam-obra').value, master = _ehMaster();
+  const it = id ? (dados.familias || []).find(x => x.id === id) : null;
+  if (!desc) { toast('Preencha a descrição da família.', 'error'); return; }
+  if (!it && !master && !sel) { toast('Selecione a obra.', 'error'); return; }
+  const banco = it ? _mmBanco(it) : master && sel === '__banco';
+  const igual = (dados.familias || []).find(f => f !== it && _mmBanco(f) && _mmNorm(f.desc) === _mmNorm(desc));
+  if (igual && !it) { toast('Já existe no banco: ' + igual.cod + ' — ' + igual.desc + '. Use essa.', 'error'); return; }
+  if (it) {
+    it.desc = desc;
+    if (banco && master) { const nc = _mmNorm($('fam-cod').value).replace(/ /g, '');
+      if (nc && nc !== String(it.cod).toUpperCase()) { if ((dados.familias || []).some(f => f !== it && _mmBanco(f) && String(f.cod).toUpperCase() === nc)) { toast('A sigla ' + nc + ' já é de outra família.', 'error'); return; }
+        const old = { ...it }; it.cod = nc; _mmTrocaFam(old, it); } }
+    _mmGrava('familias', it);
+  } else {
+    const f = { id: 'fm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), obra: banco ? '' : sel, desc, status: banco ? 'aprovado' : 'pendente',
+      cod: banco ? _mmSiglaLivre($('fam-cod').value.trim() || _mmSiglaSug(desc)) : _mmTemp('P'), criadoPor: usuarioLogado?.nome || '', criadoEm: new Date().toISOString() };
+    (dados.familias = dados.familias || []).push(f); _mmGrava('familias', f);
+    toast(banco ? 'Família ' + f.cod + ' no banco padrão.' : 'Família criada — fica ⏳ pendente até o master aprovar. Já pode usar.');
+  }
+  closeModal('modal-nova-familia'); renderFamilias(); try { popularSelects(); } catch (e) {} if (it) toast('Família salva.');
+};
+salvarModelo = window.salvarModelo = function () {
+  const $ = k => document.getElementById(k), id = $('mod-edit-id').value, nome = $('mod-nome').value.trim(), sel = $('mod-obra').value, famC = $('mod-familia').value, master = _ehMaster();
+  const it = id ? (dados.modelos || []).find(x => x.id === id) : null;
+  if (!nome) { toast('Preencha o nome do modelo.', 'error'); return; }
+  if (!famC) { toast('Escolha a família.', 'error'); return; }
+  if (!it && !master && !sel) { toast('Selecione a obra.', 'error'); return; }
+  const banco = it ? _mmBanco(it) : master && sel === '__banco';
+  const fam = (dados.familias || []).find(f => f.cod === famC && (_mmBanco(f) || f.obra === (it ? it.obra : sel)));
+  if (banco && fam && _mmPend(fam)) { toast('A família ' + fam.desc + ' ainda está pendente. Aprove a família primeiro.', 'error'); return; }
+  const igual = (dados.modelos || []).find(m => m !== it && _mmBanco(m) && _mmNorm(m.nome) === _mmNorm(nome));
+  if (igual && !it) { toast('Já existe no banco: ' + igual.cod + ' — ' + igual.nome + '. Use esse.', 'error'); return; }
+  const capTanque = parseFloat($('mod-cap').value) || 0, consumoPrev = parseFloat(String($('mod-consumo').value || '').replace(',', '.')) || 0;
+  if (it) { const old = { ...it }; Object.assign(it, { nome, familia: famC, capTanque, consumoPrev }); if (old.familia !== famC) _mmTrocaMod(old, it); _mmGrava('modelos', it); toast('Modelo salvo.'); }
+  else { const m = { id: 'md' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), obra: banco ? '' : sel, nome, familia: famC, capTanque, consumoPrev, status: banco ? 'aprovado' : 'pendente',
+      cod: banco ? _mmCodModelo(famC) : _mmTemp('P'), criadoPor: usuarioLogado?.nome || '', criadoEm: new Date().toISOString() };
+    (dados.modelos = dados.modelos || []).push(m); _mmGrava('modelos', m);
+    toast(banco ? 'Modelo ' + m.cod + ' no banco padrão.' : 'Modelo criado — fica ⏳ pendente até o master aprovar. Já pode usar.'); }
+  closeModal('modal-novo-modelo'); renderModelos(); try { popularSelects(); } catch (e) {}
+};
+function mmExcluir(col, id) {
+  const x = (dados[col] || []).find(y => y.id === id); if (!x) return;
+  if (!_mmPode(x)) { toast('Cadastro padrão: só o master altera.', 'error'); return; }
+  const n = col === 'familias' ? _mmUsoFam(x) + (dados.modelos || []).filter(m => m.familia === x.cod && (!x.obra || m.obra === x.obra || _mmBanco(m))).length : _mmUsoMod(x);
+  if (n) { toast('Está em uso (' + n + '). ' + (_ehMaster() ? 'Use Aprovações → Unificar para trocar por outro.' : 'Peça ao master para unificar.'), 'error'); return; }
+  if (!confirm('Excluir ' + (x.desc || x.nome) + '?')) return;
+  _mmApaga(col, x); col === 'familias' ? renderFamilias() : renderModelos(); try { popularSelects(); } catch (e) {} toast('Excluído.');
+}
+// ── importação / campo: procura no banco antes de criar
+(function () {
+  const oF = _impFamilia, oM = _impModelo;
+  _impFamilia = function (txt, obraId) { const t = String(txt || '').trim(); if (!t) return null;
+    const b = (dados.familias || []).find(f => _mmBanco(f) && (_mmNorm(f.cod) === _mmNorm(t) || _mmNorm(f.desc) === _mmNorm(t))); if (b) return b;
+    const f = oF.apply(this, arguments); if (f && f.obra && !f.status) f.status = 'pendente'; return f; };
+  _impModelo = function (txt, famCod, obraId) { const t = String(txt || '').trim(); if (!t) return null;
+    const b = (dados.modelos || []).find(m => _mmBanco(m) && (_mmNorm(m.cod) === _mmNorm(t) || _mmNorm(m.nome) === _mmNorm(t))); if (b) return b;
+    const m = oM.apply(this, arguments); if (m && m.obra && !m.status) m.status = 'pendente'; return m; };
+})();
+
+// ── APROVAÇÕES (Cadastros master)
+function _mmGrupos(col) {
+  const campo = col === 'familias' ? 'desc' : 'nome', g = new Map();
+  (dados[col] || []).filter(_mmPend).forEach(x => { const k = _mmNorm(x[campo]) || x.id; if (!g.has(k)) g.set(k, []); g.get(k).push(x); });
+  return [...g.values()].map(itens => ({ itens, uso: itens.reduce((s, x) => s + (col === 'familias' ? _mmUsoFam(x) : _mmUsoMod(x)), 0), nome: itens[0][campo] })).sort((a, b) => b.uso - a.uso || String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
+}
+function renderMmAprov() {
+  const el = document.getElementById('mm-aprov-corpo'); if (!el) return;
+  const busca = _mmNorm(document.getElementById('search-mm')?.value || '');
+  const gf = _mmGrupos('familias').filter(g => !busca || _mmNorm(g.nome).includes(busca)), gm = _mmGrupos('modelos').filter(g => !busca || _mmNorm(g.nome).includes(busca));
+  const bF = (dados.familias || []).filter(_mmBanco).sort((a, b) => String(a.desc).localeCompare(String(b.desc), 'pt-BR')), bM = (dados.modelos || []).filter(_mmBanco).sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
+  const obras = g => [...new Set(g.itens.map(x => getNomeObra(x.obra)))].join(', ');
+  const cardF = (g, i) => { const x = g.itens[0], sug = _mmSug('familias', x.desc);
+    return `<div class="mm-card"><div class="mm-h"><div><b>${_e(x.desc)}</b> <span class="td-mono" style="font-size:11px;color:var(--text-3)">${g.itens.map(y => _e(y.cod)).join(' · ')}</span>
+        <div class="mm-s">${_e(obras(g))} · em uso: <b>${g.uso}</b>${g.itens.length > 1 ? ' · ' + g.itens.length + ' obras com o mesmo nome (vão juntas)' : ''}</div></div></div>
+      ${sug.length ? `<div class="mm-s" style="margin:6px 0">Parecidos no banco: ${sug.map(o => `<button class="btn btn-outline btn-sm" onclick="mmUnificar('familias',${i},'${o.x.id}')">⇄ ${_e(o.x.cod)} · ${_e(o.x.desc)} (${Math.round(o.s * 100)}%)</button>`).join(' ')}</div>` : ''}
+      <div class="mm-a"><label>Sigla <input class="form-control" id="mmf-sig-${i}" value="${_e(_mmSiglaLivre(_mmSiglaSug(x.desc)))}" style="width:90px;display:inline-block;text-transform:uppercase"/></label>
+        <button class="btn btn-primary btn-sm" onclick="mmAprovar('familias',${i})">✓ Aprovar como nova</button>
+        <select class="form-control" id="mmf-uni-${i}" style="width:auto;display:inline-block;max-width:260px"><option value="">Unificar com…</option>${bF.map(f => `<option value="${f.id}">${_e(f.cod)} · ${_e(f.desc)}</option>`).join('')}</select>
+        <button class="btn btn-outline btn-sm" onclick="mmUnificar('familias',${i})">⇄ Unificar</button>
+        ${g.uso ? '' : `<button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="mmRecusar('familias',${i})">✕ Recusar</button>`}</div></div>`; };
+  const cardM = (g, i) => { const x = g.itens[0], sug = _mmSug('modelos', x.nome), f = _mmFamDe(x), fb = f && _mmBanco(f) ? f : f ? bF.find(b => _mmNorm(b.desc) === _mmNorm(f.desc)) : null;
+    const capT = g.itens.map(y => +y.capTanque).find(Boolean), cons = g.itens.map(y => +y.consumoPrev).find(Boolean);
+    return `<div class="mm-card"><div class="mm-h"><div><b>${_e(x.nome)}</b> <span class="td-mono" style="font-size:11px;color:var(--text-3)">${g.itens.map(y => _e(y.cod)).join(' · ')}</span>
+        <div class="mm-s">${_e(obras(g))} · família na obra: ${f ? _e(f.desc) + (_mmPend(f) ? ' ⏳' : '') : '—'} · em uso: <b>${g.uso}</b>${capT ? ' · tanque ' + capT + ' L' : ''}${cons ? ' · ' + cons + ' L/h' : ''}${g.itens.length > 1 ? ' · ' + g.itens.length + ' obras com o mesmo nome (vão juntas)' : ''}</div></div></div>
+      ${sug.length ? `<div class="mm-s" style="margin:6px 0">Parecidos no banco: ${sug.map(o => `<button class="btn btn-outline btn-sm" onclick="mmUnificar('modelos',${i},'${o.x.id}')">⇄ ${_e(o.x.cod)} · ${_e(o.x.nome)} (${Math.round(o.s * 100)}%)</button>`).join(' ')}</div>` : ''}
+      <div class="mm-a"><select class="form-control" id="mmm-fam-${i}" style="width:auto;display:inline-block;max-width:220px"><option value="">Família do banco…</option>${bF.map(b => `<option value="${_e(b.cod)}" ${fb && fb.cod === b.cod ? 'selected' : ''}>${_e(b.cod)} · ${_e(b.desc)}</option>`).join('')}</select>
+        <button class="btn btn-primary btn-sm" onclick="mmAprovar('modelos',${i})">✓ Aprovar como novo</button>
+        <select class="form-control" id="mmm-uni-${i}" style="width:auto;display:inline-block;max-width:260px"><option value="">Unificar com…</option>${bM.map(m => `<option value="${m.id}">${_e(m.cod)} · ${_e(m.nome)}</option>`).join('')}</select>
+        <button class="btn btn-outline btn-sm" onclick="mmUnificar('modelos',${i})">⇄ Unificar</button>
+        ${g.uso ? '' : `<button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="mmRecusar('modelos',${i})">✕ Recusar</button>`}</div></div>`; };
+  window._mmG = { familias: gf, modelos: gm };
+  el.innerHTML = `<div class="mm-cols"><div><h3 class="mm-t">Famílias pendentes <span>${gf.length}</span></h3>${gf.map(cardF).join('') || '<div class="mm-vazio">Nada pendente ✓</div>'}</div>
+    <div><h3 class="mm-t">Modelos pendentes <span>${gm.length}</span></h3>${gf.length && gm.length ? '<div class="mm-s" style="margin-bottom:8px">Dica: aprove as famílias primeiro — o modelo usa a família do banco.</div>' : ''}${gm.map(cardM).join('') || '<div class="mm-vazio">Nada pendente ✓</div>'}</div></div>`;
+  _mmBadge();
+}
+function mmAprovar(col, i) {
+  const g = window._mmG[col][i]; if (!g) return; const fam = col === 'familias', [alvo, ...resto] = g.itens, old = { ...alvo };
+  if (fam) { const s = _mmNorm(document.getElementById('mmf-sig-' + i).value).replace(/ /g, ''); if (!s) { toast('Informe a sigla.', 'error'); return; }
+    if ((dados.familias || []).some(f => _mmBanco(f) && String(f.cod).toUpperCase() === s)) { toast('A sigla ' + s + ' já existe no banco. Escolha outra ou unifique.', 'error'); return; }
+    Object.assign(alvo, { cod: s, obra: '', status: 'aprovado', aprovadoPor: usuarioLogado?.nome || '', aprovadoEm: new Date().toISOString(), obraOrigem: old.obra || '' }); _mmTrocaFam(old, alvo); }
+  else { const fc = document.getElementById('mmm-fam-' + i).value; if (!fc) { toast('Escolha a família do banco (aprove a família antes, se ainda for pendente).', 'error'); return; }
+    const capT = g.itens.map(y => +y.capTanque).find(Boolean) || 0, cons = g.itens.map(y => +y.consumoPrev).find(Boolean) || 0;
+    Object.assign(alvo, { cod: _mmCodModelo(fc), familia: fc, obra: '', status: 'aprovado', capTanque: +alvo.capTanque || capT, consumoPrev: +alvo.consumoPrev || cons, aprovadoPor: usuarioLogado?.nome || '', aprovadoEm: new Date().toISOString(), obraOrigem: old.obra || '' }); _mmTrocaMod(old, alvo); }
+  _mmGrava(col, alvo);
+  resto.forEach(x => { fam ? _mmTrocaFam(x, alvo) : _mmTrocaMod(x, alvo); _mmApaga(col, x); });
+  toast((fam ? 'Família ' : 'Modelo ') + alvo.cod + ' aprovado' + (fam ? 'a' : '') + ' no banco' + (resto.length ? ' (' + (resto.length + 1) + ' obras unificadas)' : '') + '.');
+  _mmDepois();
+}
+function mmUnificar(col, i, paraId) {
+  const g = window._mmG[col][i]; if (!g) return; const fam = col === 'familias';
+  paraId = paraId || document.getElementById((fam ? 'mmf-uni-' : 'mmm-uni-') + i).value; const para = (dados[col] || []).find(x => x.id === paraId);
+  if (!para) { toast('Escolha com qual cadastro do banco unificar.', 'error'); return; }
+  if (!confirm('Unificar "' + (fam ? g.nome : g.nome) + '" com ' + para.cod + ' · ' + (para.desc || para.nome) + '?\nTudo que usava o pendente passa a usar ' + para.cod + '.')) return;
+  let n = 0; g.itens.forEach(x => { n += fam ? _mmTrocaFam(x, para) : _mmTrocaMod(x, para);
+    if (!fam) { if (!+para.capTanque && +x.capTanque) para.capTanque = +x.capTanque; if (!+para.consumoPrev && +x.consumoPrev) para.consumoPrev = +x.consumoPrev; }
+    _mmApaga(col, x); });
+  if (!fam) _mmGrava('modelos', para);
+  toast('Unificado com ' + para.cod + (n ? ' · ' + n + ' cadastro(s) atualizado(s)' : '') + '.'); _mmDepois();
+}
+function mmRecusar(col, i) { const g = window._mmG[col][i]; if (!g) return;
+  if (!confirm('Recusar e excluir "' + g.nome + '"? Ninguém está usando.')) return; g.itens.forEach(x => _mmApaga(col, x)); toast('Recusado.'); _mmDepois(); }
+function _mmDepois() { renderMmAprov(); try { renderFamilias(); renderModelos(); popularSelects(); } catch (e) {} try { renderEquipamentos(); } catch (e) {} try { renderFrota(); } catch (e) {} }
+function _mmBadge() { const it = document.querySelector(`.sidebar .nav-item[onclick*="showPage('mm-aprov'"]`); if (!it) return; const p = _mmPendentes(), n = p.fam.length + p.mod.length;
+  let b = it.querySelector('.mm-badge'); if (!b) { it.insertAdjacentHTML('beforeend', '<span class="mm-badge"></span>'); b = it.querySelector('.mm-badge'); } b.textContent = n || ''; b.style.display = n ? '' : 'none'; }
+(function () {
+  const $ = id => document.getElementById(id);
+  const css = document.createElement('style');
+  css.textContent = `.mm-av{background:var(--amber-light,#FEF3C7);border:1px solid #FCD34D;color:#78350F;border-radius:10px;padding:9px 12px;margin-bottom:10px;font-size:12.5px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .mm-sug{background:#FFFBEB;border:1px solid #FCD34D;border-radius:8px;padding:8px 10px;font-size:12px;color:#78350F;margin-bottom:6px}.mm-sug-i{display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-top:1px dashed #FCD34D}
+    .mm-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:16px}.mm-t{font-size:14px;margin:0 0 8px}.mm-t span{background:var(--amber,#D97706);color:#fff;border-radius:10px;padding:1px 8px;font-size:12px;margin-left:4px}
+    .mm-card{background:var(--surface,#fff);border:1px solid var(--border);border-left:4px solid var(--amber,#D97706);border-radius:10px;padding:10px 12px;margin-bottom:8px}.mm-s{font-size:11.5px;color:var(--text-3)}
+    .mm-a{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px;font-size:12px}.mm-vazio{color:var(--text-3);font-size:13px;padding:14px;text-align:center;border:1px dashed var(--border);border-radius:10px}
+    .mm-badge{margin-left:auto;background:var(--amber,#D97706);color:#fff;border-radius:10px;padding:0 7px;font-size:11px;font-weight:800;line-height:18px}
+    @media (max-width:640px){.mm-cols{grid-template-columns:1fr}}`;
+  document.head.appendChild(css);
+  // telas Famílias e Modelos: botões novos + aviso
+  document.querySelector(`#page-familias .btn-primary[onclick*="modal-nova-familia"]`)?.setAttribute('onclick', 'mmNovaFamilia()');
+  document.querySelector(`#page-modelos .btn-primary[onclick*="modal-novo-modelo"]`)?.setAttribute('onclick', 'mmNovoModelo()');
+  document.querySelector('#page-familias .card')?.insertAdjacentHTML('beforebegin', '<div id="mm-av-fam"></div>');
+  document.querySelector('#page-modelos .card')?.insertAdjacentHTML('beforebegin', '<div id="mm-av-mod"></div>');
+  document.querySelector('#page-familias .page-sub') && ($q => $q.textContent = 'Banco padrão da empresa — todas as obras usam as mesmas famílias')(document.querySelector('#page-familias .page-sub'));
+  document.querySelector('#page-modelos .page-sub') && ($q => $q.textContent = 'Banco padrão da empresa — código único para o mesmo modelo em todas as obras')(document.querySelector('#page-modelos .page-sub'));
+  $('fam-desc')?.setAttribute('oninput', "mmSugerir('fam')"); $('mod-nome')?.setAttribute('oninput', "mmSugerir('mod')");
+  $('fam-obra')?.addEventListener('change', () => _mmForm('fam', null));
+  $('mod-obra')?.addEventListener('change', () => { _mmFamOpts($('mod-obra').value, $('mod-familia').value); _mmForm('mod', null); });
+  // página de aprovações (Cadastros master)
+  const pgAnt = $('page-frentes');
+  if (pgAnt && !$('page-mm-aprov')) pgAnt.insertAdjacentHTML('beforebegin', `<div class="page" id="page-mm-aprov">
+    <div class="page-header"><div><div class="page-title">Aprovações de cadastro</div><div class="page-sub">Famílias e modelos criados pelas obras. Aprove como novo (vira padrão) ou unifique com um que já existe — o código é trocado em todas as obras.</div></div></div>
+    <div class="search-wrap" style="margin-bottom:.75rem;max-width:420px"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="search-mm" placeholder="Buscar pendente…" oninput="renderMmAprov()"/></div>
+    <div id="mm-aprov-corpo"></div></div>`);
+  const gm = $('grp-master'), box = gm && gm.querySelector('.nav-group-items');
+  if (box && !box.querySelector(`[onclick*="showPage('mm-aprov'"]`)) box.insertAdjacentHTML('afterbegin', `<div class="nav-item" onclick="showPage('mm-aprov',this)" title="Aprovações de cadastro"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span>Aprovações</span></div>`);
+  if (!_MENU_MASTER.includes('mm-aprov')) _MENU_MASTER.push('mm-aprov');
+  const oInit = window.pageInit;
+  window.pageInit = function (id) { const r = oInit.apply(this, arguments); if (id === 'mm-aprov') renderMmAprov(); if (id === 'familias') renderFamilias(); if (id === 'modelos') renderModelos(); return r; };
+  setInterval(() => { try { _mmBadge(); } catch (e) {} }, 4000);
+  // seletor de modelo da frota: marca os pendentes
+  const oFo = _frModelosOpts;
+  _frModelosOpts = function () { const r = oFo.apply(this, arguments); const s = $('fr-modelo-sel');
+    if (s) { [...s.options].forEach(o => { const m = (dados.modelos || []).find(x => x.id === o.value); if (m && _mmPend(m) && !o.textContent.includes('⏳')) o.textContent += ' ⏳'; }); buscaSelectSync('fr-modelo-sel'); } return r; };
+})();
+
+// ═══════════════════════════════════════════════════════════════
+// v3.10: VEÍCULO LEVE QUE CHEGOU PELO APP DE CAMPO — entra na Frota com "Completar cadastro"
+// (contrato, valor, fim do contrato, CRLV, chassi, Renavam). Termo de chegada/devolução com fotos.
+// ═══════════════════════════════════════════════════════════════
+const _FR_GESTAO = [['contrato', 'nº do contrato'], ['valorMes', 'valor mensal'], ['fimContrato', 'fim do contrato'], ['crlvVal', 'validade do CRLV'], ['chassi', 'chassi'], ['renavam', 'Renavam']];
+function frFaltaGestao(v) { return v && v.cadastroPendente ? _FR_GESTAO.filter(([k]) => !(k === 'valorMes' ? +v[k] : String(v[k] || '').trim())).map(x => x[1]) : []; }
+async function verTermoVeic(id) {
+  let m = (dados.mobilizacoes || []).find(x => x.id === id);
+  if (!m) { try { const d = await db.collection('mobilizacoes').doc(id).get(); if (d.exists) m = { id, ...d.data() }; } catch (e) {} }
+  if (!m) { toast('Termo ainda não chegou ao servidor (o celular pode estar sem internet).', 'error'); return; }
+  const sai = m.tipo === 'veiculo_saida';
+  let ov = document.getElementById('mob-ov'); if (ov) ov.remove();
+  ov = document.createElement('div'); ov.id = 'mob-ov'; ov.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.75);overflow:auto;padding:24px 16px';
+  ov.onclick = e => { if (e.target === ov) ov.remove(); };
+  const L = (k, v) => v === '' || v == null ? '' : `<div><div style="font-size:11px;color:#666;text-transform:uppercase;letter-spacing:.06em">${k}</div><div style="font-weight:700">${_e(v)}</div></div>`;
+  const ROT = { painel: 'Painel (km)', frente: 'Frente', lateral: 'Lateral', traseira: 'Traseira' };
+  const fotos = Object.entries(m.fotos || {}).flatMap(([k, l]) => (Array.isArray(l) ? l : [l]).filter(Boolean).map((f, i) => [f, (ROT[k] || k) + (i ? ' (' + (i + 1) + ')' : '')])).concat((m.avarias || []).filter(a => a.foto).map(a => [a.foto, 'Avaria: ' + a.desc]));
+  const assin = sai ? [['Devolveu (obra)', m.nomeObra, m.sigObra], ['Recebeu (locadora)', (m.nomeLoc || '') + (m.cpfLoc ? ' · CPF ' + m.cpfLoc : ''), m.sigLoc]] : [['Recebeu (obra)', m.nomeObra, m.sigObra], ['Entregou (locadora)', (m.nomeLoc || '') + (m.cpfLoc ? ' · CPF ' + m.cpfLoc : ''), m.sigLoc]];
+  ov.innerHTML = `<div id="mob-termo" style="background:#fff;color:#111;max-width:860px;margin:0 auto;border-radius:14px;padding:24px;font-family:Arial,sans-serif">
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap"><div><img src="${typeof _TK_LOGO !== 'undefined' ? _TK_LOGO : ''}" style="width:200px" alt="ObraKontrol"><div style="font-size:12px;color:#555;margin-top:4px">${_e(getNomeObra(m.obra) || m.obraNome || '')}</div></div>
+      <div style="text-align:right"><div style="font-size:12px;letter-spacing:.1em;color:#555">${sai ? 'TERMO DE DEVOLUÇÃO DE VEÍCULO' : 'TERMO DE RECEBIMENTO DE VEÍCULO'}</div><div style="font-size:34px;font-weight:900;color:#E30613;font-family:monospace">${_e(m.placa)}</div><div style="font-size:12px;color:#555">${_e(String(m.data || '').split('-').reverse().join('/'))} ${_e(m.hora || '')}</div></div></div>
+    <hr style="border:0;border-top:1px solid #ddd;margin:16px 0">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">${L('Modelo', m.modeloNome)}${L('Tipo', m.tipoVeic)}${L('Locadora', m.locadora)}${L(sai ? 'Km na devolução' : 'Km na chegada', m.km)}${sai && m.kmChegada ? L('Km na chegada', m.kmChegada) : ''}${sai && m.rodados != null ? L('Km rodados na obra', m.rodados) : ''}${L('Combustível', m.comb)}${L('Registrado por', m.lancadoPor)}</div>
+    <h3 style="font-size:14px;margin:20px 0 8px">Fotos</h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px">${fotos.map(([f, r]) => `<figure style="margin:0"><div class="mob-foto" data-f="${_e(f)}" style="aspect-ratio:4/3;border-radius:8px;background:#eee center/cover;display:flex;align-items:center;justify-content:center;font-size:11px;color:#888">carregando…</div><figcaption style="font-size:11px;color:#555;margin-top:3px">${_e(r)}</figcaption></figure>`).join('')}</div>
+    <h3 style="font-size:14px;margin:20px 0 8px">${sai ? 'Avarias na devolução' : 'Avarias que já vieram'}</h3><div style="font-size:13px">${(m.avarias || []).length ? m.avarias.map(a => '• ' + _e(a.desc)).join('<br>') : 'Nenhuma registrada.'}</div>
+    ${m.obs ? `<h3 style="font-size:14px;margin:20px 0 8px">Observações</h3><div style="font-size:13px">${_e(m.obs)}</div>` : ''}
+    <div style="display:flex;gap:24px;margin-top:24px;flex-wrap:wrap">${assin.filter(x => x[1] || x[2]).map(([r, n, s]) => `<div style="flex:1;min-width:220px;text-align:center">${s ? `<img src="${s}" style="width:100%;max-width:300px;height:70px;object-fit:contain;border-bottom:1px solid #999">` : '<div style="height:70px;border-bottom:1px solid #999"></div>'}<div style="font-size:12px;color:#555">${r}: ${_e(n || '')}</div></div>`).join('')}</div>
+    <div style="margin-top:16px;font-size:12px;color:#15803D;font-weight:700">✓ Validado no app de campo em ${_e(new Date(m.validadoEm).toLocaleString('pt-BR'))}</div></div>
+  <div style="display:flex;gap:8px;justify-content:center;margin-top:14px"><button class="btn btn-outline" style="background:#fff" onclick="document.getElementById('mob-ov').remove()">Fechar</button><button class="btn btn-primary" onclick="imprimirTermoMob()">🖨 Imprimir / PDF</button></div>`;
+  document.body.appendChild(ov);
+  ov.querySelectorAll('.mob-foto').forEach(async el => { const img = await _mobFotoImg(el.dataset.f); if (img) { el.style.backgroundImage = `url('${img}')`; el.textContent = ''; el.style.cursor = 'zoom-in'; el.onclick = () => window.open().document.write('<img src="' + img + '" style="max-width:100%">'); } else el.textContent = 'sem foto'; });
+}
+(function () {
+  const $ = id => document.getElementById(id);
+  const oAl = frAlertas;
+  frAlertas = window.frAlertas = function (v) { const a = oAl.apply(this, arguments); if (v.status === 'Devolvido') return a;
+    const f = frFaltaGestao(v); if (f.length) a.unshift({ t: 'Completar cadastro: ' + f.join(', '), nivel: 'amber' }); return a; };
+  const oR = renderFrota;
+  renderFrota = window.renderFrota = function () { const r = oR.apply(this, arguments);
+    (dados.frota || []).forEach(v => { const b = document.querySelector(`#tbody-frota button[onclick="frEditar('${v.id}')"]`); if (!b || b.parentElement.querySelector('.vl-t')) return;
+      const t = [v.mobilizacaoId ? `<button class="btn btn-outline btn-sm vl-t" onclick="verTermoVeic('${v.mobilizacaoId}')" title="Termo de chegada (app de campo)">📋 chegada</button>` : '', v.devolucaoId ? `<button class="btn btn-outline btn-sm vl-t" onclick="verTermoVeic('${v.devolucaoId}')" title="Termo de devolução (app de campo)">📋 devolução</button>` : ''].join(' ');
+      if (t.trim()) b.insertAdjacentHTML('beforebegin', t + ' ');
+      const td = b.closest('tr')?.children[0]; if (td && (v.kmMob || v.kmDev) && !td.querySelector('.vl-km')) td.insertAdjacentHTML('beforeend', `<div class="vl-km" style="font-size:11px;color:var(--text-3)">km ${v.kmMob ? (+v.kmMob).toLocaleString('pt-BR') + ' na chegada' : ''}${v.kmDev ? ' · ' + (+v.kmDev).toLocaleString('pt-BR') + ' na devolução' : ''}</div>`); });
+    return r; };
+  // ao salvar: se o gestor completou, tira o "Completar cadastro"
+  const oSv = salvarVeiculo;
+  salvarVeiculo = window.salvarVeiculo = function () { const id = $('fr-id').value, r = oSv.apply(this, arguments), v = id && (dados.frota || []).find(x => x.id === id);
+    if (v && v.cadastroPendente && !frFaltaGestao(v).length) { v.cadastroPendente = false; v.cadastroCompletoEm = new Date().toISOString(); if (db && _firebaseReady) fbSave('frota', v.id, v).catch(() => {}); try { renderFrota(); } catch (e) {} } return r; };
+  // no formulário: destaca o que falta
+  const oEd = frEditar;
+  frEditar = window.frEditar = function (id) { const r = oEd.apply(this, arguments), v = id && (dados.frota || []).find(x => x.id === id);
+    let n = $('fr-vl-nota'); if (!n) { $('fr-placa')?.closest('.form-grid')?.insertAdjacentHTML('beforebegin', '<div id="fr-vl-nota"></div>'); n = $('fr-vl-nota'); }
+    const f = frFaltaGestao(v);
+    if (n) n.innerHTML = f.length ? `<div class="mm-av">🚗 Chegou pelo app de campo${v.criadoPor ? ' (' + _e(v.criadoPor) + ')' : ''}. Complete: <b>${_e(f.join(', '))}</b>.</div>` : '';
+    const mp = { contrato: 'fr-contrato', valorMes: 'fr-valor', fimContrato: 'fr-fimc', crlvVal: 'fr-crlv', chassi: 'fr-chassi', renavam: 'fr-renavam' };
+    Object.entries(mp).forEach(([k, el]) => { const e = $(el); if (e) e.style.borderColor = v && v.cadastroPendente && !(k === 'valorMes' ? +v[k] : String(v[k] || '').trim()) ? '#F59E0B' : ''; });
+    return r; };
+})();
 
 // Apply configs on load
 setTimeout(applyConfigs, 200);
