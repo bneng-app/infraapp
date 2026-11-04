@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.11 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.12 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -14007,6 +14007,102 @@ async function _diaFotos(el) {
       + _diaBloco('ft', _ic.grid, 'Fotos das frentes', fts.length ? fts.length + ' foto(s) em ' + new Set(fts.map(x => x.frente)).size + ' frente(s)' : '', corpoFt, fts.length));
     const bft = main.querySelector('.dia-blk[data-b="ft"]');
     if (bft) { if (bft.open) _diaFotos(bft); bft.addEventListener('toggle', () => { if (bft.open) _diaFotos(bft); }); }
+    return r;
+  };
+})();
+
+
+// ═══════════════════════════════════════════════════════════════
+// v3.12: DIA DE EXEMPLO (só no DEMO) — cria em 1 clique um dia completo para ver o Acompanhamento do dia
+// (frentes com coordenada, equipe, equipamentos, turnos com mapa, paradas, fotos, abastecimentos e mobilizações).
+// Tudo fica marcado com exemplo:true e o botão "Apagar exemplo" remove.
+// ═══════════════════════════════════════════════════════════════
+function _exDemo() { return window.OK_CLIENTE === 'demo' || !!(window.OK_CLIENTE_CFG && window.OK_CLIENTE_CFG.demo); }
+const _EX_COLS = ['frentes', 'funcionarios', 'equipamentos', 'modelos', 'tanques', 'diesel', 'mobilizacoes', 'frota', 'aponMO'];
+function _exFoto(txt, sub, cor) {
+  const c = document.createElement('canvas'); c.width = 640; c.height = 480; const g = c.getContext('2d');
+  const gr = g.createLinearGradient(0, 0, 640, 480); gr.addColorStop(0, cor); gr.addColorStop(1, '#3F3A33'); g.fillStyle = gr; g.fillRect(0, 0, 640, 480);
+  g.fillStyle = 'rgba(0,0,0,.25)'; for (let i = 0; i < 9; i++) g.fillRect(0, 300 + i * 20, 640, 6);
+  g.fillStyle = '#E30613'; g.fillRect(40, 60, 12, 120); g.fillStyle = '#fff'; g.font = '800 54px Arial'; g.fillText(txt, 70, 120); g.font = '26px Arial'; g.fillText(sub, 70, 165);
+  g.font = '18px Arial'; g.fillStyle = 'rgba(255,255,255,.7)'; g.fillText('FOTO DE EXEMPLO · ObraKontrol', 70, 440);
+  return c.toDataURL('image/jpeg', 0.7);
+}
+async function exGerarDia() {
+  if (!_exDemo()) { toast('Disponível só no ambiente DEMO.', 'error'); return; }
+  const data = _dia.dataSel || _hojeLocal(), obra = _dx.obra || (obraAtiva && obraAtiva.id !== 'todas' ? obraAtiva.id : '') || ((dados.obras || [])[0] || {}).id;
+  if (!obra) { toast('Cadastre uma obra no DEMO primeiro.', 'error'); return; }
+  if (!confirm('Criar um dia de exemplo em ' + data.split('-').reverse().join('/') + ' na obra ' + getNomeObra(obra) + '?\nTudo fica marcado como exemplo e dá para apagar depois.')) return;
+  await exApagar(true);
+  const ont = (() => { const d = new Date(data + 'T12:00'); d.setDate(d.getDate() - 1); return _hojeLocal(d); })(), ag = new Date().toISOString(), X = { exemplo: true, obra };
+  const sv = (col, o) => { (dados[col] = dados[col] || []).push(o); return fbSave(col, o.id, o); }, ps = [];
+  const B = { lat: -21.4677, lng: -47.0047 };
+  const frs = [['EX-01', 'Rede coletora Av. Brasil', 0.002, 0.001], ['EX-02', 'Rede de água Rua das Flores', -0.006, 0.004], ['EX-03', 'Ligações domiciliares Bairro Novo', 0.004, -0.008], ['EX-04', 'Recomposição de pavimento Centro', -0.002, -0.003]]
+    .map(([cod, desc, a, b], i) => ({ id: 'ex_fr' + i, cod, desc, coord: (B.lat + a).toFixed(5) + ', ' + (B.lng + b).toFixed(5), lat: B.lat + a, lng: B.lng + b, ...X }));
+  frs.forEach(f => { const { lat, lng, ...o } = f; ps.push(sv('frentes', o)); });
+  const nomes = ['Gustavo Pinto', 'Ana Ribeiro', 'João Silva', 'Pedro Souza', 'Carlos Lima', 'Bruno Alves', 'Diego Santos', 'Rafael Costa', 'Marcos Dias', 'Lucas Rocha', 'Felipe Moura', 'André Nunes', 'Tiago Melo', 'Vitor Ramos', 'Sérgio Prado', 'Paulo Reis'];
+  const fun = ['Encarregado', 'Encarregado', 'Pedreiro', 'Operador', 'Servente', 'Servente', 'Servente', 'Encanador', 'Operador', 'Servente', 'Pedreiro', 'Servente', 'Motorista', 'Servente', 'Servente', 'Encanador'];
+  const fs = nomes.map((n, i) => ({ id: 'ex_f' + i, mat: String(9001 + i), nome: n, funcao: fun[i], codFuncao: '', geraApont: 'Sim', apropriador: i < 2 ? 'Sim' : 'Não', status: 'Ativo', admissao: '2026-01-05', ...X }));
+  fs.forEach(f => ps.push(sv('funcionarios', f)));
+  const mods = [{ id: 'ex_m1', cod: 'EX-ESC', nome: 'CAT 320 (exemplo)', familia: 'ESC', capTanque: 410, consumoPrev: 18 }, { id: 'ex_m2', cod: 'EX-RET', nome: 'JCB 3CX (exemplo)', familia: 'RET', capTanque: 160, consumoPrev: 8 }, { id: 'ex_m3', cod: 'EX-CAM', nome: 'VW 24.280 (exemplo)', familia: 'CAM', capTanque: 300, consumoPrev: 12 }]
+    .map(m => ({ ...m, ...X }));
+  mods.forEach(m => ps.push(sv('modelos', m)));
+  const eqs = [['EX-ESC-01', 'EX-ESC', 'ESC'], ['EX-ESC-02', 'EX-ESC', 'ESC'], ['EX-RET-01', 'EX-RET', 'RET'], ['EX-RET-02', 'EX-RET', 'RET'], ['EX-CAM-01', 'EX-CAM', 'CAM'], ['EX-CAM-02', 'EX-CAM', 'CAM']]
+    .map(([tag, cm, fam], i) => ({ id: 'ex_q' + i, tag, codModelo: cm, familia: fam, placa: 'EXE' + (1000 + i), status: 'Mobilizado', dataMob: '2026-10-01', prop: 'Exemplo Locações', ...X }));
+  eqs.forEach(e => ps.push(sv('equipamentos', e)));
+  ps.push(sv('tanques', { id: 'ex_tq', cod: 'EX-TQ', nome: 'Tanque do canteiro (exemplo)', capacidade: 15000, saldo: 9800, preco: 6.19, ...X }));
+  // fotos
+  const cores = ['#8B6F47', '#6B7B5A', '#7A6A55', '#5F6B73', '#86725A', '#6E5F4E'];
+  const fotos = [['EX-01', 'Escavação de vala'], ['EX-01', 'Assentamento de tubo'], ['EX-02', 'Rede de água'], ['EX-03', 'Ligações'], ['EX-03', 'Caixa de inspeção'], ['EX-04', 'Recomposição']]
+    .map(([f, s], i) => ({ id: 'ex_ft' + i, tipo: 'frente', frente: f, obra, data, img: _exFoto(f, s, cores[i]), exemplo: true }));
+  fotos.forEach(f => ps.push(fbSave('fotos', f.id, f)));
+  // turnos (turnosAbertos)
+  const g = (f, dLat, dLng) => ({ lat: +(f.lat + dLat).toFixed(6), lng: +(f.lng + dLng).toFixed(6), acc: 9 });
+  const mo = ix => ix.map(i => ({ id: fs[i].id, nome: fs[i].nome, mat: fs[i].mat, funcao: fs[i].funcao }));
+  const eq = (ix, op) => ix.map((i, k) => ({ id: eqs[i].id, tag: eqs[i].tag, familia: eqs[i].familia, operador: op[k] ? fs[op[k]].nome : '' }));
+  const ap = i => ({ apontador: fs[i].nome, apontadorId: '', apontadorMat: fs[i].mat });
+  const turnos = [
+    { id: 'ex_t1', data, frente: 'EX-01', servico: 'Escavação mecânica de vala', horaIni: '07:02', status: 'aberto', ...ap(0), geoIni: g(frs[0], 0.0002, 0.0001), mo: mo([2, 3, 4, 5, 6]), eq: eq([0, 4], [3, 12]),
+      paradas: [{ motivo: 'Chuva', quem: 'Todos', ini: '09:10', fim: '09:55' }, { motivo: 'Aguardando material', quem: 'Equipe', ini: '10:40', fim: '' }], fotosFrente: ['ex_ft0', 'ex_ft1'] },
+    { id: 'ex_t2', data, frente: 'EX-02', servico: 'Assentamento de rede de água', horaIni: '07:15', status: 'aberto', ...ap(1), geoIni: g(frs[1], 0.0001, -0.0002), mo: mo([7, 9, 10]), eq: eq([2], [8]), paradas: [{ motivo: 'Chuva', quem: 'Todos', ini: '09:12', fim: '09:50' }], fotosFrente: ['ex_ft2'] },
+    { id: 'ex_t3', data, frente: 'EX-03', servico: 'Ligações domiciliares', horaIni: '07:40', status: 'aberto', ...ap(1), geoIni: g(frs[2], 0.009, 0.006), mo: mo([11, 13]), eq: [], paradas: [], fotosFrente: ['ex_ft3', 'ex_ft4'] },
+    { id: 'ex_t4', data, frente: 'EX-04', servico: 'Recomposição de pavimento', horaIni: '07:00', horaFim: '11:30', status: 'encerrado', ...ap(0), geoIni: g(frs[3], -0.0001, 0.0001), geoFim: g(frs[3], 0, 0), mo: mo([14]), eq: eq([1], [3]),
+      qtd: 42, unid: 'm²', paradas: [{ motivo: 'Equipamento quebrado', quem: 'EX-ESC-02', ini: '08:30', fim: '09:40' }], fotosFrente: ['ex_ft5'] },
+    { id: 'ex_t5', data: ont, frente: 'EX-02', servico: 'Assentamento de rede de água', horaIni: '07:05', status: 'aberto', ...ap(1), geoIni: g(frs[1], 0, 0), mo: mo([7]), eq: [], paradas: [] }]
+    .map(t => ({ ...t, ...X, turno: 'T1', lancadoEm: ag }));
+  turnos.forEach(t => { ps.push(fbSave('turnosAbertos', t.id, t)); _dia.lista = (_dia.lista || []).filter(x => x.id !== t.id).concat([t]); });
+  // abastecimentos
+  [['07:35', 0, 180, '5120'], ['07:50', 4, 120, '88230'], ['10:20', 2, 70, '2410'], ['13:05', 1, 450, '6010']].forEach(([h, i, l, hor], k) =>
+    ps.push(sv('diesel', { id: 'ex_d' + k, dt: data + ' ' + h, equip: eqs[i].tag, equipId: eqs[i].id, tanqueId: 'ex_tq', litros: l, hor, precoL: 6.19, lancadoPor: k % 2 ? 'Ana Ribeiro' : 'Gustavo Pinto', status: 'campo', lancadoEm: ag, ...X })));
+  // mobilizações (equipamento e veículo)
+  ps.push(sv('mobilizacoes', { id: 'ex_mb1', tipo: 'mobilizacao', tag: 'EX-RET-02', equipId: eqs[3].id, data, hora: '08:20', familiaNome: 'Retroescavadeira', modeloNome: 'JCB 3CX (exemplo)', empresaNome: 'Exemplo Locações', placa: 'EXE1003', hor: '1250', comb: '3/4',
+    checklist: [{ t: 'Nível do óleo do motor', st: 'ok' }, { t: 'Pneus ou esteiras', st: 'nok', obs: 'Pneu traseiro gasto' }], avarias: [{ desc: 'Amassado no para-lama' }], nomeRec: 'Gustavo Pinto', nomeEnt: 'Motorista da locadora', cpfEnt: '529.982.247-25', lancadoPor: 'Gustavo Pinto', validadoEm: ag, ...X }));
+  ps.push(sv('frota', { id: 'ex_v1', placa: 'EXM1A23', modelo: 'Fiat Strada (exemplo)', tipo: 'Picape', locadora: 'Localiza', status: 'Em uso', mobData: data, kmMob: 23450, resp: [], cadastroPendente: true, origem: 'campo', mobilizacaoId: 'ex_mb2', criadoPor: 'Ana Ribeiro', criadoEm: ag, ...X }));
+  ps.push(sv('mobilizacoes', { id: 'ex_mb2', tipo: 'veiculo_entrada', veicId: 'ex_v1', placa: 'EXM1A23', data, hora: '09:05', modeloNome: 'Fiat Strada (exemplo)', tipoVeic: 'Picape', locadora: 'Localiza', km: '23450', comb: '3/4', fotos: {}, avarias: [],
+    nomeObra: 'Ana Ribeiro', nomeLoc: 'Carlos (Localiza)', cpfLoc: '529.982.247-25', lancadoPor: 'Ana Ribeiro', validadoEm: ag, ...X }));
+  ps.push(sv('mobilizacoes', { id: 'ex_mb3', tipo: 'veiculo_saida', veicId: 'ex_v0', placa: 'EXQ9Z87', data, hora: '16:10', modeloNome: 'VW Gol (exemplo)', tipoVeic: 'Carro', locadora: 'Movida', km: '41200', kmChegada: '38950', rodados: 2250, comb: 'Cheio', fotos: {}, avarias: [{ desc: 'Risco na porta' }],
+    nomeObra: 'Gustavo Pinto', nomeLoc: 'João (Movida)', cpfLoc: '529.982.247-25', lancadoPor: 'Gustavo Pinto', validadoEm: ag, ...X }));
+  try { await Promise.all(ps); } catch (e) {}
+  try { window._absCache = null; } catch (e) {}
+  renderDiario(); toast('Dia de exemplo criado. Para tirar, use "Apagar exemplo".');
+}
+async function exApagar(silencioso) {
+  if (!silencioso && !confirm('Apagar todos os dados de exemplo do DEMO?')) return;
+  const ps = [];
+  _EX_COLS.forEach(col => { (dados[col] || []).filter(x => x.exemplo || String(x.id).startsWith('ex_')).forEach(x => ps.push(fbDelete(col, x.id).catch(() => {}))); dados[col] = (dados[col] || []).filter(x => !(x.exemplo || String(x.id).startsWith('ex_'))); });
+  ['ex_t1', 'ex_t2', 'ex_t3', 'ex_t4', 'ex_t5'].forEach(id => ps.push(fbDelete('turnosAbertos', id).catch(() => {})));
+  for (let i = 0; i < 6; i++) ps.push(fbDelete('fotos', 'ex_ft' + i).catch(() => {}));
+  _dia.lista = (_dia.lista || []).filter(t => !String(t.id).startsWith('ex_'));
+  try { await Promise.all(ps); } catch (e) {}
+  if (!silencioso) { renderDiario(); toast('Exemplo apagado.'); }
+}
+(function () {
+  const oR = renderDiario;
+  renderDiario = function () {
+    const r = oR.apply(this, arguments);
+    if (!_exDemo()) return r;
+    const f = document.querySelector('#page-diario .dx-filtros'); if (!f || f.querySelector('.ex-b')) return r;
+    const tem = (dados.funcionarios || []).some(x => x.exemplo) || (_dia.lista || []).some(t => String(t.id).startsWith('ex_'));
+    f.insertAdjacentHTML('afterbegin', `<button class="dx-btn ex-b" onclick="exGerarDia()" title="Só no DEMO">✨ Gerar dia de exemplo</button>${tem ? '<button class="dx-btn ex-b" onclick="exApagar()">🗑 Apagar exemplo</button>' : ''}`);
     return r;
   };
 })();
