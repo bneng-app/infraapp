@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.25 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.26 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -15089,6 +15089,30 @@ function _ocultaCols(tbodyId, re) {
       try { return o.apply(this, arguments); } finally { cols.forEach(c => { dados[c] = ant[c]; }); } };
     window[nome] = nv; try { eval(nome + ' = nv'); } catch (e) {} };
   [['renderCargos', ['cargos']], ['renderFamilias', ['familias']], ['renderModelos', ['modelos']], ['renderTiposServico', ['tiposServico']], ['renderEquipes', ['equipes']], ['renderMmAprov', ['familias', 'modelos']]].forEach(([f, c]) => _filtra(f, c));
+})();
+
+// v3.26: lançamentos (MO, EQ, paradas, abastecimentos e aprovação) mostram só a obra escolhida no topo.
+// Lançamento antigo sem obra: vale a obra do funcionário, do equipamento ou da frente; se não der para saber, só aparece em "Todas as obras".
+function _lancObraMapa() {
+  const m = { mat: {}, nome: {}, tag: {}, eid: {}, fr: {} }, put = (o, k, ob) => { if (!k || !ob) return; k = String(k); o[k] = o[k] === undefined || o[k] === ob ? ob : null; };
+  (dados.funcionarios || []).forEach(f => { put(m.mat, f.mat, f.obra); put(m.nome, f.nome, f.obra); });
+  (dados.equipamentos || []).forEach(e => { put(m.tag, e.tag, e.obra); put(m.eid, e.id, e.obra); });
+  (dados.frentes || []).forEach(f => { put(m.fr, f.cod, f.obra); });
+  return x => x.obra || m.mat[x.mat] || m.nome[x.func] || m.eid[x.equipId] || m.tag[x.equip] || m.fr[x.frente] || m.fr[String(x.frente || '').split(' — ')[0]] || '';
+}
+(function () {
+  const COLS = ['aponMO', 'aponEQ', 'perdas', 'diesel'];
+  const _filtra = nome => { const o = window[nome]; if (typeof o !== 'function') return;
+    const nv = function () { const ob = obraAtiva && obraAtiva.id && obraAtiva.id !== 'todas' ? obraAtiva.id : ''; if (!ob || window.__lancFiltrando) return o.apply(this, arguments);
+      const de = _lancObraMapa(), ant = {}; COLS.forEach(c => { ant[c] = dados[c]; dados[c] = (ant[c] || []).filter(x => de(x) === ob); });
+      window.__lancFiltrando = true;
+      try { return o.apply(this, arguments); } finally { COLS.forEach(c => { dados[c] = ant[c]; }); window.__lancFiltrando = false; } };
+    window[nome] = nv; try { eval(nome + ' = nv'); } catch (e) {} };
+  ['renderMO', 'renderListaMO', 'renderAponEQ', 'renderPerdas', 'renderDiesel', 'renderAprovacao'].forEach(_filtra);
+  // trocou de obra no topo: redesenha a tela aberta
+  const oSel = window.selecionarObra; if (typeof oSel === 'function') window.selecionarObra = selecionarObra = function () { const r = oSel.apply(this, arguments);
+    const pg = document.querySelector('.page.active')?.id?.replace('page-', ''); const mapa = { 'apon-mo': 'renderMO', 'apon-eq': 'renderAponEQ', perdas: 'renderPerdas', 'apon-diesel': 'renderDiesel', aprovacao: 'renderAprovacao', cargos: 'renderCargos', familias: 'renderFamilias', modelos: 'renderModelos', 'tipos-servico': 'renderTiposServico', equipes: 'renderEquipes', 'mm-aprov': 'renderMmAprov' };
+    try { if (mapa[pg] && typeof window[mapa[pg]] === 'function') window[mapa[pg]](); } catch (e) {} return r; };
 })();
 
 // Apply configs on load

@@ -100,7 +100,7 @@ input:disabled{opacity:.7}
     <input id="lg-senha" type="password" autocomplete="current-password">
     <div class="err" id="lg-err"></div>
     <button class="btn btn-p" style="width:100%" id="lg-btn">Entrar</button>
-    <div class="ver">ObraKontrol Console · v1.4</div>
+    <div class="ver">ObraKontrol Console · v1.5</div>
   </form>
 </div>
 
@@ -212,6 +212,13 @@ input:disabled{opacity:.7}
           <div style="font-size:13px;max-width:440px"><b>Limpar dados do cliente</b><div class="hint">Apaga obras, cadastros, apontamentos, abastecimentos, fotos, orçamentos e repúblicas. Mantém os usuários, os perfis de acesso e as configurações. Não tem volta.</div></div>
           <button class="btn" style="border-color:var(--red);color:var(--red)" onclick="limparCliente()">Limpar dados…</button>
         </div>
+        <div class="box" style="border-color:var(--red);margin-top:10px">
+          <div style="display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap">
+            <div style="font-size:13px;max-width:440px"><b>Excluir uma obra e todos os dados dela</b><div class="hint">Apaga a obra e tudo que é dela: lançamentos, paradas, abastecimentos, fotos, funcionários, equipamentos, cadastros, orçamento, repúblicas e frota. As outras obras, os usuários e o banco do Master ficam. Não tem volta.</div></div>
+            <div style="display:flex;gap:8px;align-items:center"><select class="sit" id="exo-obra" aria-label="Obra para excluir"><option value="">Escolha a obra…</option></select><button class="btn btn-sm" onclick="exoContar()">Ver o que será apagado</button></div>
+          </div>
+          <div id="exo-res" style="margin-top:10px;font-size:12.5px"></div>
+        </div>
       </div>
     </div>
     <div class="mf"><button class="btn" onclick="fechar()">Cancelar</button><button class="btn btn-p" id="btn-salvar" onclick="salvarCliente()">Salvar cliente</button></div>
@@ -219,7 +226,7 @@ input:disabled{opacity:.7}
 </div>
 
 <script>
-const VERSAO = 'v1.4';
+const VERSAO = 'v1.5';
 const firebaseConfig = {
   apiKey: "AIzaSyBShR-XvPrUiFtnndFXJV7IYrrTG90BS5o",
   authDomain: "obrakontrol-205c4.firebaseapp.com",
@@ -361,7 +368,7 @@ function abrirCliente(id) {
   ['a-nome', 'a-email', 'a-senha'].forEach(k => $(k).value = '');
   $('c-admin-bloco').style.display = c && c._usu ? 'none' : '';
   $('c-links').style.display = c ? '' : 'none';
-  if (c) { $('lk-campo').textContent = base() + 'campo.html?c=' + c.id; $('lk-painel').textContent = base() + 'index.html'; }
+  if (c) { $('lk-campo').textContent = base() + 'campo.html?c=' + c.id; $('lk-painel').textContent = base() + 'index.html'; exoObras(); }
   $('ov').classList.add('open'); setTimeout(() => $('c-nome').focus(), 50);
 }
 function fechar() { $('ov').classList.remove('open'); editando = null; }
@@ -435,7 +442,7 @@ async function limparCliente() {
   const id = editando; if (!id) return; const c = CLIENTES.find(x => x.id === id) || {}, nome = (c.nomeCurto || id).toUpperCase();
   const r = prompt('Isto apaga TODOS os dados de ' + nome + ': obras, cadastros, apontamentos, abastecimentos, fotos, orçamentos e repúblicas.\nUsuários, perfis e configurações ficam.\n\nNão tem volta. Para confirmar, digite o nome do cliente: ' + nome);
   if (!r || r.trim().toUpperCase() !== nome) { toast('Limpeza cancelada.'); return; }
-  const cols = COLS.filter(x => !['usuarios', 'perfis', '_sistema', 'configs'].includes(x)).concat(['republicas', 'mobilizacoes', 'frota']);
+  const cols = COLS.filter(x => !['usuarios', 'perfis', '_sistema', 'configs'].includes(x)).concat(['republicas', 'mobilizacoes', 'frota', 'abastVeic', 'multas', 'solicitacoes']);
   let n = 0; toast('Limpando ' + nome + '…');
   try {
     for (const col of cols) {
@@ -444,6 +451,51 @@ async function limparCliente() {
     }
     toast(nome + ': ' + n + ' registros apagados.'); fechar(); carregar();
   } catch (e) { toast('Parou com erro: ' + (e.code || e.message) + '. Pode clicar de novo para terminar.', true); }
+}
+// ── v1.5: excluir UMA obra com tudo que é dela
+const EXO_COLS = ['aponMO','aponEQ','diesel','perdas','mobilizacoes','fotos','turnosAbertos','abastVeic','multas','solicitacoes','movTanques','notasFiscais','tanques',
+  'funcionarios','equipamentos','equipes','frentes','tiposServico','cargos','familias','modelos','empresas','ua','orcamentos','republicas','frota','produtos','turnos','tiposPerdas'];
+let EXO = null;
+async function exoObras() {
+  const sel = $('exo-obra'); if (!sel || !editando) return; sel.innerHTML = '<option value="">Escolha a obra…</option>'; $('exo-res').innerHTML = ''; EXO = null;
+  try { const ob = (await db.collection('clientes').doc(editando).collection('obras').get()).docs.map(d => ({ id: d.id, ...d.data() }));
+    sel.innerHTML += ob.map(o => `<option value="${esc(o.id)}">${esc((o.cod || '') + ' · ' + (o.nome || ''))}</option>`).join(''); } catch (e) {}
+}
+async function exoContar() {
+  const cli = editando, ob = $('exo-obra').value; if (!cli || !ob) { toast('Escolha a obra.', true); return; }
+  const base = db.collection('clientes').doc(cli); $('exo-res').innerHTML = 'Contando…';
+  try {
+    const obra = { id: ob, ...((await base.collection('obras').doc(ob).get()).data() || {}) };
+    const todas = {}; for (const c of EXO_COLS) { const sn = await base.collection(c).get().catch(() => null); todas[c] = sn ? sn.docs.map(d => ({ ref: d.ref, ...d.data() })) : []; }
+    // registros sem obra: tenta descobrir pela matrícula, pelo equipamento ou pela frente
+    const daObra = (l, k) => new Set(l.filter(x => x.obra === ob).map(x => String(x[k] || '')).filter(Boolean)), deOutra = (l, k) => new Set(l.filter(x => x.obra && x.obra !== ob).map(x => String(x[k] || '')).filter(Boolean));
+    const mats = daObra(todas.funcionarios, 'mat'), noms = daObra(todas.funcionarios, 'nome'), tags = daObra(todas.equipamentos, 'tag'), eqIds = daObra(todas.equipamentos, 'id'), frs = daObra(todas.frentes, 'cod');
+    const frOut = deOutra(todas.frentes, 'cod'), matOut = deOutra(todas.funcionarios, 'mat'), tagOut = deOutra(todas.equipamentos, 'tag');
+    const ligado = x => (x.mat && mats.has(String(x.mat)) && !matOut.has(String(x.mat))) || (x.func && noms.has(String(x.func))) || (x.equipId && eqIds.has(String(x.equipId))) || (x.equip && tags.has(String(x.equip)) && !tagOut.has(String(x.equip))) || (x.frente && frs.has(String(x.frente)) && !frOut.has(String(x.frente)));
+    const LANC = ['aponMO','aponEQ','diesel','perdas','fotos','mobilizacoes','abastVeic','turnosAbertos'];
+    const apagar = {}, linhas = []; let tot = 0, totLig = 0;
+    EXO_COLS.forEach(c => { const dir = todas[c].filter(x => x.obra === ob), lig = LANC.includes(c) ? todas[c].filter(x => !x.obra && ligado(x)) : [];
+      if (dir.length || lig.length) { apagar[c] = dir.concat(lig); tot += dir.length; totLig += lig.length; linhas.push(`<tr><td style="padding:3px 10px 3px 0">${esc(c)}</td><td style="text-align:right;padding:3px 10px"><b>${dir.length}</b></td><td style="text-align:right;color:var(--mu)">${lig.length ? '+ ' + lig.length + ' sem obra, ligados a ela' : ''}</td></tr>`); } });
+    const semObra = LANC.reduce((s, c) => s + todas[c].filter(x => !x.obra && !ligado(x)).length, 0);
+    const usu = (await base.collection('usuarios').get()).docs.filter(d => (d.data().obras || []).includes(ob));
+    EXO = { cli, ob, obra, apagar, usu, base };
+    $('exo-res').innerHTML = `<div style="margin-bottom:6px">Obra <b>${esc(obra.cod || '')} · ${esc(obra.nome || '')}</b>: <b>${tot + totLig + 1}</b> registros serão apagados${usu.length ? ' e ela sai do acesso de ' + usu.length + ' usuário(s)' : ''}.</div>
+      <table style="font-size:12px;margin-bottom:8px">${linhas.join('')}</table>
+      ${semObra ? `<div class="hint" style="margin-bottom:8px">Ficam ${semObra} lançamento(s) sem obra que não deu para ligar a nenhuma obra — eles não são apagados.</div>` : ''}
+      <button class="btn" style="border-color:var(--red);color:var(--red)" onclick="exoApagar()">Excluir ${esc(obra.cod || 'a obra')} e tudo isso…</button>`;
+  } catch (e) { $('exo-res').innerHTML = '<span style="color:var(--red)">Não consegui contar: ' + esc(e.code || e.message) + '</span>'; }
+}
+async function exoApagar() {
+  if (!EXO || EXO.cli !== editando) return; const cod = String(EXO.obra.cod || EXO.obra.nome || '').trim();
+  const r = prompt('Isto apaga a obra ' + cod + ' e todos os dados dela. Não tem volta.\n\nPara confirmar, digite o código da obra: ' + cod);
+  if (!r || r.trim().toUpperCase() !== cod.toUpperCase()) { toast('Exclusão cancelada.'); return; }
+  let n = 0; toast('Excluindo ' + cod + '…');
+  try {
+    const refs = Object.values(EXO.apagar).flat().map(x => x.ref).concat([EXO.base.collection('obras').doc(EXO.ob)]);
+    for (let i = 0; i < refs.length; i += 300) { const b = db.batch(); refs.slice(i, i + 300).forEach(rf => b.delete(rf)); await b.commit(); n += Math.min(300, refs.length - i); }
+    for (const d of EXO.usu) { await d.ref.update({ obras: (d.data().obras || []).filter(x => x !== EXO.ob) }).catch(() => {}); }
+    toast(cod + ' excluída: ' + n + ' registros apagados.'); EXO = null; $('exo-res').innerHTML = ''; exoObras(); carregar();
+  } catch (e) { toast('Parou com erro: ' + (e.code || e.message) + '. Clique em "Ver o que será apagado" e exclua de novo para terminar.', true); }
 }
 // ── repúblicas fictícias no DEMO, para testar o módulo
 async function criarRepublicasExemplo() {
@@ -549,7 +601,7 @@ async function criarDemo() {
 async function copiarParaDemo() {
   const de = $('amb-origem') && $('amb-origem').value; if (!de) return;
   if (!confirm('Copiar obras, cadastros, apontamentos e abastecimentos de ' + de.toUpperCase() + ' para o DEMO?\n\nUsuários e fotos não são copiados. O cliente ' + de.toUpperCase() + ' não é alterado.')) return;
-  const cols = COLS.filter(c => !['usuarios', 'fotos', 'turnosAbertos', '_sistema'].includes(c)).concat(['republicas', 'mobilizacoes', 'frota']);
+  const cols = COLS.filter(c => !['usuarios', 'fotos', 'turnosAbertos', '_sistema'].includes(c)).concat(['republicas', 'mobilizacoes', 'frota', 'abastVeic', 'multas', 'solicitacoes']);
   let n = 0; toast('Copiando… pode levar um minuto');
   try {
     for (const col of cols) {
