@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.08 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.09 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -13385,8 +13385,9 @@ async function uaExcluirManuais() {
     const novos = oImp.apply(this, arguments), fn = POS[tipo]; if (!fn || !novos.length) return novos;
     const r = resumo[tipo], lista = dados[tipo] || [], ok = [];
     novos.forEach(it => { const erro = fn(it, ok);
-      if (it.__aviso) { if (r.avisos.length < 6) r.avisos.push(it.__aviso); delete it.__aviso; }
-      if (erro) { r.ok--; r.erro++; if (r.avisos.length < 6) r.avisos.push(erro); const i = lista.indexOf(it); if (i >= 0) lista.splice(i, 1); } else ok.push(it); });
+      const lg = (msg, nivel) => (r.__log = r.__log || []).push({ msg: String(msg), nivel, linha: it.__ln || null });
+      if (it.__aviso) { lg(it.__aviso, 'aviso'); if (r.avisos.length < 6) r.avisos.push(it.__aviso); delete it.__aviso; }
+      if (erro) { lg(erro, 'erro'); r.ok--; r.erro++; if (r.avisos.length < 6) r.avisos.push(erro); const i = lista.indexOf(it); if (i >= 0) lista.splice(i, 1); } else ok.push(it); });
     return ok;
   };
   // ── Obras: crachá do cliente
@@ -13474,6 +13475,92 @@ async function uaExcluirManuais() {
   const oRe = window._rerenderTelaAtual;
   if (typeof oRe === 'function') window._rerenderTelaAtual = _rerenderTelaAtual = function () { const r = oRe.apply(this, arguments); ['renderFrota', 'renderFrotaResp', 'renderRepublicas', 'renderAlojados'].forEach(fn => { try { if (typeof window[fn] === 'function') window[fn](); } catch (e) {} }); return r; };
 })();
+
+
+// ═══════════════════════════════════════════════════════════════
+// v3.09: PLANILHA DE CONFERÊNCIA DA IMPORTAÇÃO — devolve o arquivo com a célula do problema
+// em VERMELHO (erro: a linha não entrou) ou AMARELO (aviso: entrou, mas falta completar) e uma coluna "Resultado da importação".
+// ═══════════════════════════════════════════════════════════════
+window.__impLog = {};
+let _impArquivo = null;
+(function () {
+  // captura todas as mensagens da importação (o motor guardava só as 3 primeiras)
+  const oImp = _importarLinhas;
+  _importarLinhas = window._importarLinhas = function (tipo, rows, resumo) {
+    const txt = []; let guard = null;
+    Object.defineProperty(resumo, tipo, { configurable: true, enumerable: true, get: () => guard,
+      set: v => { guard = v; v.avisos = { get length() { return 0; }, push: m => txt.push(String(m)), join: s => txt.join(s), slice: (a, b) => txt.slice(a, b) }; } });
+    // marca cada linha com o número dela (coluna oculta), para achar a linha depois
+    const def = IMPORT_DEF[tipo]; let n = 1, oMap = def && def.map;
+    const rows2 = (rows || []).map((rw, i) => i === 0 ? (rw || []).concat(['zzlnimp']) : (rw && rw.some(c => c !== undefined && c !== null && String(c).trim() !== '') ? rw.concat([++n]) : rw));
+    if (oMap) def.map = g => { const it = oMap(g), ln = +g(['zzlnimp']) || 0; if (it && typeof it === 'object') Object.defineProperty(it, '__ln', { value: ln, enumerable: false, configurable: true, writable: true }); return it; };
+    let novos; try { novos = oImp.call(this, tipo, rows2, resumo); } finally { if (oMap) def.map = oMap; }
+    const r = guard; Object.defineProperty(resumo, tipo, { value: r, writable: true, enumerable: true, configurable: true });
+    const est = (r && r.__log) || [], ests = new Set(est.map(x => x.msg));
+    const ent = est.concat(txt.filter(m => !ests.has(m)).map(m => ({ msg: m, nivel: /coordenada não reconhecida/i.test(m) ? 'aviso' : 'erro', linha: (/linha (\d+)/i.exec(m) || [])[1] ? +(/linha (\d+)/i.exec(m))[1] : null })));
+    if (r) { r.avisos = ent.map(x => x.msg).slice(0, 6); delete r.__log; if (ent.length > 6) r.avisos.push('… e mais ' + (ent.length - 6) + ' (veja a planilha de conferência)'); }
+    window.__impLog[tipo] = { rows, ent };
+    return novos;
+  };
+  // guarda o arquivo escolhido
+  const oConf = window.confirmarImportacao;
+  window.confirmarImportacao = async function () {
+    const b = document.querySelector('#modal-importacao .modal-footer .btn-primary');
+    if (!(b && b.dataset.fim)) { window.__impLog = {}; _impArquivo = document.getElementById('import-file')?.files?.[0] || null; }
+    const r = await oConf.apply(this, arguments);
+    setTimeout(_impBotaoConferencia, 300);
+    return r;
+  };
+})();
+function _impBotaoConferencia() {
+  const pv = document.getElementById('import-preview'); if (!pv || pv.querySelector('.imp-conf')) return;
+  const ent = Object.values(window.__impLog).flatMap(x => x.ent || []); if (!ent.length || !_impArquivo) return;
+  const ne = ent.filter(x => x.nivel === 'erro').length, na = ent.length - ne;
+  pv.insertAdjacentHTML('beforeend', `<div class="imp-conf" style="margin-top:10px;padding:10px 12px;border-radius:10px;background:var(--surface,#fff);border:1px dashed var(--border);display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <div style="flex:1;min-width:220px;font-size:12.5px">${ne ? `<b style="color:#DC2626">${ne} linha(s) com erro</b> (não entraram)` : ''}${ne && na ? ' · ' : ''}${na ? `<b style="color:#B45309">${na} aviso(s)</b> (entraram, falta completar)` : ''}</div>
+    <button type="button" class="btn btn-primary btn-sm" onclick="baixarConferenciaImportacao()">⬇ Baixar planilha com os problemas marcados</button></div>`);
+}
+function _impLib() {
+  if (window.ExcelJS) return Promise.resolve(window.ExcelJS);
+  return new Promise((ok, falha) => { const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js'; s.onload = () => ok(window.ExcelJS); s.onerror = () => falha(new Error('sem internet')); document.head.appendChild(s); });
+}
+// qual coluna o problema aponta
+function _impColDe(msg, heads) {
+  const m = _uaN(msg), H = heads.map(h => _uaN(h));
+  const regras = [[/MODELO/, /MODELO/], [/MATRICULA/, /MATRICULA|RESPONSAVEL|MORADORES/], [/CPF|CNPJ/, /CPF|CNPJ/], [/PLACA/, /PLACA/], [/PROPRIETARIO/, /PROPRIETARIO/], [/OBRA "/, /^OBRA/],
+    [/\bUA\b/, /\bUA\b|UAS/], [/RAMO/, /RAMO/], [/EMPRESA|PROPRIETARIA/, /EMPRESA|PROPRIET/], [/STATUS/, /STATUS/], [/\bTAG\b/, /\bTAG\b/], [/COORDENADA/, /COORDENADA/], [/CNH/, /CNH/], [/FUNCAO/, /FUNCAO/]];
+  for (const [rm, rh] of regras) if (rm.test(m)) { const i = H.findIndex(h => rh.test(h)); if (i >= 0) return [i]; }
+  return null;
+}
+async function baixarConferenciaImportacao() {
+  if (!_impArquivo) return;
+  let ExcelJS; try { ExcelJS = await _impLib(); } catch (e) { toast('Não consegui carregar o gerador de planilha. Verifique a internet.', 'error'); return; }
+  const wb = new ExcelJS.Workbook(); await wb.xlsx.load(await _impArquivo.arrayBuffer());
+  const VERM = 'FFFCA5A5', AMAR = 'FFFDE68A', fill = c => ({ type: 'pattern', pattern: 'solid', fgColor: { argb: c } });
+  const tipoDaAba = (ws, i) => { const t = _ABA_TIPO[_normAba(ws.name)]; return t || (Object.keys(window.__impLog).length === 1 && i === 0 ? Object.keys(window.__impLog)[0] : null); };
+  let marcadas = 0;
+  wb.worksheets.forEach((ws, wi) => {
+    const tipo = tipoDaAba(ws, wi), log = tipo && window.__impLog[tipo]; if (!log || !(log.ent || []).length) return;
+    const def = IMPORT_DEF[tipo] || {}, heads = []; ws.getRow(1).eachCell({ includeEmpty: true }, (c, n) => heads[n - 1] = String(c.value ?? ''));
+    let nCol = heads.length + 1; const hr = ws.getRow(1).getCell(nCol); hr.value = 'Resultado da importação'; hr.font = { bold: true }; hr.fill = fill('FFE5E7EB'); ws.getColumn(nCol).width = 60;
+    // linhas de dados na ordem que o motor viu (pula linhas vazias)
+    const dataRows = []; for (let r = 2; r <= ws.rowCount; r++) { const row = ws.getRow(r); let tem = false; row.eachCell(c => { if (c.value !== null && String(c.value).trim() !== '') tem = true; }); if (tem) dataRows.push(r); }
+    const achaPorChave = ent => { const alvo = _uaN(String(ent.key || '')).replace(/[^A-Z0-9]/g, ''); if (!alvo) return null;
+      return dataRows.find(r => { let ok = false; ws.getRow(r).eachCell(c => { if (_uaN(String(c.value ?? '')).replace(/[^A-Z0-9]/g, '') === alvo) ok = true; }); return ok; }) || null; };
+    const porLinha = {};
+    log.ent.forEach(ent => { const r = ent.linha ? dataRows[ent.linha - 2] || ent.linha : achaPorChave(ent); if (!r) return; (porLinha[r] = porLinha[r] || []).push(ent); });
+    Object.entries(porLinha).forEach(([r, es]) => { const row = ws.getRow(+r), erro = es.some(e => e.nivel === 'erro'), cor = erro ? VERM : AMAR;
+      es.forEach(e => { let cols = _impColDe(e.msg, heads);
+        if (!cols && /obrigat/i.test(e.msg)) { cols = []; heads.forEach((h, i) => { const v = row.getCell(i + 1).value; if (v === null || String(v).trim() === '') cols.push(i); }); }
+        (cols || []).forEach(i => { row.getCell(i + 1).fill = fill(e.nivel === 'erro' ? VERM : AMAR); }); });
+      const rc = row.getCell(nCol); rc.value = (erro ? '❌ NÃO ENTROU: ' : '⚠ ENTROU, COMPLETAR: ') + es.map(e => e.msg.replace(/^linha \d+:\s*/i, '')).join(' | '); rc.fill = fill(cor); rc.alignment = { wrapText: true, vertical: 'top' }; marcadas++; });
+  });
+  if (!marcadas) { toast('Não consegui localizar as linhas no arquivo.', 'error'); return; }
+  const buf = await wb.xlsx.writeBuffer(), a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+  a.download = String(_impArquivo.name || 'importacao.xlsx').replace(/\.(xlsx|xls|csv)$/i, '') + '_conferencia.xlsx'; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  toast(marcadas + ' linha(s) marcadas na planilha.');
+}
 
 // Apply configs on load
 setTimeout(applyConfigs, 200);
