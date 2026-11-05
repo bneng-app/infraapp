@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.52 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.53 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -3438,7 +3438,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
       </div>
       <label id="import-custo-wrap" style="display:flex;gap:8px;align-items:flex-start;font-size:13px;cursor:pointer;margin-top:4px">
         <input type="checkbox" id="import-atualizar-custo" style="margin-top:3px"/>
-        <span><strong>Atualizar cadastros que já existem</strong><br><span style="font-size:11px;color:var(--text-3)">Cargos: custo/hora, adicional HE e adicional domingo/feriado. Equipamentos: custo/hora. Tanques: preço do litro. Funcionários: gera apontamento, apropriador e telefone. Frentes: coordenada e responsável. Modelos: tanque e consumo previsto. Abastecimentos (histórico): preço do litro e nº do ticket. Nada mais é alterado, e célula em branco não apaga o valor atual.</span></span>
+        <span><strong>Atualizar cadastros que já existem</strong><br><span style="font-size:11px;color:var(--text-3)">Cargos: custo/hora, adicional HE e adicional domingo/feriado. Equipamentos: custo/hora. Tanques: preço do litro. Funcionários: gera apontamento, apropriador e telefone. Frentes: coordenada e responsável. Modelos: tanque e consumo previsto. Abastecimentos (histórico): preço do litro e nº do ticket. Repúblicas: proprietário, CPF/CNPJ, telefone, datas do contrato e observações. Nada mais é alterado, e célula em branco não apaga o valor atual.</span></span>
       </label>
       <div id="import-preview" style="margin-top:1rem;font-size:12px;color:var(--text-3);background:var(--bg);padding:10px;border-radius:6px;display:none"></div>
       <input type="hidden" id="import-tipo"/>
@@ -8721,6 +8721,11 @@ function _importarLinhas(tipo, rows, resumo) {
         const mudou = x && Object.keys(mud).some(k => Number(x[k]) !== Number(mud[k]));
         if (mudou) { Object.assign(x, mud); (window.__impAtualizados = window.__impAtualizados || []).push([tipo, x]); r.atual = (r.atual||0) + 1; return; }
       }
+      if (document.getElementById('import-atualizar-custo')?.checked && tipo === 'republicas') {   // v3.53: proprietário, contrato e datas
+        const x = lista.find(y => String(chaveDe(y)||'').toLowerCase() === chave && (y.obra||'') === obraId);
+        const mud = {}; ['responsavel', 'propDoc', 'tel', 'inicio', 'fim', 'dataContrato', 'obs'].forEach(k => { if (item[k]) mud[k] = item[k]; });
+        if (x && Object.keys(mud).some(k => String(x[k] || '') !== String(mud[k]))) { Object.assign(x, mud); (window.__impAtualizados = window.__impAtualizados || []).push([tipo, x]); r.atual = (r.atual||0) + 1; return; }
+      }
       r.dup++; return;
     }
     item.id = tipo.slice(0,3) + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
@@ -8761,7 +8766,7 @@ window.abrirImportacao = function (tipo) {
   const $ = k => document.getElementById(k);
   if ($('import-titulo')) $('import-titulo').textContent = tipo === 'pacote' ? 'Importar pacote completo' : tipo === 'historico' ? 'Importar histórico (apontamentos e abastecimentos antigos)' : 'Importar ' + (IMPORT_DEF[tipo]?.rotulo || tipo);
   if ($('import-tipo')) $('import-tipo').value = tipo;
-  if ($('import-custo-wrap')) { $('import-custo-wrap').style.display = ['pacote','historico','cargos','equipamentos','funcionarios','tanques','frentes','modelos'].includes(tipo) ? 'flex' : 'none'; $('import-atualizar-custo').checked = false; }
+  if ($('import-custo-wrap')) { $('import-custo-wrap').style.display = ['pacote','historico','cargos','equipamentos','funcionarios','tanques','frentes','modelos','republicas'].includes(tipo) ? 'flex' : 'none'; $('import-atualizar-custo').checked = false; }
   const f = $('import-file'); if (f) { f.value = ''; f.onchange = function () { previewImport(this); }; }
   const pv = $('import-preview'); if (pv) { pv.innerHTML = tipo === 'pacote'
     ? 'Um arquivo Excel com <strong>uma aba por cadastro</strong>: Obras, Fornecedores (pelo CNPJ do banco), Funções, Frentes, Tipos de serviço, Turnos, Funcionários, Modelos (tanque e consumo previsto) e Equipamentos (com família e modelo). Não precisa de coluna "Obra": vale a obra da aba Obras ou a escolhida no topo. Registros com código que já existe são ignorados.<br><span style="color:var(--text-3)">Apontamentos e abastecimentos antigos vão no arquivo de <strong>histórico</strong>. Tipos de perda e tanques são cadastrados no painel.</span>'
@@ -13492,8 +13497,8 @@ async function uaExcluirManuais() {
   { const m = D.funcionarios.map; D.funcionarios.map = g => ({ ...m(g), vinculo: /pj/i.test(String(g(['vínculo', 'vinculo']) || '')) ? 'PJ' : 'CLT' }); }
   // ── REPÚBLICAS
   D.republicas = { rotulo: 'Repúblicas e alojamentos', porObra: true, chave: 'nome',
-    col: ['Código (deixe em branco: o sistema gera)', 'Nome', 'Tipo (República / Alojamento / Hotel / Outro)', 'Endereço', 'Vagas', 'Proprietário (nome completo)', 'CPF / CNPJ do proprietário', 'Telefone', 'Início do contrato (DD/MM/AAAA)', 'Fim do contrato (DD/MM/AAAA)', 'Aluguel (R$/mês)', 'IPTU / seguro / condomínio (R$/mês)', 'Água (R$/mês)', 'Luz (R$/mês)', 'Internet (R$/mês)', 'Moradores (matrícula ou nome, separe por ;)', 'Entrada dos moradores (DD/MM/AAAA)', 'Quartos (código:camas, separe por ;)', 'Observações'],
-    map: g => ({ cod: String(g(['código', 'codigo']) || '').trim(), _iptu: num(g(['iptu', 'condom'])), _qts: String(g(['quartos']) || ''), obs: String(g(['observ']) || ''), nome: g(['nome']), tipo: g(['tipo']) || 'República', endereco: g(['endereço', 'endereco']), vagas: parseInt(g(['vagas'])) || 0, responsavel: g(['proprietário (nome', 'proprietario (nome', 'proprietário', 'proprietario']), propDoc: String(g(['cpf', 'cnpj']) || ''), tel: String(g(['telefone']) || ''),
+    col: ['Código (deixe em branco: o sistema gera)', 'Nome', 'Tipo (República / Alojamento / Hotel / Outro)', 'Endereço', 'Vagas', 'Proprietário (nome completo)', 'CPF / CNPJ do proprietário', 'Telefone', 'Início do contrato (DD/MM/AAAA)', 'Fim do contrato (DD/MM/AAAA)', 'Aluguel (R$/mês)', 'IPTU / seguro / condomínio (R$/mês)', 'Água (R$/mês)', 'Luz (R$/mês)', 'Internet (R$/mês)', 'Moradores (matrícula ou nome, separe por ;)', 'Entrada dos moradores (DD/MM/AAAA)', 'Quartos (código:camas, separe por ;)', 'Observações', 'Data do contrato (assinatura)'],
+    map: g => ({ cod: String(g(['código', 'codigo']) || '').trim(), _iptu: num(g(['iptu', 'condom'])), _qts: String(g(['quartos']) || ''), obs: String(g(['observ']) || ''), dataContrato: dt(g(['data do contrato', 'assinatura'])), nome: g(['nome']), tipo: g(['tipo']) || 'República', endereco: g(['endereço', 'endereco']), vagas: parseInt(g(['vagas'])) || 0, responsavel: g(['proprietário (nome', 'proprietario (nome', 'proprietário', 'proprietario']), propDoc: String(g(['cpf', 'cnpj']) || ''), tel: String(g(['telefone']) || ''),
       inicio: dt(g(['início', 'inicio'])), fim: dt(g(['fim do contrato'])), aluguel: num(g(['aluguel'])), agua: num(g(['água', 'agua'])), luz: num(g(['luz'])), internet: num(g(['internet'])), _mor: String(g(['moradores']) || ''), _ent: dt(g(['entrada'])) }),
     ok: x => x.nome && (x.vagas || /\d/.test(x._qts || '')) };
   POS.republicas = (it, feitos) => {
@@ -15921,6 +15926,21 @@ function repMudaEntrada(mid, v) {
     if (window._morFoco) { const tr = document.querySelector(`#mor-lista tr[data-mid="${window._morFoco}"]`); if (tr) { tr.style.outline = '2px solid #F59E0B'; tr.style.background = 'rgba(245,158,11,.12)'; setTimeout(() => tr.scrollIntoView({ block: 'center' }), 60); } }
     return res; };
   const oC = window.closeModal; window.closeModal = closeModal = function (id) { if (id === 'modal-moradores') { window._morFoco = ''; if ($('mor-busca')) $('mor-busca').value = ''; } return oC.apply(this, arguments); };
+})();
+// v3.53: república com DATA DO CONTRATO (assinatura), além do início e fim da vigência
+(function () {
+  const $ = id => document.getElementById(id);
+  const gI = $('rep-inicio')?.closest('.form-group');
+  if (gI && !$('rep-dtcontr')) gI.insertAdjacentHTML('beforebegin', `<div class="form-group"><label class="form-label" for="rep-dtcontr">Data do contrato (assinatura)</label><input class="form-control" type="date" id="rep-dtcontr"/></div>`);
+  const lI = document.querySelector('label[for="rep-inicio"]'); if (lI) lI.textContent = 'Início da vigência';
+  const lF = document.querySelector('label[for="rep-fim"]'); if (lF) lF.textContent = 'Término do contrato';
+  const oE = window.repEditar; window.repEditar = repEditar = function (id) { const r = oE.apply(this, arguments); const x = id && (dados.republicas || []).find(y => y.id === id); if ($('rep-dtcontr')) $('rep-dtcontr').value = (x && x.dataContrato) || ''; return r; };
+  const oS = window.salvarRepublica; window.salvarRepublica = salvarRepublica = function () {
+    const dc = $('rep-dtcontr')?.value || '', idEd = $('rep-id')?.value || '', antes = new Set((dados.republicas || []).map(x => x.id));
+    const r = oS.apply(this, arguments); if ($('modal-republica')?.classList.contains('open')) return r;
+    const x = idEd ? (dados.republicas || []).find(y => y.id === idEd) : (dados.republicas || []).find(y => !antes.has(y.id));
+    if (x && (x.dataContrato || '') !== dc) { x.dataContrato = dc; if (db && _firebaseReady) fbSave('republicas', x.id, x).catch(() => {}); }
+    return r; };
 })();
 // Apply configs on load
 setTimeout(applyConfigs, 200);
