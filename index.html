@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.50 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.51 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -12116,7 +12116,7 @@ function renderAlojados() {
       <td class="td-mono">${_e(String(x.m.entrada || '').split('-').reverse().join('/'))}</td>
       <td class="td-mono" style="text-align:right">${x.dias}</td>
       <td class="td-mono" style="text-align:right">${_repMoeda(x.custo)}</td>
-      <td style="text-align:right"><button class="btn btn-outline btn-sm" onclick="repMoradoresAbrir('${x.r.id}')">👥 República</button></td></tr>`).join('')
+      <td style="text-align:right"><button class="btn btn-outline btn-sm" onclick="repMoradoresAbrir('${x.r.id}','${x.m.id}')">✎ Editar</button></td></tr>`).join('')
     : '<tr><td colspan="12" style="text-align:center;color:var(--text-3);padding:2rem">Ninguém alojado' + (busca || v ? ' com esse filtro' : '') + '. Coloque os moradores em <b>Repúblicas e alojamentos → 👥 Moradores</b>.</td></tr>';
 }
 function exportarAlojados() {
@@ -13509,7 +13509,9 @@ async function uaExcluirManuais() {
     // v3.31: quartos "Apto-101:3; Apto-102:3" e morador "173 @ Apto-101 (13/09/2026)"
     it.quartos = String(it._qts || '').split(/[;\n]/).map(s => s.trim()).filter(Boolean).map(s => { const p = s.split(':'); return { cod: p[0].trim(), vagas: parseInt(p[1]) || 0 }; }).filter(q => q.cod); delete it._qts;
     const ocupados = new Set((dados.republicas || []).concat(feitos).flatMap(r => (r.moradores || []).filter(m => !m.saida).map(m => m.func)));
+    const datRuim = [];
     mats.forEach(tx => { const md = /\(\s*([\d\/.-]+)\s*\)\s*$/.exec(tx), ent = (md && dt(md[1])) || ent0; let mt = (md ? tx.slice(0, md.index) : tx).trim(), fn = '', qto = '';
+      if (md && !_dataOk(ent)) { datRuim.push(mt.split(' / ')[0].split(' @ ')[0] + ' (' + md[1] + ')'); return; }
       const iAt = mt.lastIndexOf(' @ '); if (iAt > 0) { qto = mt.slice(iAt + 3).trim(); mt = mt.slice(0, iAt).trim(); if (qto && !it.quartos.some(q => q.cod.toUpperCase() === qto.toUpperCase())) it.quartos.push({ cod: qto, vagas: 0 }); }
       const iBar = mt.indexOf(' / '); if (iBar > 0) { fn = mt.slice(iBar + 3).trim(); mt = mt.slice(0, iBar).trim(); }
       const fs = (dados.funcionarios || []).filter(x => !x.obra || x.obra === it.obra);
@@ -13520,6 +13522,7 @@ async function uaExcluirManuais() {
       it.moradores.push({ id: mid, func: f.id, mat: f.mat || '', nome: f.nome, funcao: f.funcao || '', entrada: ent, quarto: qto }); });
     if (it.quartos.length) { const sv = it.quartos.reduce((s, q) => s + q.vagas, 0); if (sv) it.vagas = sv; } else delete it.quartos;
     if (nao.length) it.__aviso = it.nome + ': matrícula(s) não encontrada(s) ou já em outro lugar — ' + nao.slice(0, 5).join(', ');
+    if (datRuim.length) it.__aviso = (it.__aviso ? it.__aviso + ' · ' : it.nome + ': ') + 'morador(es) com data de entrada inválida não entraram — ' + datRuim.slice(0, 6).join(', ');
     if (it.moradores.length > it.vagas && !it.__aviso) it.__aviso = it.nome + ': mais moradores que vagas';
     delete it._mor; delete it._ent; return ''; };
   ['frota', 'republicas'].forEach(t => { if (!IMPORT_ORDEM.includes(t)) IMPORT_ORDEM.push(t); });
@@ -15880,6 +15883,42 @@ function _syncVinculos() {
     const nv = function () { sync(); return o.apply(this, arguments); }; window[nm] = nv; try { eval(nm + ' = nv'); } catch (e) {} });
   // função da lista de alojados e da coluna Função dos abastecimentos: sempre a do cadastro
   const oL = window._alojLista; window._alojLista = _alojLista = function () { return oL.apply(this, arguments).map(x => { const f = x.m.func && (dados.funcionarios || []).find(y => y.id === x.m.func); if (f) x.funcao = _fnFuncaoNome(f) || x.funcao; return x; }); };
+})();
+// v3.51: DATAS — importação não aceita data inválida (ex.: 2709/2026); entrada do morador editável; achar o morador na república
+function _dataOk(v) { if (!v) return true; const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(v)); if (!m) return false; const d = new Date(+m[1], +m[2] - 1, +m[3]); return d.getFullYear() === +m[1] && d.getMonth() === +m[2] - 1 && d.getDate() === +m[3] && +m[1] >= 1990 && +m[1] <= 2100; }
+function repMudaEntrada(mid, v) {
+  const r = (dados.republicas || []).find(x => x.id === window._repAtual), m = r && (r.moradores || []).find(x => x.id === mid); if (!m) return;
+  if (!v || !_dataOk(v)) { toast('Data inválida.', 'error'); _repMoradoresRender(); return; }
+  if (v > _hojeLocal()) { toast('A entrada não pode ser no futuro.', 'error'); _repMoradoresRender(); return; }
+  m.entrada = v; if (db && _firebaseReady) fbSave('republicas', r.id, r).catch(() => toast('Ficou só neste computador — não gravou no servidor.', 'error'));
+  try { renderAlojados(); } catch (e) {} toast('Entrada de ' + m.nome + ' alterada para ' + v.split('-').reverse().join('/'));
+}
+(function () {
+  const $ = id => document.getElementById(id);
+  // importação: qualquer data inválida recusa a linha
+  const CAMPOS = { admissao: 'admissão', demissao: 'demissão', inicio: 'início do contrato', fim: 'fim do contrato', data: 'data', dataMob: 'data de mobilização', dataDesmob: 'data de desmobilização', mobData: 'chegada', fimContrato: 'fim do contrato', crlvVal: 'validade do CRLV', docValidade: 'validade do documento' };
+  const oImp = _importarLinhas;
+  _importarLinhas = window._importarLinhas = function (tipo, rows, resumo) {
+    const novos = oImp.apply(this, arguments); if (tipo === 'turnos' || !novos || !novos.length) return novos;
+    const r = resumo[tipo], lista = dados[tipo] || [], ok = [];
+    novos.forEach(it => { const ruim = Object.keys(CAMPOS).find(k => it[k] && !_dataOk(it[k]));
+      if (!ruim) return ok.push(it);
+      const msg = (it.mat || it.cod || it.tag || it.placa || it.nome || 'linha') + ': ' + CAMPOS[ruim] + ' inválida (' + it[ruim] + ') — use DD/MM/AAAA';
+      r.ok--; r.erro++; r.avisos.push(msg); (r.__log = r.__log || []).push({ msg, nivel: 'erro', linha: it.__ln || null }); const i = lista.indexOf(it); if (i >= 0) lista.splice(i, 1); });
+    return ok;
+  };
+  // janela de moradores: entrada editável, busca na lista e abre já no morador
+  const oA = window.repMoradoresAbrir; window.repMoradoresAbrir = repMoradoresAbrir = function (id, mid) { window._morFoco = mid || ''; const r = oA.apply(this, arguments); return r; };
+  const oMR = window._repMoradoresRender; window._repMoradoresRender = _repMoradoresRender = function () {
+    const res = oMR.apply(this, arguments); const r = (dados.republicas || []).find(x => x.id === window._repAtual); if (!r) return res;
+    const at = repMoradores(r), rows = [...document.querySelectorAll('#mor-lista tr')];
+    rows.forEach((tr, i) => { const m = at[i]; if (!m || !tr.children[1]) return; tr.dataset.mid = m.id; tr.dataset.t = _bsNorm(m.nome + ' ' + (m.mat || '') + ' ' + (m.funcao || '') + ' ' + (m.quarto || ''));
+      tr.children[1].innerHTML = `<input type="date" class="form-control" value="${_dataOk(m.entrada) ? _e(m.entrada) : ''}" max="${_hojeLocal()}" style="padding:4px 8px;width:150px;${_dataOk(m.entrada) ? '' : 'border-color:#DC2626'}" title="Data de entrada — clique para corrigir" onchange="repMudaEntrada('${m.id}',this.value)"/>${_dataOk(m.entrada) ? '' : `<div style="font-size:11px;color:#DC2626">data inválida: ${_e(m.entrada || '')}</div>`}`; });
+    const tb = $('mor-lista')?.closest('table'); if (tb && !$('mor-busca')) tb.insertAdjacentHTML('beforebegin', `<div class="search-wrap" style="margin:4px 0 8px"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="mor-busca" placeholder="Achar morador desta república (nome, matrícula, função ou quarto)…" oninput="const q=_bsNorm(this.value);document.querySelectorAll('#mor-lista tr[data-t]').forEach(t=>t.style.display=!q||t.dataset.t.includes(q)?'':'none')"/></div>`);
+    const q = $('mor-busca')?.value; if (q) $('mor-busca').dispatchEvent(new Event('input'));
+    if (window._morFoco) { const tr = document.querySelector(`#mor-lista tr[data-mid="${window._morFoco}"]`); if (tr) { tr.style.outline = '2px solid #F59E0B'; tr.style.background = 'rgba(245,158,11,.12)'; setTimeout(() => tr.scrollIntoView({ block: 'center' }), 60); } }
+    return res; };
+  const oC = window.closeModal; window.closeModal = closeModal = function (id) { if (id === 'modal-moradores') { window._morFoco = ''; if ($('mor-busca')) $('mor-busca').value = ''; } return oC.apply(this, arguments); };
 })();
 // Apply configs on load
 setTimeout(applyConfigs, 200);
