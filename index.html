@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.71 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.72 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -8491,7 +8491,7 @@ const IMPORT_DEF = {
                             apropriador: /^s/i.test(String(g(['apropriador']) || '')) ? 'Sim' : 'Não', tel:String(g(['telefone','whatsapp','celular']) || '') }; }, ok:x=>x.mat&&x.nome },
   equipamentos: { rotulo:'Equipamentos', porObra:true, chave:'tag', col:['TAG','Placa/Série','Família','Modelo','Empresa proprietária (código)','Status (Mobilizado / Em manutenção / Desmobilizado)','Data Mobilização (DD/MM/AAAA)','Data Desmobilização (DD/MM/AAAA)','Custo/hora sem diesel (R$)','Tipo de cobrança (Hora/Mês)','Valor da locação (R$)','Franquia ou hora mínima (h/mês)'],
                   map:g=>({ tag:g(['tag']), placa:g(['placa','série','serie']), codModelo:g(['cód. modelo','cod. modelo','modelo']), familia:g(['família','familia']), prop:g(['propriet','empresa']),
-                            _st:g(['status']), dataMob:excelDataParaISO(g(['data mobiliza','dt. mobiliza','dt mobiliza','mobilização (','mobilizacao (','mobiliza'])), dataDesmob:excelDataParaISO(g(['desmobiliza'])), custoHora:_numImport(g(['custo'])),
+                            _st:g(['status']), dataMob:excelDataParaISO(g(['data mobiliza','dt. mobiliza','dt mobiliza','mobilização (','mobilizacao (','mobiliza'])), dataDesmob:excelDataParaISO(g(['data desmobiliza','dt. desmobiliza','dt desmobiliza','desmobilização (','desmobilizacao ('])), custoHora:_numImport(g(['custo'])),
                             _cob:g(['cobran']), valorLoc:_numImport(g(['valor da loca','valor loca','valor'])), franquiaH:_numImport(g(['franquia'])) }), ok:x=>x.tag },
 };
 IMPORT_DEF.aponMO = { rotulo:'Apontamentos MO', porObra:true, chave:'_chave', col:['Data (DD/MM/AAAA)','Matrícula','Frente (código)','Serviço','Entrada (HH:MM)','Saída (HH:MM)','H. normais','H. extras','Equipe (nº)','Produção da equipe','Unidade','Apontador','Status (Aprovado/Pendente)'],
@@ -13478,6 +13478,8 @@ async function uaExcluirManuais() {
     else if (fol.length && !ach.length) it.__aviso = 'serviço ' + it.cod + ': sem UA vinculada (complete em Tipos de serviço)'; return ''; };
   // ── Equipamentos: chassi, série, ano e validade do documento
   D.equipamentos.col = D.equipamentos.col.concat(['Chassi', 'Nº de série', 'Ano de fabricação', 'Validade do documento (DD/MM/AAAA)']);
+  D.equipamentos.col = D.equipamentos.col.concat(['Horímetro / hodômetro na mobilização']);   // v3.72
+  { const m0 = D.equipamentos.map; D.equipamentos.map = g => { const x = m0(g), h = _numImport(g(['horímetro / hodômetro na mob', 'horimetro / hodometro na mob', 'horímetro inicial', 'horimetro inicial', 'leitura inicial'])); if (h) x.horMob = h; return x; }; }
   { const m = D.equipamentos.map; D.equipamentos.map = g => ({ ...m(g), chassi: String(g(['chassi']) || '').toUpperCase(), serie: String(g(['nº de série', 'n° de série', 'numero de serie', 'número de série']) || ''), ano: String(g(['ano de fab']) || ''), docValidade: dt(g(['validade do doc'])) }); }
   // ── Histórico de MO / EQ: UA do RM (opcional)
   ['aponMO', 'aponEQ'].forEach(t => { D[t].col = D[t].col.concat(['UA (código RM, opcional)']); const m = D[t].map; D[t].map = g => ({ ...m(g), ua: String(g(['ua (código', 'código rm', 'codigo rm']) || '').trim() });

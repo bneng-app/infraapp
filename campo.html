@@ -883,7 +883,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.80</div>
+  <div class="login-versao">ObraKontrol Campo · v2.81</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -2586,6 +2586,7 @@ async function ultimoHorimetro(equipId) {
     if (srv && (!melhor || srv.hor > melhor.hor)) melhor = srv;
   }
   (pendentes || []).forEach(pd => { if (pd.colecao === 'aponEQ' && pd.item.equipId === equipId) { const h = parseFloat(pd.item.hor); if (!isNaN(h) && (!melhor || h > melhor.hor)) melhor = { hor:h, data:pd.item.data }; } });
+  if (!melhor) { const e = (dadosCampo.equipamentos || []).find(x => x.id === equipId), h = e && parseFloat(e.horMob); if (!isNaN(h)) melhor = { hor: h, data: e.dataMob || '' }; }   // v2.81: leitura da mobilização
   return melhor;
 }
 function _fmtHor(n) { return Number(n).toLocaleString('pt-BR', { maximumFractionDigits: 1 }); }
