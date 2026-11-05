@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.82 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.83 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -16693,9 +16693,11 @@ function _diaGeoLink(g) {
     const L = _diaAbsDoDia(), E = _e, nGeo = L.filter(x => x.geo).length;
     const tb = blk.querySelector('.table-wrap');
     const corpo = `<div class="table-wrap" style="max-height:420px;overflow:auto"><table class="dx-tb"><thead><tr><th>Hora</th><th>Tipo</th><th>TAG / placa</th><th style="text-align:right">Litros</th><th style="text-align:right">Horímetro / km</th><th>Tanque / posto</th><th>Lançado por</th><th>Local</th><th>Alerta</th></tr></thead><tbody>
-      ${L.map(x => { const al = x.tipo === 'diesel' && typeof _absAlertas === 'function' ? _absAlertas(x.d) : [];
+      ${['diesel', 'veic'].map(tp => { const G = L.filter(x => x.tipo === tp); if (!G.length) return '';
+        const gl = G.reduce((s, x) => s + x.litros, 0);
+        return `<tr class="dia-gr"><td colspan="9" style="background:var(--bg-2,rgba(127,127,127,.08));font-weight:800;font-size:12px;letter-spacing:.04em;text-transform:uppercase;padding:9px 12px;${tp === 'veic' ? 'border-top:10px solid transparent;background-clip:padding-box' : ''}">${tp === 'diesel' ? '⛽ Diesel · máquinas e caminhões' : '🚗 Combustível · veículos leves'} <span style="font-weight:600;text-transform:none;letter-spacing:0;opacity:.75;margin-left:8px">${G.length} abastecimento(s) · ${_fmtN(gl)} L</span></td></tr>` + G.map(x => { const al = x.tipo === 'diesel' && typeof _absAlertas === 'function' ? _absAlertas(x.d) : [];
         return `<tr><td class="td-mono">${E(x.hora || '—')}</td><td><span class="dia-tg ${x.tipo === 'diesel' ? 'ent' : 'sai'}">${x.tipo === 'diesel' ? 'Diesel' : 'Veículo leve'}</span></td><td><b>${E(x.quem)}</b></td><td class="td-mono" style="text-align:right">${_fmtN(x.litros)}</td>
-        <td class="td-mono" style="text-align:right">${E(x.med || '—')}</td><td>${E(x.onde || '—')}</td><td class="mu">${E(x.por || '—')}</td><td>${_diaGeoLink(x.geo)}</td><td>${al.length ? al.map(a => `<span class="dia-tg al">⚠ ${E(a.txt)}</span>`).join(' ') : '<span class="mu">—</span>'}</td></tr>`; }).join('') || '<tr><td colspan="9" class="mu" style="text-align:center;padding:14px">Nenhum abastecimento no dia.</td></tr>'}</tbody></table></div>
+        <td class="td-mono" style="text-align:right">${E(x.med || '—')}</td><td>${E(x.onde || '—')}</td><td class="mu">${E(x.por || '—')}</td><td>${_diaGeoLink(x.geo)}</td><td>${al.length ? al.map(a => `<span class="dia-tg al">⚠ ${E(a.txt)}</span>`).join(' ') : '<span class="mu">—</span>'}</td></tr>`; }).join(''); }).join('') || '<tr><td colspan="9" class="mu" style="text-align:center;padding:14px">Nenhum abastecimento no dia.</td></tr>'}</tbody></table></div>
       ${L.length ? `<div class="dx-sub" style="margin-top:6px">${nGeo} de ${L.length} com localização · os com local aparecem no mapa do dia com o ícone ⛽</div>` : ''}`;
     if (tb) { tb.insertAdjacentHTML('beforebegin', corpo); tb.remove(); }
     // contagem no título do bloco
