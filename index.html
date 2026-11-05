@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.32 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.33 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -15382,6 +15382,63 @@ function repMudaQuarto(mid, cod) {
   const oX = window.exportarAlojados; if (oX) window.exportarAlojados = exportarAlojados = function () {
     const oA = XLSX.utils.aoa_to_sheet; XLSX.utils.aoa_to_sheet = function (aoa) { try { const l = _alojLista().sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR')); aoa = aoa.map((row, i) => { const c = row.slice(); c.splice(5, 0, i === 0 ? 'Quarto' : ((l[i - 1] || {}).m || {}).quarto || ''); return c; }); } catch (e) {} return oA.call(this, aoa); };
     try { return oX.apply(this, arguments); } finally { XLSX.utils.aoa_to_sheet = oA; } };
+})();
+
+
+// ═══════════════════════════════════════════════════════════════
+// v3.33: ALOJADOS FORA DO EFETIVO — destaque em amarelo, filtro rápido e "🔗 Vincular" ao funcionário certo
+// (com sugestão pelo nome parecido; o nome que veio da planilha fica guardado como "nome anterior")
+// ═══════════════════════════════════════════════════════════════
+let _alojSoFora = false;
+function _vinSug(nome, obra) {
+  const t = _bsNorm(nome).split(/\s+/).filter(x => x.length > 2 && !['dos', 'das', 'de', 'da', 'do'].includes(x)); if (!t.length) return [];
+  return (dados.funcionarios || []).filter(f => !obra || !f.obra || f.obra === obra).map(f => { const n = _bsNorm(f.nome); const pts = t.filter(x => n.includes(x)).length + (n.startsWith(t[0]) ? 1 : 0); return { f, pts }; })
+    .filter(x => x.pts >= 2).sort((a, b) => b.pts - a.pts).slice(0, 5).map(x => x.f);
+}
+function alojVincular(rid, mid) {
+  const r = (dados.republicas || []).find(x => x.id === rid), m = r && (r.moradores || []).find(x => x.id === mid); if (!m) return;
+  window._vin = { rid, mid };
+  const ocup = new Set((dados.republicas || []).flatMap(x => repMoradores(x).map(y => y.func)).filter(Boolean));
+  const fs = (dados.funcionarios || []).filter(f => (!r.obra || !f.obra || f.obra === r.obra) && !ocup.has(f.id)).sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
+  const sug = _vinSug(m.nome, r.obra).filter(f => !ocup.has(f.id));
+  document.getElementById('vin-info').innerHTML = `Na planilha de alojamento: <b>${_e(m.nome)}</b>${m.funcao ? ' · ' + _e(m.funcao) : ''}<br><span style="color:var(--text-3)">${_e(r.cod)} · ${_e(r.nome)}${m.quarto ? ' · Quarto ' + _e(m.quarto) : ''}</span>`;
+  document.getElementById('vin-sug').innerHTML = sug.length ? 'Parecidos no efetivo: ' + sug.map(f => `<button type="button" class="btn btn-outline btn-sm" style="margin:3px 4px 0 0" onclick="document.getElementById('vin-func').value='${f.id}';buscaSelectSync('vin-func')">${_e(f.nome)} · ${_e(f.mat)}</button>`).join('') : '<span style="color:var(--text-3)">Nenhum nome parecido no efetivo — se a pessoa ainda não foi cadastrada, cadastre em Funcionários e volte aqui.</span>';
+  const sel = document.getElementById('vin-func'); sel.innerHTML = '<option value="">Escolha o funcionário…</option>' + fs.map(f => `<option value="${f.id}">${_e(f.nome)} · Mat. ${_e(f.mat || '—')}${f.funcao ? ' · ' + _e(f.funcao) : ''}</option>`).join('');
+  buscaSelect('vin-func', 'Digite nome ou matrícula…'); sel.value = sug[0] ? sug[0].id : ''; buscaSelectSync('vin-func');
+  openModal('modal-vinc');
+}
+function alojVincularSalvar() {
+  const v = window._vin || {}, r = (dados.republicas || []).find(x => x.id === v.rid), m = r && (r.moradores || []).find(x => x.id === v.mid); if (!m) return;
+  const f = (dados.funcionarios || []).find(x => x.id === document.getElementById('vin-func').value); if (!f) { toast('Escolha o funcionário.', 'error'); return; }
+  m.nomeAnterior = m.nome; Object.assign(m, { func: f.id, mat: f.mat || '', nome: f.nome, funcao: f.funcao || m.funcao || '' }); delete m.externo;
+  if (db && _firebaseReady) fbSave('republicas', r.id, r).catch(() => toast('Ficou só neste computador — não gravou no servidor.', 'error'));
+  closeModal('modal-vinc'); renderAlojados(); try { renderRepublicas(); } catch (e) {} toast(m.nomeAnterior + ' → ' + f.nome + ' (Mat. ' + f.mat + ')');
+}
+(function () {
+  document.body.insertAdjacentHTML('beforeend', `<div class="modal-overlay" id="modal-vinc"><div class="modal" style="max-width:560px">
+    <div class="modal-header"><span class="modal-title">Vincular ao funcionário do efetivo</span><button class="modal-close" onclick="closeModal('modal-vinc')">×</button></div>
+    <div class="modal-body"><div id="vin-info" style="font-size:13px;margin-bottom:10px"></div><div id="vin-sug" style="font-size:12.5px;margin-bottom:12px"></div>
+      <div class="form-group"><label class="form-label" for="vin-func">Funcionário do efetivo</label><select class="form-control" id="vin-func"></select></div></div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-vinc')">Cancelar</button><button class="btn btn-primary" onclick="alojVincularSalvar()">🔗 Vincular</button></div></div></div>`);
+  const css = document.createElement('style'); css.textContent = `#tbody-alojados tr.aloj-fora>td{background:rgba(245,158,11,.10)}#tbody-alojados tr.aloj-fora>td:first-child{box-shadow:inset 3px 0 0 #F59E0B}`; document.head.appendChild(css);
+  const oR = window.renderAlojados;
+  window.renderAlojados = renderAlojados = function () {
+    const oL = window._alojLista; if (_alojSoFora) window._alojLista = _alojLista = function () { return oL.apply(this, arguments).filter(x => !x.m.func); };
+    let r; try { r = oR.apply(this, arguments); } finally { window._alojLista = _alojLista = oL; }
+    // destaque nas linhas fora do efetivo
+    const todos = _alojLista(), fora = todos.filter(x => !x.m.func);
+    const rows = [...document.querySelectorAll('#tbody-alojados tr')], lst = (_alojSoFora ? fora : null);
+    // reconstrói a correspondência linha → morador pela ordem em que foram desenhadas
+    const ft = document.getElementById('filtro-aloj-tipo')?.value || '', fr = document.getElementById('filtro-aloj-rep')?.value || '', bs = (document.getElementById('search-aloj')?.value || '').toLowerCase();
+    const vis = (lst || todos).filter(x => (!ft || (x.r.tipo || 'República') === ft) && (!fr || x.r.id === fr) && (!bs || [x.nome, x.mat, x.funcao].some(t => String(t).toLowerCase().includes(bs)))).sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
+    rows.forEach((tr, i) => { const x = vis[i]; if (!x || x.m.func || tr.children.length < 5) return; tr.classList.add('aloj-fora');
+      const tdMat = [...tr.children].find(td => td.classList.contains('td-mono') && td.textContent.trim() === '—' && td.previousElementSibling && td.previousElementSibling.querySelector('b'));
+      if (tdMat) tdMat.innerHTML = '<span class="tag tag-amber" title="Não encontrado no efetivo (CLT/PJ)">⚠ fora do efetivo</span>';
+      const bt = tr.querySelector('button[onclick^="repMoradoresAbrir"]'); if (bt) bt.parentElement.style.whiteSpace = 'nowrap'; if (bt) bt.insertAdjacentHTML('beforebegin', `<button class="btn btn-sm" style="background:#F59E0B;color:#fff;border-color:#F59E0B;margin-right:4px" onclick="alojVincular('${x.r.id}','${x.m.id}')">🔗 Vincular</button>`); });
+    const rs = document.getElementById('aloj-resumo');
+    if (rs && fora.length) rs.insertAdjacentHTML('beforeend', ` · <a href="#" style="color:#B45309;font-weight:700" onclick="_alojSoFora=!_alojSoFora;renderAlojados();return false">⚠ ${fora.length} fora do efetivo${_alojSoFora ? ' — mostrar todos' : ' — ver só eles'}</a>`);
+    return r;
+  };
 })();
 
 // Apply configs on load
