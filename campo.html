@@ -883,7 +883,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.76</div>
+  <div class="login-versao">ObraKontrol Campo · v2.77</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -3938,7 +3938,8 @@ function mobRender() {
       <div class="form-group"><label class="form-label">Modelo *</label>${sel('mob-mod', mods.map(m => [m.cod, m.nome || m.cod]).concat([['__novo', '+ Modelo novo (não está na lista)']]), mob.modelo, 'Escolha o modelo…', "mobCampo('modelo',this.value);mobRender()")}
         ${mob.modelo === '__novo' ? `<input class="form-control" style="margin-top:8px" placeholder="Nome do modelo, ex.: Volvo EC220" value="${_mobEsc(mob.modeloNovo)}" oninput="mob.modeloNovo=this.value"/>` : ''}</div>
       <div class="form-group"><label class="form-label">Empresa proprietária *</label>${sel('mob-prop', emps.map(e => [e.cod, (e.cod ? e.cod + ' · ' : '') + (e.nome || e.razao || '')]), mob.prop, 'Própria ou locadora…', "mob.prop=this.value")}</div>
-      <div class="form-group"><label class="form-label">Placa *</label><input class="form-control" value="${_mobEsc(mob.placa)}" oninput="mob.placa=this.value.toUpperCase()" placeholder="Ex.: ABC1D23" style="text-transform:uppercase"/></div>
+      <div class="form-group"><label class="form-label">Placa</label><input class="form-control" value="${_mobEsc(mob.placa)}" oninput="mob.placa=this.value.toUpperCase()" placeholder="Ex.: ABC1D23 (se tiver)" style="text-transform:uppercase"/></div>
+      <div style="font-size:11.5px;color:var(--text3);margin:-6px 0 8px">Preencha <b>placa, chassi ou nº de série</b> — pelo menos um. Máquina sem placa (retro, escavadeira…) vai pelo chassi ou série.</div>
       <div style="display:flex;gap:10px"><div class="form-group" style="flex:1"><label class="form-label">Chassi</label><input class="form-control" value="${_mobEsc(mob.chassi)}" oninput="mob.chassi=this.value.toUpperCase()" style="text-transform:uppercase"/></div>
         <div class="form-group" style="flex:1"><label class="form-label">Nº de série</label><input class="form-control" value="${_mobEsc(mob.serie)}" oninput="mob.serie=this.value"/></div></div>
       <div class="form-group"><label class="form-label">Validade do documento (CRLV / licenciamento)</label><input class="form-control" type="date" data-futuro="1" value="${_mobEsc(mob.docVal)}" oninput="mob.docVal=this.value"/></div>
@@ -4010,7 +4011,7 @@ async function mobSigNome(k) {
 function mobSigLimpar(k) { mob[k === 'rec' ? 'sigRecTipo' : 'sigEntTipo'] = null; mob[k === 'rec' ? 'sigRec' : 'sigEnt'] = ''; const c = document.getElementById('sig-' + k); if (c) c.getContext('2d').clearRect(0, 0, c.width, c.height); }
 function _mobFalta(p) {
   const f = [];
-  if (p === 0) { if (!usuarioCampo.obra && !mob.obra) f.push('a obra'); if (!mob.familia) f.push('a família'); if (!mob.modelo || (mob.modelo === '__novo' && !mob.modeloNovo.trim())) f.push('o modelo'); if (!mob.prop) f.push('a empresa proprietária'); if (!mob.placa.trim()) f.push('a placa'); }
+  if (p === 0) { if (!usuarioCampo.obra && !mob.obra) f.push('a obra'); if (!mob.familia) f.push('a família'); if (!mob.modelo || (mob.modelo === '__novo' && !mob.modeloNovo.trim())) f.push('o modelo'); if (!mob.prop) f.push('a empresa proprietária'); if (!mob.placa.trim() && !String(mob.chassi || '').trim() && !String(mob.serie || '').trim()) f.push('a placa, o chassi ou o nº de série'); }
   if (p === 1) { if (!String(mob.hor).trim()) f.push('o horímetro'); if (!mob.fotoHor) f.push('a foto do horímetro'); if (!mob.comb) f.push('o combustível na chegada'); }
   if (p === 2) { const sem = mob.check.filter(c => !c.st).length; if (sem) f.push(sem + ' item(ns) do checklist'); mob.check.forEach((c, i) => { if (c.st === 'nok' && (!c.obs.trim() || !c.foto)) f.push('observação e foto do item ' + (i + 1)); }); }
   if (p === 3) { MOB_FOTOS.forEach(([k, t]) => { if (!mob.fotos[k]) f.push('foto ' + t.toLowerCase()); }); mob.avarias.forEach((a, i) => { if (!a.desc.trim() || !a.foto) f.push('descrição e foto da avaria ' + (i + 1)); }); }

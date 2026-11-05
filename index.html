@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.66 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.67 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -5365,7 +5365,8 @@ function salvarEquipamento() {
   const familia   = document.getElementById('equip-familia').value;
   const prop      = document.getElementById('equip-prop').value;
   if (!tag_eq)    { toast('TAG é obrigatória', 'error'); return; }
-  if (!codModelo||!placa||!familia) { toast('Preencha Modelo, Placa/Série e Família', 'error'); return; }
+  if (!codModelo||!familia) { toast('Preencha Modelo e Família', 'error'); return; }
+  if (!placa && !(document.getElementById('equip-chassi')?.value||'').trim() && !(document.getElementById('equip-serie')?.value||'').trim()) { toast('Informe a placa, o chassi ou o nº de série (pelo menos um).', 'error'); return; }   // v3.67: máquina sem placa
   if (!prop) { toast('Escolha a empresa proprietária (cadastre em Cadastros → Empresas, se não estiver na lista)', 'error'); return; }
   // verificar TAG duplicada
   if (dados.equipamentos.some(e=>e.tag&&e.tag.toLowerCase()===tag_eq.toLowerCase())) {
