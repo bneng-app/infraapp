@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.68 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.69 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -3123,7 +3123,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
         <div class="form-group form-full" style="border-top:1px solid var(--border);padding-top:10px;margin-top:4px"><label class="form-label">Locação (equipamento de terceiro)</label>
           <select class="form-control" id="equip-cobranca" onchange="_equipLocVer()"><option value="">Não se aplica</option><option value="Mês">Mensal com franquia de horas</option><option value="Hora">Por hora</option></select></div>
         <div class="form-group equip-loc-x" style="display:none"><label class="form-label" id="equip-valor-lbl">Valor mensal (R$)</label><input class="form-control" id="equip-valor" type="number" step="0.01" min="0"/></div>
-        <div class="form-group equip-loc-x" style="display:none"><label class="form-label">Franquia (h/mês)</label><input class="form-control" id="equip-franquia" type="number" step="1" min="0" placeholder="Ex.: 200"/></div>
+        <div class="form-group equip-loc-x" style="display:none"><label class="form-label" id="equip-franquia-lbl">Franquia (h/mês)</label><input class="form-control" id="equip-franquia" type="number" step="1" min="0" placeholder="Ex.: 200"/></div>
         <div class="form-group"><label class="form-label">Custo por hora sem diesel (R$)</label><input class="form-control" id="equip-custo" type="number" step="0.01" min="0" placeholder="Ex.: 180,00"/>
           <div style="font-size:11px;color:var(--text-3);margin-top:3px">Vale para horas produtivas e paradas.</div></div>
       </div>
@@ -8489,7 +8489,7 @@ const IMPORT_DEF = {
                             direto, admissao:excelDataParaISO(g(['admissão','admissao'])), demissao:excelDataParaISO(g(['demissão','demissao']))||'', lider:g(['matr. líder','matr. lider','matrícula do líder','matricula do lider','matrícula líder','matricula lider']), equipe:g(['cód. equipe','cod. equipe','equipe']),
                             _ga: ga,
                             apropriador: /^s/i.test(String(g(['apropriador']) || '')) ? 'Sim' : 'Não', tel:String(g(['telefone','whatsapp','celular']) || '') }; }, ok:x=>x.mat&&x.nome },
-  equipamentos: { rotulo:'Equipamentos', porObra:true, chave:'tag', col:['TAG','Placa/Série','Família','Modelo','Empresa proprietária (código)','Status (Mobilizado / Em manutenção / Desmobilizado)','Data Mobilização (DD/MM/AAAA)','Data Desmobilização (DD/MM/AAAA)','Custo/hora sem diesel (R$)','Tipo de cobrança (Hora/Mês)','Valor da locação (R$)','Franquia (h/mês)'],
+  equipamentos: { rotulo:'Equipamentos', porObra:true, chave:'tag', col:['TAG','Placa/Série','Família','Modelo','Empresa proprietária (código)','Status (Mobilizado / Em manutenção / Desmobilizado)','Data Mobilização (DD/MM/AAAA)','Data Desmobilização (DD/MM/AAAA)','Custo/hora sem diesel (R$)','Tipo de cobrança (Hora/Mês)','Valor da locação (R$)','Franquia ou hora mínima (h/mês)'],
                   map:g=>({ tag:g(['tag']), placa:g(['placa','série','serie']), codModelo:g(['cód. modelo','cod. modelo','modelo']), familia:g(['família','familia']), prop:g(['propriet','empresa']),
                             _st:g(['status']), dataMob:excelDataParaISO(g(['data mobiliza','dt. mobiliza','dt mobiliza','mobilização (','mobilizacao (','mobiliza'])), dataDesmob:excelDataParaISO(g(['desmobiliza'])), custoHora:_numImport(g(['custo'])),
                             _cob:g(['cobran']), valorLoc:_numImport(g(['valor da loca','valor loca','valor'])), franquiaH:_numImport(g(['franquia'])) }), ok:x=>x.tag },
@@ -11398,7 +11398,9 @@ async function _efAplicar() {
   if (typeof oEQ === 'function') window.dxRenderEQ = function () { const r = oEQ.apply(this, arguments); try { _dxLocacao(); } catch (e) { console.warn('locação', e); } return r; };
 })();
 function _equipLocVer() { const c = document.getElementById('equip-cobranca')?.value || ''; document.querySelectorAll('.equip-loc-x').forEach(el => el.style.display = c ? '' : 'none');
-  const f = document.getElementById('equip-franquia')?.closest('.form-group'); if (f) f.style.display = c === 'Mês' ? '' : 'none';
+  const f = document.getElementById('equip-franquia')?.closest('.form-group'); if (f) f.style.display = c ? '' : 'none';
+  const fl = document.getElementById('equip-franquia-lbl'); if (fl) fl.textContent = c === 'Hora' ? 'Hora mínima no mês (h) — opcional' : 'Franquia (h/mês)';
+  const fi = document.getElementById('equip-franquia'); if (fi) fi.placeholder = c === 'Hora' ? 'Ex.: 200 (paga 200 mesmo se trabalhar menos)' : 'Ex.: 200';
   const l = document.getElementById('equip-valor-lbl'); if (l) l.textContent = c === 'Hora' ? 'Valor por hora (R$)' : 'Valor mensal (R$)'; }
 // medição de locação: horas produtivas apontadas × franquia, por locadora e mês
 function _locMedicao(eqAps) {
@@ -11407,7 +11409,7 @@ function _locMedicao(eqAps) {
     const k = e.id + '|' + String(a.data || '').slice(0, 7); const x = porEq.get(k) || { e, mes: String(a.data || '').slice(0, 7), hp: 0, hpar: 0 }; x.hp += +a.hp || 0; x.hpar += +a.hpar || 0; porEq.set(k, x); });
   return [...porEq.values()].map(x => { const e = x.e;
     let valor = 0, exc = 0;
-    if (e.cobranca === 'Hora') valor = x.hp * e.valorLoc;
+    if (e.cobranca === 'Hora') { const m = _locMinimo(e, x.mes); x.minimo = m.h; x.diasMob = m.dias; x.diasMes = m.diasMes; x.pagas = Math.max(x.hp, m.h); valor = x.pagas * e.valorLoc; }   // v3.69: hora mínima do mês, proporcional aos dias mobilizados
     else { exc = e.franquiaH ? Math.max(0, x.hp - e.franquiaH) : 0; valor = e.valorLoc + (e.franquiaH ? exc * e.valorLoc / e.franquiaH : 0); }
     return { ...x, loc: e.prop || '—', exc, falta: e.cobranca === 'Mês' && e.franquiaH ? Math.max(0, e.franquiaH - x.hp) : 0, valor }; })
     .sort((a, b) => a.loc.localeCompare(b.loc) || b.mes.localeCompare(a.mes) || String(a.e.tag).localeCompare(String(b.e.tag)));
@@ -11424,12 +11426,12 @@ function _dxLocacao() {
     const linhas = []; let loc = null, sub = 0;
     const fecha = () => { if (loc !== null) linhas.push(`<tr style="font-weight:800">${_td('Total ' + _e(loc))}${_td('')}${_td('')}${_td('')}${_td('')}${_td('')}${_td(_moeda(sub), 'n')}</tr>`); };
     ls.forEach(x => { if (x.loc !== loc) { fecha(); loc = x.loc; sub = 0; } sub += x.valor;
-      const fr = x.e.cobranca === 'Mês' ? _h(x.e.franquiaH) : '—';
-      const sit = x.e.cobranca === 'Hora' ? '<span style="color:var(--mu)">por hora</span>' : x.exc ? `<b style="color:#F87171">+${_h(x.exc)} excedente</b>` : x.falta ? `<span style="color:#FBBF24">${_h(x.falta)} abaixo da franquia</span>` : '<span style="color:#4ADE80">na franquia</span>';
+      const fr = x.e.cobranca === 'Mês' ? _h(x.e.franquiaH) : x.minimo ? 'mín. ' + _h(x.minimo) + (x.diasMob < x.diasMes ? ` <span style="color:var(--mu);font-size:11px">(${x.diasMob} de ${x.diasMes} dias)</span>` : '') : '—';
+      const sit = x.e.cobranca === 'Hora' ? (x.minimo && x.hp < x.minimo ? `<span style="color:#FBBF24">paga o mínimo: ${_h(x.minimo)} (faltaram ${_h(x.minimo - x.hp)})</span>` : '<span style="color:var(--mu)">por hora</span>') : x.exc ? `<b style="color:#F87171">+${_h(x.exc)} excedente</b>` : x.falta ? `<span style="color:#FBBF24">${_h(x.falta)} abaixo da franquia</span>` : '<span style="color:#4ADE80">na franquia</span>';
       linhas.push(`<tr>${_td('<b>' + _e(x.loc) + '</b>')}${_td('<b>' + _e(x.e.tag || x.e.placa || '') + '</b>')}${_td(mesTxt(x.mes))}${_td(_h(x.hp), 'n')}${_td(fr, 'n')}${_td(sit)}${_td(_moeda(x.valor), 'n')}</tr>`); });
     fecha();
     corpo = `<div class="dx-scroll">${_tb(['Locadora', 'TAG', 'Mês', 'Horas produtivas', 'Franquia', 'Situação', 'Valor estimado'], linhas, ['', '', '', 'n', 'n', '', 'n'])}</div>
-      <div style="font-size:11px;color:var(--mu);margin-top:8px">Mensal: valor do mês + horas além da franquia × (valor ÷ franquia). Por hora: horas produtivas × valor. Só apontamentos aprovados. Use para conferir a medição da locadora.</div>`;
+      <div style="font-size:11px;color:var(--mu);margin-top:8px">Mensal: valor do mês + horas além da franquia × (valor ÷ franquia). Por hora: maior entre horas produtivas e a hora mínima (proporcional aos dias mobilizados no mês) × valor. Só apontamentos aprovados. Use para conferir a medição da locadora.</div>`;
   }
   main.insertAdjacentHTML('beforeend', `<div class="dx-loc" style="margin-top:12px">${_pn(_ic.grid, 'Locação de terceiros — medição do período', corpo)}</div>`);
 }
@@ -16235,6 +16237,14 @@ function _alojEfetivo(at) {
   return `<div class="dx-grid" style="grid-template-columns:1fr 1.3fr;margin-bottom:12px">
     ${_pn(_ic.pie || _ic.users, 'Efetivo alojado', _donut([{ l: 'Alojados', v: a }, { l: 'Não alojados', v: n - a }], p + '%', 'do efetivo', v => v + ' pessoa(s)'), a + ' de ' + n + ' mobilizados')}
     ${_pn(_ic.users, 'Quanto de cada grupo está alojado', `<div class="dx-hb">${barras.map(r => `<div class="l">${_e(r.l)}</div><div class="t"><i style="width:${Math.min(100, r.v)}%;background:var(--rd)"></i></div><div class="v">${r.t}</div>`).join('')}</div>` + '<div style="font-size:11.5px;color:var(--mu);margin-top:8px">Efetivo mobilizado = funcionários ativos da obra (sem demissão). Quem mora numa república mas não está no efetivo não entra nesta conta.</div>', '% sobre o efetivo de cada grupo')}</div>`;
+}
+// v3.69: hora mínima mensal na cobrança por hora — proporcional aos dias mobilizados no mês
+function _locMinimo(e, mes) {
+  const [a, m] = mes.split('-').map(Number), diasMes = new Date(a, m, 0).getDate(), ini = mes + '-01', fim = mes + '-' + String(diasMes).padStart(2, '0');
+  const di = e.dataMob && e.dataMob > ini ? e.dataMob : ini, df = e.dataDesmob && e.dataDesmob < fim ? e.dataDesmob : fim;
+  const dias = di > df ? 0 : Math.round((new Date(df + 'T12:00') - new Date(di + 'T12:00')) / 864e5) + 1;
+  const h = +e.franquiaH ? Math.round(+e.franquiaH * dias / diasMes * 10) / 10 : 0;
+  return { h, dias, diasMes };
 }
 // Apply configs on load
 setTimeout(applyConfigs, 200);
