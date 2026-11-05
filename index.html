@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.53 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.55 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -14515,9 +14515,12 @@ function dxRenderAloj() {
         <div style="display:grid;gap:12px;align-content:start">
           ${_pn(_ic.pie || _ic.users, 'Alojados · custo direto × indireto', _donut(Object.entries(porTc).filter(([, v]) => v).map(([l, v]) => ({ l, v })), String(ocup), 'alojados', v => v + ' pessoa(s)'), 'pelo cadastro do funcionário')}
           ${_pn(_ic.users, 'Top 10 funções alojadas', _hbars(fnTop.map(([l, v]) => ({ l, v, t: v + '' }))) + (fnResto.length ? `<div style="font-size:11.5px;color:var(--mu);margin-top:8px">+ ${fnResto.length} outra(s) função(ões) com ${fnResto.reduce((s, x) => s + x[1], 0)} pessoa(s)</div>` : ''))}</div></div>
-      <div class="dx-grid" style="grid-template-columns:1.3fr 1fr;margin-bottom:12px">
-        ${_pn(_ic.trend, 'Entradas e saídas por mês', `<div class="dx-leg" style="margin-bottom:8px"><span><i style="background:#22C55E"></i>Entradas</span><span><i style="background:#7A7A82"></i>Saídas</span></div>` + _vbars(meses.map(m => ({ l: _mesTxt(m).slice(0, 3) + '/' + m.slice(2, 4), e: mov[m].e, s: mov[m].s })), '', [{ k: 'e', cor: '#22C55E' }, { k: 's', cor: '#7A7A82' }]))}
-        ${_pn(_ic.cal, 'Contratos vencendo (60 dias)', _dxVenc(venc))}</div>
+      ${_alojVencFaixa(venc)}
+      <div class="dx-grid" style="grid-template-columns:1fr 1fr;margin-bottom:12px">
+        ${_pn(_ic.alert || _ic.users, 'Desligados ainda alojados', _alojDeslig(at), 'demitidos sem "Dar saída"')}
+        ${_pn(_ic_casa, 'Vagas livres por casa', _alojVagasLivres(at), 'onde dá para alojar')}</div>
+      <div class="dx-grid" style="grid-template-columns:1fr;margin-bottom:12px">
+        ${_pn(_ic.trend, 'Entradas e saídas por mês', `<div class="dx-leg" style="margin-bottom:8px"><span><i style="background:#22C55E"></i>Entradas</span><span><i style="background:#7A7A82"></i>Saídas</span></div>` + _vbars(meses.map(m => ({ l: _mesTxt(m).slice(0, 3) + '/' + m.slice(2, 4), e: mov[m].e, s: mov[m].s })), '', [{ k: 'e', cor: '#22C55E' }, { k: 's', cor: '#7A7A82' }]))}</div>
       ${_pn(_ic_casa, 'Repúblicas e alojamentos', `<div class="dx-scroll">${_tb(['República', 'Tipo', 'Endereço', 'Proprietário', 'Vagas', 'Ocupadas', 'Livres', 'Ocupação', 'Fim do contrato'],
           at.sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR')).map(r => { const o = repMoradores(r).length, v = +r.vagas || 0, p = v ? o / v : 0;
             return `<tr>${_td('<b>' + _e(r.nome) + '</b><div class="mu" style="font-size:10.5px">' + _e(r.cod || '') + '</div>')}${_td(_e(r.tipo || '—'), 'mu')}${_td(_e(r.endereco || '—'), 'mu')}${_td(_e(r.responsavel || '—'))}${_td(v, 'n')}${_td(o, 'n')}${_td(Math.max(0, v - o), 'n')}
@@ -14532,7 +14535,9 @@ function dxRenderAloj() {
         ${_kpi(_ic.box, _moeda(vazio), 'Pago em vagas vazias', livres + ' vaga(s) livre(s) · ' + pct(vazio, ct) + ' do custo', vazio ? '#F59E0B' : '', vazio > 0)}
         ${_kpi(_ic_casa, vagas ? _moeda(ct / vagas) : '—', 'Custo por vaga', 'se tudo estivesse ocupado')}</div>
       <div class="dx-grid" style="grid-template-columns:1.2fr 1fr;margin-bottom:12px">
-        ${_pn(_ic_casa, 'Custo por república', `<div class="dx-leg" style="margin-bottom:8px"><span><i style="background:#E30613"></i>Usado</span><span><i style="background:#F59E0B"></i>Vagas vazias</span></div>` + _hstack(at.map(r => { const c = repCusto(r), v = +r.vagas || 0, o = repMoradores(r).length, vz = v > o && v ? c / v * (v - o) : 0; return { l: r.nome, a: c - vz, b: vz }; }).sort((a, b) => (b.a + b.b) - (a.a + a.b)), ['#E30613', '#F59E0B'], x => _moeda(x.a + x.b)))}
+        ${_pn(_ic_casa, 'Custo por república', `<div class="dx-leg" style="margin-bottom:8px"><span><i style="background:#E30613"></i>Usado</span><span><i style="background:#F59E0B"></i>Pago em vagas vazias</span><span style="opacity:.7">cada barra = 100% do custo daquela casa</span></div>`
+          + (() => { const rs = at.map(r => { const c = repCusto(r), v = +r.vagas || 0, o = repMoradores(r).length, vz = v > o && v ? c / v * (v - o) : 0; return { l: r.nome, c, vz }; }).filter(x => x.c).sort((a, b) => b.c - a.c); if (!rs.length) return '<div class="dx-vazio">Sem custo cadastrado</div>';
+              return `<div class="dx-hb">${rs.map(x => `<div class="l" title="${_e(x.l)}">${_e(x.l)}</div><div class="t"><i style="width:${(x.c - x.vz) / x.c * 100}%;background:#E30613"></i><i style="width:${x.vz / x.c * 100}%;background:#F59E0B"></i></div><div class="v">${_moeda(x.c)}${x.vz ? ` <span style="color:#F59E0B">· vazio ${_moeda(x.vz)}</span>` : ''}</div>`).join('')}</div>`; })())}
         ${_pn(_ic.pie, 'Composição do custo', _donut(comp, _moeda(ct), 'por mês', v => _moeda(v)))}</div>
       ${_pn(_ic.users, 'Custo por pessoa em cada república', _hbars(porPes.map(x => ({ ...x, t: _moeda(x.v) })), '#F59E0B'), 'média ' + (ocup ? _moeda(ct / ocup) : '—'), 'margin-bottom:12px')}
       ${_pn(_ic.cal, 'Custos por república', `<div class="dx-scroll">${_tb(['República', 'Aluguel', 'Água', 'Luz', 'Internet', 'Extras', 'Total / mês', 'Moradores', 'Por pessoa', 'Por vaga'],
@@ -15942,6 +15947,27 @@ function repMudaEntrada(mid, v) {
     if (x && (x.dataContrato || '') !== dc) { x.dataContrato = dc; if (db && _firebaseReady) fbSave('republicas', x.id, x).catch(() => {}); }
     return r; };
 })();
+// v3.54: dash de alojamentos — vencimento numa faixa; "Desligados ainda alojados" e "Vagas livres por casa"
+function _alojVencFaixa(itens) {
+  const l = itens.filter(x => x.data).map(x => ({ ...x, d: _dxDias(x.data) })).sort((a, b) => a.d - b.d), em60 = l.filter(x => x.d <= 60), p = l[0];
+  const cor = em60.some(x => x.d < 0) ? '#FF5A60' : em60.length ? '#F59E0B' : 'var(--mu)';
+  return `<div class="dx-pn" style="margin-bottom:12px;padding:10px 14px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;${em60.length ? 'border-color:' + cor : ''}"><span style="display:flex;gap:8px;align-items:center;font-weight:700">${_ic.cal}Contratos</span>
+    ${em60.length ? `<span style="color:${cor};font-weight:700">${em60.length} vencendo nos próximos 60 dias:</span> ${em60.slice(0, 4).map(x => `<span>${_e(x.t.replace(' · fim do contrato', ''))} <b style="color:${cor}">${x.d < 0 ? 'vencido' : 'em ' + x.d + ' dia(s)'}</b></span>`).join(' · ')}`
+      : `<span style="color:var(--mu)">Nenhum vencendo nos próximos 60 dias ✓</span>${p ? `<span>· Próximo: <b>${_e(p.t.replace(' · fim do contrato', ''))}</b> em ${_frData(p.data)} <span style="color:var(--mu)">(${p.d} dias)</span></span>` : '<span style="color:var(--mu)">· sem data de término cadastrada</span>'}`}</div>`;
+}
+function _alojDeslig(at) {
+  const hj = _hojeLocal(), l = [];
+  at.forEach(r => repMoradores(r).forEach(m => { const f = m.func && (dados.funcionarios || []).find(x => x.id === m.func); if (f && f.demissao && f.demissao <= hj) l.push({ r, m, f, d: Math.round((new Date(hj + 'T12:00') - new Date(f.demissao + 'T12:00')) / 864e5) }); }));
+  if (!l.length) return '<div class="dx-vazio">Ninguém desligado ocupando vaga ✓</div>';
+  l.sort((a, b) => b.d - a.d);
+  return `<div style="font-size:12px;color:#F59E0B;margin-bottom:8px"><b>${l.length}</b> pessoa(s) — dê saída em Repúblicas e alojamentos → 👥 Moradores</div><div class="dd-l" style="max-height:300px">${l.map(x => `<div class="dd-r"><div style="min-width:0;flex:1"><div class="dd-n">${_e(x.f.nome)} <span style="color:var(--mu);font-weight:400">· Mat. ${_e(x.f.mat || '')}</span></div><div class="dd-s">${_e(x.r.cod)} · ${_e(x.r.nome)}${x.m.quarto ? ' · ' + _e(x.m.quarto) : ''}</div></div><div style="text-align:right;white-space:nowrap"><b style="color:#FF5A60">desligado ${_frData(x.f.demissao)}</b><div class="dd-s">há ${x.d} dia(s)</div></div></div>`).join('')}</div>`;
+}
+function _alojVagasLivres(at) {
+  const l = at.map(r => { const o = repMoradores(r).length, v = +r.vagas || 0, c = repCusto(r); return { r, o, v, liv: Math.max(0, v - o), cv: v ? c / v : 0 }; }).filter(x => x.liv > 0).sort((a, b) => b.liv - a.liv);
+  if (!l.length) return '<div class="dx-vazio">Todas as casas estão lotadas</div>';
+  const tot = l.reduce((s, x) => s + x.liv, 0), custo = l.reduce((s, x) => s + x.liv * x.cv, 0);
+  return `<div style="font-size:12px;color:var(--mu);margin-bottom:8px"><b style="color:var(--tx)">${tot}</b> vaga(s) livre(s)${custo ? ' · <b style="color:#F59E0B">' + _moeda(custo) + '</b>/mês pagos em vagas vazias' : ''}</div><div class="dd-l" style="max-height:300px">${l.map(x => `<div class="dd-r"><div style="min-width:0;flex:1"><div class="dd-n">${_e(x.r.nome)} <span style="color:var(--mu);font-weight:400">· ${_e(x.r.cod)}</span></div><div class="dd-s">${x.o} de ${x.v} ocupadas${(x.r.quartos || []).length ? ' · ' + (x.r.quartos || []).filter(q => repMoradores(x.r).filter(m => m.quarto === q.cod).length < (+q.vagas || 0)).map(q => q.cod).slice(0, 6).join(', ') + ((x.r.quartos || []).length > 6 ? '…' : '') : ''}</div></div><div style="text-align:right;white-space:nowrap"><b style="color:#22C55E">${x.liv} livre(s)</b>${x.cv ? `<div class="dd-s">${_moeda(x.cv)}/vaga</div>` : ''}</div></div>`).join('')}</div>`;
+}
 // Apply configs on load
 setTimeout(applyConfigs, 200);
 setTimeout(function() {
