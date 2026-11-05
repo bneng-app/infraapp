@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.60 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.61 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -14896,14 +14896,15 @@ function renderMultas() {
   tb.innerHTML = l.length ? l.map(m => { const d = m.prazo ? _frDias(m.prazo) : null; return `<tr>
       <td class="td-mono">${_abFmtD(m.data)}${m.hora ? '<div style="font-size:11px;color:var(--text-3)">' + _e(m.hora) + '</div>' : ''}</td>
       <td><b>${_e(m.tag || '')}</b> <span class="td-mono">${_e(m.placa || '')}</span></td>
-      <td style="font-size:12.5px"><b>${_e(m.condutor || '—')}</b>${m.condutorAuto ? '<div style="font-size:11px;color:var(--text-3)">responsável na data</div>' : ''}</td>
+      <td style="font-size:12.5px"><b>${_e(m.condutor || '—')}</b><div style="font-size:11px;color:var(--text-3)">${m.condutorIndicado ? 'outro condutor indicado' : m.condutorAuto ? 'responsável pelo veículo' : ''}</div></td>
       <td style="font-size:12.5px">${_e(m.tipo || '—')}<div style="font-size:11px;color:var(--text-3)">${_e([m.orgao, m.ait ? 'AIT ' + m.ait : ''].filter(Boolean).join(' · '))}</div></td>
       <td>${_e(m.gravidade || '—')}<div style="font-size:11px;color:var(--text-3)">${+m.pontos || 0} ponto(s)</div></td>
       <td class="td-mono" style="text-align:right;font-weight:700">${_repMoeda(+m.valor || 0)}</td>
       <td class="td-mono">${m.prazo ? `<span style="color:${_muAberta(m) && d < 0 ? 'var(--red)' : _muAberta(m) && d <= 7 ? 'var(--amber)' : 'inherit'}">${_abFmtD(m.prazo)}</span>${_muAberta(m) ? '<div style="font-size:11px;color:var(--text-3)">' + (d < 0 ? 'vencido' : d === 0 ? 'hoje' : 'em ' + d + ' dia(s)') + '</div>' : ''}` : '—'}</td>
       <td>${tag(_e(m.status || '—'), cor(m.status || ''))}${m.dataPag ? '<div style="font-size:11px;color:var(--text-3)">' + _abFmtD(m.dataPag) + '</div>' : ''}</td>
+      <td>${_muDescTag(m)}</td>
       <td style="white-space:nowrap;text-align:right"><button class="btn btn-outline btn-sm" onclick="muEditar('${m.id}')">✎ Editar</button> <button class="btn btn-outline btn-sm" onclick="muExcluir('${m.id}')" title="Excluir">🗑</button></td></tr>`; }).join('')
-    : '<tr><td colspan="9" style="text-align:center;color:var(--text-3);padding:2rem">Nenhuma multa' + (todas.length ? ' com esse filtro' : '') + '. Clique em <b>+ Nova multa</b>.</td></tr>';
+    : '<tr><td colspan="10" style="text-align:center;color:var(--text-3);padding:2rem">Nenhuma multa' + (todas.length ? ' com esse filtro' : '') + '. Clique em <b>+ Nova multa</b>.</td></tr>';
 }
 function muNova() { muEditar(null); }
 function muEditar(id) {
@@ -14955,7 +14956,7 @@ function muExcluir(id) { const m = (dados.multas || []).find(x => x.id === id); 
       <div id="mu-kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:12px"></div>
       <div class="card"><div class="card-body"><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px"><input class="form-control" id="mu-busca" placeholder="Buscar placa, TAG, condutor, AIT…" oninput="renderMultas()" style="max-width:300px"/>
         <select class="form-control" id="mu-st" onchange="renderMultas()" style="max-width:220px"><option value="abertas">Em aberto</option><option value="">Todas</option>${MU_ST.map(s => `<option>${s}</option>`).join('')}</select></div>
-        <div class="table-wrap"><table><thead><tr><th>Data</th><th>Veículo</th><th>Condutor</th><th>Infração</th><th>Gravidade</th><th style="text-align:right">Valor</th><th>Prazo</th><th>Situação</th><th></th></tr></thead><tbody id="tbody-multas"></tbody></table></div></div></div></div>`);
+        <div class="table-wrap"><table><thead><tr><th>Data</th><th>Veículo</th><th>Condutor</th><th>Infração</th><th>Gravidade</th><th style="text-align:right">Valor</th><th>Prazo</th><th>Situação</th><th>Descontado do funcionário?</th><th></th></tr></thead><tbody id="tbody-multas"></tbody></table></div></div></div></div>`);
   document.body.insertAdjacentHTML('beforeend', `
     <div class="modal-overlay" id="modal-abv"><div class="modal" style="max-width:620px"><div class="modal-header"><span class="modal-title" id="abv-titulo">Novo abastecimento</span><button class="modal-close" onclick="closeModal('modal-abv')">×</button></div>
       <div class="modal-body"><input type="hidden" id="abv-id"/><div class="form-grid">
@@ -16071,6 +16072,87 @@ function _frPorResp(ab, mu, calc, custo) {
   window.renderFrota = renderFrota = function () { const r = oF.apply(this, arguments); const kp = document.getElementById('fr-kpis'); if (!kp) return r;
     const n = _frLista().filter(v => v.status === 'Devolvido').length, sel = document.getElementById('filtro-fr-sit'), on = sel && sel.value === 'Devolvido';
     kp.insertAdjacentHTML('beforeend', `<div class="stat-card" style="cursor:pointer;${on ? 'outline:2px solid var(--red)' : ''}" title="Clique para ver só os devolvidos" onclick="const s=document.getElementById('filtro-fr-sit'); s.value=s.value==='Devolvido'?'':'Devolvido'; renderFrota()"><div class="stat-label">Devolvidos</div><div class="stat-value">${n}</div><div class="stat-sub">${on ? 'mostrando · clique para voltar' : 'clique para ver'}</div></div>`);
+    return r; };
+})();
+// v3.61: MULTA — cadastro simples: veículo → responsável automático; outro condutor só se indicar; controle do desconto do funcionário
+function _muDescTag(m) { const d = _muDesc(m);
+  return d === 'sim' ? `<span class="tag tag-green">Sim</span>${m.descontoData ? '<div style="font-size:11px;color:var(--text-3)">' + _abFmtD(m.descontoData) + '</div>' : ''}` : d === 'nao' ? '<span class="tag tag-gray">Não · empresa assumiu</span>' : '<span class="tag tag-amber">A definir</span>'; }
+function _muDesc(m) { return m.desconto || (m.status === 'Descontada em folha' ? 'sim' : ''); }
+(function () {
+  const md = document.querySelector('#modal-multa .modal'); if (!md) return;
+  const sec = t => `<div class="form-group form-full" style="margin:6px 0 -4px;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3)">${t}</div>`;
+  md.innerHTML = `<div class="modal-header"><span class="modal-title" id="mu-titulo">Nova multa</span><button class="modal-close" onclick="closeModal('modal-multa')">×</button></div>
+    <div class="modal-body"><input type="hidden" id="mu-id"/><div class="form-grid">
+      <div class="form-group form-full" id="mu-obra-box"><label class="form-label">Obra *</label><select class="form-control" id="mu-obra" onchange="document.getElementById('mu-veiculo').innerHTML=_abVeicOpts(this.value,'',true);_muCond()"></select></div>
+      <div class="form-group"><label class="form-label">Veículo *</label><select class="form-control" id="mu-veiculo" onchange="_muCond()"></select></div>
+      <div class="form-group"><label class="form-label">Data da infração *</label><input type="date" class="form-control" id="mu-data" onchange="_muCond()"/></div>
+      <div class="form-group form-full" id="mu-resp-box"></div>
+      <div class="form-group form-full" id="mu-outro-box" style="display:none"><label class="form-label">Quem estava dirigindo</label><input class="form-control" id="mu-condutor" list="mu-conds" placeholder="Digite o nome (do efetivo)"/><datalist id="mu-conds"></datalist></div>
+      ${sec('A multa')}
+      <div class="form-group form-full"><label class="form-label">Infração</label><input class="form-control" id="mu-tipo" placeholder="Ex.: excesso de velocidade até 20%"/></div>
+      <div class="form-group"><label class="form-label">Valor (R$)</label><input type="number" step="0.01" class="form-control" id="mu-valor"/></div>
+      <div class="form-group"><label class="form-label">Gravidade</label><select class="form-control" id="mu-grav">${MU_GRAV.map(([g, p]) => `<option value="${g}">${g} · ${p} pontos</option>`).join('')}</select></div>
+      <div class="form-group"><label class="form-label">Prazo para indicar / recorrer</label><input type="date" class="form-control" id="mu-prazo"/></div>
+      <div class="form-group"><label class="form-label">Situação</label><select class="form-control" id="mu-status">${MU_ST.filter(x => x !== 'Descontada em folha').map(x => `<option>${x}</option>`).join('')}</select></div>
+      ${sec('Desconto do funcionário')}
+      <div class="form-group"><label class="form-label">Foi descontada do funcionário?</label><select class="form-control" id="mu-desc" onchange="document.getElementById('mu-descdata-box').style.display=this.value==='sim'?'':'none'"><option value="">Ainda não definido</option><option value="sim">Sim, descontada</option><option value="nao">Não, a empresa assumiu</option></select></div>
+      <div class="form-group" id="mu-descdata-box" style="display:none"><label class="form-label">Data do desconto</label><input type="date" class="form-control" id="mu-descdata"/></div>
+      <details class="form-group form-full" id="mu-mais" style="margin-top:4px"><summary style="cursor:pointer;font-size:12.5px;color:var(--text-2)">Mais detalhes (opcional): hora, nº do auto, órgão, local, pagamento</summary><div class="form-grid" style="margin-top:10px">
+        <div class="form-group"><label class="form-label">Hora</label><input type="time" class="form-control" id="mu-hora"/></div>
+        <div class="form-group"><label class="form-label">Nº do auto (AIT)</label><input class="form-control" id="mu-ait"/></div>
+        <div class="form-group"><label class="form-label">Órgão autuador</label><input class="form-control" id="mu-orgao" placeholder="Ex.: DER-SP, PRF, Prefeitura"/></div>
+        <div class="form-group"><label class="form-label">Data do pagamento</label><input type="date" class="form-control" id="mu-pag"/></div>
+        <div class="form-group form-full"><label class="form-label">Local</label><input class="form-control" id="mu-local"/></div>
+        <div class="form-group form-full"><label class="form-label">Observações</label><input class="form-control" id="mu-obs"/></div></div></details>
+    </div></div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-multa')">Cancelar</button><button class="btn btn-primary" onclick="salvarMulta()">Salvar</button></div>`;
+  window._muOutro = function (on) { const $ = k => document.getElementById(k); $('mu-outro-box').style.display = on ? '' : 'none'; if (on) setTimeout(() => $('mu-condutor').focus(), 50); else $('mu-condutor').value = ''; _muCond(); };
+  window._muCond = _muCond = function () { const $ = k => document.getElementById(k), v = _abVeic($('mu-veiculo').value), d = $('mu-data').value, box = $('mu-resp-box'); if (!box) return;
+    const r = v ? (d ? (muCondutorNaData(v, d) || _frRespNaData(v, d)) : frRespAtual(v) || _frRespNaData(v, '')) : null, outro = $('mu-outro-box').style.display !== 'none';
+    const f = r && r.func ? (dados.funcionarios || []).find(x => x.id === r.func) : null, fun = (f && typeof _fnFuncaoNome === 'function' && _fnFuncaoNome(f)) || (r && r.funcao) || '';
+    box.innerHTML = !v ? '<div style="font-size:12.5px;color:var(--text-3)">Escolha o veículo: a multa vai para o responsável por ele.</div>'
+      : `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface-2,rgba(127,127,127,.06))">
+          <div><div style="font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.08em;font-weight:700">Responsável pelo veículo${d ? ' em ' + _abFmtD(d) : ''}</div>
+          ${r ? `<div style="font-size:14px;font-weight:700;${outro ? 'text-decoration:line-through;opacity:.6' : ''}">${_e(r.nome)}</div><div style="font-size:11.5px;color:var(--text-3)">${_e([r.mat || (f && f.mat) ? 'Mat. ' + (r.mat || f.mat) : '', fun].filter(Boolean).join(' · '))}</div>` : '<div style="color:var(--amber);font-weight:700">Sem responsável registrado</div>'}</div>
+          <label style="display:flex;gap:6px;align-items:center;font-size:12.5px;cursor:pointer"><input type="checkbox" ${outro ? 'checked' : ''} onchange="_muOutro(this.checked)"/> Outra pessoa estava dirigindo</label></div>`;
+  };
+  window.muEditar = muEditar = function (id) {
+    const m = id ? (dados.multas || []).find(x => x.id === id) : null, $ = k => document.getElementById(k), ob = _okObraAtual();
+    $('mu-titulo').textContent = m ? 'Editar multa' : 'Nova multa'; $('mu-id').value = m ? m.id : '';
+    popularSelectObra('mu-obra', m ? m.obra : (ob !== 'todas' ? ob : '')); $('mu-obra-box').style.display = !m && ob !== 'todas' ? 'none' : '';
+    $('mu-veiculo').innerHTML = _abVeicOpts($('mu-obra').value, m && m.veicId, true); $('mu-veiculo').value = m ? m.veicId : '';
+    [['data', 'data'], ['hora', 'hora'], ['ait', 'ait'], ['orgao', 'orgao'], ['tipo', 'tipo'], ['local', 'local'], ['prazo', 'prazo'], ['pag', 'dataPag'], ['obs', 'obs'], ['descdata', 'descontoData']].forEach(([c, k]) => $('mu-' + c).value = m ? (m[k] || '') : '');
+    $('mu-grav').value = m ? (m.gravidade || 'Média') : 'Média'; $('mu-valor').value = m && +m.valor ? m.valor : '';
+    $('mu-status').value = m ? (m.status === 'Descontada em folha' ? 'Paga' : (m.status || MU_ST[0])) : MU_ST[0];
+    $('mu-desc').value = m ? _muDesc(m) : ''; $('mu-descdata-box').style.display = $('mu-desc').value === 'sim' ? '' : 'none';
+    $('mu-mais').open = !!(m && (m.ait || m.orgao || m.local || m.obs || m.hora || m.dataPag));
+    $('mu-conds').innerHTML = [...new Set((dados.funcionarios || []).map(f => f.nome).filter(Boolean))].sort().map(n => `<option value="${_e(n)}">`).join('');
+    const outro = !!(m && (m.condutorIndicado || (m.condutor && !m.condutorAuto)));
+    $('mu-outro-box').style.display = outro ? '' : 'none'; $('mu-condutor').value = outro ? m.condutor : '';
+    _muCond(); openModal('modal-multa');
+  };
+  window.salvarMulta = salvarMulta = function () {
+    const $ = k => document.getElementById(k), id = $('mu-id').value, v = _abVeic($('mu-veiculo').value);
+    if (!$('mu-obra').value) { toast('Escolha a obra.', 'error'); return; } if (!v) { toast('Escolha o veículo.', 'error'); return; } if (!$('mu-data').value) { toast('Informe a data da infração.', 'error'); return; }
+    const d = $('mu-data').value, r = muCondutorNaData(v, d) || _frRespNaData(v, d), outro = $('mu-outro-box').style.display !== 'none', nomeO = $('mu-condutor').value.trim();
+    if (outro && !nomeO) { toast('Informe quem estava dirigindo, ou desmarque "Outra pessoa estava dirigindo".', 'error'); return; }
+    const fo = outro ? (typeof _frAchaFunc === 'function' ? _frAchaFunc(nomeO, v.obra) : null) : null;
+    const lista = dados.multas || (dados.multas = []);
+    const m = id ? lista.find(x => x.id === id) : { id: 'mu' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), criadoPor: usuarioLogado?.nome || '', criadoEm: new Date().toISOString() };
+    const grav = $('mu-grav').value, desc = $('mu-desc').value;
+    if (desc !== _muDesc(m)) { m.descontoPor = usuarioLogado?.nome || ''; m.descontoEm = new Date().toISOString(); }
+    Object.assign(m, { obra: $('mu-obra').value, veicId: v.id, tag: v.tag || '', placa: v.placa, data: d, hora: $('mu-hora').value, ait: $('mu-ait').value.trim(), orgao: $('mu-orgao').value.trim(), tipo: $('mu-tipo').value.trim(), local: $('mu-local').value.trim(),
+      gravidade: grav, pontos: (MU_GRAV.find(g => g[0] === grav) || [0, 0])[1], valor: +$('mu-valor').value || 0,
+      condutor: outro ? (fo ? fo.nome : nomeO) : (r ? r.nome : ''), condutorFunc: outro ? (fo ? fo.id : '') : (r && r.func || ''), condutorMat: outro ? (fo ? fo.mat || '' : '') : (r ? r.mat || '' : ''), condutorAuto: !outro && !!r, condutorIndicado: outro,
+      responsavel: r ? r.nome : '', prazo: $('mu-prazo').value, status: $('mu-status').value, dataPag: $('mu-pag').value, desconto: desc, descontoData: desc === 'sim' ? $('mu-descdata').value : '', obs: $('mu-obs').value.trim(), atualizadoEm: new Date().toISOString() });
+    if (!id) lista.push(m); if (db && _firebaseReady) fbSave('multas', m.id, m).catch(() => toast('Salvo aqui, mas não no servidor.', 'error'));
+    closeModal('modal-multa'); renderMultas(); toast('Multa salva.');
+  };
+  // KPI: multas pagas com desconto ainda a definir
+  const oRM = renderMultas;
+  window.renderMultas = renderMultas = function () { const r = oRM.apply(this, arguments), k = document.getElementById('mu-kpis'); if (!k) return r;
+    const l = _muLista().filter(m => m.status !== 'Cancelada' && !_muDesc(m)), val = l.reduce((s, m) => s + (+m.valor || 0), 0);
+    k.insertAdjacentHTML('beforeend', `<div class="stat-card"><div class="stat-label">Desconto a definir</div><div class="stat-value" style="${l.length ? 'color:var(--amber)' : ''}">${l.length}</div><div class="stat-sub">${_repMoeda(val)} · descontar ou não do funcionário</div></div>`);
     return r; };
 })();
 // Apply configs on load
