@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.73 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.74 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -13877,7 +13877,7 @@ function mmUnificar(col, i, paraId) {
   if (!para) { toast('Escolha com qual cadastro do banco unificar.', 'error'); return; }
   if (!confirm('Unificar "' + (fam ? g.nome : g.nome) + '" com ' + para.cod + ' · ' + (para.desc || para.nome) + '?\nTudo que usava o pendente passa a usar ' + para.cod + '.')) return;
   let n = 0; g.itens.forEach(x => { n += fam ? _mmTrocaFam(x, para) : _mmTrocaMod(x, para);
-    if (!fam) { if (!+para.capTanque && +x.capTanque) para.capTanque = +x.capTanque; if (!+para.consumoPrev && +x.consumoPrev) para.consumoPrev = +x.consumoPrev; }
+    if (!fam) { if (!+para.capTanque && +x.capTanque) para.capTanque = +x.capTanque; if (!+para.consumoPrev && +x.consumoPrev) para.consumoPrev = +x.consumoPrev; if (!+para.consumoKmL && +x.consumoKmL) para.consumoKmL = +x.consumoKmL; }
     _mmApaga(col, x); });
   if (!fam) _mmGrava('modelos', para);
   toast('Unificado com ' + para.cod + (n ? ' · ' + n + ' cadastro(s) atualizado(s)' : '') + '.'); _mmDepois();
@@ -16435,6 +16435,24 @@ function _absPrevKmTxt(tag, consTxt) { const mod = _modeloDe(tag), p = +(mod && 
     if (m && (+m.consumoKmL || 0) !== v) { m.consumoKmL = v; if (db && _firebaseReady) fbSave('modelos', m.id, m).catch(() => {}); }
     return r; };
   try { const D = IMPORT_DEF.modelos; if (!D.col.some(c => /km\/l/i.test(c))) { D.col = D.col.concat(['Consumo previsto (km/L)']); const m0 = D.map; D.map = gg => { const x = m0(gg), k = _numImport(gg(['km/l'])); if (k) x.consumoKmL = k; return x; }; } } catch (e) {}
+})();
+// v3.74: importação de Famílias/Modelos não duplica o banco padrão — se já existe no banco (mesmo código ou mesmo nome), usa o do banco
+(function () {
+  const oImp = _importarLinhas, nn = v => String(v || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  _importarLinhas = window._importarLinhas = function (tipo, rows, resumo) { const novos = oImp.apply(this, arguments); if ((tipo !== 'familias' && tipo !== 'modelos') || !novos || !novos.length) return novos;
+    const r = resumo && resumo[tipo], ok = [], fam = tipo === 'familias', banco = (dados[tipo] || []).filter(x => _mmBanco(x));
+    if (fam) window.__impMapa = {};
+    else novos.forEach(it => { const mf = (window.__impMapa || {})['familias:' + String(it.familia || '').toUpperCase()]; if (mf) { it.familia = mf; if (db && _firebaseReady && it.id) fbSave('modelos', it.id, it).catch(() => {}); } });
+    novos.forEach(it => { const b = banco.find(x => String(x.cod).toUpperCase() === String(it.cod).toUpperCase() || nn(fam ? x.desc : x.nome) === nn(fam ? it.desc : it.nome));
+      if (!b) { ok.push(it); return; }
+      const i = (dados[tipo] || []).indexOf(it); if (i >= 0) dados[tipo].splice(i, 1);
+      if (!fam) { let mud = false; ['capTanque', 'consumoPrev', 'consumoKmL'].forEach(k => { if (!+b[k] && +it[k]) { b[k] = +it[k]; mud = true; } }); if (mud && db && _firebaseReady) fbSave('modelos', b.id, b).catch(() => {}); }
+      (window.__impMapa = window.__impMapa || {})[tipo + ':' + String(it.cod).toUpperCase()] = b.cod;
+      if (r) { r.ok--; r.dup = (r.dup || 0) + 1; if (r.avisos && r.avisos.length < 6) r.avisos.push((fam ? 'família ' : 'modelo ') + it.cod + ' já existe no banco padrão como ' + b.cod + ' — usado o do banco'); } });
+    return ok; };
+  // equipamentos da mesma planilha: troca o código pelo do banco
+  const oF = _impFamilia; _impFamilia = window._impFamilia = function (txt, obraId) { const m = (window.__impMapa || {})['familias:' + String(txt || '').trim().toUpperCase()]; return oF.call(this, m || txt, obraId); };
+  const oM = _impModelo; _impModelo = window._impModelo = function (txt, famCod, obraId) { const m = (window.__impMapa || {})['modelos:' + String(txt || '').trim().toUpperCase()]; return oM.call(this, m || txt, famCod, obraId); };
 })();
 // Apply configs on load
 setTimeout(applyConfigs, 200);
