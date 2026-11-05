@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.31 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.32 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -1326,7 +1326,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
       <div class="form-group" style="min-width:220px;margin:0"><label class="form-label" for="filtro-aloj-rep">República / alojamento</label><select class="form-control" id="filtro-aloj-rep" onchange="renderAlojados()"><option value="">Todas</option></select></div>
     </div>
     <div id="aloj-resumo" style="font-size:12.5px;color:var(--text-3);margin-bottom:.5rem"></div>
-    <div class="table-wrap"><table><thead><tr><th>Nome</th><th>Matrícula</th><th>Função</th><th>República / alojamento</th><th>Obra</th><th>Entrada</th><th style="text-align:right">Dias</th><th style="text-align:right">Custo/mês</th><th></th></tr></thead>
+    <div class="table-wrap"><table><thead><tr><th>Obra</th><th>Código</th><th>República / alojamento</th><th>Tipo</th><th>Quarto</th><th>Nome</th><th>Matrícula</th><th>Função</th><th>Entrada</th><th style="text-align:right">Dias</th><th style="text-align:right">Custo/mês</th><th></th></tr></thead>
       <tbody id="tbody-alojados"></tbody></table></div>
   </div></div>
 </div>
@@ -12107,14 +12107,17 @@ function renderAlojados() {
   const tot = l.reduce((s, x) => s + x.custo, 0);
   document.getElementById('aloj-resumo').textContent = l.length + ' alojado(s)' + (l.length ? ' · custo do mês ' + _repMoeda(tot) + ' · média ' + _repMoeda(tot / l.length) + ' por pessoa' : '');
   document.getElementById('tbody-alojados').innerHTML = l.length ? l.map(x => `<tr>
-      <td><b>${_e(x.nome)}</b></td><td class="td-mono">${_e(x.mat || '—')}</td><td style="font-size:12.5px">${_e(x.funcao || '—')}</td>
-      <td><div style="font-weight:600">${_e(x.r.nome)}</div><div style="font-size:11px;color:var(--text-3)">${_e(x.r.cod)} · ${_e(x.r.tipo || '')}${x.m.quarto ? ' · <b>Quarto ' + _e(x.m.quarto) + '</b>' : ''}</div></td>
       <td style="font-size:12px">${_e(getNomeObra(x.r.obra) || '—')}</td>
+      <td class="td-mono" style="font-weight:700;white-space:nowrap">${_e(x.r.cod || '—')}</td>
+      <td style="font-weight:600">${_e(x.r.nome)}</td>
+      <td style="font-size:12px">${_e(x.r.tipo || 'República')}</td>
+      <td class="td-mono" style="white-space:nowrap">${_e(x.m.quarto || '—')}</td>
+      <td><b>${_e(x.nome)}</b></td><td class="td-mono">${_e(x.mat || '—')}</td><td style="font-size:12.5px">${_e(x.funcao || '—')}</td>
       <td class="td-mono">${_e(String(x.m.entrada || '').split('-').reverse().join('/'))}</td>
       <td class="td-mono" style="text-align:right">${x.dias}</td>
       <td class="td-mono" style="text-align:right">${_repMoeda(x.custo)}</td>
       <td style="text-align:right"><button class="btn btn-outline btn-sm" onclick="repMoradoresAbrir('${x.r.id}')">👥 República</button></td></tr>`).join('')
-    : '<tr><td colspan="9" style="text-align:center;color:var(--text-3);padding:2rem">Ninguém alojado' + (busca || v ? ' com esse filtro' : '') + '. Coloque os moradores em <b>Repúblicas e alojamentos → 👥 Moradores</b>.</td></tr>';
+    : '<tr><td colspan="12" style="text-align:center;color:var(--text-3);padding:2rem">Ninguém alojado' + (busca || v ? ' com esse filtro' : '') + '. Coloque os moradores em <b>Repúblicas e alojamentos → 👥 Moradores</b>.</td></tr>';
 }
 function exportarAlojados() {
   if (typeof XLSX === 'undefined') { toast('Aguarde o carregamento do Excel e tente novamente.', 'error'); return; }
@@ -15016,6 +15019,7 @@ function _podeValores() {
 }
 function _ocultaCols(tbodyId, re) {
   const tb = document.getElementById(tbodyId), t = tb && tb.closest('table'); if (!t) return;
+  if (typeof _colOrdem === 'function' && t.id !== 'tabela-func') { t.__afOcup = true; try { _colOrdem(t); } finally { setTimeout(() => { t.__afOcup = false; }, 0); } }
   const ths = [...t.querySelectorAll('thead th')], idx = ths.map((th, i) => re.test(th.textContent.trim()) ? i : -1).filter(i => i >= 0), esc = !_podeValores();
   idx.forEach(i => { ths[i].style.display = esc ? 'none' : ''; t.querySelectorAll('tbody tr').forEach(tr => { if (tr.children.length === ths.length && tr.children[i]) tr.children[i].style.display = esc ? 'none' : ''; }); });
 }
@@ -15269,11 +15273,27 @@ function _afLimpar(id, i) { delete _AFT[id].flt[i]; document.getElementById('af-
 function _afOk(id, i) { const cs = [...document.querySelectorAll('#af-pop .fn-af-it input')], m = cs.filter(c => c.checked).map(c => c.value);
   if (m.length === cs.length) delete _AFT[id].flt[i]; else _AFT[id].flt[i] = new Set(m); document.getElementById('af-pop')?.remove(); _afAplicar(_afTab(id)); }
 document.addEventListener('click', () => document.getElementById('af-pop')?.remove());
+// v3.32: em todas as tabelas, Obra vem primeiro e o código em segundo (depois da caixinha de seleção)
+function _colOrdem(tb) {
+  const tr = tb.querySelector(':scope > thead > tr:last-child'); if (!tr) return; const ths = [...tr.children], n = ths.length;
+  if (!tr.__perm || !ths[0] || ths[0].dataset.ord === undefined) {
+    const nome = th => th.textContent.replace(/[▼↑↓]/g, '').trim();
+    const cb = ths.map((th, i) => th.querySelector('input[type=checkbox]') ? i : -1).filter(i => i >= 0);
+    const ob = ths.findIndex(th => /^obra$/i.test(nome(th))), cd = ths.findIndex(th => /^(c[óo]d(igo|\.)?|tag\b|matr[íi]cula|placa)/i.test(nome(th)));
+    const fr = cb.concat([ob, cd].filter(i => i >= 0 && !cb.includes(i))), perm = fr.concat(ths.map((_, i) => i).filter(i => !fr.includes(i)));
+    tr.__perm = perm.every((v, i) => v === i) ? null : perm;
+    if (tr.__perm) tr.__perm.forEach(i => tr.appendChild(ths[i]));
+    tr.children[0] && (tr.children[0].dataset.ord = '1');
+  }
+  const perm = tr.__perm; if (!perm) return;
+  tb.querySelectorAll(':scope > tbody > tr').forEach(r => { if (r.__ord || r.children.length !== n) return; const tds = [...r.children]; perm.forEach(i => r.appendChild(tds[i])); r.__ord = 1; });
+}
 function _afVarrer() {
   document.querySelectorAll('.page table').forEach(tb => {
     if (tb.id === 'tabela-func' || tb.closest('.dx-main') || tb.closest('.modal') || !tb.querySelector(':scope > thead') || tb.__afObs) return;
-    _afMontar(tb);
-    tb.__afObs = new MutationObserver(() => { if (tb.__afOcup) return; clearTimeout(tb.__afT); tb.__afT = setTimeout(() => { _afMontar(tb); _afAplicar(tb); }, 30); });
+    tb.__afOcup = true; try { _colOrdem(tb); } finally { setTimeout(() => { tb.__afOcup = false; }, 0); }
+    _afMontar(tb); _afAplicar(tb);
+    tb.__afObs = new MutationObserver(() => { if (tb.__afOcup) return; clearTimeout(tb.__afT); tb.__afT = setTimeout(() => { tb.__afOcup = true; try { _colOrdem(tb); } catch (e) {} _afMontar(tb); _afAplicar(tb); }, 0); });
     tb.__afObs.observe(tb, { childList: true, subtree: true });
   });
 }
