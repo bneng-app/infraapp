@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.62 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.63 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -5431,9 +5431,10 @@ const _qrSel = new Set();
 function _qrDaObra(lista) { const o = document.getElementById('qr-obra')?.value || ''; return !o ? lista : lista.filter(x => !x.obra || x.obra === o); }
 function _qrObras() {
   const sel = document.getElementById('qr-obra'); if (!sel) return;
-  const atual = sel.dataset.ok ? sel.value : ((obraAtiva && obraAtiva.id !== 'todas') ? obraAtiva.id : '');
+  const topo = (obraAtiva && obraAtiva.id && obraAtiva.id !== 'todas') ? obraAtiva.id : '';   // v3.63: segue a obra escolhida no topo
+  const atual = topo || (sel.dataset.ok ? sel.value : '');
   sel.innerHTML = '<option value="">Todas as obras</option>' + (dados.obras||[]).map(o => `<option value="${_e(o.id)}">${_e(o.cod ? o.cod + ' — ' : '')}${_e(o.nome||'')}</option>`).join('');
-  sel.value = atual; sel.dataset.ok = '1';
+  sel.value = atual; sel.dataset.ok = '1'; sel.disabled = !!topo; sel.title = topo ? 'Segue a obra escolhida no topo do painel' : '';
 }
 // v2.35: cada cadastro guarda se o QR já foi gerado (qrGeradoEm); a lista mostra por padrão só os pendentes
 function _qrItens(semFiltro) {
@@ -16173,6 +16174,8 @@ async function fnApropLote(sim) {
   _selected.funcionarios = new Set(); try { renderFuncionarios(); } catch (e) {}
   toast(sim ? `${fs.length - semMat.length} marcado(s) como apropriador` + (semMat.length ? ` · ${semMat.length} sem matrícula ficaram de fora` : '') + '.' : fs.length + ' deixaram de ser apropriador. O acesso ao app continua existindo; para bloquear, vá em Usuários.');
 }
+// v3.63: QR Codes acompanha a obra do topo ao trocar
+(function () { const oS = window.selecionarObra; window.selecionarObra = function () { const r = oS.apply(this, arguments); try { if (document.getElementById('page-qrcodes')?.classList.contains('active')) renderQRCodes(); } catch (e) {} return r; }; })();
 // Apply configs on load
 setTimeout(applyConfigs, 200);
 setTimeout(function() {
