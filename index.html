@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.45 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.46 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -15809,6 +15809,33 @@ function _cgHora(c) { if (!c) return { v: 0, auto: false }; if (+c.custoHora) re
     if (el) el.innerHTML = s ? `Automático: média dos salários <b>${_moeda(s)}</b> ÷ 220 = <b>${_moeda(s / _HORAS_MES)}</b>/h. Digite só se quiser substituir.` : 'Sem salário cadastrado nos funcionários desta função — digite o custo por hora.'; };
   const oO = window.openModal; window.openModal = openModal = function (id) { const r = oO.apply(this, arguments); if (id === 'modal-novo-cargo') setTimeout(() => { const eid = $('cargo-edit-id')?.value, c = eid && (dados.cargos || []).find(x => x.id === eid); if (c && $('cargo-custo')) $('cargo-custo').value = +c.custoHora ? c.custoHora : ''; mostra(); }, 30); return r; };
   $('cargo-cod')?.addEventListener('input', mostra);
+})();
+// v3.46: CORRIGIR O RESPONSÁVEL (lançado errado) — troca a pessoa sem gerar histórico de troca; botão em Responsáveis e no Editar veículo
+function frCorrigirResp(vid) { closeModal('modal-veiculo'); frVincular(vid); window._vin.corrigir = true;
+  const t = document.querySelector('#modal-vinc .modal-title'); if (t) t.textContent = 'Corrigir o responsável do veículo';
+  const i = document.getElementById('vin-info'); if (i) i.innerHTML = i.innerHTML.replace('Responsável na planilha:', 'Responsável lançado:') + '<div style="font-size:12px;color:var(--text-3);margin-top:6px">Use para corrigir um lançamento errado. Se o veículo passou para outra pessoa, use <b>↺ Trocar / devolver</b> (fica no histórico).</div>'; }
+(function () {
+  const $ = id => document.getElementById(id);
+  const oV = window.frVincular; window.frVincular = frVincular = function () { const r = oV.apply(this, arguments); const t = document.querySelector('#modal-vinc .modal-title'); if (t) t.textContent = 'Vincular ao funcionário do efetivo'; if (window._vin) window._vin.corrigir = false; return r; };
+  const oS = window.alojVincularSalvar; window.alojVincularSalvar = alojVincularSalvar = function () {
+    const w = window._vin || {}; if (w.tipo !== 'fr' || !w.corrigir) return oS.apply(this, arguments);
+    const v = (dados.frota || []).find(x => x.id === w.vid), r = v && frRespAtual(v); if (!r) return;
+    const f = (dados.funcionarios || []).find(x => x.id === $('vin-func').value); if (!f) { toast('Escolha o funcionário.', 'error'); return; }
+    const antes = r.nome; if (r.func !== f.id) { r.cnhCat = ''; r.cnhVal = ''; } Object.assign(r, { func: f.id, nome: f.nome, mat: f.mat || '', funcao: f.funcao || '', corrigidoEm: new Date().toISOString(), corrigidoDe: antes });
+    if (db && _firebaseReady) fbSave('frota', v.id, v).catch(() => toast('Ficou só neste computador — não gravou no servidor.', 'error'));
+    closeModal('modal-vinc'); try { renderFrotaResp(); renderFrota(); } catch (e) {} toast('Responsável corrigido: ' + antes + ' → ' + f.nome);
+  };
+  // Responsáveis: botão Corrigir em quem já está ligado
+  const oR = window.renderFrotaResp; window.renderFrotaResp = renderFrotaResp = function () { const res = oR.apply(this, arguments);
+    document.querySelectorAll('#tbody-frota-resp tr').forEach(tr => { const b = tr.querySelector('[onclick*="frRespAbrir("]'); const m = b && /frRespAbrir\('([^']+)'\)/.exec(b.getAttribute('onclick')); const v = m && (dados.frota || []).find(x => x.id === m[1]);
+      if (!v || !frRespAtual(v) || tr.querySelector('.fr-corr')) return; b.parentElement.insertAdjacentHTML('afterbegin', `<button class="btn btn-outline btn-sm fr-corr" onclick="frCorrigirResp('${v.id}')" title="Lançou a pessoa errada? Corrige sem gerar troca">✎ Corrigir</button> `); });
+    return res; };
+  // Editar veículo: mostra o responsável atual com o atalho
+  const gM = $('fr-modelo-sel')?.closest('.form-group');
+  if (gM && !$('fr-resp-info')) gM.insertAdjacentHTML('afterend', '<div class="form-group form-full" id="fr-resp-info" style="margin:0"></div>');
+  const oE = window.frEditar; window.frEditar = frEditar = function (id) { const r = oE.apply(this, arguments); const v = id && (dados.frota || []).find(x => x.id === id), rs = v && frRespAtual(v), el = $('fr-resp-info');
+    if (el) el.innerHTML = rs ? `<div style="display:flex;gap:10px;align-items:center;padding:8px 12px;border:1px dashed var(--border);border-radius:8px;font-size:12.5px"><span style="flex:1">Responsável: <b>${_e(rs.nome)}</b>${rs.mat ? ' · Mat. ' + _e(rs.mat) : ''} <span style="color:var(--text-3)">(o responsável fica em Frota → Responsáveis)</span></span><button type="button" class="btn btn-outline btn-sm" onclick="frCorrigirResp('${v.id}')">✎ Corrigir</button></div>` : '';
+    return r; };
 })();
 // Apply configs on load
 setTimeout(applyConfigs, 200);
