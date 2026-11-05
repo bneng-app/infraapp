@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.58 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.59 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -15032,7 +15032,8 @@ function muExcluir(id) { const m = (dados.multas || []).find(x => x.id === id); 
       h += `<div class="dx-kpis">${_kpi(_ic.drop, _fmtN(L) + ' L', 'Litros abastecidos', ab.length + ' abastecimento(s)')}${_kpi(_ic_carro, KM.toLocaleString('pt-BR'), 'Km rodados', 'entre abastecimentos')}${_kpi(_ic.gauge2, Lk ? _fmtN(KM / Lk) + ' km/L' : '—', 'Média da frota', 'km ÷ litros', '#F59E0B')}${_kpi(_ic.alert || _ic.timer, mu.filter(_muAberta).length, 'Multas em aberto', mu.length + ' no período', mu.filter(_muAberta).length ? '#F59E0B' : '')}</div>
         <div class="dx-grid" style="grid-template-columns:1fr 1fr;margin-bottom:12px">
           ${_pn(_ic.gauge2, 'Média km/L por veículo', _hbars(linhas.filter(([, x]) => x.lk).map(([id, x]) => ({ l: nomeV(id), v: x.km / x.lk, t: _fmtN(x.km / x.lk) + ' km/L' })).sort((a, b) => a.v - b.v), '#F59E0B'), 'menor primeiro')}
-          ${(() => { const m = por('motorista', a => +a.litros || 0); return _pn(_ic.users, 'Litros por motorista', _hbars(m.slice(0, 15).map(x => ({ ...x, t: _fmtN(x.v) + ' L' }))), m.length > 15 ? '15 maiores de ' + m.length : ''); })()}</div>
+          ${(() => { const m = por(a => _frRespNome(_abVeic(a.veicId), a.data), a => +a.litros || 0); return _pn(_ic.users, 'Litros por responsável do veículo', _hbars(m.slice(0, 15).map(x => ({ ...x, t: _fmtN(x.v) + ' L' }))), m.length > 15 ? '15 maiores de ' + m.length : ''); })()}</div>
+        ${_frPorResp(ab, mu, calc, false)}
         ${_pn(_ic.cal, 'Abastecimento por veículo', `<div class="dx-scroll">${_tb(['Veículo', 'Abastecimentos', 'Litros', 'Km rodados', 'Média km/L', 'Km atual', 'Próxima revisão'], linhas.map(([id, x]) => { const v = _abVeic(id) || {}, ka = frKmAtual(v), f = +v.kmRevisao ? +v.kmRevisao - ka : null;
             return `<tr>${_td('<b>' + _e(nomeV(id)) + '</b><div class="mu" style="font-size:10.5px">' + _e(v.modelo || '') + '</div>')}${_td(x.n, 'n')}${_td(_fmtN(x.l) + ' L', 'n')}${_td(x.km.toLocaleString('pt-BR'), 'n')}${_td(x.lk ? _fmtN(x.km / x.lk) : '—', 'n')}${_td(ka.toLocaleString('pt-BR'), 'n')}${_td(f == null ? '—' : `<span style="color:${f <= 0 ? '#FF5A60' : f <= 1000 ? '#F59E0B' : 'inherit'}">${f <= 0 ? 'revisar agora' : 'em ' + f.toLocaleString('pt-BR') + ' km'}</span>`, 'n')}</tr>`; }), ['', 'n', 'n', 'n', 'n', 'n', 'n'])}</div>`, '', 'margin-bottom:12px')}`;
     } else {
@@ -15045,7 +15046,8 @@ function muExcluir(id) { const m = (dados.multas || []).find(x => x.id === id); 
           ${_pn(_ic.grid, 'Gastos por posto', _hbars(por('posto', a => +a.valor || 0).map(x => ({ ...x, t: _moeda(x.v) }))))}
           ${_pn(_ic.trend, 'Combustível por quinzena', _vbars(Object.entries(quinz).sort((a, b) => a[1].k.localeCompare(b[1].k)).map(([q, x]) => ({ l: q.slice(0, 2) + ' ' + q.slice(-8, -5), v: x.v })), ''))}</div>
         ${_pn(_ic.cal, 'Combustível por veículo', `<div class="dx-scroll">${_tb(['Veículo', 'Abastecimentos', 'Litros', 'Valor', 'R$ por litro', 'Km rodados', 'R$ por km'], linhas.map(([id, x]) => `<tr>${_td('<b>' + _e(nomeV(id)) + '</b>')}${_td(x.n, 'n')}${_td(_fmtN(x.l) + ' L', 'n')}${_td(_moeda(x.r), 'n')}${_td(x.l ? _moeda(x.r / x.l) : '—', 'n')}${_td(x.km.toLocaleString('pt-BR'), 'n')}${_td(x.km ? _moeda(x.r / x.km) : '—', 'n tot')}</tr>`)
-            .concat(linhas.length ? [`<tr class="sub">${_td('Total')}${_td(ab.length, 'n')}${_td(_fmtN(L) + ' L', 'n')}${_td(_moeda(R), 'n')}${_td(L ? _moeda(R / L) : '—', 'n')}${_td(KM.toLocaleString('pt-BR'), 'n')}${_td(KM ? _moeda(R / KM) : '—', 'n')}</tr>`] : []), ['', 'n', 'n', 'n', 'n', 'n', 'n'])}</div>`, '', 'margin-bottom:12px')}`;
+            .concat(linhas.length ? [`<tr class="sub">${_td('Total')}${_td(ab.length, 'n')}${_td(_fmtN(L) + ' L', 'n')}${_td(_moeda(R), 'n')}${_td(L ? _moeda(R / L) : '—', 'n')}${_td(KM.toLocaleString('pt-BR'), 'n')}${_td(KM ? _moeda(R / KM) : '—', 'n')}</tr>`] : []), ['', 'n', 'n', 'n', 'n', 'n', 'n'])}</div>`, '', 'margin-bottom:12px')}
+        ${_frPorResp(ab, mu, calc, true)}`;
     }
     main.insertAdjacentHTML('beforeend', h);
     return r;
@@ -15991,6 +15993,35 @@ function _vencFaixa(itens, titulo, oque) {
   return `<div class="dx-pn" style="margin-bottom:12px;padding:10px 14px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;${em60.length ? 'border-color:' + cor : ''}"><span style="display:flex;gap:8px;align-items:center;font-weight:700">${_ic.cal}${titulo}</span><span style="color:var(--mu);font-size:12px">(${oque})</span>
     ${em60.length ? `<span style="color:${cor};font-weight:700">${em60.length} nos próximos 60 dias:</span> ${em60.slice(0, 5).map(x => `<span>${_e(x.t)} <b style="color:${x.d < 0 ? '#FF5A60' : '#F59E0B'}">${x.d < 0 ? 'vencido' : 'em ' + x.d + ' dia(s)'}</b></span>`).join(' · ')}${em60.length > 5 ? ' …' : ''}`
       : `<span style="color:var(--mu)">Nada vencendo nos próximos 60 dias ✓</span>${p ? `<span>· Próximo: <b>${_e(p.t)}</b> em ${_frData(p.data)} <span style="color:var(--mu)">(${p.d} dias)</span></span>` : '<span style="color:var(--mu)">· nenhuma data de vencimento cadastrada</span>'}`}</div>`;
+}
+// v3.59: frota por RESPONSÁVEL do veículo (quem responde por tudo), na data do lançamento
+function _frRespNaData(v, data) {
+  if (!v) return null; const l = v.resp || [], d = String(data || '').slice(0, 10);
+  if (d) { const r = l.filter(r => (!r.inicio || r.inicio <= d) && (!r.fim || r.fim >= d)).sort((a, b) => String(b.inicio || '').localeCompare(String(a.inicio || '')))[0]; if (r) return r; }
+  return frRespAtual(v);
+}
+function _frRespNome(v, data) { const r = _frRespNaData(v, data); return r ? (r.nome || 'Sem nome') : 'Sem responsável'; }
+function _frPorResp(ab, mu, calc, custo) {
+  const g = {}, chave = r => r ? (r.func || r.mat || r.nome) : '_sem';
+  const pega = (r) => { const k = chave(r); if (!g[k]) { const f = r && r.func ? (dados.funcionarios || []).find(x => x.id === r.func) : null;
+      g[k] = { nome: r ? r.nome : 'Sem responsável', mat: (f && f.mat) || (r && r.mat) || '', funcao: (f && typeof _fnFuncaoNome === 'function' && _fnFuncaoNome(f)) || (r && r.funcao) || '', veic: new Set(), n: 0, l: 0, rs: 0, km: 0, lk: 0, loc: 0, mq: 0, mv: 0, ma: 0 }; } return g[k]; };
+  ab.forEach(a => { const v = _abVeic(a.veicId), x = pega(_frRespNaData(v, a.data)); x.veic.add(a.veicId); x.n++; x.l += +a.litros || 0; x.rs += +a.valor || 0; const c = calc[a.id] || {}; if (c.rod > 0) { x.km += c.rod; x.lk += +a.litros || 0; } });
+  mu.forEach(m => { const v = _abVeic(m.veicId), x = pega(_frRespNaData(v, m.data)); if (m.veicId) x.veic.add(m.veicId); x.mq++; if (m.status !== 'Cancelada') x.mv += +m.valor || 0; if (_muAberta(m)) x.ma++; });
+  (dados.frota || []).filter(v => (!_dx.obra || v.obra === _dx.obra) && v.status !== 'Devolvido').forEach(v => { const x = pega(frRespAtual(v)); x.veic.add(v.id); x.loc += +v.valorMes || 0; });
+  const ls = Object.values(g).sort((a, b) => a.nome === 'Sem responsável' ? 1 : b.nome === 'Sem responsável' ? -1 : custo ? (b.loc + b.rs + b.mv) - (a.loc + a.rs + a.mv) : b.l - a.l);
+  if (!ls.length) return '';
+  const nm = x => `<b${x.nome === 'Sem responsável' ? ' style="color:#FF5A60"' : ''}>${_e(x.nome)}</b>`;
+  const cab = custo ? ['Responsável', 'Matrícula', 'Função', 'Veículos', 'Locação/mês', 'Combustível', 'R$ por km', 'Multas', 'Total']
+    : ['Responsável', 'Matrícula', 'Função', 'Veículos', 'Abastecimentos', 'Litros', 'Km rodados', 'Média km/L', 'Multas', 'Em aberto'];
+  const tot = ls.reduce((t, x) => { ['n', 'l', 'rs', 'km', 'loc', 'mq', 'mv', 'ma'].forEach(k => t[k] += x[k]); return t; }, { n: 0, l: 0, rs: 0, km: 0, loc: 0, mq: 0, mv: 0, ma: 0 });
+  const rows = ls.map(x => '<tr>' + _td(nm(x)) + _td(_e(x.mat)) + _td(_e(x.funcao)) + _td(x.veic.size, 'n') + (custo
+      ? _td(_moeda(x.loc), 'n') + _td(_moeda(x.rs), 'n') + _td(x.km ? _moeda(x.rs / x.km) : '—', 'n') + _td(x.mv ? _moeda(x.mv) : '—', 'n') + _td(_moeda(x.loc + x.rs + x.mv), 'n tot')
+      : _td(x.n, 'n') + _td(_fmtN(x.l) + ' L', 'n') + _td(x.km.toLocaleString('pt-BR'), 'n') + _td(x.lk ? _fmtN(x.km / x.lk) : '—', 'n') + _td(x.mq || '—', 'n') + _td(x.ma ? `<b style="color:#F59E0B">${x.ma}</b>` : '—', 'n')) + '</tr>');
+  rows.push('<tr class="sub">' + _td('Total') + _td('') + _td('') + _td('', 'n') + (custo
+      ? _td(_moeda(tot.loc), 'n') + _td(_moeda(tot.rs), 'n') + _td(tot.km ? _moeda(tot.rs / tot.km) : '—', 'n') + _td(_moeda(tot.mv), 'n') + _td(_moeda(tot.loc + tot.rs + tot.mv), 'n')
+      : _td(tot.n, 'n') + _td(_fmtN(tot.l) + ' L', 'n') + _td(tot.km.toLocaleString('pt-BR'), 'n') + _td('', 'n') + _td(tot.mq || '—', 'n') + _td(tot.ma || '—', 'n')) + '</tr>');
+  const sub = custo ? 'locação = valor mensal dos veículos com ele hoje · combustível e multas = do período, pelo responsável na data' : 'abastecimentos e multas contam para quem era o responsável pelo veículo na data';
+  return _pn(_ic.users, 'Por responsável do veículo', `<div class="dx-scroll">${_tb(cab, rows, cab.map((c, i) => i < 3 ? '' : 'n'))}</div>`, sub, 'margin-bottom:12px');
 }
 // Apply configs on load
 setTimeout(applyConfigs, 200);
