@@ -883,7 +883,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.84</div>
+  <div class="login-versao">ObraKontrol Campo · v2.85</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -5738,6 +5738,33 @@ document.addEventListener('DOMContentLoaded', () => {
   let sess = null; try { sess = localStorage.getItem('campo_usuario'); } catch (e) {}
   setTimeout(() => okAbertura(false), sess ? 5000 : 0);
 });
+// ══════════════════════════════════════════════════════════════
+// v2.85: LOGO DA OBRA NOS TERMOS (mobilização, recebimento/devolução de veículo e entrega ao condutor)
+// a logo vem do cadastro da obra (Painel → Obras → Editar) e fica guardada no celular para funcionar sem sinal.
+// obra sem logo → continua a logo do ObraKontrol.
+// ══════════════════════════════════════════════════════════════
+function _logoObraGuardar(obras) {
+  (obras || []).forEach(o => { try { if (o && o.id) { if (o.logo) localStorage.setItem('ok_logo_' + o.id, o.logo); else localStorage.removeItem('ok_logo_' + o.id); } } catch (e) {} });
+}
+function _logoObraC(obraId) {
+  const id = obraId || (usuarioCampo && usuarioCampo.obra) || '';
+  const o = (window._mobObras || []).find(x => x.id === id);
+  if (o && o.logo) return o.logo;
+  try { const l = localStorage.getItem('ok_logo_' + id); if (l) return l; } catch (e) {}
+  return typeof _TK_LOGO !== 'undefined' ? _TK_LOGO : '';
+}
+function _logoObraCarregar() { try { fbCarregar('obras').then(l => { if (l && l.length) { window._mobObras = l; _logoObraGuardar(l); } }).catch(() => {}); } catch (e) {} }
+(function () {
+  const troca = (fn) => function (t) { const h = fn.apply(this, arguments), lg = _logoObraC(t && t.obra);
+    return (typeof _TK_LOGO !== 'undefined' && lg && lg !== _TK_LOGO) ? h.replace('src="' + _TK_LOGO + '" alt="ObraKontrol"', 'src="' + lg + '" alt="Logo da obra"') : h; };
+  if (typeof termoMobHtml === 'function') termoMobHtml = troca(termoMobHtml);
+  if (typeof termoVlHtml === 'function') termoVlHtml = troca(termoVlHtml);
+  if (typeof termoVleHtml === 'function') termoVleHtml = troca(termoVleHtml);
+  const css = document.createElement('style'); css.textContent = '.tk .tk-logo{max-height:74px;object-fit:contain}'; document.head.appendChild(css);
+  const oE = window.entrarNoCampo; if (typeof oE === 'function') entrarNoCampo = function () { const r = oE.apply(this, arguments); setTimeout(_logoObraCarregar, 1500); return r; };
+  setTimeout(() => { if (typeof usuarioCampo !== 'undefined' && usuarioCampo) _logoObraCarregar(); }, 3000);
+})();
+
 </script>
 </body>
 </html>
