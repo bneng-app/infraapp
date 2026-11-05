@@ -883,7 +883,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.78</div>
+  <div class="login-versao">ObraKontrol Campo · v2.79</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -5476,6 +5476,123 @@ function _fuelMedAjusta() { const km = _fuelMedNome() === 'hodômetro', i = docu
   const lb = i.closest('.form-group')?.querySelector('.form-label'); if (lb) lb.textContent = km ? 'Hodômetro atual (km)' : 'Horímetro atual (horas)';
   i.placeholder = km ? 'Ex.: 45230' : 'Ex.: 1245'; try { _fuelFotosRender(); } catch (e) {} }
 document.addEventListener('change', ev => { if (ev.target && ev.target.id === 'fuel-equip') _fuelMedAjusta(); });
+
+// ══════════════════════════════════════════════════════════════
+// v2.79: PARTE DIÁRIA DE EQUIPAMENTO — substitui a folha de papel (um lançamento por equipamento por dia)
+// Separado da apropriação (não tem tarefa). Coleção "partesDiarias", id pd_<equipId>_<data> (reabre e completa no mesmo dia).
+// ══════════════════════════════════════════════════════════════
+const PD_COD = { C: { nome: 'Corretiva (quebra, peças…)', l: ['Mangueira estourada', 'Pneu furado', 'Problema ar-condicionado', 'Troca material FPS', 'Serviço de solda', 'Defeito elétrico', 'Aguardando peças', 'Outro'] },
+  P: { nome: 'Programada e outras (chuva…)', l: ['Revisão', 'Lubrificação', 'Abastecimento', 'Lavagem de equipamento', 'Chuva', 'Aguardando frente', 'Outro'] } };
+let pd = null;
+function _pdE(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function _pdEq() { return pd && (dadosCampo.equipamentos || []).find(e => e.id === pd.equipId) || null; }
+function _pdEquips() { return _daObraCampo(dadosCampo.equipamentos || []).filter(e => !/desmob/i.test(e.status || '') && (e.tag || e.placa)).sort((a, b) => String(a.tag || a.placa).localeCompare(String(b.tag || b.placa), 'pt-BR', { numeric: true })); }
+function _pdHoras(a, b) { if (!a || !b) return 0; const [h1, m1] = a.split(':').map(Number), [h2, m2] = b.split(':').map(Number); let d = (h2 * 60 + m2) - (h1 * 60 + m1); if (d < 0) d += 1440; return Math.round(d / 6) / 10; }
+function _pdTela() {
+  if (document.getElementById('screen-pd')) return;
+  const back = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>';
+  document.getElementById('screen-home').insertAdjacentHTML('afterend', `<div class="screen" id="screen-pd"><div class="topbar"><div class="topbar-row"><div class="tb-left"><button class="tb-back" onclick="pdSair()" aria-label="Voltar">${back}</button><div><div class="topbar-title">Parte diária</div><div class="topbar-sub" id="pd-sub">Equipamento</div></div></div></div></div>
+    <div class="content" id="pd-content"></div><div class="mob-bar"><button class="btn btn-outline" onclick="pdSair()">Sair</button><button class="btn btn-green" onclick="pdSalvar()">✓ Salvar</button></div></div>`);
+}
+function pdAbrir() { _pdTela(); pd = { equipId: '', data: _hojeISO(), operador: '', horaIni: '', horaFim: '', frente: '', horIni: '', horFim: '', foto: null, fotoId: '', paradas: [], obs: '', _ult: null }; showScreen('pd'); pdRender(); }
+function pdSair() { pd = null; showScreen('home'); }
+async function pdEscolher(equipId) {
+  pd.equipId = equipId; pd._ult = null; const e = _pdEq(); if (!e) { pdRender(); return; }
+  const id = 'pd_' + equipId + '_' + pd.data; let x = null;
+  try { const r = localStorage.getItem('pd_rasc_' + id); if (r) x = JSON.parse(r); } catch (er) {}
+  if (!x && db && _fbReady && isOnline) { try { const d = await db.collection('partesDiarias').doc(id).get(); if (d.exists) x = d.data(); } catch (er) {} }
+  if (x) Object.assign(pd, { operador: x.operador || '', horaIni: x.horaIni || '', horaFim: x.horaFim || '', frente: x.frente || '', horIni: x.horIni ?? '', horFim: x.horFim ?? '', fotoId: x.fotoId || '', foto: x.foto || null, paradas: x.paradas || [], obs: x.obs || '', _existe: true });
+  else Object.assign(pd, { operador: '', horaIni: new Date().toTimeString().slice(0, 5), horaFim: '', frente: '', horIni: '', horFim: '', foto: null, fotoId: '', paradas: [], obs: '', _existe: false });
+  // horímetro inicial = último fechamento (parte diária ou apropriação)
+  let ult = null; try { ult = await ultimoHorimetro(equipId); } catch (er) {}
+  if (db && _fbReady && isOnline) { try { const sn = await db.collection('partesDiarias').where('equipId', '==', equipId).get(); sn.forEach(d => { const y = d.data(), h = parseFloat(y.horFim); if (y.data < pd.data && !isNaN(h) && (!ult || h > ult.hor)) ult = { hor: h, data: y.data }; }); } catch (er) {} }
+  pd._ult = ult; if ((pd.horIni === '' || pd.horIni == null) && ult) pd.horIni = ult.hor;
+  pdRender();
+}
+function pdCampo(k, v) { pd[k] = v; _pdRasc(); }
+function _pdRasc() { if (!pd || !pd.equipId) return; try { const { foto, _ult, ...r } = pd; localStorage.setItem('pd_rasc_pd_' + pd.equipId + '_' + pd.data, JSON.stringify(r)); } catch (e) {} }
+function pdRender() {
+  const el = document.getElementById('pd-content'); if (!el || !pd) return; const e = _pdEq(), E = _pdE, km = _medKmC(e), un = km ? 'km' : 'h', med = km ? 'Hodômetro' : 'Horímetro';
+  document.getElementById('pd-sub').textContent = e ? (e.tag || e.placa) + ' · ' + String(pd.data).split('-').reverse().join('/') : 'Equipamento';
+  const eqs = _pdEquips(), frs = _daObraCampo(dadosCampo.frentes || []).filter(f => f.cod), fs = _daObraCampo(dadosCampo.funcionarios || []).filter(f => f.status !== 'Desligado' && !f.demissao);
+  const emp = e ? ((dadosCampo.empresas || []).find(x => x.cod === e.prop) || {}) : {}, mod = e ? ((dadosCampo.modelos || []).find(m => m.cod === e.codModelo) || {}) : {};
+  let h = `<div class="card"><div class="card-body">
+    <div style="display:flex;gap:10px"><div class="form-group" style="flex:1"><label class="form-label">Dia *</label><input class="form-control" type="date" value="${E(pd.data)}" max="${_hojeISO()}" onchange="pd.data=this.value;if(pd.equipId)pdEscolher(pd.equipId);else pdRender()"/></div></div>
+    <div class="form-group"><label class="form-label">Equipamento *</label><div style="display:flex;gap:8px"><select class="form-control" style="flex:1" onchange="pdEscolher(this.value)"><option value="">Escolha o equipamento…</option>${eqs.map(x => `<option value="${E(x.id)}" ${x.id === pd.equipId ? 'selected' : ''}>${E((x.tag || x.placa) + (x.placa && x.tag ? ' · ' + x.placa : ''))}</option>`).join('')}</select>
+      <button type="button" class="btn btn-outline" style="width:auto;padding:0 14px" onclick="abrirQR('pdtag')">QR</button></div></div>
+    ${e ? `<div style="font-size:12.5px;color:var(--text2);margin:-4px 0 4px">${E([mod.nome || e.codModelo, emp.nome || emp.razao || e.prop, e.placa ? 'Placa ' + e.placa : ''].filter(Boolean).join(' · '))}${pd._existe ? ' · <b style="color:var(--green,#16A34A)">já lançada hoje — editando</b>' : ''}</div>` : ''}
+  </div></div>`;
+  if (e) {
+    h += `<div class="card"><div class="card-body">
+      <div class="form-group"><label class="form-label">Operador *</label><input class="form-control" list="pd-ops" value="${E(pd.operador)}" oninput="pdCampo('operador',this.value)" placeholder="Nome do operador"/><datalist id="pd-ops">${fs.map(f => `<option value="${E(f.nome)}">`).join('')}</datalist></div>
+      <div style="display:flex;gap:10px"><div class="form-group" style="flex:1"><label class="form-label">Horário inicial *</label><input class="form-control" type="time" value="${E(pd.horaIni)}" onchange="pdCampo('horaIni',this.value)"/></div>
+        <div class="form-group" style="flex:1"><label class="form-label">Horário final</label><input class="form-control" type="time" value="${E(pd.horaFim)}" onchange="pdCampo('horaFim',this.value)"/></div></div>
+      <div class="form-group"><label class="form-label">Local / frente de serviço *</label><div style="display:flex;gap:8px"><select class="form-control" style="flex:1" onchange="pdCampo('frente',this.value)"><option value="">Escolha a frente…</option>${frs.map(f => `<option value="${E(f.cod)}" ${f.cod === pd.frente ? 'selected' : ''}>${E(f.cod + (f.desc || f.nome ? ' · ' + (f.desc || f.nome) : ''))}</option>`).join('')}</select><button type="button" class="btn btn-outline" style="width:auto;padding:0 14px" onclick="abrirQR('pdfrente')">QR</button></div></div>
+    </div></div>
+    <div class="card"><div class="card-body">
+      <div style="display:flex;gap:10px"><div class="form-group" style="flex:1"><label class="form-label">${med} inicial (${un})</label><input class="form-control" type="number" inputmode="decimal" step="0.1" value="${E(pd.horIni)}" oninput="pdCampo('horIni',this.value)"/></div>
+        <div class="form-group" style="flex:1"><label class="form-label">${med} final (${un})</label><input class="form-control" type="number" inputmode="decimal" step="0.1" value="${E(pd.horFim)}" oninput="pdCampo('horFim',this.value);pdRenderDif()" style="font-weight:800"/></div></div>
+      <div style="font-size:12px;color:var(--text2);margin:-4px 0 8px" id="pd-dif">${pd._ult ? 'Último fechamento: <b>' + _fmtHor(pd._ult.hor) + ' ' + un + '</b>' + (pd._ult.data ? ' em ' + String(pd._ult.data).split('-').reverse().join('/') : '') : 'Sem leitura anterior'}${_pdDifTxt(un)}</div>
+      <div class="hor-linha">${pd.foto ? `<img class="hor-thumb" src="${pd.foto}"/>` : ''}<label class="hor-foto-btn ${pd.foto || pd.fotoId ? 'ok' : ''}" style="display:flex;align-items:center;justify-content:center;flex:1;min-height:46px">📷 ${pd.foto || pd.fotoId ? 'Trocar foto do ' + med.toLowerCase() : 'Foto do ' + med.toLowerCase() + ' final'}<input type="file" accept="image/*" capture="environment" style="display:none" onchange="pdFoto(this)"/></label></div>
+    </div></div>
+    <div class="card"><div class="card-body">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div class="form-label" style="margin:0">Paradas / hora mecânica</div><button type="button" class="btn btn-outline" style="width:auto;padding:6px 12px;font-size:13px" onclick="pdParadaAdd()">+ Parada</button></div>
+      ${pd.paradas.length ? pd.paradas.map((x, i) => `<div style="border:1px solid var(--border,#2A2A30);border-radius:12px;padding:10px;margin-bottom:8px">
+        <div style="display:flex;gap:8px;margin-bottom:8px"><select class="form-control" style="flex:1" onchange="pdParada(${i},'grupo',this.value)">${Object.entries(PD_COD).map(([g, o]) => `<option value="${g}" ${x.grupo === g ? 'selected' : ''}>${o.nome}</option>`).join('')}</select>
+          <button type="button" class="btn btn-outline" style="width:auto;padding:0 12px" onclick="pdParadaDel(${i})">🗑</button></div>
+        <select class="form-control" style="margin-bottom:8px" onchange="pdParada(${i},'cod',this.value)"><option value="">Código…</option>${PD_COD[x.grupo].l.map((n, k) => `<option value="${k + 1}" ${+x.cod === k + 1 ? 'selected' : ''}>${k + 1} · ${n}</option>`).join('')}</select>
+        <div style="display:flex;gap:8px;margin-bottom:8px"><div style="flex:1"><div style="font-size:11px;color:var(--text3)">Início</div><input class="form-control" type="time" value="${E(x.ini)}" onchange="pdParada(${i},'ini',this.value)"/></div><div style="flex:1"><div style="font-size:11px;color:var(--text3)">Término</div><input class="form-control" type="time" value="${E(x.fim)}" onchange="pdParada(${i},'fim',this.value)"/></div>
+          <div style="width:64px;text-align:center;align-self:end;padding-bottom:10px;font-weight:800">${_pdHoras(x.ini, x.fim) ? String(_pdHoras(x.ini, x.fim)).replace('.', ',') + ' h' : ''}</div></div>
+        <input class="form-control" placeholder="${/^Outro/.test((PD_COD[x.grupo].l[+x.cod - 1] || '')) ? 'Descreva o motivo *' : 'Observação (opcional)'}" value="${E(x.obs)}" oninput="pdParada(${i},'obs',this.value,true)"/></div>`).join('')
+        : '<div style="font-size:12.5px;color:var(--text3)">Sem paradas. Use "+ Parada" para manutenção, chuva, aguardando frente…</div>'}
+    </div></div>
+    <div class="card"><div class="card-body"><div class="form-group" style="margin:0"><label class="form-label">Observação</label><input class="form-control" value="${E(pd.obs)}" oninput="pdCampo('obs',this.value)"/></div></div></div>`;
+  }
+  el.innerHTML = h;
+}
+function _pdDifTxt(un) { const a = parseFloat(String(pd.horIni).replace(',', '.')), b = parseFloat(String(pd.horFim).replace(',', '.')); if (isNaN(a) || isNaN(b)) return ''; const d = Math.round((b - a) * 10) / 10;
+  return d < 0 ? ' · <b style="color:#FF5A60">final menor que o inicial</b>' : ' · trabalhou <b>' + _fmtHor(d) + ' ' + un + '</b>'; }
+function pdRenderDif() { const e = _pdEq(), un = _medKmC(e) ? 'km' : 'h', el = document.getElementById('pd-dif'); if (!el) return; el.innerHTML = (pd._ult ? 'Último fechamento: <b>' + _fmtHor(pd._ult.hor) + ' ' + un + '</b>' : 'Sem leitura anterior') + _pdDifTxt(un); }
+function pdParadaAdd() { pd.paradas.push({ grupo: 'C', cod: '', ini: '', fim: '', obs: '' }); _pdRasc(); pdRender(); }
+function pdParadaDel(i) { pd.paradas.splice(i, 1); _pdRasc(); pdRender(); }
+function pdParada(i, k, v, semRender) { const x = pd.paradas[i]; x[k] = v; if (k === 'grupo') x.cod = ''; _pdRasc(); if (!semRender) pdRender(); }
+async function pdFoto(inp) { const f = inp.files && inp.files[0]; if (!f) return; try { pd.foto = await _reduzirFoto(f); pd.fotoEm = new Date().toISOString(); pd.fotoId = ''; toast('Foto registrada', 'ok'); pdRender(); } catch (e) { toast('Não consegui ler a foto.', 'err'); } }
+async function pdSalvar() {
+  const e = _pdEq(); if (!e) { toast('Escolha o equipamento.', 'err'); return; }
+  const med = _medNomeC(e), f = [], n = v => parseFloat(String(v).replace(',', '.'));
+  if (!pd.operador.trim()) f.push('o operador'); if (!pd.horaIni) f.push('o horário inicial'); if (!pd.frente) f.push('a frente de serviço');
+  if (pd.horaFim) { if (isNaN(n(pd.horFim))) f.push('o ' + med + ' final'); if (!pd.foto && !pd.fotoId) f.push('a foto do ' + med); }
+  pd.paradas.forEach((x, i) => { if (!x.cod) f.push('o código da parada ' + (i + 1)); else if (/^Outro/.test(PD_COD[x.grupo].l[+x.cod - 1]) && !String(x.obs || '').trim()) f.push('o motivo da parada ' + (i + 1)); });
+  if (f.length) { toast('Falta: ' + f.join(', ') + '.', 'err'); return; }
+  if (!isNaN(n(pd.horIni)) && !isNaN(n(pd.horFim)) && n(pd.horFim) < n(pd.horIni)) { toast('O ' + med + ' final está menor que o inicial.', 'err'); return; }
+  if (pd._ult && !isNaN(n(pd.horIni)) && n(pd.horIni) < pd._ult.hor && !confirm('O ' + med + ' inicial (' + _fmtHor(n(pd.horIni)) + ') é menor que o último fechamento (' + _fmtHor(pd._ult.hor) + '). Salvar assim?')) return;
+  const id = 'pd_' + e.id + '_' + pd.data, ag = new Date().toISOString(), fo = (dadosCampo.funcionarios || []).find(x => x.nome === pd.operador.trim() && (!x.obra || !usuarioCampo.obra || x.obra === usuarioCampo.obra));
+  let fotoId = pd.fotoId;
+  if (pd.foto && !fotoId) { fotoId = 'fpd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5); await fbSalvar('fotos', { id: fotoId, tipo: 'parte_diaria', equipId: e.id, equip: e.tag || e.placa, data: pd.data, hor: n(pd.horFim), obra: e.obra || usuarioCampo.obra || '', lancadoPor: usuarioCampo.nome, tiradaEm: pd.fotoEm || ag, img: pd.foto }); }
+  const hi = n(pd.horIni), hf = n(pd.horFim);
+  const doc = { id, obra: e.obra || usuarioCampo.obra || '', equipId: e.id, tag: e.tag || '', placa: e.placa || '', prop: e.prop || '', medidor: e.medidor === 'hodometro' ? 'hodometro' : 'horimetro', data: pd.data,
+    operador: pd.operador.trim(), operadorFunc: fo ? fo.id : '', operadorMat: fo ? (fo.mat || '') : '', horaIni: pd.horaIni, horaFim: pd.horaFim, frente: pd.frente,
+    horIni: isNaN(hi) ? '' : hi, horFim: isNaN(hf) ? '' : hf, trabalhado: !isNaN(hi) && !isNaN(hf) ? Math.round((hf - hi) * 10) / 10 : '', fotoId: fotoId || '',
+    paradas: pd.paradas.map(x => ({ grupo: x.grupo, cod: +x.cod, nome: PD_COD[x.grupo].l[+x.cod - 1], ini: x.ini || '', fim: x.fim || '', horas: _pdHoras(x.ini, x.fim), obs: String(x.obs || '').trim() })),
+    obs: pd.obs.trim(), situacao: pd.horaFim ? 'fechada' : 'aberta', lancadoPor: usuarioCampo.nome, lancadoEm: ag, status: 'campo' };
+  await fbSalvar('partesDiarias', doc);
+  try { localStorage.removeItem('pd_rasc_' + id); } catch (er) {}
+  toast(pd.horaFim ? 'Parte diária de ' + (e.tag || e.placa) + ' fechada ✓' : 'Início registrado. Volte no fim do dia para fechar.', 'ok');
+  pdSair();
+}
+(function () {
+  const res = document.querySelector('.hcard[onclick="abrirMeuResumo()"]');
+  if (res && !document.getElementById('card-pd')) res.insertAdjacentHTML('beforebegin', `<div class="hcard" onclick="pdAbrir()" id="card-pd"><svg class="hic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h5"/></svg><div class="hcard-t">Parte diária</div><div class="hcard-s">Equipamento (folha do dia)</div></div>`);
+  const oP = processarQR;
+  processarQR = function (texto, contexto) {
+    if (contexto === 'pdtag') { let t = String(texto || '').trim(); try { const o = JSON.parse(t); t = o.tag || o.equip || t; } catch (er) { if (/^tag:/i.test(t)) t = t.slice(4); }
+      const x = _pdEquips().find(e => e.tag === t || e.placa === t || (_normId(e.tag) && _normId(e.tag) === _normId(t)) || (_normId(e.placa) && _normId(e.placa) === _normId(t)));
+      if (x) pdEscolher(x.id); else toast('Equipamento não encontrado nesta obra: ' + t, 'err'); return { ok: !!x }; }
+    if (contexto === 'pdfrente') { const c = typeof _fhCodDe === 'function' ? _fhCodDe(texto) : String(texto).replace(/^frente:/i, '').trim(); const fr = _daObraCampo(dadosCampo.frentes || []).find(f => f.cod === c);
+      if (fr) { pd.frente = fr.cod; _pdRasc(); pdRender(); } else toast('Frente não encontrada: ' + (c || texto), 'err'); return { ok: !!fr }; }
+    return oP.apply(this, arguments);
+  };
+})();
 
 // Salvar sessão ao entrar
 const _origEntrar = entrarNoCampo;

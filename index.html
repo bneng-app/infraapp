@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.69 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.70 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -3963,7 +3963,7 @@ async function sincronizarTudo() {
   if (!db || !_firebaseReady) return;
   const colecoes = ['obras','empresas','ua','cargos','turnos','equipes','funcionarios',
     'familias','modelos','equipamentos','frentes','tiposServico','tiposPerdas',
-    'aponMO','aponEQ','diesel','perdas','tanques','movTanques','notasFiscais','produtos','perfis','orcamentos','republicas','mobilizacoes','frota','fornBanco','solicitacoes','abastVeic','multas'];
+    'aponMO','aponEQ','diesel','perdas','tanques','movTanques','notasFiscais','produtos','perfis','orcamentos','republicas','mobilizacoes','frota','fornBanco','solicitacoes','abastVeic','multas','partesDiarias'];
 
   // Check if Firebase was ever initialized
   let fbInicializado = false;
@@ -16246,6 +16246,58 @@ function _locMinimo(e, mes) {
   const h = +e.franquiaH ? Math.round(+e.franquiaH * dias / diasMes * 10) / 10 : 0;
   return { h, dias, diasMes };
 }
+// v3.70: PARTES DIÁRIAS DE EQUIPAMENTO (lançadas no app de campo; base da memória de cálculo de terceiros)
+const PD_GRUPO = { C: 'Corretiva', P: 'Programada / outras' };
+function _pdLista() { const o = _okObraAtual(), $ = k => document.getElementById(k), mes = $('pd-mes')?.value || '', eq = $('pd-eq')?.value || '', forn = $('pd-forn')?.value || '';
+  return (dados.partesDiarias || []).filter(x => (o === 'todas' || x.obra === o) && (!mes || String(x.data).slice(0, 7) === mes) && (!eq || x.equipId === eq) && (!forn || x.prop === forn))
+    .sort((a, b) => String(a.tag).localeCompare(String(b.tag), 'pt-BR', { numeric: true }) || String(a.data).localeCompare(String(b.data))); }
+function renderPartesDiarias() {
+  const $ = k => document.getElementById(k), tb = $('tbody-pd'); if (!tb) return;
+  const o = _okObraAtual(), todos = (dados.partesDiarias || []).filter(x => o === 'todas' || x.obra === o);
+  const meses = [...new Set(todos.map(x => String(x.data).slice(0, 7)))].sort().reverse();
+  const sm = $('pd-mes'); if (sm && !sm.dataset.ok) { sm.innerHTML = '<option value="">Todos os meses</option>' + meses.map(m => `<option value="${m}">${_mesTxt(m)}</option>`).join(''); sm.value = meses[0] || ''; sm.dataset.ok = '1'; }
+  const se = $('pd-eq'), ve = se?.value || ''; if (se) { const ids = [...new Set(todos.map(x => x.equipId))]; se.innerHTML = '<option value="">Todos os equipamentos</option>' + ids.map(id => { const x = todos.find(y => y.equipId === id); return `<option value="${_e(id)}">${_e(x.tag || x.placa)}</option>`; }).join(''); se.value = ve; }
+  const sf = $('pd-forn'), vf = sf?.value || ''; if (sf) { const ps = [...new Set(todos.map(x => x.prop).filter(Boolean))]; sf.innerHTML = '<option value="">Todos os fornecedores</option>' + ps.map(c => { const e = (dados.empresas || []).find(y => y.cod === c); return `<option value="${_e(c)}">${_e(e ? (e.nome || e.razao || c) : c)}</option>`; }).join(''); sf.value = vf; }
+  const l = _pdLista(), num = v => v === '' || v == null ? '—' : (+v).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+  const trab = l.reduce((t, x) => t + (+x.trabalhado || 0), 0), par = l.reduce((t, x) => t + (x.paradas || []).reduce((u, y) => u + (+y.horas || 0), 0), 0), corr = l.reduce((t, x) => t + (x.paradas || []).filter(y => y.grupo === 'C').reduce((u, y) => u + (+y.horas || 0), 0), 0), ab = l.filter(x => x.situacao !== 'fechada').length;
+  const kp = $('pd-kpis'); if (kp) { const k = (lb, v, sub, cor) => `<div class="stat-card"><div class="stat-label">${lb}</div><div class="stat-value" style="${cor ? 'color:' + cor : ''}">${v}</div><div class="stat-sub">${sub}</div></div>`;
+    kp.innerHTML = k('Partes lançadas', l.length, new Set(l.map(x => x.equipId)).size + ' equipamento(s)') + k('Trabalhado', num(trab), 'pela leitura do horímetro/odômetro') + k('Paradas', num(par) + ' h', num(corr) + ' h de manutenção corretiva', corr ? 'var(--amber)' : '') + k('Sem fechar', ab, 'abertas sem horário/leitura final', ab ? 'var(--red)' : ''); }
+  tb.innerHTML = l.length ? l.map(x => { const un = x.medidor === 'hodometro' ? ' km' : ' h', fr = (dados.frentes || []).find(f => f.cod === x.frente && (!f.obra || f.obra === x.obra));
+    return `<tr><td>${_e(getNomeObra(x.obra))}</td><td><b>${_e(x.tag || '')}</b></td><td class="td-mono">${_e(x.placa || '')}</td><td>${_e(((dados.empresas || []).find(e => e.cod === x.prop) || {}).nome || x.prop || '')}</td><td class="td-mono">${_abFmtD(x.data)}</td>
+      <td>${_e(x.operador || '')}</td><td class="td-mono">${_e(x.horaIni || '')}</td><td class="td-mono">${_e(x.horaFim || '—')}</td><td>${_e(x.frente || '')}${fr && (fr.desc || fr.nome) ? '<div style="font-size:11px;color:var(--text-3)">' + _e(fr.desc || fr.nome) + '</div>' : ''}</td>
+      <td class="td-mono" style="text-align:right">${num(x.horIni)}</td><td class="td-mono" style="text-align:right">${num(x.horFim)}</td><td class="td-mono" style="text-align:right;font-weight:700">${x.trabalhado === '' ? '—' : num(x.trabalhado) + un}</td>
+      <td style="font-size:12px">${(x.paradas || []).map(y => `<div><span class="tag ${y.grupo === 'C' ? 'tag-amber' : 'tag-gray'}">${y.grupo}${y.cod}</span> ${_e(y.nome || '')}${y.horas ? ' · <b>' + String(y.horas).replace('.', ',') + ' h</b>' : ''}${y.ini ? ' <span style="color:var(--text-3)">(' + _e(y.ini) + '–' + _e(y.fim || '') + ')</span>' : ''}${y.obs ? '<div style="color:var(--text-3)">' + _e(y.obs) + '</div>' : ''}</div>`).join('') || '—'}</td>
+      <td style="font-size:12px">${_e(x.obs || '')}</td><td>${x.situacao === 'fechada' ? tag('Fechada', 'green') : tag('Aberta', 'amber')}<div style="font-size:11px;color:var(--text-3)">${_e(x.lancadoPor || '')}</div></td>
+      <td style="white-space:nowrap">${x.fotoId ? `<button class="btn btn-outline btn-sm" onclick="pdVerFoto('${x.fotoId}')">📷</button> ` : ''}<button class="btn btn-outline btn-sm" onclick="pdExcluir('${x.id}')" title="Excluir">🗑</button></td></tr>`; }).join('')
+    : '<tr><td colspan="16" style="text-align:center;color:var(--text-3);padding:2rem">Nenhuma parte diária. Elas são lançadas no app de campo, no card <b>Parte diária</b>.</td></tr>';
+}
+async function pdVerFoto(id) { try { const d = await db.collection('fotos').doc(id).get(); const im = d.exists && d.data().img; if (!im) { toast('Foto não encontrada.', 'error'); return; } const w = window.open(''); if (w) w.document.write('<img src="' + im + '" style="max-width:100%">'); } catch (e) { toast('Não consegui abrir a foto.', 'error'); } }
+async function pdExcluir(id) { const x = (dados.partesDiarias || []).find(y => y.id === id); if (!x || !confirm('Excluir a parte diária de ' + (x.tag || x.placa) + ' em ' + _abFmtD(x.data) + '?')) return;
+  dados.partesDiarias = dados.partesDiarias.filter(y => y.id !== id); try { await fbDelete('partesDiarias', id); } catch (e) {} renderPartesDiarias(); toast('Excluída.'); }
+function exportarPartesDiarias() {
+  const l = _pdLista(); if (!l.length) { toast('Nada para exportar com esse filtro.', 'error'); return; }
+  const rows = [['Obra', 'TAG', 'Placa', 'Fornecedor', 'Dia', 'Operador', 'Horário inicial', 'Horário final', 'Frente', 'Medidor', 'Leitura inicial', 'Leitura final', 'Trabalhado', 'Grupo da parada', 'Código', 'Parada', 'Início', 'Término', 'Horas paradas', 'Obs. da parada', 'Observação', 'Situação', 'Lançado por']];
+  l.forEach(x => { const base = [getNomeObra(x.obra), x.tag, x.placa, ((dados.empresas || []).find(e => e.cod === x.prop) || {}).nome || x.prop || '', _abFmtD(x.data), x.operador, x.horaIni, x.horaFim, x.frente, x.medidor === 'hodometro' ? 'Hodômetro (km)' : 'Horímetro (h)', x.horIni, x.horFim, x.trabalhado];
+    const fimL = [x.obs, x.situacao, x.lancadoPor]; if (!(x.paradas || []).length) rows.push(base.concat(['', '', '', '', '', '', '']).concat(fimL));
+    else x.paradas.forEach(y => rows.push(base.concat([PD_GRUPO[y.grupo] || y.grupo, y.cod, y.nome, y.ini, y.fim, y.horas, y.obs]).concat(fimL))); });
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'Partes diárias'); XLSX.writeFile(wb, 'Partes_diarias_equipamentos.xlsx');
+}
+(function () {
+  const $ = id => document.getElementById(id), ref = $('page-equipamentos');
+  if (ref && !$('page-partes-diarias')) ref.insertAdjacentHTML('afterend', `
+    <div class="page" id="page-partes-diarias"><div class="page-header"><div><div class="page-title">Partes diárias de equipamento</div><div class="page-sub">Lançadas no app de campo (card Parte diária) — substituem a folha de papel e alimentam a medição de terceiros.</div></div>
+      <div class="btn-group"><button class="btn btn-outline btn-sm" onclick="exportarPartesDiarias()">↓ Excel</button></div></div>
+      <div id="pd-kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:12px"></div>
+      <div class="card"><div class="card-body"><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+        <select class="form-control" id="pd-mes" onchange="renderPartesDiarias()" style="max-width:190px"></select><select class="form-control" id="pd-forn" onchange="renderPartesDiarias()" style="max-width:240px"></select><select class="form-control" id="pd-eq" onchange="renderPartesDiarias()" style="max-width:220px"></select></div>
+        <div class="table-wrap"><table><thead><tr><th>Obra</th><th>TAG</th><th>Placa</th><th>Fornecedor</th><th>Dia</th><th>Operador</th><th>Início</th><th>Fim</th><th>Frente</th><th style="text-align:right">Leitura inicial</th><th style="text-align:right">Leitura final</th><th style="text-align:right">Trabalhado</th><th>Paradas</th><th>Observação</th><th>Situação</th><th></th></tr></thead><tbody id="tbody-pd"></tbody></table></div></div></div></div>`);
+  const nav = document.querySelector(`#grp-equipamentos .nav-item[onclick*="showPage('equipamentos'"]`);
+  if (nav && !document.querySelector(`[onclick*="showPage('partes-diarias'"]`)) nav.insertAdjacentHTML('afterend', `<div class="nav-item" onclick="showPage('partes-diarias',this)" title="Partes diárias"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h5"/></svg><span>Partes diárias</span></div>`);
+  try { OK_MOD_PAGINAS.equipamentos.push('partes-diarias'); } catch (e) {}
+  try { _COLS_AO_VIVO.push('partesDiarias'); } catch (e) {}
+  const oInit = window.pageInit; window.pageInit = function (id) { const r = oInit.apply(this, arguments); if (id === 'partes-diarias') { renderPartesDiarias(); if (db && _firebaseReady) fbLoadAll('partesDiarias').then(l => { if (l) { dados.partesDiarias = l; const m = $('pd-mes'); if (m) m.dataset.ok = ''; renderPartesDiarias(); } }).catch(() => {}); } return r; };
+  const oSel = window.selecionarObra; window.selecionarObra = function () { const r = oSel.apply(this, arguments); try { if ($('page-partes-diarias')?.classList.contains('active')) { const m = $('pd-mes'); if (m) m.dataset.ok = ''; renderPartesDiarias(); } } catch (e) {} return r; };
+})();
 // Apply configs on load
 setTimeout(applyConfigs, 200);
 setTimeout(function() {
