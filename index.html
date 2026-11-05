@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.46 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.47 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -12177,7 +12177,7 @@ async function verTermoMob(id) {
   const ft = (fid, rot) => fid ? `<figure style="margin:0"><div class="mob-foto" data-f="${_e(fid)}" style="aspect-ratio:4/3;border-radius:8px;background:#eee center/cover;display:flex;align-items:center;justify-content:center;font-size:11px;color:#888">carregando…</div><figcaption style="font-size:11px;color:#555;margin-top:3px">${_e(rot)}</figcaption></figure>` : '';
   const ck = m.checklist || [], nok = ck.filter(c => c.st === 'nok');
   ov.innerHTML = `<div id="mob-termo" style="background:#fff;color:#111;max-width:860px;margin:0 auto;border-radius:14px;padding:24px;font-family:Arial,sans-serif">
-    <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap"><div><img src="${typeof _TK_LOGO !== 'undefined' ? _TK_LOGO : ''}" style="width:200px" alt="ObraKontrol"><div style="font-size:12px;color:#555;margin-top:4px">${_e(getNomeObra(m.obra) || m.obraNome || '')}</div></div>
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap"><div><img src="${_logoTermo(m.obra)}" style="max-width:220px;max-height:72px;object-fit:contain" alt="ObraKontrol"><div style="font-size:12px;color:#555;margin-top:4px">${_e(getNomeObra(m.obra) || m.obraNome || '')}</div></div>
       <div style="text-align:right"><div style="font-size:12px;letter-spacing:.1em;color:#555">TERMO DE MOBILIZAÇÃO</div><div style="font-size:34px;font-weight:900;color:#E30613;font-family:monospace">${_e(m.tag)}</div><div style="font-size:12px;color:#555">${_e(String(m.data || '').split('-').reverse().join('/'))} ${_e(m.hora || '')}</div></div></div>
     <hr style="border:0;border-top:1px solid #ddd;margin:16px 0">
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">${L('Família', m.familiaNome)}${L('Modelo', m.modeloNome)}${L('Placa', m.placa)}${L('Chassi', m.chassi)}${L('Nº de série', m.serie)}${L('Validade do documento', m.docValidade ? String(m.docValidade).split('-').reverse().join('/') : '')}${L('Ano de fabricação', m.ano)}${L('Proprietária', m.empresaNome)}${L('Horímetro / km', m.hor)}${L('Combustível na chegada', m.comb)}${L('Registrado por', m.lancadoPor)}</div>
@@ -12423,7 +12423,7 @@ function frTermo(id) {
   w.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Termo de responsabilidade · ${_e(v.placa)}</title>
   <style>body{margin:0;padding:28px;font-family:Arial,sans-serif;color:#111;font-size:13px;line-height:1.5}h1{font-size:17px;margin:18px 0 4px}.g{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 16px;margin:12px 0;padding:12px;border:1px solid #ddd;border-radius:8px}
   ol{padding-left:18px}li{margin-bottom:6px}.ass{display:flex;gap:40px;margin-top:56px}.ass div{flex:1;text-align:center;border-top:1px solid #333;padding-top:6px;font-size:12px}@media print{body{padding:10mm}}</style></head><body>
-  <div style="display:flex;justify-content:space-between;align-items:flex-start"><img src="${typeof _TK_LOGO !== 'undefined' ? _TK_LOGO : ''}" style="width:190px" alt="ObraKontrol"><div style="text-align:right;font-size:12px;color:#555">${_e(emp)}<br>${_e(obra)}</div></div>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start"><img src="${_logoTermo(v.obra)}" style="max-width:220px;max-height:72px;object-fit:contain" alt="ObraKontrol"><div style="text-align:right;font-size:12px;color:#555">${_e(emp)}<br>${_e(obra)}</div></div>
   <h1>TERMO DE RESPONSABILIDADE DE USO DE VEÍCULO</h1>
   <div style="font-size:12px;color:#555">Entrega em ${_frData(r.inicio)}</div>
   <div class="g">${L('Placa', v.placa)}${L('Marca / modelo', v.modelo)}${L('Tipo', v.tipo)}${L('Ano', v.ano)}${L('Cor', v.cor)}${L('Renavam', v.renavam)}${L('Locadora', v.locadora)}${L('Contrato', v.contrato)}${L('Obra', obra)}</div>
@@ -13925,7 +13925,7 @@ async function verTermoVeic(id) {
   const fotos = Object.entries(m.fotos || {}).flatMap(([k, l]) => (Array.isArray(l) ? l : [l]).filter(Boolean).map((f, i) => [f, (ROT[k] || k) + (i ? ' (' + (i + 1) + ')' : '')])).concat((m.avarias || []).filter(a => a.foto).map(a => [a.foto, 'Avaria: ' + a.desc]));
   const assin = sai ? [['Devolveu (obra)', m.nomeObra, m.sigObra], ['Recebeu (locadora)', (m.nomeLoc || '') + (m.cpfLoc ? ' · CPF ' + m.cpfLoc : ''), m.sigLoc]] : [['Recebeu (obra)', m.nomeObra, m.sigObra], ['Entregou (locadora)', (m.nomeLoc || '') + (m.cpfLoc ? ' · CPF ' + m.cpfLoc : ''), m.sigLoc]];
   ov.innerHTML = `<div id="mob-termo" style="background:#fff;color:#111;max-width:860px;margin:0 auto;border-radius:14px;padding:24px;font-family:Arial,sans-serif">
-    <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap"><div><img src="${typeof _TK_LOGO !== 'undefined' ? _TK_LOGO : ''}" style="width:200px" alt="ObraKontrol"><div style="font-size:12px;color:#555;margin-top:4px">${_e(getNomeObra(m.obra) || m.obraNome || '')}</div></div>
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap"><div><img src="${_logoTermo(m.obra)}" style="max-width:220px;max-height:72px;object-fit:contain" alt="ObraKontrol"><div style="font-size:12px;color:#555;margin-top:4px">${_e(getNomeObra(m.obra) || m.obraNome || '')}</div></div>
       <div style="text-align:right"><div style="font-size:12px;letter-spacing:.1em;color:#555">${sai ? 'TERMO DE DEVOLUÇÃO DE VEÍCULO' : 'TERMO DE RECEBIMENTO DE VEÍCULO'}</div><div style="font-size:34px;font-weight:900;color:#E30613;font-family:monospace">${_e(m.placa)}</div><div style="font-size:12px;color:#555">${_e(String(m.data || '').split('-').reverse().join('/'))} ${_e(m.hora || '')}</div></div></div>
     <hr style="border:0;border-top:1px solid #ddd;margin:16px 0">
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">${L('Modelo', m.modeloNome)}${L('Tipo', m.tipoVeic)}${L('Locadora', m.locadora)}${L(sai ? 'Km na devolução' : 'Km na chegada', m.km)}${sai && m.kmChegada ? L('Km na chegada', m.kmChegada) : ''}${sai && m.rodados != null ? L('Km rodados na obra', m.rodados) : ''}${L('Combustível', m.comb)}${L('Registrado por', m.lancadoPor)}</div>
@@ -14599,7 +14599,7 @@ async function verTermoEntrega(m) {
     Ademais, desde logo autorizo expressamente que seja descontado de meus recebimentos todo e qualquer prejuízo que eu venha a dar causa com a utilização de referido veículo, como consertos diversos (sejam elétricos, mecânicos, de lataria ou pintura), multas (das quais me responsabilizarei pelos pontos na CNH da infração), prejuízos a terceiros e outras avarias. Exceto em casos de desgaste natural.<br><br>
     Por ser verdade, firmo a presente declaração e autorização de descontos.</div>`;
   ov.innerHTML = `<div id="mob-termo" style="background:#fff;color:#111;max-width:860px;margin:0 auto;border-radius:14px;padding:24px;font-family:Arial,sans-serif">
-    <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap"><div><img src="${typeof _TK_LOGO !== 'undefined' ? _TK_LOGO : ''}" style="width:200px" alt="ObraKontrol"><div style="font-size:12px;color:#555;margin-top:4px">${_e(getNomeObra(m.obra) || m.obraNome || '')}</div></div>
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap"><div><img src="${_logoTermo(m.obra)}" style="max-width:220px;max-height:72px;object-fit:contain" alt="ObraKontrol"><div style="font-size:12px;color:#555;margin-top:4px">${_e(getNomeObra(m.obra) || m.obraNome || '')}</div></div>
       <div style="text-align:right"><div style="font-size:12px;letter-spacing:.1em;color:#555">${dev ? 'TERMO DE DEVOLUÇÃO PELO CONDUTOR' : 'TERMO DE ENTREGA DE VEÍCULO · CHECKLIST'}</div><div style="font-size:34px;font-weight:900;color:#E30613;font-family:monospace">${_e(m.tag || m.placa)}</div><div style="font-size:12px;color:#555">${_e(fd(m.data))} ${_e(m.hora || '')}</div></div></div>
     <hr style="border:0;border-top:1px solid #ddd;margin:16px 0">
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px">${L('Veículo', m.modeloNome)}${L('Placa', m.placa)}${L('Locadora', m.locadora)}${L('Condutor', m.condutor)}${L('Matrícula', m.mat)}${L('CPF', m.cpf)}${L('Equipe', m.equipe)}${L('Telefone', m.tel)}
@@ -15837,6 +15837,8 @@ function frCorrigirResp(vid) { closeModal('modal-veiculo'); frVincular(vid); win
     if (el) el.innerHTML = rs ? `<div style="display:flex;gap:10px;align-items:center;padding:8px 12px;border:1px dashed var(--border);border-radius:8px;font-size:12.5px"><span style="flex:1">Responsável: <b>${_e(rs.nome)}</b>${rs.mat ? ' · Mat. ' + _e(rs.mat) : ''} <span style="color:var(--text-3)">(o responsável fica em Frota → Responsáveis)</span></span><button type="button" class="btn btn-outline btn-sm" onclick="frCorrigirResp('${v.id}')">✎ Corrigir</button></div>` : '';
     return r; };
 })();
+// v3.47: termos usam a logo da obra (cadastrada em Obras → Editar); sem logo, vai a do ObraKontrol
+function _logoTermo(obraId) { const o = (dados.obras || []).find(x => x.id === obraId); return (o && o.logo) || (typeof _TK_LOGO !== 'undefined' ? _TK_LOGO : ''); }
 // Apply configs on load
 setTimeout(applyConfigs, 200);
 setTimeout(function() {
