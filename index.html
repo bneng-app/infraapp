@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.61 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.62 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -16155,6 +16155,24 @@ function _muDesc(m) { return m.desconto || (m.status === 'Descontada em folha' ?
     k.insertAdjacentHTML('beforeend', `<div class="stat-card"><div class="stat-label">Desconto a definir</div><div class="stat-value" style="${l.length ? 'color:var(--amber)' : ''}">${l.length}</div><div class="stat-sub">${_repMoeda(val)} · descontar ou não do funcionário</div></div>`);
     return r; };
 })();
+// v3.62: Funcionários — marcar/desmarcar apropriador em lote (selecionados)
+(function () {
+  const oB = bulkBar;
+  window.bulkBar = bulkBar = function (col) { const h = oB.apply(this, arguments); if (col !== 'funcionarios') return h;
+    return h.replace('<button class="btn btn-sm" style="background:var(--red-light)', `<button class="btn btn-sm btn-outline" style="margin-left:auto" onclick="fnApropLote(true)">✓ Marcar como apropriador</button><button class="btn btn-sm btn-outline" style="margin-left:6px" onclick="fnApropLote(false)">Tirar apropriador</button><button class="btn btn-sm" style="margin-left:6px;background:var(--red-light)`).replace('margin-left:auto" onclick="excluirSelecionados', '" onclick="excluirSelecionados'); };
+  const bb = document.getElementById('bulk-bar-funcionarios'); if (bb) bb.outerHTML = bulkBar('funcionarios');
+})();
+async function fnApropLote(sim) {
+  const ids = [...((_selected || {}).funcionarios || [])]; if (!ids.length) { toast('Marque os funcionários na caixinha da esquerda.', 'error'); return; }
+  const fs = (dados.funcionarios || []).filter(f => ids.includes(f.id) && (f.apropriador === 'Sim') !== sim);
+  if (!fs.length) { toast(sim ? 'Os selecionados já são apropriadores.' : 'Nenhum dos selecionados é apropriador.'); return; }
+  if (!confirm((sim ? 'Marcar ' : 'Tirar ') + fs.length + ' funcionário(s) ' + (sim ? 'como apropriador(es)? Cada um ganha acesso ao app de campo (login = matrícula, senha ' + _SENHA_APROP + ').' : 'de apropriador?'))) return;
+  const semMat = [];
+  for (const f of fs) { if (sim && !String(f.mat || '').trim()) { semMat.push(f.nome); continue; } f.apropriador = sim ? 'Sim' : 'Não'; if (db && _firebaseReady) await fbSave('funcionarios', f.id, f).catch(() => {}); }
+  let n = 0; if (sim) n = await _sincApropriadores();
+  _selected.funcionarios = new Set(); try { renderFuncionarios(); } catch (e) {}
+  toast(sim ? `${fs.length - semMat.length} marcado(s) como apropriador` + (semMat.length ? ` · ${semMat.length} sem matrícula ficaram de fora` : '') + '.' : fs.length + ' deixaram de ser apropriador. O acesso ao app continua existindo; para bloquear, vá em Usuários.');
+}
 // Apply configs on load
 setTimeout(applyConfigs, 200);
 setTimeout(function() {
