@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.36 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.37 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -14718,19 +14718,25 @@ function renderAbastVeic() {
   const L = l.reduce((s, a) => s + (+a.litros || 0), 0), R = l.reduce((s, a) => s + (+a.valor || 0), 0), KM = l.reduce((s, a) => s + Math.max(0, (calc[a.id] || {}).rod || 0), 0), Lk = l.filter(a => (calc[a.id] || {}).rod > 0).reduce((s, a) => s + (+a.litros || 0), 0);
   const kpi = (lb, v, sub, cor) => `<div class="stat-card"><div class="stat-label">${lb}</div><div class="stat-value" style="${cor ? 'color:' + cor : ''}">${v}</div><div class="stat-sub">${sub}</div></div>`;
   $('abv-kpis').innerHTML = kpi('Abastecimentos', l.length, new Set(l.map(a => a.veicId)).size + ' veículo(s)') + kpi('Litros', _fmtN(L) + ' L', R && L ? 'preço médio ' + _repMoeda(R / L) + '/L' : '')
-    + kpi('Total gasto', _repMoeda(R), 'no filtro') + kpi('Km rodados', KM.toLocaleString('pt-BR'), Lk ? 'média ' + _fmtN(KM / Lk) + ' km/L' : '') + kpi('Custo por km', KM ? _repMoeda(R / KM) : '—', 'combustível ÷ km');
+    + kpi('Total gasto', _repMoeda(R), 'no filtro') + kpi('Km rodados', KM.toLocaleString('pt-BR'), Lk ? 'média ' + _fmtN(KM / Lk) + ' km/L' : '') + kpi('Custo por km', KM ? _repMoeda(R / KM) : '—', 'combustível ÷ km')
+    + (() => { const nf = new Set(todos.filter(a => a.motorista && !a.motoristaId).map(a => a.motorista)); return nf.size ? kpi('Motoristas fora do efetivo', nf.size, `<a href="#" onclick="frLigarPeloNome();return false" style="color:#B45309;font-weight:700">🔗 ligar pelo nome</a> ou vincule na linha`, 'var(--amber)') : ''; })();
   tb.innerHTML = l.length ? l.map(a => { const v = _abVeic(a.veicId) || {}, c = calc[a.id] || {}, al = [];
       if (!+a.km) al.push(['KM não informado', 'amber']); if (c.recuo) al.push(['KM menor que o anterior', 'red']); if (c.kml != null && (c.kml < 3 || c.kml > 25)) al.push(['Média fora do normal', 'amber']);
-      return `<tr><td class="td-mono">${_abFmtD(a.data)}${a.hora ? '<div style="font-size:11px;color:var(--text-3)">' + _e(a.hora) + '</div>' : ''}</td>
-        <td><b>${_e(v.tag || '')}</b> <span class="td-mono">${_e(v.placa || a.placa || '')}</span><div style="font-size:11px;color:var(--text-3)">${_e(v.modelo || '')}</div></td>
-        <td style="font-size:12.5px">${_e(a.motorista || '—')}</td><td style="font-size:12px">${_e(a.combustivel || '—')}</td>
+      const fm = a.motoristaId ? (dados.funcionarios || []).find(f => f.id === a.motoristaId) : null, fora = a.motorista && !a.motoristaId;
+      return `<tr class="${fora ? 'abv-fora' : ''}"><td style="font-size:12px;white-space:nowrap">${_e(getNomeObra(a.obra) || '—')}</td>
+        <td class="td-mono" style="font-weight:700;white-space:nowrap">${_e(v.tag || '—')}</td><td class="td-mono" style="white-space:nowrap">${_e(v.placa || a.placa || '—')}</td><td style="font-size:12px">${_e(v.modelo || '—')}</td>
+        <td class="td-mono" style="white-space:nowrap">${_abFmtD(a.data)}${a.hora ? ' ' + _e(a.hora) : ''}</td>
+        <td style="font-size:12.5px;font-weight:600">${_e(a.motorista || '—')}</td>
+        <td class="td-mono" style="font-size:12px;white-space:nowrap">${fora ? `<span class="tag tag-amber">⚠ fora do efetivo</span>` : _e(a.motoristaMat || (fm && fm.mat) || '—')}</td>
+        <td style="font-size:12px">${_e((fm && fm.funcao) || '—')}</td>
+        <td style="font-size:12px">${_e(a.combustivel || '—')}</td>
         <td class="td-mono" style="text-align:right">${_fmtN(+a.litros || 0)}</td><td class="td-mono" style="text-align:right">${+a.precoL ? _repMoeda(a.precoL) : '—'}</td><td class="td-mono" style="text-align:right;font-weight:700">${_repMoeda(+a.valor || 0)}</td>
         <td class="td-mono" style="text-align:right">${+a.km ? (+a.km).toLocaleString('pt-BR') : '—'}</td><td class="td-mono" style="text-align:right">${c.rod != null ? c.rod.toLocaleString('pt-BR') : '—'}</td>
         <td class="td-mono" style="text-align:right;${c.kml != null && c.kml < 3 ? 'color:var(--red)' : ''}">${c.kml != null ? _fmtN(c.kml) : '—'}</td><td class="td-mono" style="text-align:right">${c.rpk != null ? _repMoeda(c.rpk) : '—'}</td>
         <td style="font-size:12px">${_e(a.posto || '—')}</td>
         <td>${al.map(([t, cor]) => tag(t, cor)).join(' ')}${a.origem === 'campo' ? ' <span title="Lançado no app" style="font-size:11px">📱</span>' : ''}</td>
-        <td style="white-space:nowrap;text-align:right">${a.fotoKm || a.fotoCupom ? `<button class="btn btn-outline btn-sm" onclick="abFotos('${a.id}')" title="Fotos">📷</button> ` : ''}<button class="btn btn-outline btn-sm" onclick="abEditar('${a.id}')">✎</button> <button class="btn btn-outline btn-sm" onclick="abExcluir('${a.id}')" title="Excluir">🗑</button></td></tr>`; }).join('')
-    : '<tr><td colspan="14" style="text-align:center;color:var(--text-3);padding:2rem">Nenhum abastecimento' + (todos.length ? ' com esse filtro' : '') + '. Lance pelo app (Abastecimento → Veículo leve) ou em <b>+ Novo abastecimento</b>.</td></tr>';
+        <td style="white-space:nowrap;text-align:right">${fora ? `<button class="btn btn-sm" style="background:#F59E0B;color:#fff;border-color:#F59E0B" onclick="abvVincular('${a.id}')" title="Liga este nome a um funcionário do efetivo (vale para todos os abastecimentos com este nome)">🔗 Vincular</button> ` : ''}${a.fotoKm || a.fotoCupom ? `<button class="btn btn-outline btn-sm" onclick="abFotos('${a.id}')" title="Fotos">📷</button> ` : ''}<button class="btn btn-outline btn-sm" onclick="abEditar('${a.id}')">✎</button> <button class="btn btn-outline btn-sm" onclick="abExcluir('${a.id}')" title="Excluir">🗑</button></td></tr>`; }).join('')
+    : '<tr><td colspan="19" style="text-align:center;color:var(--text-3);padding:2rem">Nenhum abastecimento' + (todos.length ? ' com esse filtro' : '') + '. Lance pelo app (Abastecimento → Veículo leve) ou em <b>+ Novo abastecimento</b>.</td></tr>';
   window._abvFiltrados = l;
 }
 function _mesN(s) { const m = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'].findIndex(x => s.toLowerCase().includes(x + '/')); return String(m + 1).padStart(2, '0'); }
@@ -14896,7 +14902,7 @@ function muExcluir(id) { const m = (dados.multas || []).find(x => x.id === id); 
           <select class="form-control" id="abvf-veic" onchange="renderAbastVeic()" style="max-width:210px"></select><select class="form-control" id="abvf-mot" onchange="renderAbastVeic()" style="max-width:200px"></select>
           <select class="form-control" id="abvf-posto" onchange="renderAbastVeic()" style="max-width:200px"></select><select class="form-control" id="abvf-quinz" onchange="renderAbastVeic()" style="max-width:210px"></select>
           <span style="font-size:12px;color:var(--text-3)">de</span><input type="date" class="form-control" id="abv-ini" onchange="renderAbastVeic()" style="max-width:150px"/><span style="font-size:12px;color:var(--text-3)">até</span><input type="date" class="form-control" id="abv-fim" onchange="renderAbastVeic()" style="max-width:150px"/></div>
-        <div class="table-wrap"><table><thead><tr><th>Data</th><th>Veículo</th><th>Motorista</th><th>Combustível</th><th style="text-align:right">Litros</th><th style="text-align:right">R$/L</th><th style="text-align:right">Valor</th><th style="text-align:right">Km</th><th style="text-align:right">Km rodado</th><th style="text-align:right">km/L</th><th style="text-align:right">R$/km</th><th>Posto</th><th>Alerta</th><th></th></tr></thead><tbody id="tbody-abv"></tbody></table></div>
+        <div class="table-wrap"><table><thead><tr><th>Obra</th><th>TAG</th><th>Placa</th><th>Modelo</th><th>Data</th><th>Motorista</th><th>Matrícula</th><th>Função</th><th>Combustível</th><th style="text-align:right">Litros</th><th style="text-align:right">R$/L</th><th style="text-align:right">Valor</th><th style="text-align:right">Km</th><th style="text-align:right">Km rodado</th><th style="text-align:right">km/L</th><th style="text-align:right">R$/km</th><th>Posto</th><th>Alerta</th><th></th></tr></thead><tbody id="tbody-abv"></tbody></table></div>
       </div></div></div>
     <div class="page" id="page-frota-multas"><div class="page-header"><div><div class="page-title">Multas e infrações</div><div class="page-sub">O condutor responsável pelo veículo na data da infração vem sozinho do registro de entrega.</div></div>
       <div class="btn-group"><button class="btn btn-primary" onclick="muNova()">+ Nova multa</button></div></div>
@@ -15568,6 +15574,31 @@ async function frLigarPeloNome() {
     return res; };
 })();
 
+// v3.37: ABASTECIMENTO DE VEÍCULO LEVE — motorista fora do efetivo destacado e "🔗 Vincular" (vale para todos com o mesmo nome)
+function abvVincular(aid) {
+  const a = (dados.abastVeic || []).find(x => x.id === aid); if (!a) return;
+  window._vin = { tipo: 'abv', nome: a.motorista, obra: a.obra };
+  const fs = (dados.funcionarios || []).filter(f => !a.obra || !f.obra || f.obra === a.obra).sort((x, y) => String(x.nome).localeCompare(String(y.nome), 'pt-BR'));
+  const n = (dados.abastVeic || []).filter(x => x.obra === a.obra && !x.motoristaId && _bsNorm(x.motorista) === _bsNorm(a.motorista)).length, sug = _vinSug(a.motorista, a.obra);
+  document.getElementById('vin-info').innerHTML = `Motorista na planilha: <b>${_e(a.motorista)}</b><br><span style="color:var(--text-3)">${n} abastecimento(s) com este nome serão ligados</span>`;
+  document.getElementById('vin-sug').innerHTML = sug.length ? 'Parecidos no efetivo: ' + sug.map(f => `<button type="button" class="btn btn-outline btn-sm" style="margin:3px 4px 0 0" onclick="document.getElementById('vin-func').value='${f.id}';buscaSelectSync('vin-func')">${_e(f.nome)} · ${_e(f.mat)}</button>`).join('') : '<span style="color:var(--text-3)">Nenhum nome parecido no efetivo — busque abaixo, ou cadastre a pessoa em Funcionários.</span>';
+  const sel = document.getElementById('vin-func'); sel.innerHTML = '<option value="">Escolha o funcionário…</option>' + fs.map(f => `<option value="${f.id}">${_e(f.nome)} · Mat. ${_e(f.mat || '—')}${f.funcao ? ' · ' + _e(f.funcao) : ''}</option>`).join('');
+  buscaSelect('vin-func', 'Digite nome ou matrícula…'); sel.value = sug[0] ? sug[0].id : ''; buscaSelectSync('vin-func');
+  openModal('modal-vinc');
+}
+(function () {
+  const oS = window.alojVincularSalvar;
+  window.alojVincularSalvar = alojVincularSalvar = function () {
+    const w = window._vin || {}; if (w.tipo !== 'abv') return oS.apply(this, arguments);
+    const f = (dados.funcionarios || []).find(x => x.id === document.getElementById('vin-func').value); if (!f) { toast('Escolha o funcionário.', 'error'); return; }
+    let n = 0; (dados.abastVeic || []).filter(a => a.obra === w.obra && !a.motoristaId && _bsNorm(a.motorista) === _bsNorm(w.nome)).forEach(a => { a.motoristaPlanilha = a.motorista; a.motorista = f.nome; a.motoristaId = f.id; a.motoristaMat = f.mat || ''; n++; if (db && _firebaseReady) fbSave('abastVeic', a.id, a).catch(() => {}); });
+    // o responsável do veículo com o mesmo nome escrito também
+    (dados.frota || []).filter(v => v.obra === w.obra).forEach(v => (v.resp || []).forEach(x => { if (!x.func && _bsNorm(x.nome) === _bsNorm(w.nome)) { _frLigarResp(v, x, f); if (db && _firebaseReady) fbSave('frota', v.id, v).catch(() => {}); } }));
+    closeModal('modal-vinc'); try { renderAbastVeic(); renderFrotaResp(); renderFrota(); } catch (e) {}
+    toast(w.nome + ' → ' + f.nome + ' (Mat. ' + f.mat + ') · ' + n + ' abastecimento(s)');
+  };
+  const css = document.createElement('style'); css.textContent = `#tbody-abv tr.abv-fora>td{background:rgba(245,158,11,.10)}#tbody-abv tr.abv-fora>td:first-child{box-shadow:inset 3px 0 0 #F59E0B}`; document.head.appendChild(css);
+})();
 // Apply configs on load
 setTimeout(applyConfigs, 200);
 setTimeout(function() {
