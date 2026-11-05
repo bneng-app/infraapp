@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.35 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.36 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -1342,7 +1342,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
       <div class="search-wrap" style="flex:1;min-width:240px;margin:0"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="search-fr" placeholder="Buscar placa, modelo, locadora ou responsável…" oninput="renderFrota()"/></div>
       <div class="form-group" style="min-width:170px;margin:0"><label class="form-label" for="filtro-fr-sit">Situação</label><select class="form-control" id="filtro-fr-sit" onchange="renderFrota()"><option value="">Na obra (sem devolvidos)</option><option value="alerta">⚠ Com alerta</option><option>Em uso</option><option>Reserva</option><option>Em manutenção</option><option>Devolvido</option><option value="todos">Todos</option></select></div>
     </div>
-    <div class="table-wrap"><table><thead><tr><th>Veículo</th><th>Obra</th><th>Locadora / contrato</th><th>Responsável</th><th style="text-align:right">R$/mês</th><th>Situação</th><th></th></tr></thead>
+    <div class="table-wrap"><table><thead><tr><th>Obra</th><th>TAG</th><th>Placa</th><th>Modelo</th><th>Tipo</th><th>Locadora</th><th>Contrato</th><th>Fim do contrato</th><th>Responsável</th><th>Matrícula</th><th>CNH</th><th>Validade CNH</th><th>Chegada</th><th style="text-align:right">Km chegada</th><th style="text-align:right">R$/mês</th><th>Situação</th><th>Devolução</th><th>Avisos</th><th></th></tr></thead>
       <tbody id="tbody-frota"></tbody></table></div>
   </div></div>
 </div>
@@ -1358,7 +1358,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
       <div class="search-wrap" style="flex:1;min-width:240px;margin:0"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="search-frr" placeholder="Buscar placa, responsável ou matrícula…" oninput="renderFrotaResp()"/></div>
       <div class="form-group" style="min-width:200px;margin:0"><label class="form-label" for="filtro-frr">Mostrar</label><select class="form-control" id="filtro-frr" onchange="renderFrotaResp()"><option value="">Todos os veículos na obra</option><option value="sem">Sem responsável</option><option value="cnh">CNH vencida ou vencendo</option></select></div>
     </div>
-    <div class="table-wrap"><table><thead><tr><th>Veículo</th><th>Obra</th><th>Responsável</th><th>CNH</th><th>Desde</th><th></th></tr></thead>
+    <div class="table-wrap"><table><thead><tr><th>Obra</th><th>TAG</th><th>Placa</th><th>Modelo</th><th>Responsável</th><th>Matrícula</th><th>Função</th><th>CNH</th><th>Validade CNH</th><th>Desde</th><th></th></tr></thead>
       <tbody id="tbody-frota-resp"></tbody></table></div>
   </div></div>
   <div class="card" style="margin-top:.875rem"><div class="card-body">
@@ -12291,16 +12291,28 @@ function renderFrota() {
   const corSit = { 'Em uso': 'green', 'Reserva': 'blue', 'Em manutenção': 'amber', 'Devolvido': 'gray' };
   tb.innerHTML = lista.length ? lista.map(v => {
     const r = frRespAtual(v), al = frAlertas(v);
+    const D = x => x ? _frData(x) : '—', km = +v.kmMob || +v.kmInicial || 0;
     return `<tr>
-      <td><div class="td-mono" style="font-weight:800;font-size:14px">${_e(v.placa)}</div><div style="font-size:11.5px;color:var(--text-3)">${_e(v.modelo)}${v.tipo ? ' · ' + _e(v.tipo) : ''}${v.cor ? ' · ' + _e(v.cor) : ''}</div>
-        ${al.map(x => `<span class="tag tag-${x.nivel}" style="font-size:10.5px;margin:3px 3px 0 0;display:inline-block">⚠ ${_e(x.t)}</span>`).join('')}</td>
-      <td style="font-size:12px">${_e(getNomeObra(v.obra) || '—')}${v.mobData ? '<div style="font-size:11px;color:var(--text-3)">desde ' + _frData(v.mobData) + '</div>' : ''}</td>
-      <td style="font-size:12.5px"><b>${_e(v.locadora || '—')}</b>${v.contrato ? '<div style="font-size:11px;color:var(--text-3)">Contrato ' + _e(v.contrato) + '</div>' : ''}${v.fimContrato ? '<div style="font-size:11px;color:var(--text-3)">até ' + _frData(v.fimContrato) + '</div>' : ''}</td>
-      <td style="font-size:12.5px">${r ? `<b>${_e(r.nome)}</b><div style="font-size:11px;color:var(--text-3)">${r.mat ? 'Mat. ' + _e(r.mat) + ' · ' : ''}CNH ${_e(r.cnhCat || '—')}${r.cnhVal ? ' até ' + _frData(r.cnhVal) : ''}</div>` : '<span style="color:var(--text-3)">—</span>'}</td>
+      <td style="font-size:12px;white-space:nowrap"><span class="vl-tag" hidden></span><span class="vl-km" hidden></span>${_e(getNomeObra(v.obra) || '—')}</td>
+      <td class="td-mono" style="white-space:nowrap">${v.tag ? `<span class="tag tag-red" style="font-family:var(--mono);font-size:11px">${_e(v.tag)}</span>` : '—'}</td>
+      <td class="td-mono" style="font-weight:800;white-space:nowrap">${_e(v.placa)}</td>
+      <td style="font-size:12.5px">${_e(v.modelo || '—')}</td>
+      <td style="font-size:12px">${_e(v.tipo || '—')}</td>
+      <td style="font-size:12.5px">${_e(v.locadora || '—')}</td>
+      <td class="td-mono" style="font-size:12px">${_e(v.contrato || '—')}</td>
+      <td class="td-mono" style="font-size:12px;white-space:nowrap">${D(v.fimContrato)}</td>
+      <td style="font-size:12.5px;font-weight:600">${r ? _e(r.nome) : '<span style="color:var(--text-3);font-weight:400">—</span>'}</td>
+      <td class="td-mono" style="font-size:12px">${r && r.mat ? _e(r.mat) : '—'}</td>
+      <td class="td-mono" style="font-size:12px">${r && r.cnhCat ? _e(r.cnhCat) : '—'}</td>
+      <td class="td-mono" style="font-size:12px;white-space:nowrap">${r ? D(r.cnhVal) : '—'}</td>
+      <td class="td-mono" style="font-size:12px;white-space:nowrap">${D(v.mobData)}</td>
+      <td class="td-mono" style="text-align:right">${km ? km.toLocaleString('pt-BR') : '—'}</td>
       <td class="td-mono" style="text-align:right">${+v.valorMes ? _repMoeda(v.valorMes) : '—'}</td>
-      <td>${tag(_e(v.status || 'Em uso'), corSit[v.status] || 'green')}${v.status === 'Devolvido' && v.devData ? '<div style="font-size:11px;color:var(--text-3)">' + _frData(v.devData) + '</div>' : ''}</td>
+      <td>${tag(_e(v.status || 'Em uso'), corSit[v.status] || 'green')}</td>
+      <td class="td-mono" style="font-size:12px;white-space:nowrap">${v.status === 'Devolvido' ? D(v.devData) : '—'}</td>
+      <td style="min-width:150px">${al.length ? al.map(x => `<span class="tag tag-${x.nivel}" style="font-size:10.5px;margin:2px 3px 2px 0;display:inline-block">⚠ ${_e(x.t)}</span>`).join('') : '<span style="color:var(--text-3)">—</span>'}</td>
       <td style="white-space:nowrap;text-align:right"><button class="btn btn-outline btn-sm" onclick="frEditar('${v.id}')">✎ Editar</button></td></tr>`; }).join('')
-    : '<tr><td colspan="7" style="text-align:center;color:var(--text-3);padding:2rem">Nenhum veículo' + (sit || busca ? ' com esse filtro' : _okObraAtual() !== 'todas' ? ' nesta obra' : '') + '. Clique em <b>+ Novo veículo</b>.</td></tr>';
+    : '<tr><td colspan="19" style="text-align:center;color:var(--text-3);padding:2rem">Nenhum veículo' + (sit || busca ? ' com esse filtro' : _okObraAtual() !== 'todas' ? ' nesta obra' : '') + '. Clique em <b>+ Novo veículo</b>.</td></tr>';
   // consulta "quem estava com o veículo"
   const q = document.getElementById('fr-q-veic');
   if (q) { const val = q.value; q.innerHTML = '<option value="">Escolha…</option>' + todos.slice().sort((a, b) => String(a.placa).localeCompare(String(b.placa))).map(v => `<option value="${v.id}">${_e(v.placa)} · ${_e(v.modelo)}</option>`).join(''); q.value = val; frQuem(); }
@@ -12735,13 +12747,18 @@ function renderFrotaResp() {
     .filter(v => { if (!busca) return true; const r = frRespAtual(v) || {}; return _bsNorm([v.placa, v.modelo, r.nome, r.mat].join(' ')).includes(busca); })
     .sort((a, b) => (!!frRespAtual(a)) - (!!frRespAtual(b)) || String(a.placa).localeCompare(String(b.placa)));
   tb.innerHTML = l.length ? l.map(v => { const r = frRespAtual(v), cs = cnhSit(r);
-    return `<tr><td><div class="td-mono" style="font-weight:800">${_e(v.placa)}</div><div style="font-size:11.5px;color:var(--text-3)">${_e(v.modelo || '')}${v.tipo ? ' · ' + _e(v.tipo) : ''}</div></td>
-      <td style="font-size:12px">${_e(getNomeObra(v.obra) || '—')}</td>
-      <td>${r ? `<b>${_e(r.nome)}</b><div style="font-size:11.5px;color:var(--text-3)">${r.mat ? 'Mat. ' + _e(r.mat) : ''}${r.funcao ? ' · ' + _e(r.funcao) : ''}</div>` : tag('Sem responsável', 'amber')}</td>
-      <td>${r ? `${_e(r.cnhCat || '—')} ${r.cnhVal ? tag((cs === 'red' ? 'vencida ' : 'até ') + _frData(r.cnhVal), cs) : ''}` : '—'}</td>
+    return `<tr><td style="font-size:12px;white-space:nowrap"><span class="vl-tag" hidden></span>${_e(getNomeObra(v.obra) || '—')}</td>
+      <td class="td-mono" style="white-space:nowrap">${v.tag ? `<span class="tag tag-red" style="font-family:var(--mono);font-size:11px">${_e(v.tag)}</span>` : '—'}</td>
+      <td class="td-mono" style="font-weight:800;white-space:nowrap">${_e(v.placa)}</td>
+      <td style="font-size:12.5px">${_e(v.modelo || '—')}</td>
+      <td style="font-weight:600">${r ? _e(r.nome) : tag('Sem responsável', 'amber')}</td>
+      <td class="td-mono" style="font-size:12px">${r && r.mat ? _e(r.mat) : '—'}</td>
+      <td style="font-size:12px">${r && r.funcao ? _e(r.funcao) : '—'}</td>
+      <td class="td-mono" style="font-size:12px">${r && r.cnhCat ? _e(r.cnhCat) : '—'}</td>
+      <td style="white-space:nowrap">${r && r.cnhVal ? tag((cs === 'red' ? 'vencida ' : '') + _frData(r.cnhVal), cs) : '—'}</td>
       <td class="td-mono" style="font-size:12px">${r ? _frData(r.inicio) : '—'}</td>
       <td style="white-space:nowrap;text-align:right">${r ? `<button class="btn btn-outline btn-sm" onclick="frTermo('${v.id}')">📄 Termo</button> <button class="btn btn-outline btn-sm" onclick="frRespAbrir('${v.id}')">↺ Trocar / devolver</button>` : `<button class="btn btn-primary btn-sm" onclick="frRespAbrir('${v.id}')">+ Vincular</button>`}</td></tr>`; }).join('')
-    : `<tr><td colspan="6" style="text-align:center;color:var(--text-3);padding:2rem">${todos.length ? 'Nada com esse filtro.' : 'Nenhum veículo na obra. Cadastre primeiro em <b>Frota → Veículos</b>.'}</td></tr>`;
+    : `<tr><td colspan="11" style="text-align:center;color:var(--text-3);padding:2rem">${todos.length ? 'Nada com esse filtro.' : 'Nenhum veículo na obra. Cadastre primeiro em <b>Frota → Veículos</b>.'}</td></tr>`;
   // "quem estava com o veículo" mora nesta tela
   const q = document.getElementById('fr-q-veic');
   if (q) { const val = q.value; q.innerHTML = '<option value="">Escolha…</option>' + _frLista().slice().sort((a, b) => String(a.placa).localeCompare(String(b.placa))).map(v => `<option value="${v.id}">${_e(v.placa)} · ${_e(v.modelo || '')}</option>`).join(''); q.value = val; frQuem(); }
@@ -15501,6 +15518,53 @@ function _frAchaFunc(nome, obra) {
   // botão também na tela de Veículos
   const g = document.querySelector('#page-frota .page-header .btn-group');
   if (g && !g.querySelector('.fr-imp-pl')) g.insertAdjacentHTML('afterbegin', `<label class="btn btn-outline btn-sm fr-imp-pl" style="cursor:pointer" title="Planilha 'Controle de Frota e Abastecimento': abas Controle de Frota e Abastecimentos">↑ Importar planilha de controle<input type="file" accept=".xlsx,.xls" style="display:none" onchange="abImportarPlanilha(this)"/></label>`);
+})();
+
+
+// v3.36: RESPONSÁVEIS FORA DO EFETIVO — destaque, "🔗 Vincular" (mesma janela dos alojados) e ligação automática pelo nome
+function frVincular(vid) {
+  const v = (dados.frota || []).find(x => x.id === vid), r = v && frRespAtual(v); if (!r) return;
+  window._vin = { tipo: 'fr', vid };
+  const fs = (dados.funcionarios || []).filter(f => (!v.obra || !f.obra || f.obra === v.obra) && !(f.demissao && f.demissao <= _hojeLocal())).sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
+  const sug = _vinSug(r.nome, v.obra);
+  document.getElementById('vin-info').innerHTML = `Responsável na planilha: <b>${_e(r.nome)}</b><br><span style="color:var(--text-3)">${_e(v.tag || '')} · ${_e(v.placa)} · ${_e(v.modelo || '')}</span>`;
+  document.getElementById('vin-sug').innerHTML = sug.length ? 'Parecidos no efetivo: ' + sug.map(f => `<button type="button" class="btn btn-outline btn-sm" style="margin:3px 4px 0 0" onclick="document.getElementById('vin-func').value='${f.id}';buscaSelectSync('vin-func')">${_e(f.nome)} · ${_e(f.mat)}</button>`).join('') : '<span style="color:var(--text-3)">Nenhum nome parecido no efetivo — busque abaixo, ou cadastre a pessoa em Funcionários.</span>';
+  const sel = document.getElementById('vin-func'); sel.innerHTML = '<option value="">Escolha o funcionário…</option>' + fs.map(f => `<option value="${f.id}">${_e(f.nome)} · Mat. ${_e(f.mat || '—')}${f.funcao ? ' · ' + _e(f.funcao) : ''}</option>`).join('');
+  buscaSelect('vin-func', 'Digite nome ou matrícula…'); sel.value = sug[0] ? sug[0].id : ''; buscaSelectSync('vin-func');
+  openModal('modal-vinc');
+}
+function _frLigarResp(v, x, f) { Object.assign(x, { func: f.id, nomePlanilha: x.nomePlanilha || x.nome, nome: f.nome, mat: f.mat || '', funcao: f.funcao || '' }); }
+async function frLigarPeloNome() {
+  const ob = _okObraAtual(); let nr = 0, na = 0; const sv = new Set(), sa = [];
+  (dados.frota || []).filter(v => ob === 'todas' || v.obra === ob).forEach(v => (v.resp || []).forEach(x => { if (x.func || !x.nome) return; const f = _frAchaFunc(x.nome, v.obra); if (f) { _frLigarResp(v, x, f); sv.add(v); nr++; } }));
+  (dados.abastVeic || []).filter(a => (ob === 'todas' || a.obra === ob) && a.motorista && !a.motoristaId).forEach(a => { const f = _frAchaFunc(a.motorista, a.obra); if (f) { a.motoristaPlanilha = a.motorista; a.motorista = f.nome; a.motoristaId = f.id; a.motoristaMat = f.mat || ''; sa.push(a); na++; } });
+  if (db && _firebaseReady) { for (const v of sv) await fbSave('frota', v.id, v).catch(() => {}); for (const a of sa) await fbSave('abastVeic', a.id, a).catch(() => {}); }
+  try { renderFrotaResp(); renderFrota(); renderAbastVeic(); } catch (e) {}
+  toast(`Ligados ao efetivo: ${nr} responsável(is) e ${na} abastecimento(s). Os que sobraram em amarelo, vincule um a um.`);
+}
+(function () {
+  const oS = window.alojVincularSalvar;
+  window.alojVincularSalvar = alojVincularSalvar = function () {
+    const w = window._vin || {}; if (w.tipo !== 'fr') return oS.apply(this, arguments);
+    const v = (dados.frota || []).find(x => x.id === w.vid), r = v && frRespAtual(v); if (!r) return;
+    const f = (dados.funcionarios || []).find(x => x.id === document.getElementById('vin-func').value); if (!f) { toast('Escolha o funcionário.', 'error'); return; }
+    const antes = r.nome; _frLigarResp(v, r, f);
+    // os abastecimentos com o mesmo nome escrito também passam para ele
+    let na = 0; (dados.abastVeic || []).filter(a => a.obra === v.obra && !a.motoristaId && _bsNorm(a.motorista) === _bsNorm(antes)).forEach(a => { a.motoristaPlanilha = a.motorista; a.motorista = f.nome; a.motoristaId = f.id; a.motoristaMat = f.mat || ''; na++; if (db && _firebaseReady) fbSave('abastVeic', a.id, a).catch(() => {}); });
+    if (db && _firebaseReady) fbSave('frota', v.id, v).catch(() => toast('Ficou só neste computador — não gravou no servidor.', 'error'));
+    closeModal('modal-vinc'); try { renderFrotaResp(); renderFrota(); renderAbastVeic(); } catch (e) {}
+    toast(antes + ' → ' + f.nome + ' (Mat. ' + f.mat + ')' + (na ? ' · ' + na + ' abastecimento(s) também' : ''));
+  };
+  const css = document.createElement('style'); css.textContent = `#tbody-frota-resp tr.fr-fora>td{background:rgba(245,158,11,.10)}#tbody-frota-resp tr.fr-fora>td:first-child{box-shadow:inset 3px 0 0 #F59E0B}`; document.head.appendChild(css);
+  const oR = window.renderFrotaResp;
+  window.renderFrotaResp = renderFrotaResp = function () {
+    const res = oR.apply(this, arguments); let n = 0;
+    document.querySelectorAll('#tbody-frota-resp tr').forEach(tr => { const b = tr.querySelector('[onclick*="frRespAbrir("]'); const m = b && /frRespAbrir\('([^']+)'\)/.exec(b.getAttribute('onclick')); const v = m && (dados.frota || []).find(x => x.id === m[1]); const r = v && frRespAtual(v);
+      if (!r || r.func) return; n++; tr.classList.add('fr-fora');
+      const tdMat = tr.children[5]; if (tdMat) tdMat.innerHTML = '<span class="tag tag-amber">⚠ fora do efetivo</span>';
+      b.parentElement.style.whiteSpace = 'nowrap'; b.insertAdjacentHTML('beforebegin', `<button class="btn btn-sm" style="background:#F59E0B;color:#fff;border-color:#F59E0B" onclick="frVincular('${v.id}')">🔗 Vincular</button> `); });
+    const kp = document.getElementById('frr-kpis'); if (kp && n) kp.insertAdjacentHTML('beforeend', `<div class="stat-card"><div class="stat-label">Fora do efetivo</div><div class="stat-value" style="color:var(--amber)">${n}</div><div class="stat-sub"><a href="#" onclick="frLigarPeloNome();return false" style="color:#B45309;font-weight:700">🔗 ligar pelo nome</a> ou vincule um a um</div></div>`);
+    return res; };
 })();
 
 // Apply configs on load
