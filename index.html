@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.77 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.78 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -16470,7 +16470,11 @@ function _catBarra(pg, col) {
     if (col === 'familias') return _famCat((dados.familias || []).find(f => f.cod === cod && _mmBanco(f)) || (dados.familias || []).find(f => f.cod === cod));
     const m = (dados.modelos || []).find(x => x.cod === cod && _mmBanco(x)) || (dados.modelos || []).find(x => x.cod === cod); return _famCat(m && _mmFamDe(m)); });
   const n = c => cats.filter(x => x === c).length, at = window._catAba;
-  bar.innerHTML = [['', 'Todas', cats.filter(Boolean).length]].concat(CAT_EQ.map(c => [c, c, n(c)])).filter(([k, , q]) => !k || q).map(([k, t, q]) => `<button type="button" class="btn btn-sm ${at === k ? 'btn-primary' : 'btn-outline'}" onclick="window._catAba='${k}';_catAplicar()">${t} <span style="opacity:.7">${q}</span></button>`).join('');
+  const ICO = { '': '▦', 'Linha amarela': '🚜', 'Veículos pesados': '🚛', 'Veículos leves': '🚗', 'Outros': '⚙' }, COR = { '': '#6B7280', 'Linha amarela': '#D97706', 'Veículos pesados': '#2563EB', 'Veículos leves': '#16A34A', 'Outros': '#7C3AED' };
+  bar.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-bottom:14px';
+  bar.innerHTML = [['', 'Todas', cats.filter(Boolean).length]].concat(CAT_EQ.map(c => [c, c, n(c)])).filter(([k, , q]) => !k || q).map(([k, t, q]) => { const on = at === k, c = COR[k];
+    return `<div onclick="window._catAba='${k}';_catAplicar()" style="cursor:pointer;border:1px solid ${on ? c : 'var(--border)'};border-left:4px solid ${c};${on ? 'box-shadow:0 0 0 2px ' + c + '33;background:' + c + '0F;' : 'background:var(--surface,#fff);'}border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:10px">
+      <span style="font-size:22px">${ICO[k]}</span><div style="flex:1"><div style="font-weight:700;font-size:13.5px">${t}</div><div style="font-size:11.5px;color:var(--text-3)">${col === 'familias' ? 'família(s)' : 'modelo(s)'}</div></div><span style="font-size:24px;font-weight:800;color:${c}">${q}</span></div>`; }).join('');
   rows.forEach((tr, i) => { if (cats[i] === null) return; tr.classList.toggle('cat-esc', !!at && cats[i] !== at); });
 }
 function _catAplicar() { try { if (document.getElementById('page-familias')?.classList.contains('active')) renderFamilias(); if (document.getElementById('page-modelos')?.classList.contains('active')) renderModelos(); } catch (e) {} }
@@ -16518,6 +16522,16 @@ function _pfCadastrar(nome) { novoUsuario(); const s = document.getElementById('
 (function () {
   const oP = window.popularPerfis || popularPerfis; popularPerfis = window.popularPerfis = function () { const r = oP.apply(this, arguments); try { _pfBlocos(); } catch (e) {} return r; };
   const oR = window.renderUsuarios; window.renderUsuarios = renderUsuarios = function () { const r = oR.apply(this, arguments); try { _pfBlocos(); } catch (e) {} return r; };
+})();
+// v3.78: Modelos — coluna Consumo mostra L/h (máquinas) ou km/L (caminhões e veículos)
+(function () {
+  const oM = window.renderModelos; renderModelos = window.renderModelos = function () { const r = oM.apply(this, arguments); try {
+    const th = [...document.querySelectorAll('#tabela-modelos thead th')], ic = th.findIndex(t => /consumo/i.test(t.textContent)); if (ic < 0) return r;
+    if (!th[ic].dataset.cx) { th[ic].dataset.cx = 1; const b = th[ic].querySelector('button'); th[ic].firstChild && th[ic].firstChild.nodeType === 3 ? th[ic].firstChild.textContent = 'Consumo' : th[ic].insertAdjacentText('afterbegin', ''); }
+    document.querySelectorAll('#tbody-modelos tr').forEach(tr => { const cod = tr.querySelector('td strong')?.textContent.trim(), m = cod && ((dados.modelos || []).find(x => x.cod === cod && _mmBanco(x)) || (dados.modelos || []).find(x => x.cod === cod)), td = tr.children[ic]; if (!m || !td || td.dataset.cx) return; td.dataset.cx = 1;
+      const lh = +m.consumoPrev || 0, kml = +m.consumoKmL || 0;
+      td.innerHTML = lh || kml ? [lh ? lh.toLocaleString('pt-BR') + ' <span style="color:var(--text-3);font-size:11px">L/h</span>' : '', kml ? kml.toLocaleString('pt-BR') + ' <span style="color:var(--text-3);font-size:11px">km/L</span>' : ''].filter(Boolean).join('<br>') : '<span style="color:var(--amber)">preencher</span>'; });
+  } catch (e) {} return r; };
 })();
 // Apply configs on load
 setTimeout(applyConfigs, 200);
