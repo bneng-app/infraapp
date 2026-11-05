@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.38 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.39 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -14727,7 +14727,7 @@ function renderAbastVeic() {
         <td class="td-mono" style="font-weight:700;white-space:nowrap">${_e(v.tag || '—')}</td><td class="td-mono" style="white-space:nowrap">${_e(v.placa || a.placa || '—')}</td><td style="font-size:12px">${_e(v.modelo || '—')}</td>
         <td class="td-mono" style="white-space:nowrap">${_abFmtD(a.data)}${a.hora ? ' ' + _e(a.hora) : ''}</td>
         <td style="font-size:12.5px;font-weight:600">${_e(a.motorista || '—')}</td>
-        <td class="td-mono" style="font-size:12px;white-space:nowrap">${fora ? `<span class="tag tag-amber">⚠ fora do efetivo</span>` : _e(a.motoristaMat || (fm && fm.mat) || '—')}</td>
+        <td class="td-mono" style="font-size:12px;white-space:nowrap">${fora ? `<button class="btn btn-sm" style="background:#F59E0B;color:#fff;border-color:#F59E0B;white-space:nowrap;padding:3px 8px;font-size:11.5px" onclick="abvVincular('${a.id}')" title="Fora do efetivo — clique para ligar ao funcionário">⚠ 🔗 Vincular</button>` : _e(a.motoristaMat || (fm && fm.mat) || '—')}</td>
         <td style="font-size:12px">${_e((fm && fm.funcao) || '—')}</td>
         <td style="font-size:12px">${_e(a.combustivel || '—')}</td>
         <td class="td-mono" style="text-align:right">${_fmtN(+a.litros || 0)}</td><td class="td-mono" style="text-align:right">${+a.precoL ? _repMoeda(a.precoL) : '—'}</td><td class="td-mono" style="text-align:right;font-weight:700">${_repMoeda(+a.valor || 0)}</td>
@@ -15457,7 +15457,7 @@ function alojVincularSalvar() {
     const vis = (lst || todos).filter(x => (!ft || (x.r.tipo || 'República') === ft) && (!fr || x.r.id === fr) && (!bs || [x.nome, x.mat, x.funcao].some(t => String(t).toLowerCase().includes(bs)))).sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
     rows.forEach((tr, i) => { const x = vis[i]; if (!x || x.m.func || tr.children.length < 5) return; tr.classList.add('aloj-fora');
       const tdMat = [...tr.children].find(td => td.classList.contains('td-mono') && td.textContent.trim() === '—' && td.previousElementSibling && td.previousElementSibling.querySelector('b'));
-      if (tdMat) tdMat.innerHTML = '<span class="tag tag-amber" title="Não encontrado no efetivo (CLT/PJ)">⚠ fora do efetivo</span>';
+      if (tdMat) tdMat.innerHTML = `<button class="btn btn-sm" style="background:#F59E0B;color:#fff;border-color:#F59E0B;white-space:nowrap;padding:3px 8px;font-size:11.5px" onclick="alojVincular('${x.r.id}','${x.m.id}')" title="Fora do efetivo — clique para ligar ao funcionário">⚠ 🔗 Vincular</button>`;
       const bt = tr.querySelector('button[onclick^="repMoradoresAbrir"]'); if (bt) bt.parentElement.style.whiteSpace = 'nowrap'; if (bt) bt.insertAdjacentHTML('beforebegin', `<button class="btn btn-sm" style="background:#F59E0B;color:#fff;border-color:#F59E0B;margin-right:4px" onclick="alojVincular('${x.r.id}','${x.m.id}')">🔗 Vincular</button>`); });
     const rs = document.getElementById('aloj-resumo');
     if (rs && fora.length) rs.insertAdjacentHTML('beforeend', ` · <a href="#" style="color:#B45309;font-weight:700" onclick="_alojSoFora=!_alojSoFora;renderAlojados();return false">⚠ ${fora.length} fora do efetivo${_alojSoFora ? ' — mostrar todos' : ' — ver só eles'}</a>`);
@@ -15568,7 +15568,7 @@ async function frLigarPeloNome() {
     const res = oR.apply(this, arguments); let n = 0;
     document.querySelectorAll('#tbody-frota-resp tr').forEach(tr => { const b = tr.querySelector('[onclick*="frRespAbrir("]'); const m = b && /frRespAbrir\('([^']+)'\)/.exec(b.getAttribute('onclick')); const v = m && (dados.frota || []).find(x => x.id === m[1]); const r = v && frRespAtual(v);
       if (!r || r.func) return; n++; tr.classList.add('fr-fora');
-      const tdMat = tr.children[5]; if (tdMat) tdMat.innerHTML = '<span class="tag tag-amber">⚠ fora do efetivo</span>';
+      const tdMat = tr.children[5]; if (tdMat) tdMat.innerHTML = `<button class="btn btn-sm" style="background:#F59E0B;color:#fff;border-color:#F59E0B;white-space:nowrap;padding:3px 8px;font-size:11.5px" onclick="frVincular('${v.id}')" title="Fora do efetivo — clique para ligar ao funcionário">⚠ 🔗 Vincular</button>`;
       b.parentElement.style.whiteSpace = 'nowrap'; b.insertAdjacentHTML('beforebegin', `<button class="btn btn-sm" style="background:#F59E0B;color:#fff;border-color:#F59E0B" onclick="frVincular('${v.id}')">🔗 Vincular</button> `); });
     const kp = document.getElementById('frr-kpis'); if (kp && n) kp.insertAdjacentHTML('beforeend', `<div class="stat-card"><div class="stat-label">Fora do efetivo</div><div class="stat-value" style="color:var(--amber)">${n}</div><div class="stat-sub"><a href="#" onclick="frLigarPeloNome();return false" style="color:#B45309;font-weight:700">🔗 ligar pelo nome</a> ou vincule um a um</div></div>`);
     return res; };
