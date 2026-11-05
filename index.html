@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.29 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.30 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -7454,6 +7454,7 @@ const _selected = {};
 function toggleSelectAll(col, cb) {
   if (!_selected[col]) _selected[col] = new Set();
   document.querySelectorAll('.cb-item-'+col).forEach(function(c) {
+    var tr = c.closest('tr'); if (tr && tr.style.display === 'none') { c.checked = false; _selected[col].delete(c.dataset.id); return; }   // v3.30: escondido pelo filtro não entra
     c.checked = cb.checked;
     if (cb.checked) _selected[col].add(c.dataset.id);
     else _selected[col].delete(c.dataset.id);
@@ -12019,7 +12020,7 @@ function renderRepublicas() {
       <td style="font-size:12px;min-width:120px">${r.responsavel ? _e(r.responsavel) + (r.propDoc ? '<div style="font-size:11px;color:var(--text-3)">' + _e(r.propDoc) + '</div>' : '') : '<span style="color:var(--amber)">⚠ falta</span>'}</td>
       <td style="font-size:12px">${_e(getNomeObra(r.obra) || '—')}</td>
       <td style="min-width:150px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><b>${m} de ${v}</b><span style="color:var(--text-3)">${v - m > 0 ? (v - m) + ' livre(s)' : v ? 'lotada' : ''}</span></div>
-        <div style="height:7px;border-radius:4px;background:var(--border);overflow:hidden"><div style="height:7px;width:${pc}%;background:${m > v ? 'var(--red)' : 'var(--blue, #2563EB)'}"></div></div></td>
+        <div style="height:7px;border-radius:4px;background:var(--border);overflow:hidden"><div style="height:7px;width:${pc}%;background:${_ocupCor(m, v)}"></div></div></td>
       <td class="td-mono" style="text-align:right">${_repMoeda(c)}</td>
       <td class="td-mono" style="text-align:right;font-weight:700">${m ? _repMoeda(c / m) : '—'}</td>
       <td class="td-mono" style="text-align:right;color:var(--text-2)">${v ? _repMoeda(c / v) : '—'}</td>
@@ -15203,6 +15204,87 @@ document.addEventListener('click', () => document.getElementById('fn-af-pop')?.r
 
 // v3.29: Repúblicas — selecionar e excluir vários; a tela e os alojados se atualizam
 (function () { const o = window.excluirSelecionados; window.excluirSelecionados = excluirSelecionados = async function (col) { const r = await o.apply(this, arguments); if (col === 'republicas') { try { renderRepublicas(); renderAlojados(); } catch (e) {} } return r; }; })();
+
+// ═══════════════════════════════════════════════════════════════
+// v3.30: AUTOFILTRO E CLASSIFICAÇÃO EM TODAS AS TABELAS DO PAINEL (como no Excel)
+// clique no nome da coluna = classifica · ▼ = lista de valores para filtrar. Funcionários tem o seu (v3.28).
+// ═══════════════════════════════════════════════════════════════
+const _AFT = {};   // estado por tabela
+let _afSeq = 0;
+function _afTxt(td) { return td ? (td.innerText || '').replace(/\s+/g, ' ').trim() : ''; }
+function _afChave(v) {
+  if (!v || v === '—' || v === '-') return { t: 2, v: '' };
+  let m = /^(\d{2})\/(\d{2})\/(\d{4})/.exec(v); if (m) return { t: 0, v: +(m[3] + m[2] + m[1]) };
+  const n = v.replace(/^R\$\s*/, '').replace(/\s*(h|L|km|%|km\/L)$/i, '');
+  if (/^-?[\d.]+(,\d+)?$/.test(n)) return { t: 0, v: parseFloat(n.replace(/\./g, '').replace(',', '.')) };
+  if (/^-?\d+(\.\d+)?$/.test(n)) return { t: 0, v: parseFloat(n) };
+  return { t: 1, v: v.toLowerCase() };
+}
+function _afCols(tb) { return [...tb.querySelectorAll(':scope > thead > tr:last-child > th')]; }
+function _afLinhas(tb) { const n = _afCols(tb).length; return [...tb.querySelectorAll(':scope > tbody > tr')].filter(tr => tr.children.length === n && !tr.classList.contains('sub')); }
+function _afMontar(tb) {
+  if (!tb.dataset.afid) tb.dataset.afid = 'af' + (++_afSeq);
+  const id = tb.dataset.afid, st = _AFT[id] = _AFT[id] || { ord: -1, dir: 1, flt: {} };
+  _afCols(tb).forEach((th, i) => {
+    if (th.dataset.afi !== undefined && th.querySelector('.af-b')) return;
+    const nome = th.textContent.trim(); if (!nome || th.querySelector('input')) return;
+    th.dataset.afi = i; th.classList.add('af-th');
+    th.insertAdjacentHTML('beforeend', `<span class="af-o"></span><span class="af-b" title="Filtrar" onclick="_afAbrir('${id}',${i},event)">▼</span>`);
+    th.addEventListener('click', e => { if (e.target.closest('.af-b')) return; const s = _AFT[id]; if (s.ord === i) s.dir = -s.dir; else { s.ord = i; s.dir = 1; } _afAplicar(tb); });
+  });
+}
+function _afAplicar(tb) {
+  const id = tb.dataset.afid, st = _AFT[id]; if (!st) return; tb.__afOcup = true;
+  try {
+    const rows = _afLinhas(tb);
+    rows.forEach(tr => { const ok = Object.entries(st.flt).every(([i, set]) => set.has(_afTxt(tr.children[i]) || '(vazio)')); tr.style.display = ok ? '' : 'none'; });
+    if (st.ord >= 0 && rows.length) { const body = rows[0].parentNode, i = st.ord, d = st.dir;
+      const ks = new Map(rows.map(tr => [tr, _afChave(_afTxt(tr.children[i]))]));
+      const ord = [...rows].sort((a, b) => { const x = ks.get(a), y = ks.get(b); if (x.t !== y.t) return x.t - y.t; return (x.v < y.v ? -1 : x.v > y.v ? 1 : 0) * d; });
+      const resto = [...body.children].filter(tr => !ks.has(tr)); ord.forEach(tr => body.appendChild(tr)); resto.forEach(tr => body.appendChild(tr)); }
+    _afCols(tb).forEach((th, i) => { const o = th.querySelector('.af-o'), b = th.querySelector('.af-b'); if (o) o.textContent = st.ord === i ? (st.dir > 0 ? '↑' : '↓') : ''; if (b) b.classList.toggle('on', !!st.flt[i]); });
+  } finally { setTimeout(() => { tb.__afOcup = false; }, 0); }
+}
+function _afAbrir(id, i, ev) {
+  ev.stopPropagation(); document.getElementById('af-pop')?.remove();
+  const tb = document.querySelector(`table[data-afid="${id}"]`); if (!tb) return; const st = _AFT[id], sel = st.flt[i];
+  const vals = [...new Set(_afLinhas(tb).map(tr => _afTxt(tr.children[i]) || '(vazio)'))].sort((a, b) => { const x = _afChave(a), y = _afChave(b); return x.t - y.t || (x.v < y.v ? -1 : x.v > y.v ? 1 : 0); });
+  const pop = document.createElement('div'); pop.id = 'af-pop'; pop.className = 'fn-af-pop';
+  pop.innerHTML = `<button type="button" onclick="_afOrd('${id}',${i},1)">↑ Classificar do menor para o maior</button><button type="button" onclick="_afOrd('${id}',${i},-1)">↓ Classificar do maior para o menor</button>
+    <input class="form-control" placeholder="Pesquisar…" oninput="document.querySelectorAll('#af-pop .fn-af-it').forEach(l=>l.style.display=l.dataset.t.toLowerCase().includes(this.value.toLowerCase())?'':'none')"/>
+    <label><input type="checkbox" ${!sel ? 'checked' : ''} onchange="document.querySelectorAll('#af-pop .fn-af-it input').forEach(c=>{if(c.closest('label').style.display!=='none')c.checked=this.checked})"/> (Selecionar tudo)</label>
+    <div class="fn-af-lst">${vals.map(v => `<label class="fn-af-it" data-t="${_e(v)}"><input type="checkbox" value="${_e(v)}" ${!sel || sel.has(v) ? 'checked' : ''}/> ${_e(v.length > 60 ? v.slice(0, 60) + '…' : v)}</label>`).join('')}</div>
+    <div class="fn-af-ac"><button type="button" class="btn btn-outline btn-sm" onclick="_afLimpar('${id}',${i})">Limpar</button><button type="button" class="btn btn-primary btn-sm" onclick="_afOk('${id}',${i})">OK</button></div>`;
+  document.body.appendChild(pop);
+  const r = ev.currentTarget.getBoundingClientRect(); pop.style.top = (r.bottom + window.scrollY + 4) + 'px'; pop.style.left = Math.max(8, Math.min(r.left + window.scrollX, window.innerWidth - 270)) + 'px';
+  pop.addEventListener('click', e => e.stopPropagation());
+}
+function _afTab(id) { return document.querySelector(`table[data-afid="${id}"]`); }
+function _afOrd(id, i, d) { _AFT[id].ord = i; _AFT[id].dir = d; document.getElementById('af-pop')?.remove(); _afAplicar(_afTab(id)); }
+function _afLimpar(id, i) { delete _AFT[id].flt[i]; document.getElementById('af-pop')?.remove(); _afAplicar(_afTab(id)); }
+function _afOk(id, i) { const cs = [...document.querySelectorAll('#af-pop .fn-af-it input')], m = cs.filter(c => c.checked).map(c => c.value);
+  if (m.length === cs.length) delete _AFT[id].flt[i]; else _AFT[id].flt[i] = new Set(m); document.getElementById('af-pop')?.remove(); _afAplicar(_afTab(id)); }
+document.addEventListener('click', () => document.getElementById('af-pop')?.remove());
+function _afVarrer() {
+  document.querySelectorAll('.page table').forEach(tb => {
+    if (tb.id === 'tabela-func' || tb.closest('.dx-main') || tb.closest('.modal') || !tb.querySelector(':scope > thead') || tb.__afObs) return;
+    _afMontar(tb);
+    tb.__afObs = new MutationObserver(() => { if (tb.__afOcup) return; clearTimeout(tb.__afT); tb.__afT = setTimeout(() => { _afMontar(tb); _afAplicar(tb); }, 30); });
+    tb.__afObs.observe(tb, { childList: true, subtree: true });
+  });
+}
+(function () {
+  const css = document.createElement('style');
+  css.textContent = `.page table th.af-th{cursor:pointer;user-select:none;white-space:nowrap}.page table th.af-th:hover{color:var(--text)}
+    .page table th .af-b{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;margin-left:4px;border:1px solid var(--border);border-radius:4px;font-size:8.5px;color:var(--text-3);vertical-align:middle;cursor:pointer}
+    .page table th .af-b.on{background:#E30613;border-color:#E30613;color:#fff}.page table th .af-o{color:#E30613;margin-left:3px}`;
+  document.head.appendChild(css);
+  const oS = window.showPage; window.showPage = showPage = function () { const r = oS.apply(this, arguments); setTimeout(_afVarrer, 60); return r; };
+  setTimeout(_afVarrer, 1500);
+})();
+// v3.30: barra de ocupação com cor — até metade verde, acima da metade amarelo, lotada vermelho
+function _ocupCor(m, v) { const p = v ? m / v : 0; return p > 1 || p >= 1 ? '#DC2626' : p > 0.5 ? '#F59E0B' : '#16A34A'; }
+
 // Apply configs on load
 setTimeout(applyConfigs, 200);
 setTimeout(function() {
