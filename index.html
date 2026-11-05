@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.59 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.60 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -14843,7 +14843,7 @@ async function abImportarPlanilha(input) {
     const st = String(col(o, 'status do veiculo')), dev = /devolv/i.test(st), resp = String(col(o, 'responsavel')).trim(), ini = dt(col(o, 'data inicio'));
     const v = { id: 'vc' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), obra, placa: p, modelo: String(col(o, 'veiculo')).trim(), tipo: /strada|saveiro|hilux|s10|ranger|toro|oroch|montana/i.test(col(o, 'veiculo')) ? 'Picape' : 'Carro', ano: String(col(o, 'ano')),
       locadora: String(col(o, 'locadora')).trim(), valorMes: +col(o, 'valor mensal') || 0, franquiaKm: +col(o, 'franquia') || 0, kmMob: +col(o, 'km inicial') || 0, kmAjuste: +col(o, 'km ajuste') || 0, setor: String(col(o, 'setor')).trim(),
-      kmRevisao: +col(o, 'km proxima revisao') || 0, contatoLoc: String(col(o, 'contato')).trim(), mobData: ini, status: dev ? 'Devolvido' : 'Em uso', devData: dev ? dt(col(o, 'data de devolucao')) : '', obs: String(col(o, 'observacoes') || '').trim(),
+      kmRevisao: +col(o, 'km proxima revisao') || 0, contatoLoc: String(col(o, 'contato')).trim(), mobData: ini, status: dev ? 'Devolvido' : 'Em uso', devData: dev ? dt(col(o, 'data de devolucao')) : '', kmDev: dev ? (+col(o, 'km atual') || 0) : 0, obs: String(col(o, 'observacoes') || '').trim(),
       resp: resp ? [{ nome: resp, inicio: ini, ...(dev ? { fim: dt(col(o, 'data de devolucao')) } : {}) }] : [], origem: 'importado', criadoEm: new Date().toISOString() };
     v.tag = ''; (dados.frota = dados.frota || []).push(v); v.tag = _frTagProx(obra, v.id); novosV.push(v); nv++; });
   tabela(aba(/abastec/)).forEach(o => { const p = placaN(col(o, 'placa')), d = dt(col(o, 'data')), L = +col(o, 'quantidade', 'litros') || 0; if (!p || !d || !L) return;
@@ -14853,9 +14853,32 @@ async function abImportarPlanilha(input) {
     const a = { id: 'av' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), obra, veicId: v.id, tag: v.tag || '', placa: p, data: d, hora: '', motorista: String(col(o, 'motorista')).trim(), combustivel: String(col(o, 'tipo de combustivel')).trim() || AB_COMB[0],
       litros: L, precoL: pr, valor: +col(o, 'valor total') || +(L * pr).toFixed(2), km, posto: String(col(o, 'posto')).trim(), obs: String(col(o, 'observacoes') || '').trim(), origem: 'importado', lancadoPor: usuarioLogado?.nome || '', lancadoEm: new Date().toISOString() };
     (dados.abastVeic = dados.abastVeic || []).push(a); novosA.push(a); na++; });
-  if (db && _firebaseReady) { for (const v of novosV) await fbSave('frota', v.id, v).catch(() => {}); for (const a of novosA) await fbSave('abastVeic', a.id, a).catch(() => {}); }
-  renderAbastVeic(); try { renderFrota(); } catch (e) {}
-  toast(`Importado: ${nv} veículo(s) e ${na} abastecimento(s)` + (dup ? ` · ${dup} repetido(s) ignorado(s)` : '') + (semV ? ` · ${semV} sem veículo cadastrado` : '') + '.');
+  // v3.60: aba "Histórico de Devoluções" — veículos já devolvidos (saíram da aba Controle de Frota)
+  let ndev = 0; const atuV = [];
+  tabela(aba(/historico de devol/)).forEach(o => { const p = placaN(col(o, 'placa')); if (!/^[A-Z]{3}\d[A-Z0-9]\d{2}$/.test(p)) return;
+    const ini = dt(col(o, 'data inicio')), fim = dt(col(o, 'data de devolucao')), resp = String(col(o, 'responsavel')).trim();
+    const ja = (dados.frota || []).find(v => v.placa === p && v.obra === obra && (!ini || !v.mobData || v.mobData === ini));
+    if (ja) { if (ja.status !== 'Devolvido' && fim) { ja.status = 'Devolvido'; ja.devData = fim; ja.kmDev = +col(o, 'km final') || ja.kmDev || 0; (ja.resp || []).forEach(x => { if (!x.fim) x.fim = fim; }); atuV.push(ja); ndev++; } else if (!+ja.kmDev && +col(o, 'km final')) { ja.kmDev = +col(o, 'km final'); atuV.push(ja); } return; }
+    const v = { id: 'vc' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), obra, placa: p, modelo: String(col(o, 'veiculo')).trim(), tipo: /strada|saveiro|hilux|s10|ranger|toro|oroch|montana/i.test(col(o, 'veiculo')) ? 'Picape' : 'Carro', ano: String(col(o, 'ano') || ''),
+      locadora: String(col(o, 'locadora')).trim(), valorMes: +col(o, 'valor mensal') || 0, kmMob: +col(o, 'km inicial') || 0, kmDev: +col(o, 'km final') || 0, setor: String(col(o, 'setor')).trim(),
+      mobData: ini, status: 'Devolvido', devData: fim, resp: resp ? [{ nome: resp, inicio: ini, ...(fim ? { fim } : {}) }] : [], origem: 'importado (histórico de devoluções)', criadoEm: new Date().toISOString() };
+    v.tag = ''; (dados.frota = dados.frota || []).push(v); v.tag = _frTagProx(obra, v.id); novosV.push(v); ndev++; });
+  // v3.60: aba "Multas e Infrações"
+  let nmu = 0, muSemV = 0; const novosM = [];
+  const muSt = t => { t = N(t); if (!t) return MU_ST[0]; const ex = MU_ST.find(x => N(x) === t); if (ex) return ex; return /cancel/.test(t) ? 'Cancelada' : /descont/.test(t) ? 'Descontada em folha' : /pag[oa]|quitad/.test(t) ? 'Paga' : /recurs/.test(t) ? 'Em recurso' : /indicad/.test(t) ? 'Condutor indicado' : /pagar|aberto|pendent/.test(t) ? 'A pagar' : MU_ST[0]; };
+  tabela(aba(/multa/)).forEach(o => { const p = placaN(col(o, 'placa')), d = dt(col(o, 'data da infracao', 'data')); if (!p || !d) return;
+    const v = (dados.frota || []).find(x => x.placa === p && x.obra === obra) || (dados.frota || []).find(x => x.placa === p); if (!v) { muSemV++; return; }
+    const valor = +col(o, 'valor') || 0, tipo = String(col(o, 'tipo de infracao')).trim();
+    if ((dados.multas || []).some(m => m.veicId === v.id && m.data === d && Math.abs((+m.valor || 0) - valor) < .01 && (m.tipo || '') === tipo)) { dup++; return; }
+    const r = muCondutorNaData(v, d) || (typeof _frRespNaData === 'function' ? _frRespNaData(v, d) : null), ind = String(col(o, 'condutor indicado')).trim(), cond = ind || (r ? r.nome : String(col(o, 'responsavel')).trim());
+    const m = { id: 'mu' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), obra: v.obra || obra, veicId: v.id, tag: v.tag || '', placa: p, data: d, hora: '', ait: String(col(o, 'ait', 'n do auto') || '').trim(), orgao: String(col(o, 'orgao')).trim(), tipo, local: String(col(o, 'local') || '').trim(),
+      gravidade: String(col(o, 'gravidade')).trim() || 'Média', pontos: +col(o, 'pontos') || 0, valor, condutor: cond, condutorAuto: !ind && !!r, condutorMat: !ind && r ? (r.mat || '') : '',
+      prazo: dt(col(o, 'prazo')), status: muSt(col(o, 'status')), dataPag: dt(col(o, 'data pagamento', 'data de pagamento')), obs: String(col(o, 'observacoes') || '').trim(), origem: 'importado', criadoPor: usuarioLogado?.nome || '', criadoEm: new Date().toISOString() };
+    (dados.multas = dados.multas || []).push(m); novosM.push(m); nmu++; });
+  if (db && _firebaseReady) { for (const v of novosV.concat(atuV)) await fbSave('frota', v.id, v).catch(() => {}); for (const a of novosA) await fbSave('abastVeic', a.id, a).catch(() => {}); for (const m of novosM) await fbSave('multas', m.id, m).catch(() => {}); }
+  renderAbastVeic(); try { renderFrota(); renderMultas(); } catch (e) {}
+  window._frImpExtra = { ndev, nmu, muSemV };
+  toast(`Importado: ${nv} veículo(s) em uso, ${ndev} devolvido(s), ${na} abastecimento(s) e ${nmu} multa(s)` + (dup ? ` · ${dup} repetido(s) ignorado(s)` : '') + (semV + muSemV ? ` · ${semV + muSemV} sem veículo cadastrado` : '') + '.');
 }
 // ── MULTAS E INFRAÇÕES (só painel)
 function _muLista() { const o = _okObraAtual(); return (dados.multas || []).filter(m => o === 'todas' || m.obra === o); }
@@ -14918,7 +14941,7 @@ function muExcluir(id) { const m = (dados.multas || []).find(x => x.id === id); 
   const ico = { ab: '<svg viewBox="0 0 24 24"><path d="M3 22V5a2 2 0 012-2h8a2 2 0 012 2v17"/><path d="M3 22h12"/><path d="M15 9h2a2 2 0 012 2v6a1.5 1.5 0 003 0V8l-3-3"/><rect x="6" y="6" width="6" height="5"/></svg>', mu: '<svg viewBox="0 0 24 24"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg>' };
   if (ref && !$('page-frota-abast')) ref.insertAdjacentHTML('afterend', `
     <div class="page" id="page-frota-abast"><div class="page-header"><div><div class="page-title">Abastecimento de veículos leves</div><div class="page-sub">Lançado no app (Abastecimento → Veículo leve) ou aqui. Km rodado, média km/L e custo por km saem sozinhos.</div></div>
-      <div class="btn-group"><label class="btn btn-outline btn-sm" style="cursor:pointer" title="Abas 'Controle de Frota' e 'Abastecimentos'">↑ Importar planilha<input type="file" accept=".xlsx,.xls" style="display:none" onchange="abImportarPlanilha(this)"/></label><button class="btn btn-outline btn-sm" onclick="exportarAbastVeic()">↓ Excel</button><button class="btn btn-primary" onclick="abNovo()">+ Novo abastecimento</button></div></div>
+      <div class="btn-group"><label class="btn btn-outline btn-sm" style="cursor:pointer" title="Abas 'Controle de Frota', 'Abastecimentos', 'Histórico de Devoluções' e 'Multas e Infrações'">↑ Importar planilha<input type="file" accept=".xlsx,.xls" style="display:none" onchange="abImportarPlanilha(this)"/></label><button class="btn btn-outline btn-sm" onclick="exportarAbastVeic()">↓ Excel</button><button class="btn btn-primary" onclick="abNovo()">+ Novo abastecimento</button></div></div>
       <div id="abv-kpis" class="stats-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:12px"></div>
       <div class="card"><div class="card-body">
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center">
@@ -15527,7 +15550,7 @@ function _frAchaFunc(nome, obra) {
   window.abImportarPlanilha = abImportarPlanilha = async function (input) {
     const obra = _okObraAtual(), antV = new Set((dados.frota || []).map(v => v.id)), antA = new Set((dados.abastVeic || []).map(a => a.id));
     const r = await oI.apply(this, arguments);
-    const nV = (dados.frota || []).filter(v => !antV.has(v.id)), nA = (dados.abastVeic || []).filter(a => !antA.has(a.id)); if (!nV.length && !nA.length) return r;
+    const nV = (dados.frota || []).filter(v => !antV.has(v.id)), nA = (dados.abastVeic || []).filter(a => !antA.has(a.id)); if (!nV.length && !nA.length) { const x = window._frImpExtra || {}; if (x.ndev || x.nmu) toast(`Entraram ${x.ndev || 0} devolvido(s) e ${x.nmu || 0} multa(s). Os veículos em uso e abastecimentos já estavam no sistema.`); else toast('Nada novo: tudo dessa planilha já estava no sistema.'); return r; }
     const semResp = new Set(), semMot = new Set(), alt = [];
     nV.forEach(v => (v.resp || []).forEach(x => { if (x.func || !x.nome) return; const f = _frAchaFunc(x.nome, obra);
       if (f) { Object.assign(x, { func: f.id, nomePlanilha: x.nome, nome: f.nome, mat: f.mat || '', funcao: f.funcao || '' }); if (!alt.includes(v)) alt.push(v); } else semResp.add(x.nome); }));
@@ -15540,7 +15563,7 @@ function _frAchaFunc(nome, obra) {
     document.body.insertAdjacentHTML('beforeend', `<div class="modal-overlay open" id="modal-frimp"><div class="modal" style="max-width:600px">
       <div class="modal-header"><span class="modal-title">Planilha da frota importada</span><button class="modal-close" onclick="document.getElementById('modal-frimp').remove()">×</button></div>
       <div class="modal-body" style="font-size:13px">
-        <div style="margin-bottom:10px"><b>${nV.length}</b> veículo(s) e <b>${nA.length}</b> abastecimento(s) entraram.</div>
+        <div style="margin-bottom:10px"><b>${nV.filter(v => v.status !== 'Devolvido').length}</b> veículo(s) em uso, <b>${(window._frImpExtra || {}).ndev || 0}</b> devolvido(s) (histórico), <b>${nA.length}</b> abastecimento(s) e <b>${(window._frImpExtra || {}).nmu || 0}</b> multa(s) entraram.</div>
         <div style="margin-bottom:10px">✓ Responsáveis ligados ao efetivo: <b>${nV.reduce((s, v) => s + (v.resp || []).filter(x => x.func).length, 0)}</b> · motoristas ligados: <b>${nA.filter(a => a.motoristaId).length}</b> de ${nA.length} abastecimentos.</div>
         ${semResp.size ? `<div style="margin-bottom:10px"><b>Responsáveis que não achei no efetivo</b> (ficaram só com o nome — confira a grafia e ajuste em Frota → Responsáveis):<div style="margin-top:6px">${lst(semResp)}</div></div>` : ''}
         ${semMot.size ? `<div><b>Motoristas que não achei no efetivo</b> (os abastecimentos entraram com o nome escrito na planilha):<div style="margin-top:6px">${lst(semMot)}</div></div>` : ''}
@@ -15549,7 +15572,7 @@ function _frAchaFunc(nome, obra) {
   };
   // botão também na tela de Veículos
   const g = document.querySelector('#page-frota .page-header .btn-group');
-  if (g && !g.querySelector('.fr-imp-pl')) g.insertAdjacentHTML('afterbegin', `<label class="btn btn-outline btn-sm fr-imp-pl" style="cursor:pointer" title="Planilha 'Controle de Frota e Abastecimento': abas Controle de Frota e Abastecimentos">↑ Importar planilha de controle<input type="file" accept=".xlsx,.xls" style="display:none" onchange="abImportarPlanilha(this)"/></label>`);
+  if (g && !g.querySelector('.fr-imp-pl')) g.insertAdjacentHTML('afterbegin', `<label class="btn btn-outline btn-sm fr-imp-pl" style="cursor:pointer" title="Planilha 'Controle de Frota e Abastecimento': abas Controle de Frota, Abastecimentos, Histórico de Devoluções e Multas e Infrações">↑ Importar planilha de controle<input type="file" accept=".xlsx,.xls" style="display:none" onchange="abImportarPlanilha(this)"/></label>`);
 })();
 
 
@@ -16023,6 +16046,33 @@ function _frPorResp(ab, mu, calc, custo) {
   const sub = custo ? 'locação = valor mensal dos veículos com ele hoje · combustível e multas = do período, pelo responsável na data' : 'abastecimentos e multas contam para quem era o responsável pelo veículo na data';
   return _pn(_ic.users, 'Por responsável do veículo', `<div class="dx-scroll">${_tb(cab, rows, cab.map((c, i) => i < 3 ? '' : 'n'))}</div>`, sub, 'margin-bottom:12px');
 }
+// v3.60: veículos devolvidos (desmobilizados) — painel no dashboard e card na tela de Veículos
+(function () {
+  const oR = dxRenderFrota;
+  dxRenderFrota = window.dxRenderFrota = function () {
+    const r = oR.apply(this, arguments);
+    const main = document.querySelector('#page-dash-frota .dx-main'); if (!main) return r;
+    const dv = (dados.frota || []).filter(v => v.status === 'Devolvido' && (!_dx.obra || v.obra === _dx.obra)).sort((a, b) => String(b.devData || '').localeCompare(String(a.devData || '')));
+    if (!dv.length) return r;
+    const custo = _dx.modo === 'custo', dias = v => v.mobData && v.devData ? Math.max(0, Math.round((new Date(v.devData + 'T12:00') - new Date(v.mobData + 'T12:00')) / 864e5)) : null;
+    const ult = v => { const l = (v.resp || []).slice().sort((a, b) => String(a.inicio || '').localeCompare(String(b.inicio || ''))); return l[l.length - 1] || null; };
+    const est = v => { const d = dias(v); return d != null && +v.valorMes ? +v.valorMes * d / 30 : 0; }, tot = dv.reduce((s, v) => s + est(v), 0);
+    const cab = ['TAG · Placa', 'Modelo', 'Locadora', 'Responsável', 'Chegada', 'Devolução', 'Dias locado', 'Km rodado'].concat(custo ? ['Valor mensal', 'Custo do período'] : []);
+    const rows = dv.map(v => { const x = ult(v), d = dias(v), km = +v.kmDev && +v.kmMob ? +v.kmDev - +v.kmMob : null;
+      return '<tr>' + _td('<b>' + _e((v.tag ? v.tag + ' · ' : '') + v.placa) + '</b>') + _td(_e(v.modelo || '')) + _td(_e(v.locadora || '')) + _td(_e(x ? x.nome : '—')) + _td(_frData(v.mobData) || '—', 'n') + _td(_frData(v.devData) || '—', 'n')
+        + _td(d == null ? '—' : d, 'n') + _td(km == null ? '—' : km.toLocaleString('pt-BR'), 'n') + (custo ? _td(+v.valorMes ? _moeda(+v.valorMes) : '—', 'n') + _td(est(v) ? _moeda(est(v)) : '—', 'n tot') : '') + '</tr>'; });
+    if (custo) rows.push('<tr class="sub">' + _td('Total') + cab.slice(1, -1).map((c, i) => _td('', i > 3 ? 'n' : '')).join('') + _td(_moeda(tot), 'n') + '</tr>');
+    const pn = _pn(_ic.trend, 'Veículos devolvidos (desmobilizados)', `<div class="dx-scroll">${_tb(cab, rows, cab.map((c, i) => i < 4 ? '' : 'n'))}</div>`,
+      dv.length + ' veículo(s)' + (custo ? ' · custo do período = valor mensal ÷ 30 × dias locado' : ''), 'margin-bottom:12px');
+    const sec = main.querySelector('.dx-sec-t'); if (sec) sec.insertAdjacentHTML('beforebegin', pn); else main.insertAdjacentHTML('beforeend', pn);
+    return r;
+  };
+  const oF = renderFrota;
+  window.renderFrota = renderFrota = function () { const r = oF.apply(this, arguments); const kp = document.getElementById('fr-kpis'); if (!kp) return r;
+    const n = _frLista().filter(v => v.status === 'Devolvido').length, sel = document.getElementById('filtro-fr-sit'), on = sel && sel.value === 'Devolvido';
+    kp.insertAdjacentHTML('beforeend', `<div class="stat-card" style="cursor:pointer;${on ? 'outline:2px solid var(--red)' : ''}" title="Clique para ver só os devolvidos" onclick="const s=document.getElementById('filtro-fr-sit'); s.value=s.value==='Devolvido'?'':'Devolvido'; renderFrota()"><div class="stat-label">Devolvidos</div><div class="stat-value">${n}</div><div class="stat-sub">${on ? 'mostrando · clique para voltar' : 'clique para ver'}</div></div>`);
+    return r; };
+})();
 // Apply configs on load
 setTimeout(applyConfigs, 200);
 setTimeout(function() {
