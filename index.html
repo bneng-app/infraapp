@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.33 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.34 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -15439,6 +15439,26 @@ function alojVincularSalvar() {
     if (rs && fora.length) rs.insertAdjacentHTML('beforeend', ` · <a href="#" style="color:#B45309;font-weight:700" onclick="_alojSoFora=!_alojSoFora;renderAlojados();return false">⚠ ${fora.length} fora do efetivo${_alojSoFora ? ' — mostrar todos' : ' — ver só eles'}</a>`);
     return r;
   };
+})();
+
+
+// v3.34: todas as janelas podem ser arrastadas pelo título (para ver a tabela atrás); ao abrir de novo, voltam ao centro
+(function () {
+  const css = document.createElement('style'); css.textContent = '.modal-overlay .modal-header{cursor:move;user-select:none;touch-action:none}.modal-overlay .modal-header .modal-close,.modal-overlay .modal-header button,.modal-overlay .modal-header input,.modal-overlay .modal-header select{cursor:pointer}'; document.head.appendChild(css);
+  let arr = null;
+  document.addEventListener('pointerdown', e => {
+    const h = e.target.closest('.modal-overlay .modal-header'); if (!h || e.button !== 0 || e.target.closest('button,input,select,a,textarea')) return;
+    const m = h.closest('.modal'); if (!m) return; const [x0, y0] = (m.dataset.drag || '0,0').split(',').map(Number);
+    arr = { m, sx: e.clientX, sy: e.clientY, x0, y0 }; h.setPointerCapture && h.setPointerCapture(e.pointerId); e.preventDefault();
+  });
+  document.addEventListener('pointermove', e => { if (!arr) return; const r = arr.m.getBoundingClientRect();
+    let x = arr.x0 + e.clientX - arr.sx, y = arr.y0 + e.clientY - arr.sy;
+    // não deixa o título sair da tela
+    const dx = x - arr.x0, dy = y - arr.y0, L = r.left + dx, T = r.top + dy;
+    if (L < -r.width + 80) x -= L + r.width - 80; if (L > window.innerWidth - 80) x -= L - window.innerWidth + 80; if (T < 0) y -= T; if (T > window.innerHeight - 50) y -= T - window.innerHeight + 50;
+    arr.m.style.transform = `translate(${x}px,${y}px)`; arr.m.dataset.dragTmp = x + ',' + y; });
+  document.addEventListener('pointerup', () => { if (!arr) return; if (arr.m.dataset.dragTmp) arr.m.dataset.drag = arr.m.dataset.dragTmp; arr = null; });
+  const oO = window.openModal; window.openModal = openModal = function (id) { const m = document.querySelector('#' + id + ' .modal'); if (m) { m.style.transform = ''; m.dataset.drag = '0,0'; delete m.dataset.dragTmp; } return oO.apply(this, arguments); };
 })();
 
 // Apply configs on load
