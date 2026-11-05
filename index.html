@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.39 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.40 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -15632,6 +15632,24 @@ function _fnVincMudou() {
     return oS.apply(this, arguments); };
 })();
 
+// v3.40: tabelas com rolagem própria — a barra de rolar para o lado fica sempre visível no rodapé da tabela e o cabeçalho fica parado
+(function () { const css = document.createElement('style');
+  css.textContent = `.page:not([id^="page-dash"]) .card .table-wrap{max-height:calc(100vh - 200px);overflow:auto;overscroll-behavior:contain}
+    .page:not([id^="page-dash"]) .card .table-wrap>table>thead th{position:sticky;top:0;z-index:3;background:var(--bg-card)}
+    .page:not([id^="page-dash"]) .card .table-wrap::-webkit-scrollbar{height:12px;width:10px}.page:not([id^="page-dash"]) .card .table-wrap::-webkit-scrollbar-thumb{background:#C4C4CC;border-radius:6px;border:2px solid transparent;background-clip:padding-box}
+    .page:not([id^="page-dash"]) .card .table-wrap::-webkit-scrollbar-thumb:hover{background:#9CA3AF;background-clip:padding-box;border:2px solid transparent}`;
+  document.head.appendChild(css); })();
+// v3.40: barra de rolar para o lado também EM CIMA da tabela (espelho da de baixo)
+(function () {
+  const css = document.createElement('style'); css.textContent = `.tw-top{overflow-x:auto;overflow-y:hidden;height:14px;margin-bottom:4px}.tw-top>div{height:1px}.tw-top::-webkit-scrollbar{height:12px}.tw-top::-webkit-scrollbar-thumb{background:#C4C4CC;border-radius:6px;border:2px solid transparent;background-clip:padding-box}`; document.head.appendChild(css);
+  const liga = w => { if (w.__twTop) return; const t = document.createElement('div'); t.className = 'tw-top'; t.innerHTML = '<div></div>'; w.before(t); w.__twTop = t;
+    let trava = false; t.addEventListener('scroll', () => { if (trava) return; trava = true; w.scrollLeft = t.scrollLeft; trava = false; }); w.addEventListener('scroll', () => { if (trava) return; trava = true; t.scrollLeft = w.scrollLeft; trava = false; });
+    const ajusta = () => { const tb = w.querySelector('table'); const sw = tb ? tb.scrollWidth : w.scrollWidth; t.firstChild.style.width = sw + 'px'; t.style.display = sw > w.clientWidth + 2 ? '' : 'none'; };
+    ajusta(); try { new ResizeObserver(ajusta).observe(w); const tb = w.querySelector('table'); if (tb) new ResizeObserver(ajusta).observe(tb); } catch (e) {} new MutationObserver(() => setTimeout(ajusta, 50)).observe(w, { childList: true, subtree: true }); };
+  const varre = () => document.querySelectorAll('.page:not([id^="page-dash"]) .card .table-wrap').forEach(liga);
+  const oS = window.showPage; window.showPage = showPage = function () { const r = oS.apply(this, arguments); setTimeout(varre, 80); return r; };
+  setTimeout(varre, 1500);
+})();
 // Apply configs on load
 setTimeout(applyConfigs, 200);
 setTimeout(function() {
