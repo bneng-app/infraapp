@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.83 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.84 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -16722,6 +16722,111 @@ function _diaGeoLink(g) {
       });
     };
     espera();
+  };
+})();
+
+// ═══════════════════════════════════════════════════════════════
+// v3.84: NOME DO PROJETO (como o cliente conhece) — obrigatório no cadastro da obra, ao lado da logo.
+// Vai no rodapé das etiquetas QR de equipamentos/veículos e no topo da placa A4 das frentes.
+// ETIQUETAS QR P / M / G para a porta do equipamento e do veículo leve (folha A4 com linha de corte).
+// ═══════════════════════════════════════════════════════════════
+function _obraProj(o) { return (o && (o.nomeProjeto || '').trim()) || ''; }
+(function () {
+  const $ = id => document.getElementById(id);
+  const lg = $('obra-logo-prev') && $('obra-logo-prev').closest('.form-group');
+  if (lg && !$('obra-nomeproj')) lg.insertAdjacentHTML('afterend', `<div class="form-group form-full"><label class="form-label">Nome do projeto (como o cliente conhece) *</label>
+    <input class="form-control" id="obra-nomeproj" maxlength="90" placeholder="Ex.: Universalização do Saneamento — Lote 15 · SABESP"/>
+    <div style="font-size:11px;color:var(--text-3);margin-top:3px">É o nome oficial do projeto. Vai junto da logo nas etiquetas QR dos equipamentos, nas placas das frentes e nos documentos impressos. O "Nome" acima é só o apelido interno do painel.</div></div>`);
+  const oN = window.novaObra;
+  window.novaObra = novaObra = function () { const r = oN.apply(this, arguments); if ($('obra-nomeproj')) $('obra-nomeproj').value = ''; return r; };
+  const oE = window.editarObra;
+  window.editarObra = function (id) { const r = oE.apply(this, arguments); const o = (dados.obras || []).find(x => x.id === id) || {}; if ($('obra-nomeproj')) $('obra-nomeproj').value = o.nomeProjeto || ''; return r; };
+  const oS = window.salvarObra;
+  window.salvarObra = function () {
+    const np = ($('obra-nomeproj')?.value || '').trim().replace(/\s+/g, ' ');
+    if (!np) { toast('Preencha o nome do projeto como o cliente conhece (vai nas etiquetas e placas).', 'error'); $('obra-nomeproj')?.focus(); return; }
+    const idEd = $('obra-edit-id')?.value || '', cod = ($('obra-cod')?.value || '').trim(), antes = new Set((dados.obras || []).map(x => x.id));
+    if (idEd) { const o = (dados.obras || []).find(x => x.id === idEd); if (o) o.nomeProjeto = np; return oS.apply(this, arguments); }
+    const r = oS.apply(this, arguments);
+    const nova = (dados.obras || []).find(x => !antes.has(x.id) && (x.cod || '') === cod);
+    if (nova) { nova.nomeProjeto = np; if (db && _firebaseReady) fbSave('obras', nova.id, nova).catch(() => {}); }
+    return r;
+  };
+  // botão das etiquetas ao lado da placa A4
+  const bA4 = $('qr-btn-a4');
+  if (bA4 && !$('qr-btn-etq')) bA4.insertAdjacentHTML('beforebegin', `<button class="btn btn-primary btn-sm" id="qr-btn-etq" style="display:none" onclick="etqEscolher()">🏷️ Etiquetas para a porta (P · M · G)</button>`);
+  const oB = window._qrBtnA4 || _qrBtnA4;
+  _qrBtnA4 = window._qrBtnA4 = function () { const r = oB.apply(this, arguments); const b = $('qr-btn-etq'); if (b) b.style.display = (_qrUltimos || []).some(x => x.col === 'equipamentos' || x.col === 'frota') ? '' : 'none'; return r; };
+})();
+const _ETQ = { P: { w: 80, h: 80, por: [2, 3], pg: 'A4', qr: 44, rot: 'P · 8 × 8 cm', uso: 'Veículo leve · porta ou vidro · lê a ~40 cm' },
+  M: { w: 100, h: 135, por: [2, 2], pg: 'A4', qr: 70, rot: 'M · 10 × 13,5 cm', uso: 'Porta da cabine de máquinas e caminhões · lê a ~70 cm' },
+  G: { w: 140, h: 190, por: [2, 1], pg: 'A4 landscape', qr: 105, rot: 'G · 14 × 19 cm', uso: 'Máquina grande, cabine alta, leitura do chão · lê a ~1,2 m' } };
+function etqEscolher() {
+  const its = (_qrUltimos || []).filter(x => x.col === 'equipamentos' || x.col === 'frota');
+  if (!its.length) { toast('Marque os equipamentos ou veículos e clique em Gerar QR dos marcados.', 'error'); return; }
+  const nV = its.filter(x => x.col === 'frota').length, nE = its.length - nV;
+  let ov = document.getElementById('etq-ov'); if (ov) ov.remove();
+  ov = document.createElement('div'); ov.id = 'etq-ov'; ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick = e => { if (e.target === ov) ov.remove(); };
+  const op = (k, t, d, rec) => `<button class="btn btn-outline" style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:12px 14px;width:100%;height:auto;white-space:normal" onclick="document.getElementById('etq-ov').remove();imprimirEtiquetasEq('${k}')"><b style="font-size:14px">${t}${rec ? ' <span style="font-size:11px;color:var(--green);font-weight:700">recomendado</span>' : ''}</b><span style="font-size:12px;color:var(--text-3)">${d}</span></button>`;
+  ov.innerHTML = `<div style="background:var(--bg-card,#fff);color:var(--text);border-radius:14px;padding:20px;max-width:460px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.35)">
+    <div style="font-weight:800;font-size:16px;margin-bottom:4px">Tamanho das etiquetas</div><div style="font-size:12.5px;color:var(--text-3);margin-bottom:14px">${nE} equipamento(s) · ${nV} veículo(s) leve(s) marcados</div>
+    <div style="display:flex;flex-direction:column;gap:8px">${op('auto', 'Automático', 'Veículo leve sai no P e equipamento no M', true)}${['P', 'M', 'G'].map(k => op(k, _ETQ[k].rot, _ETQ[k].uso + ' · ' + _ETQ[k].por[0] * _ETQ[k].por[1] + ' por folha')).join('')}</div>
+    <div style="font-size:11.5px;color:var(--text-3);margin-top:12px">Imprima em vinil adesivo branco com laminação fosca. Na impressão, deixe a escala em 100% (tamanho real).</div>
+    <div style="text-align:right;margin-top:12px"><button class="btn btn-outline btn-sm" onclick="document.getElementById('etq-ov').remove()">Cancelar</button></div></div>`;
+  document.body.appendChild(ov);
+}
+function imprimirEtiquetasEq(tam) {
+  if (typeof QRCode === 'undefined') { toast('Gerador de QR ainda carregando — tente de novo em instantes.', 'error'); return; }
+  const its = (_qrUltimos || []).filter(x => x.col === 'equipamentos' || x.col === 'frota').map(x => {
+    const r = (dados[x.col] || []).find(y => y.id === x.rid) || {}, veic = x.col === 'frota';
+    const o = (dados.obras || []).find(ob => ob.id === r.obra) || {};
+    let mod = '', ident = '';
+    if (veic) { mod = [r.tipo, r.modelo].filter(Boolean).join(' · '); ident = r.placa ? 'PLACA ' + r.placa : ''; }
+    else { const fam = (dados.familias || []).find(f => f.cod === r.familia), m = (dados.modelos || []).find(y => y.cod === r.codModelo || y.id === r.modeloId);
+      mod = [fam && fam.desc, (m && (m.nome || m.cod)) || r.modelo].filter(Boolean).join(' · ');
+      ident = r.placa ? 'PLACA ' + r.placa : r.serie ? 'SÉRIE ' + r.serie : r.chassi ? 'CHASSI ' + r.chassi : ''; }
+    return { veic, tag: x.label, texto: x.texto, mod, ident, o, tam: tam === 'auto' ? (veic ? 'P' : 'M') : tam };
+  });
+  const semProj = [...new Set(its.filter(x => !_obraProj(x.o)).map(x => x.o.nome || x.o.cod || 'sem obra'))];
+  if (semProj.length) { toast('Falta o nome do projeto da obra: ' + semProj.join(', ') + '. Cadastre em Obras → Editar.', 'error'); return; }
+  const semLogo = [...new Set(its.filter(x => !x.o.logo).map(x => x.o.nome || x.o.cod))];
+  const w = window.open('', '_blank'); if (!w) { toast('Libere as janelas pop-up para gerar as etiquetas.', 'error'); return; }
+  const qrs = {}; its.forEach(x => { if (!qrs[x.texto]) qrs[x.texto] = _qrDataUrl(x.texto, 640); });
+  const etq = x => `<div class="e ${x.tam.toLowerCase()}"><div class="hd">${x.o.logo ? `<img class="lg" src="${x.o.logo}" alt="">` : '<span></span>'}<span class="tp">${x.veic ? 'VEÍCULO LEVE' : 'EQUIPAMENTO'}</span></div>
+    <div class="tag">${_e(x.tag)}</div>${x.mod ? `<div class="mod">${_e(x.mod)}</div>` : ''}<img class="qr" src="${qrs[x.texto]}" alt=""><div class="id">${_e(x.ident)}</div><div class="app">Leia com o app ObraKontrol Campo</div>
+    <div class="ft">${_e(_obraProj(x.o))}</div></div>`;
+  let pags = '';
+  ['P', 'M', 'G'].forEach(k => { const L = its.filter(x => x.tam === k), c = _ETQ[k], n = c.por[0] * c.por[1];
+    for (let i = 0; i < L.length; i += n) pags += `<section class="pg pg-${k}">${L.slice(i, i + n).map(etq).join('')}</section>`; });
+  const temG = its.some(x => x.tam === 'G'), temPM = its.some(x => x.tam !== 'G');
+  w.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Etiquetas QR · equipamentos e veículos</title><style>
+    @page{size:A4;margin:0}@page g{size:A4 landscape;margin:0}
+    *{box-sizing:border-box}html,body{margin:0;font-family:Arial,Helvetica,sans-serif;color:#111;-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#e9e9ec}
+    .pg{width:210mm;height:297mm;background:#fff;margin:8mm auto;display:grid;align-content:start;justify-content:center;page-break-after:always;break-after:page}
+    .pg-P{grid-template-columns:repeat(2,80mm);grid-auto-rows:80mm;gap:10mm 14mm;padding-top:18.5mm}.pg-M{grid-template-columns:repeat(2,100mm);grid-auto-rows:135mm;gap:8mm 4mm;padding-top:9.5mm}
+    .pg-G{page:g;width:297mm;height:210mm;grid-template-columns:repeat(2,140mm);grid-auto-rows:190mm;gap:0 8mm;padding-top:10mm}
+    .e{border:0.25mm dashed #9a9a9a;border-radius:3mm;display:flex;flex-direction:column;align-items:center;overflow:hidden;background:#fff}
+    .e .hd{width:100%;display:flex;align-items:center;justify-content:space-between;border-bottom:0.4mm solid #111}.e .lg{object-fit:contain;object-position:left center}.e .tp{font-weight:800;color:#333;letter-spacing:.06em}
+    .e .tag{font-weight:900;line-height:1;letter-spacing:.01em}.e .mod{color:#444;font-weight:700;text-align:center;padding:0 3mm;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+    .e .qr{image-rendering:pixelated}.e .id{font-family:'Courier New',monospace;font-weight:700}.e .app{color:#666}
+    .e .ft{width:100%;margin-top:auto;background:#E30613;color:#fff;font-weight:800;text-align:center;line-height:1.2;text-transform:uppercase;display:flex;align-items:center;justify-content:center}
+    .p .hd{padding:2.5mm 4mm 2mm;height:10mm}.p .lg{height:5.5mm;max-width:40mm}.p .tp{font-size:2.3mm}.p .tag{font-size:8mm;margin-top:1.8mm}.p .mod{display:none}.p .qr{width:44mm;height:44mm;margin-top:1.8mm}.p .id{font-size:2.8mm;margin-top:1.2mm}.p .app{font-size:2mm;margin-top:.6mm}.p .ft{font-size:2.6mm;padding:1.2mm 3mm;min-height:7mm}
+    .m .hd{padding:4mm 5mm 3mm;height:15mm}.m .lg{height:8mm;max-width:55mm}.m .tp{font-size:3mm}.m .tag{font-size:13mm;margin-top:3.5mm}.m .mod{font-size:3.8mm;margin-top:1.5mm}.m .qr{width:70mm;height:70mm;margin-top:3mm}.m .id{font-size:3.6mm;margin-top:2.5mm}.m .app{font-size:2.6mm;margin-top:1mm}.m .ft{font-size:3.4mm;padding:2mm 4mm;min-height:11mm}
+    .g .hd{padding:5mm 7mm 4mm;height:20mm}.g .lg{height:11mm;max-width:75mm}.g .tp{font-size:4mm}.g .tag{font-size:20mm;margin-top:4mm}.g .mod{font-size:5mm;margin-top:2mm}.g .qr{width:105mm;height:105mm;margin-top:4mm}.g .id{font-size:5mm;margin-top:3mm}.g .app{font-size:3.4mm;margin-top:1mm}.g .ft{font-size:4.6mm;padding:3mm 5mm;min-height:15mm}
+    .bar{position:sticky;top:0;background:#111;color:#fff;padding:10px 16px;font-size:13px;display:flex;gap:12px;align-items:center;justify-content:center;z-index:2}.bar button{background:#E30613;color:#fff;border:0;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer}
+    @media print{body{background:#fff}.bar{display:none}.pg{margin:0}}
+  </style></head><body><div class="bar">${its.length} etiqueta(s) · imprima em <b>tamanho real (escala 100%)</b>${temG && temPM ? ' · as G saem em folha deitada' : ''}<button onclick="window.print()">🖨️ Imprimir / salvar PDF</button></div>${pags}</body></html>`);
+  w.document.close();
+  if (semLogo.length) toast('Sem logo cadastrada: ' + semLogo.join(', ') + '. As etiquetas saem sem logo — cadastre em Obras → Editar.', 'error');
+}
+// placa A4 das frentes: nome do projeto no lugar do apelido interno
+(function () {
+  const oF = window.imprimirFrentesA4 || imprimirFrentesA4;
+  imprimirFrentesA4 = window.imprimirFrentesA4 = function () {
+    const ob = dados.obras || [], bak = ob.map(o => o.nome);
+    ob.forEach(o => { if (_obraProj(o)) o.nome = _obraProj(o); });
+    try { return oF.apply(this, arguments); } finally { ob.forEach((o, i) => { o.nome = bak[i]; }); }
   };
 })();
 
