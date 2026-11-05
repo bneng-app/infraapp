@@ -100,7 +100,7 @@ input:disabled{opacity:.7}
     <input id="lg-senha" type="password" autocomplete="current-password">
     <div class="err" id="lg-err"></div>
     <button class="btn btn-p" style="width:100%" id="lg-btn">Entrar</button>
-    <div class="ver">ObraKontrol Console · v1.6</div>
+    <div class="ver">ObraKontrol Console · v1.7</div>
   </form>
 </div>
 
@@ -218,6 +218,7 @@ input:disabled{opacity:.7}
             <div style="display:flex;gap:8px;align-items:center"><select class="sit" id="exo-obra" aria-label="Obra para excluir"><option value="">Escolha a obra…</option></select><button class="btn btn-sm" onclick="exoContar()">Ver o que será apagado</button></div>
           </div>
           <div id="exo-res" style="margin-top:10px;font-size:12.5px"></div>
+          <div id="exo-lix" style="margin-top:10px;font-size:12.5px"></div>
         </div>
       </div>
     </div>
@@ -226,7 +227,7 @@ input:disabled{opacity:.7}
 </div>
 
 <script>
-const VERSAO = 'v1.6';
+const VERSAO = 'v1.7';
 const firebaseConfig = {
   apiKey: "AIzaSyBShR-XvPrUiFtnndFXJV7IYrrTG90BS5o",
   authDomain: "obrakontrol-205c4.firebaseapp.com",
@@ -459,7 +460,7 @@ let EXO = null;
 async function exoObras() {
   const sel = $('exo-obra'); if (!sel || !editando) return; sel.innerHTML = '<option value="">Escolha a obra…</option>'; $('exo-res').innerHTML = ''; EXO = null;
   try { const ob = (await db.collection('clientes').doc(editando).collection('obras').get()).docs.map(d => ({ ...d.data(), id: d.id }));
-    sel.innerHTML += ob.map(o => `<option value="${esc(o.id)}">${esc((o.cod || '') + ' · ' + (o.nome || ''))}</option>`).join(''); } catch (e) {}
+    exoLixeira(); sel.innerHTML += ob.map(o => `<option value="${esc(o.id)}">${esc((o.cod || '') + ' · ' + (o.nome || ''))}</option>`).join(''); } catch (e) {}
 }
 async function exoContar() {
   const cli = editando, ob = $('exo-obra').value; if (!cli || !ob) { toast('Escolha a obra.', true); return; }
@@ -491,11 +492,34 @@ async function exoApagar() {
   if (!r || r.trim().toUpperCase() !== cod.toUpperCase()) { toast('Exclusão cancelada.'); return; }
   let n = 0; toast('Excluindo ' + cod + '…');
   try {
-    const refs = Object.values(EXO.apagar).flat().map(x => x.ref).concat([EXO.base.collection('obras').doc(EXO.ob)]);
-    for (let i = 0; i < refs.length; i += 300) { const b = db.batch(); refs.slice(i, i + 300).forEach(rf => b.delete(rf)); await b.commit(); n += Math.min(300, refs.length - i); }
+    // v1.7: confere de novo que o documento da obra é a obra escolhida e que nenhum registro é de outra obra
+    const obDoc = await EXO.base.collection('obras').doc(EXO.ob).get();
+    if (!obDoc.exists || String(obDoc.data().cod || obDoc.data().nome || '').trim().toUpperCase() !== cod.toUpperCase()) { toast('Parei: o cadastro da obra não confere com ' + cod + '. Nada foi apagado.', true); return; }
+    const itens = Object.entries(EXO.apagar).flatMap(([c, l]) => l.filter(x => !x.obra || x.obra === EXO.ob).map(x => ({ c, x }))).concat([{ c: 'obras', x: { ref: obDoc.ref, ...obDoc.data() } }]);
+    // cópia de tudo na lixeira antes de apagar (dá para restaurar)
+    const tag = 'exo_' + Date.now().toString(36), em = new Date().toISOString(), lix = EXO.base.collection('_lixeira');
+    for (let i = 0; i < itens.length; i += 200) { const b = db.batch(); itens.slice(i, i + 200).forEach(({ c, x }) => { const { ref, ...dado } = x; b.set(lix.doc(tag + '_' + c + '_' + ref.id), { exclusao: tag, em, obraCod: cod, col: c, docId: ref.id, dado }); }); await b.commit(); }
+    for (let i = 0; i < itens.length; i += 300) { const b = db.batch(); itens.slice(i, i + 300).forEach(({ x }) => b.delete(x.ref)); await b.commit(); n += Math.min(300, itens.length - i); }
     for (const d of EXO.usu) { await d.ref.update({ obras: (d.data().obras || []).filter(x => x !== EXO.ob) }).catch(() => {}); }
-    toast(cod + ' excluída: ' + n + ' registros apagados.'); EXO = null; $('exo-res').innerHTML = ''; exoObras(); carregar();
+    toast(cod + ' excluída: ' + n + ' registros apagados (cópia guardada na lixeira).'); EXO = null; $('exo-res').innerHTML = ''; exoObras(); carregar();
   } catch (e) { toast('Parou com erro: ' + (e.code || e.message) + '. Clique em "Ver o que será apagado" e exclua de novo para terminar.', true); }
+}
+async function exoLixeira() {
+  const box = $('exo-lix'); if (!box || !editando) return; box.innerHTML = '';
+  try { const sn = await db.collection('clientes').doc(editando).collection('_lixeira').get(); const g = {};
+    sn.docs.forEach(d => { const x = d.data(); const k = x.exclusao; g[k] = g[k] || { k, cod: x.obraCod, em: x.em, n: 0 }; g[k].n++; });
+    const l = Object.values(g).sort((a, b) => String(b.em).localeCompare(String(a.em))); if (!l.length) return;
+    box.innerHTML = '<div class="hint" style="margin-bottom:4px">Exclusões guardadas na lixeira:</div>' + l.map(x => `<div style="display:flex;gap:8px;align-items:center;margin-bottom:4px"><span style="flex:1">${esc(x.cod)} · ${x.n} registros · ${esc(new Date(x.em).toLocaleString('pt-BR'))}</span><button class="btn btn-sm" onclick="exoRestaurar('${esc(x.k)}')">Restaurar</button></div>`).join('');
+  } catch (e) {}
+}
+async function exoRestaurar(tag) {
+  if (!confirm('Restaurar tudo que foi apagado nesta exclusão?')) return;
+  const base = db.collection('clientes').doc(editando);
+  try { const sn = (await base.collection('_lixeira').get()).docs.filter(d => d.data().exclusao === tag); let n = 0;
+    for (let i = 0; i < sn.length; i += 200) { const b = db.batch(); sn.slice(i, i + 200).forEach(d => { const x = d.data(); b.set(base.collection(x.col).doc(x.docId), x.dado); }); await b.commit(); }
+    for (let i = 0; i < sn.length; i += 300) { const b = db.batch(); sn.slice(i, i + 300).forEach(d => b.delete(d.ref)); await b.commit(); n += Math.min(300, sn.length - i); }
+    toast(n + ' registros restaurados.'); exoObras(); carregar();
+  } catch (e) { toast('Não consegui restaurar: ' + (e.code || e.message), true); }
 }
 // ── repúblicas fictícias no DEMO, para testar o módulo
 async function criarRepublicasExemplo() {
