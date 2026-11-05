@@ -100,7 +100,7 @@ input:disabled{opacity:.7}
     <input id="lg-senha" type="password" autocomplete="current-password">
     <div class="err" id="lg-err"></div>
     <button class="btn btn-p" style="width:100%" id="lg-btn">Entrar</button>
-    <div class="ver">ObraKontrol Console · v1.7</div>
+    <div class="ver">ObraKontrol Console · v1.8</div>
   </form>
 </div>
 
@@ -227,7 +227,7 @@ input:disabled{opacity:.7}
 </div>
 
 <script>
-const VERSAO = 'v1.7';
+const VERSAO = 'v1.8';
 const firebaseConfig = {
   apiKey: "AIzaSyBShR-XvPrUiFtnndFXJV7IYrrTG90BS5o",
   authDomain: "obrakontrol-205c4.firebaseapp.com",
@@ -455,7 +455,7 @@ async function limparCliente() {
 }
 // ── v1.5: excluir UMA obra com tudo que é dela
 const EXO_COLS = ['aponMO','aponEQ','diesel','perdas','mobilizacoes','fotos','turnosAbertos','abastVeic','multas','solicitacoes','movTanques','notasFiscais','tanques',
-  'funcionarios','equipamentos','equipes','frentes','tiposServico','cargos','familias','modelos','empresas','ua','orcamentos','republicas','frota','produtos','turnos','tiposPerdas'];
+  'funcionarios','equipamentos','equipes','frentes','tiposServico','cargos','familias','modelos','empresas','ua','orcamentos','republicas','frota','produtos'];   // v1.8: turnos e tipos de parada são de todas as obras — não saem junto
 let EXO = null;
 async function exoObras() {
   const sel = $('exo-obra'); if (!sel || !editando) return; sel.innerHTML = '<option value="">Escolha a obra…</option>'; $('exo-res').innerHTML = ''; EXO = null;
