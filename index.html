@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.48 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.49 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -14729,7 +14729,7 @@ function renderAbastVeic() {
         <td class="td-mono" style="white-space:nowrap">${_abFmtD(a.data)}${a.hora ? ' ' + _e(a.hora) : ''}</td>
         <td style="font-size:12.5px;font-weight:600">${_e(a.motorista || '—')}</td>
         <td class="td-mono" style="font-size:12px;white-space:nowrap">${fora ? `<button class="btn btn-sm" style="background:#F59E0B;color:#fff;border-color:#F59E0B;white-space:nowrap;padding:3px 8px;font-size:11.5px" onclick="abvVincular('${a.id}')" title="Fora do efetivo — clique para ligar ao funcionário">⚠ 🔗 Vincular</button>` : _e(a.motoristaMat || (fm && fm.mat) || '—')}</td>
-        <td style="font-size:12px">${_e((fm && fm.funcao) || '—')}</td>
+        <td style="font-size:12px">${_e((fm && _fnFuncaoNome(fm)) || '—')}</td>
         <td style="font-size:12px">${_e(a.combustivel || '—')}</td>
         <td class="td-mono" style="text-align:right">${_fmtN(+a.litros || 0)}</td><td class="td-mono" style="text-align:right">${+a.precoL ? _repMoeda(a.precoL) : '—'}</td><td class="td-mono" style="text-align:right;font-weight:700">${_repMoeda(+a.valor || 0)}</td>
         <td class="td-mono" style="text-align:right">${+a.km ? (+a.km).toLocaleString('pt-BR') : '—'}</td><td class="td-mono" style="text-align:right">${c.rod != null ? c.rod.toLocaleString('pt-BR') : '—'}</td>
@@ -15435,7 +15435,7 @@ function alojVincular(rid, mid) {
 function alojVincularSalvar() {
   const v = window._vin || {}, r = (dados.republicas || []).find(x => x.id === v.rid), m = r && (r.moradores || []).find(x => x.id === v.mid); if (!m) return;
   const f = (dados.funcionarios || []).find(x => x.id === document.getElementById('vin-func').value); if (!f) { toast('Escolha o funcionário.', 'error'); return; }
-  m.nomeAnterior = m.nome; Object.assign(m, { func: f.id, mat: f.mat || '', nome: f.nome, funcao: f.funcao || m.funcao || '' }); delete m.externo;
+  m.nomeAnterior = m.nome; Object.assign(m, { func: f.id, mat: f.mat || '', nome: f.nome, funcao: _fnFuncaoNome(f) || m.funcao || '' }); delete m.externo;
   if (db && _firebaseReady) fbSave('republicas', r.id, r).catch(() => toast('Ficou só neste computador — não gravou no servidor.', 'error'));
   closeModal('modal-vinc'); renderAlojados(); try { renderRepublicas(); } catch (e) {} toast(m.nomeAnterior + ' → ' + f.nome + ' (Mat. ' + f.mat + ')');
 }
@@ -15541,7 +15541,7 @@ function frVincular(vid) {
   buscaSelect('vin-func', 'Digite nome ou matrícula…'); sel.value = sug[0] ? sug[0].id : ''; buscaSelectSync('vin-func');
   openModal('modal-vinc');
 }
-function _frLigarResp(v, x, f) { Object.assign(x, { func: f.id, nomePlanilha: x.nomePlanilha || x.nome, nome: f.nome, mat: f.mat || '', funcao: f.funcao || '' }); }
+function _frLigarResp(v, x, f) { Object.assign(x, { func: f.id, nomePlanilha: x.nomePlanilha || x.nome, nome: f.nome, mat: f.mat || '', funcao: _fnFuncaoNome(f) || '' }); }
 async function frLigarPeloNome() {
   const ob = _okObraAtual(); let nr = 0, na = 0; const sv = new Set(), sa = [];
   (dados.frota || []).filter(v => ob === 'todas' || v.obra === ob).forEach(v => (v.resp || []).forEach(x => { if (x.func || !x.nome) return; const f = _frAchaFunc(x.nome, v.obra); if (f) { _frLigarResp(v, x, f); sv.add(v); nr++; } }));
@@ -15821,7 +15821,7 @@ function frCorrigirResp(vid) { closeModal('modal-veiculo'); frVincular(vid); win
     const w = window._vin || {}; if (w.tipo !== 'fr' || !w.corrigir) return oS.apply(this, arguments);
     const v = (dados.frota || []).find(x => x.id === w.vid), r = v && frRespAtual(v); if (!r) return;
     const f = (dados.funcionarios || []).find(x => x.id === $('vin-func').value); if (!f) { toast('Escolha o funcionário.', 'error'); return; }
-    const antes = r.nome; if (r.func !== f.id) { r.cnhCat = ''; r.cnhVal = ''; } Object.assign(r, { func: f.id, nome: f.nome, mat: f.mat || '', funcao: f.funcao || '', corrigidoEm: new Date().toISOString(), corrigidoDe: antes });
+    const antes = r.nome; if (r.func !== f.id) { r.cnhCat = ''; r.cnhVal = ''; } Object.assign(r, { func: f.id, nome: f.nome, mat: f.mat || '', funcao: _fnFuncaoNome(f) || '', corrigidoEm: new Date().toISOString(), corrigidoDe: antes });
     if (db && _firebaseReady) fbSave('frota', v.id, v).catch(() => toast('Ficou só neste computador — não gravou no servidor.', 'error'));
     closeModal('modal-vinc'); try { renderFrotaResp(); renderFrota(); } catch (e) {} toast('Responsável corrigido: ' + antes + ' → ' + f.nome);
   };
@@ -15858,6 +15858,25 @@ _donut = function (rows, centro, sub, fmt) {
     .dx-dn-lg .it i{width:13px;height:13px;border-radius:3px;flex:0 0 13px;margin-top:3px}
     .dx-dn-lg .nm{flex:1;min-width:0}.dx-dn-lg .vl{display:block;font-family:var(--mono);font-size:12px;font-weight:400;color:var(--mu);white-space:nowrap;margin-top:2px}`;
   document.head.appendChild(css); })();
+// v3.49: FUNÇÃO SEMPRE A DO CADASTRO — o nome da função vem do Cód. Função do funcionário; moradores, responsáveis e
+// motoristas vinculados acompanham o cadastro (nome, matrícula e função) automaticamente
+function _fnFuncaoNome(f) { if (!f) return ''; const c = (dados.cargos || []).find(x => String(x.cod) === String(f.codFuncao) && (!f.obra || !x.obra || x.obra === f.obra)) || (dados.cargos || []).find(x => String(x.cod) === String(f.codFuncao)); return (c && c.nome) || f.funcao || ''; }
+function _syncVinculos() {
+  const F = new Map((dados.funcionarios || []).map(f => [f.id, f])), salvar = new Map();
+  const acerta = (x, idK, col, dono, campos) => { const f = x && F.get(x[idK]); if (!f) return; const nv = campos(f); let mud = false; Object.entries(nv).forEach(([k, v]) => { if (v && x[k] !== v) { x[k] = v; mud = true; } }); if (mud) salvar.set(col + '|' + dono.id, [col, dono]); };
+  (dados.republicas || []).forEach(r => (r.moradores || []).forEach(m => acerta(m, 'func', 'republicas', r, f => ({ nome: f.nome, mat: f.mat, funcao: _fnFuncaoNome(f) }))));
+  (dados.frota || []).forEach(v => (v.resp || []).forEach(x => acerta(x, 'func', 'frota', v, f => ({ nome: f.nome, mat: f.mat, funcao: _fnFuncaoNome(f) }))));
+  (dados.abastVeic || []).forEach(a => acerta(a, 'motoristaId', 'abastVeic', a, f => ({ motorista: f.nome, motoristaMat: f.mat })));
+  (dados.funcionarios || []).forEach(f => { const n = _fnFuncaoNome(f); if (n && f.funcao !== n) { f.funcao = n; salvar.set('funcionarios|' + f.id, ['funcionarios', f]); } });
+  if (db && _firebaseReady) salvar.forEach(([c, x]) => fbSave(c, x.id, x).catch(() => {}));
+}
+(function () {
+  let t = 0; const sync = () => { const n = Date.now(); if (n - t < 1500) return; t = n; try { _syncVinculos(); } catch (e) {} };
+  ['renderAlojados', 'renderFrota', 'renderFrotaResp', 'renderAbastVeic', 'renderFuncionarios'].forEach(nm => { const o = window[nm]; if (typeof o !== 'function') return;
+    const nv = function () { sync(); return o.apply(this, arguments); }; window[nm] = nv; try { eval(nm + ' = nv'); } catch (e) {} });
+  // função da lista de alojados e da coluna Função dos abastecimentos: sempre a do cadastro
+  const oL = window._alojLista; window._alojLista = _alojLista = function () { return oL.apply(this, arguments).map(x => { const f = x.m.func && (dados.funcionarios || []).find(y => y.id === x.m.func); if (f) x.funcao = _fnFuncaoNome(f) || x.funcao; return x; }); };
+})();
 // Apply configs on load
 setTimeout(applyConfigs, 200);
 setTimeout(function() {
