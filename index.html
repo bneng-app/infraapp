@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.78 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.79 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -16533,6 +16533,10 @@ function _pfCadastrar(nome) { novoUsuario(); const s = document.getElementById('
       td.innerHTML = lh || kml ? [lh ? lh.toLocaleString('pt-BR') + ' <span style="color:var(--text-3);font-size:11px">L/h</span>' : '', kml ? kml.toLocaleString('pt-BR') + ' <span style="color:var(--text-3);font-size:11px">km/L</span>' : ''].filter(Boolean).join('<br>') : '<span style="color:var(--amber)">preencher</span>'; });
   } catch (e) {} return r; };
 })();
+// v3.79: janelas (modais) sem rolagem lateral — campos se ajustam à largura; janela de modelo um pouco mais larga
+(function () { const css = document.createElement('style');
+  css.textContent = '.modal-body{overflow-x:hidden}.modal .form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.modal .form-grid>*{min-width:0}.modal .form-control,.modal select,.modal input,.modal textarea{max-width:100%;box-sizing:border-box}.modal .form-label{overflow-wrap:anywhere}#modal-novo-modelo .modal,#modal-nova-familia .modal{max-width:560px;width:calc(100vw - 32px)}@media(max-width:560px){.modal .form-grid{grid-template-columns:minmax(0,1fr)}}';
+  document.head.appendChild(css); })();
 // Apply configs on load
 setTimeout(applyConfigs, 200);
 setTimeout(function() {
