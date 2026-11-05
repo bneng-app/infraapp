@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.81 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.82 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -16667,6 +16667,60 @@ let _roT = null; function _agendarResumoObras() { clearTimeout(_roT); _roT = set
   const oS = window.sincronizarTudo; if (oS) window.sincronizarTudo = sincronizarTudo = async function () { const r = await oS.apply(this, arguments); _agendarResumoObras(); return r; };
   ['salvarAprovacao', 'aprovarApontamento', 'aprovarSelecionados', 'aprovarTodos', 'aprovarCard'].forEach(n => { const f = window[n]; if (typeof f === 'function') window[n] = function () { const r = f.apply(this, arguments); _agendarResumoObras(); return r; }; });
   setTimeout(_agendarResumoObras, 8000);
+})();
+
+// ═══════════════════════════════════════════════════════════════
+// v3.82: LOCAL DO ABASTECIMENTO no Acompanhamento do dia — coluna "Local" (abre no Google Maps),
+// veículos leves junto com o diesel e os abastecimentos no mapa do dia (ícone de bomba).
+// ═══════════════════════════════════════════════════════════════
+function _diaAbsDoDia() {
+  const ob = _dx.obra, dataSel = _dia.dataSel || _hojeLocal(), daObra = x => !ob || !x.obra || x.obra === ob;
+  const ds = (dados.diesel || []).filter(d => daObra(d) && (d.data || String(d.dt || '').slice(0, 10)) === dataSel && d.status !== 'rejeitado')
+    .map(d => ({ tipo: 'diesel', hora: d.hora || String(d.dt || '').slice(11, 16), quem: d.equip || '—', litros: +d.litros || 0, med: d.hor || d.horimetro || '', onde: ((dados.tanques || []).find(t => t.id === (d.tanqueId || d.tanque)) || {}).nome || '', por: d.lancadoPor || '', geo: d.geo, d }));
+  const vl = (dados.abastVeic || []).filter(a => daObra(a) && a.data === dataSel && a.status !== 'rejeitado')
+    .map(a => ({ tipo: 'veic', hora: a.hora || '', quem: a.tag || a.placa || '—', litros: +a.litros || 0, med: a.km ? (+a.km).toLocaleString('pt-BR') + ' km' : '', onde: a.posto || '', por: a.motorista || a.lancadoPor || '', geo: a.geo, d: a }));
+  return ds.concat(vl).sort((a, b) => String(a.hora).localeCompare(String(b.hora)));
+}
+function _diaGeoLink(g) {
+  if (!g || g.lat == null) return '<span class="mu" title="Lançado sem localização (GPS desligado ou versão antiga do app)">—</span>';
+  return `<a href="https://www.google.com/maps?q=${g.lat},${g.lng}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;white-space:nowrap" title="Abrir no Google Maps · precisão ±${_e(g.acc || '?')} m">📍 <u>ver no mapa</u></a>`;
+}
+(function () {
+  const oR = renderDiario;
+  renderDiario = function () {
+    const r = oR.apply(this, arguments);
+    const blk = document.querySelector('#page-diario .dia-blk[data-b="abs"]'); if (!blk) return r;
+    const L = _diaAbsDoDia(), E = _e, nGeo = L.filter(x => x.geo).length;
+    const tb = blk.querySelector('.table-wrap');
+    const corpo = `<div class="table-wrap" style="max-height:420px;overflow:auto"><table class="dx-tb"><thead><tr><th>Hora</th><th>Tipo</th><th>TAG / placa</th><th style="text-align:right">Litros</th><th style="text-align:right">Horímetro / km</th><th>Tanque / posto</th><th>Lançado por</th><th>Local</th><th>Alerta</th></tr></thead><tbody>
+      ${L.map(x => { const al = x.tipo === 'diesel' && typeof _absAlertas === 'function' ? _absAlertas(x.d) : [];
+        return `<tr><td class="td-mono">${E(x.hora || '—')}</td><td><span class="dia-tg ${x.tipo === 'diesel' ? 'ent' : 'sai'}">${x.tipo === 'diesel' ? 'Diesel' : 'Veículo leve'}</span></td><td><b>${E(x.quem)}</b></td><td class="td-mono" style="text-align:right">${_fmtN(x.litros)}</td>
+        <td class="td-mono" style="text-align:right">${E(x.med || '—')}</td><td>${E(x.onde || '—')}</td><td class="mu">${E(x.por || '—')}</td><td>${_diaGeoLink(x.geo)}</td><td>${al.length ? al.map(a => `<span class="dia-tg al">⚠ ${E(a.txt)}</span>`).join(' ') : '<span class="mu">—</span>'}</td></tr>`; }).join('') || '<tr><td colspan="9" class="mu" style="text-align:center;padding:14px">Nenhum abastecimento no dia.</td></tr>'}</tbody></table></div>
+      ${L.length ? `<div class="dx-sub" style="margin-top:6px">${nGeo} de ${L.length} com localização · os com local aparecem no mapa do dia com o ícone ⛽</div>` : ''}`;
+    if (tb) { tb.insertAdjacentHTML('beforebegin', corpo); tb.remove(); }
+    // contagem no título do bloco
+    const lit = L.reduce((s, x) => s + x.litros, 0), cnt = blk.querySelector('summary .dia-cnt'), tot = blk.querySelector('summary .dx-pn-x');
+    if (cnt) cnt.textContent = L.length;
+    if (tot && L.length) tot.innerHTML = _fmtN(lit) + ' L' + (nGeo ? ' · ' + nGeo + ' com local' : '') + ' <span class="dia-chev">▾</span>';
+    return r;
+  };
+  // ⛽ no mapa do dia
+  const oM = _diaMapaMontar;
+  _diaMapaMontar = function (turnos, frentes) {
+    oM.apply(this, arguments);
+    const pts = _diaAbsDoDia().filter(x => x.geo && x.geo.lat != null);
+    if (!pts.length) return;
+    let n = 0; const espera = () => {
+      if (!_mapaDia || !window.L) { if (n++ < 40) return setTimeout(espera, 150); return; }
+      pts.forEach(x => {
+        window.L.marker([x.geo.lat, x.geo.lng], { icon: window.L.divIcon({ className: '', iconSize: [28, 28], iconAnchor: [14, 14],
+          html: `<div style="width:28px;height:28px;border-radius:8px;background:#F59E0B;border:2px solid #fff;box-shadow:0 3px 8px rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;font-size:15px">⛽</div>` }) }).addTo(_mapaDia)
+          .bindPopup(`<div style="font:13px Inter,Arial,sans-serif;min-width:190px"><b>${_e(x.quem)}</b> · ${x.tipo === 'diesel' ? 'Diesel' : 'Veículo leve'}<br>${_fmtN(x.litros)} L às <b>${_e(x.hora || '—')}</b>${x.onde ? '<br>' + _e(x.onde) : ''}${x.por ? '<br><span style="color:#666">' + _e(x.por) + '</span>' : ''}
+            <div style="margin-top:6px"><a href="https://www.google.com/maps?q=${x.geo.lat},${x.geo.lng}" target="_blank" rel="noopener">Abrir no Google Maps</a> <span style="color:#888">±${_e(x.geo.acc || '?')} m</span></div></div>`);
+      });
+    };
+    espera();
+  };
 })();
 
 // Apply configs on load

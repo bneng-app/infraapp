@@ -883,7 +883,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.83</div>
+  <div class="login-versao">ObraKontrol Campo · v2.84</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -4854,6 +4854,27 @@ abrirFrenteHoje = async function (cod) {
     .fx-bar.sm{height:7px;margin:6px 0 2px}
     #screen-fh .fh-rod{color:#9ca3af}`;
   document.head.appendChild(css);
+})();
+
+// ══════════════════════════════════════════════════════════════
+// v2.84: LOCALIZAÇÃO NO ABASTECIMENTO (diesel e veículo leve)
+// pega o GPS ao abrir a tela e grava junto do abastecimento (geo: lat, lng, acc).
+// sem GPS o abastecimento salva normalmente, só sem o local.
+// ══════════════════════════════════════════════════════════════
+let _absGeo = null, _absGeoP = null;
+function _absGeoBuscar() { _absGeo = null; _absGeoP = _geoPegar(20000).then(g => (_absGeo = g)).catch(() => null); return _absGeoP; }
+(function () {
+  const oShow = showScreen;
+  showScreen = function (id) { const r = oShow.apply(this, arguments); if (id === 'fuel' || id === 'abv') _absGeoBuscar(); return r; };
+  const oSalvar = fbSalvar;
+  fbSalvar = async function (col, item) {
+    if ((col === 'diesel' || col === 'abastVeic') && item && !item.geo && item.status !== 'rejeitado' && !item.aprovadoEm) {
+      let g = _absGeo;
+      if (!g) { if (!_absGeoP) _absGeoBuscar(); g = await Promise.race([_absGeoP, new Promise(r => setTimeout(() => r(null), 6000))]); }
+      if (g && (Date.now() - new Date(g.em).getTime()) < 30 * 60000) item.geo = g;
+    }
+    return oSalvar.apply(this, arguments);
+  };
 })();
 
 // ══════════════════════════════════════════════════════════════
