@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.63 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.64 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -5209,7 +5209,7 @@ function renderFuncionarios(pagina) {
 
   document.getElementById('tbody-func').innerHTML = slice.length
     ? slice.map(f=>{
-        const cargo = dados.cargos.find(c=>c.cod===f.codFuncao);
+        const cargo = _cargoCod(f.codFuncao, f.obra);
         const nomeFunc = cargo ? cargo.nome : '—';
         return `<tr>${cbTD('funcionarios',f.id)}<td style='font-size:11px;color:var(--text-3)'>${getNomeObra(f.obra)}</td>
         <td class="td-mono"><strong>${f.mat}</strong></td>
@@ -5441,11 +5441,11 @@ function _qrItens(semFiltro) {
   const b = semFiltro ? '' : (document.getElementById('qr-busca')?.value || '').toLowerCase();
   const st = semFiltro ? '' : (document.getElementById('qr-status')?.value ?? 'pend');
   const okSt = r => !st || (st === 'pend' ? !r.qrGeradoEm : !!r.qrGeradoEm);
-  const cargo = c => { const x = (dados.cargos||[]).find(y => y.cod === c); return x ? x.nome : (c || ''); };
+  const cargo = (c, ob) => { const x = _cargoCod(c, ob); return x ? x.nome : (c || ''); };
   const func = _qrDaObra(dados.funcionarios||[]).filter(f => f.mat && f.status !== 'Desligado' && !f.demissao).filter(okSt)
     .filter(f => !b || (f.nome||'').toLowerCase().includes(b) || String(f.mat).toLowerCase().includes(b))
     .sort((a, c) => String(a.nome||'').localeCompare(String(c.nome||'')))
-    .map(f => ({ id:'MO-' + f.id, col:'funcionarios', rid:f.id, ger:f.qrGeradoEm || '', texto:'mat:' + f.mat, label:f.nome, sub:['Mat. ' + f.mat, cargo(f.codFuncao || f.funcao)].filter(Boolean).join(' · ') }));
+    .map(f => ({ id:'MO-' + f.id, col:'funcionarios', rid:f.id, ger:f.qrGeradoEm || '', texto:'mat:' + f.mat, label:f.nome, sub:['Mat. ' + f.mat, cargo(f.codFuncao || f.funcao, f.obra)].filter(Boolean).join(' · ') }));
   const equip = _qrDaObra(dados.equipamentos||[]).filter(e => e.tag || e.placa).filter(okSt)
     .filter(e => !b || String(e.tag||'').toLowerCase().includes(b) || String(e.placa||'').toLowerCase().includes(b))
     .sort((a, c) => String(a.tag||a.placa).localeCompare(String(c.tag||c.placa)))
@@ -7023,7 +7023,7 @@ function editarLancamentosMO(apontador) {
   const el = document.getElementById('edit-mo-lista');
   el.innerHTML = lista.map(a => {
     const func   = dados.funcionarios.find(f=>f.nome===a.func||f.mat===a.func);
-    const cargo  = func ? (dados.cargos.find(c=>c.cod===func.codFuncao)?.nome||func.codFuncao||'') : a.funcao||'';
+    const cargo  = func ? (_cargoCod(func.codFuncao, func.obra)?.nome||func.codFuncao||'') : a.funcao||'';
     return '<div id="edit-mo-row-'+a.id+'" style="background:white;border:1px solid var(--border);border-radius:10px;overflow:hidden">'
       + '<div style="padding:10px 14px;background:var(--bg);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">'
       +   '<div style="font-size:12px;font-weight:600;color:var(--text)">'
@@ -7108,7 +7108,7 @@ function salvarEdicaoMO(aponId) {
   a.hora    = document.getElementById('edit-hora-'+aponId)?.value || a.hora;
   a.horaFim = document.getElementById('edit-horafim-'+aponId)?.value || a.horaFim;
   a.func    = func?.nome || document.getElementById('edit-func-'+aponId)?.value || a.func;
-  a.funcao  = func ? (dados.cargos.find(c=>c.cod===func.codFuncao)?.nome||func.codFuncao||a.funcao) : a.funcao;
+  a.funcao  = func ? (_cargoCod(func.codFuncao, func.obra)?.nome||func.codFuncao||a.funcao) : a.funcao;
   a.hn      = parseFloat(document.getElementById('edit-hn-'+aponId)?.value)||a.hn;
   a.he      = parseFloat(document.getElementById('edit-he-'+aponId)?.value)||a.he;
   a.qtd     = parseFloat(document.getElementById('edit-qtd-'+aponId)?.value)||a.qtd;
@@ -7159,7 +7159,7 @@ function buscarFuncPorMat() {
   // Build dropdown using DOM (avoids quote escaping issues)
   dropEl.innerHTML = '';
   resultados.forEach(f => {
-    const cargo = dados.cargos.find(c=>c.cod===f.codFuncao)?.nome||f.codFuncao||'';
+    const cargo = _cargoCod(f.codFuncao, f.obra)?.nome||f.codFuncao||'';
     const div = document.createElement('div');
     div.style.cssText = 'padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px';
     div.innerHTML = '<strong style="font-family:var(--mono);font-size:11px">'+f.mat+'</strong> — '+f.nome+'<div style="font-size:11px;color:var(--text-3)">'+cargo+'</div>';
@@ -7177,7 +7177,7 @@ function selecionarFuncPorMat(mat) {
   const hidEl   = document.getElementById('amo-func');
   const infoEl  = document.getElementById('amo-func-info');
   const dropEl  = document.getElementById('amo-mat-resultado');
-  const cargo   = dados.cargos.find(c=>c.cod===func.codFuncao)?.nome||func.codFuncao||'';
+  const cargo   = _cargoCod(func.codFuncao, func.obra)?.nome||func.codFuncao||'';
 
   if (matEl)  matEl.value  = func.mat + ' — ' + func.nome;
   if (hidEl)  hidEl.value  = func.mat;
@@ -7499,6 +7499,9 @@ function bulkBar(col){return '<div class="bulk-bar" id="bulk-bar-'+col+'"><span 
 
 
 
+// v3.64: obras independentes — o código da função é procurado primeiro na obra do funcionário
+function _cargoCod(cod, obra) { if (cod === undefined || cod === null || cod === '') return null; const l = dados.cargos || [], k = String(cod);
+  return (obra && l.find(x => String(x.cod) === k && x.obra === obra)) || (obra && l.find(x => String(x.cod) === k && !x.obra)) || (!obra ? l.find(x => String(x.cod) === k) : null) || l.find(x => String(x.cod) === k) || null; }
 function getNomeObra(obraId) {
   if (!obraId) return '—';
   const o = (dados.obras||[]).find(x=>x.id===obraId);
@@ -9587,7 +9590,7 @@ function orcVigente(obraId) { return orcVersoes(obraId).filter(o => o.status ===
 function _orcObraSel() { return document.getElementById('orc-obra')?.value || ''; }
 function _fmtN(v, d) { return (Number(v)||0).toLocaleString('pt-BR', { maximumFractionDigits: d ?? 2 }); }
 function _orcResumoLista(lst, nomeDe) { return (lst||[]).filter(x => x.qtd).map(x => _n1(x.qtd) + ' ' + _e(nomeDe(x))).join(', ') || '—'; }
-const _nomeFuncao = c => ((dados.cargos||[]).find(x => x.cod === c) || {}).nome || c;
+const _nomeFuncao = c => (_cargoCod(c) || {}).nome || c;
 const _nomeFamilia = c => ((dados.familias||[]).find(x => x.cod === c) || {}).desc || c;
 
 function renderOrcamento() {
@@ -10427,7 +10430,7 @@ renderDiario = function () {
   }).sort((a, b) => (a.ok - b.ok) || String(a.f.nome).localeCompare(String(b.f.nome)));
   const apOk = aprops.filter(a => a.ok).length;
   const ini = n => String(n || '?').split(' ').filter(Boolean).map(x => x[0]).slice(0, 2).join('').toUpperCase();
-  const nomeFunc = c => ((dados.cargos || []).find(x => x.cod === c) || {}).nome || c || '—';
+  const nomeFunc = (c, ob) => (_cargoCod(c, ob) || {}).nome || c || '—';
   const nomeLider = m => { const l = m && (dados.funcionarios || []).find(x => String(x.mat) === String(m)); return l ? l.nome.split(' ')[0] : ''; };
   const cor = (a, b) => b && a < b ? '#FF5A60' : (b ? '#22C55E' : '');
   const kpis = `<div class="dx-kpis">
@@ -10441,10 +10444,10 @@ renderDiario = function () {
   const listaAp = aprops.length ? `<div class="dd-l">${aprops.map(a => {
       const t0 = a.ts.slice().sort((x, y) => String(x.horaIni).localeCompare(String(y.horaIni)))[0];
       const st = a.ok ? `<div class="dd-st ok">✓ ${t0 ? 'Abriu ' + _e(t0.horaIni || '') : 'Lançou'}<div class="dd-s">${_e([...new Set(a.ts.map(t => t.frente))].join(', ') || '')}${a.ts.length > 1 ? ' · ' + a.ts.length + ' turnos' : ''}</div></div>` : `<div class="dd-st no">Ainda não abriu</div>`;
-      return `<div class="dd-r ${a.ok ? 'ok' : 'no'}"><div class="dd-av">${_e(ini(a.f.nome))}</div><div style="min-width:0"><div class="dd-n">${_e(a.f.nome)}</div><div class="dd-s">Mat. ${_e(a.f.mat)} · ${_e(nomeFunc(a.f.codFuncao))}${a.f.equipe ? ' · ' + _e(a.f.equipe) : ''}${a.u ? '' : ' · <span style="color:#FBBF24">sem acesso ao app</span>'}</div></div>${st}${_waBotao(a.f.tel, a.ok ? '' : msgAp(a.f))}</div>`; }).join('')}</div>`
+      return `<div class="dd-r ${a.ok ? 'ok' : 'no'}"><div class="dd-av">${_e(ini(a.f.nome))}</div><div style="min-width:0"><div class="dd-n">${_e(a.f.nome)}</div><div class="dd-s">Mat. ${_e(a.f.mat)} · ${_e(nomeFunc(a.f.codFuncao, a.f.obra))}${a.f.equipe ? ' · ' + _e(a.f.equipe) : ''}${a.u ? '' : ' · <span style="color:#FBBF24">sem acesso ao app</span>'}</div></div>${st}${_waBotao(a.f.tel, a.ok ? '' : msgAp(a.f))}</div>`; }).join('')}</div>`
     : '<div class="dx-vazio">Nenhum apropriador marcado.<br>No cadastro de funcionários, marque <b>Líder / Apropriador = Sim</b> para quem faz o apontamento.</div>';
   const listaPes = faltam.length ? `<div class="dd-l">${faltam.sort((a, b) => String(a.equipe || '').localeCompare(String(b.equipe || '')) || String(a.nome).localeCompare(String(b.nome))).map(f =>
-      `<div class="dd-r"><div class="dd-av">${_e(ini(f.nome))}</div><div style="min-width:0"><div class="dd-n">${_e(f.nome)}</div><div class="dd-s">Mat. ${_e(f.mat)} · ${_e(nomeFunc(f.codFuncao))}${f.equipe ? ' · ' + _e(f.equipe) : ''}${nomeLider(f.lider) ? ' · líder ' + _e(nomeLider(f.lider)) : ''}</div></div>${_waBotao(f.tel, '', 'mini')}</div>`).join('')}</div>`
+      `<div class="dd-r"><div class="dd-av">${_e(ini(f.nome))}</div><div style="min-width:0"><div class="dd-n">${_e(f.nome)}</div><div class="dd-s">Mat. ${_e(f.mat)} · ${_e(nomeFunc(f.codFuncao, f.obra))}${f.equipe ? ' · ' + _e(f.equipe) : ''}${nomeLider(f.lider) ? ' · líder ' + _e(nomeLider(f.lider)) : ''}</div></div>${_waBotao(f.tel, '', 'mini')}</div>`).join('')}</div>`
     : `<div class="dx-vazio">${devem.length ? '✓ Todas as ' + devem.length + ' pessoas que geram apontamento já foram apontadas.' : 'Nenhum funcionário ativo que gere apontamento.'}</div>`;
   const listaEq = eqFalta.length ? `<div class="dd-l">${eqFalta.sort((a, b) => String(a.tag).localeCompare(String(b.tag))).map(e =>
       `<div class="dd-r"><div class="dd-av" style="border-radius:9px">${_ic.truck.replace('<svg ', '<svg style="width:18px;height:18px" ')}</div><div style="min-width:0"><div class="dd-n">${_e(e.tag || e.placa)}</div><div class="dd-s">${_e(e.placa || '—')} · ${_e(((dados.familias || []).find(x => x.cod === (e.familia || e.codFamilia)) || {}).desc || e.familia || '—')}</div></div></div>`).join('')}</div>`
@@ -14183,7 +14186,7 @@ _dx.modo = (() => { try { return localStorage.getItem('ok_dx_modo') || 'qtd'; } 
 function dxModo(m) { _dx.modo = m; try { localStorage.setItem('ok_dx_modo', m); } catch (e) {} dxRender(); }
 function _dxModoSeg() { const q = _dx.modo !== 'custo';
   return `<div class="dx-modo" role="tablist"><button class="${q ? 'on' : ''}" onclick="dxModo('qtd')">Quantidade</button><button class="${q ? '' : 'on'}" onclick="dxModo('custo')">Custo</button></div>`; }
-function _dxNomeFuncao(a) { const c = (dados.cargos || []).find(x => x.cod === a.codFuncao || x.cod === a.funcao || x.nome === a.funcao); return c ? c.nome : (a.funcao || 'Sem função'); }
+function _dxNomeFuncao(a) { const ob = a.obra || ((dados.funcionarios || []).find(f => f.id === a.func || (a.mat && f.mat === a.mat && (!a.obra || f.obra === a.obra))) || {}).obra; const c = _cargoCod(a.codFuncao, ob) || _cargoCod(a.funcao, ob) || (dados.cargos || []).find(x => x.nome === a.funcao); return c ? c.nome : (a.funcao || 'Sem função'); }
 function dxRenderMO2() {
   const { mo, pe } = _dxBase('mo'), custo = _dx.modo === 'custo';
   const pessoas = new Set(mo.map(a => a.func)).size, hn = mo.reduce((s, a) => s + (+a.hn || 0), 0), he = mo.reduce((s, a) => s + (+a.he || 0), 0), hh = hn + he;
