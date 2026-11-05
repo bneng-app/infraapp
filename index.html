@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.42 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.43 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -15696,6 +15696,72 @@ function _cgVincMudou(gerar) {
     if (sel.selectedOptions[0] && sel.selectedOptions[0].hidden) sel.value = ''; return r; };
   const fv = $('func-vinculo'); if (fv) fv.addEventListener('change', () => _fnVincMudou());
 })();
+
+// ═══════════════════════════════════════════════════════════════
+// v3.43: REVISÃO DOS CADASTROS INDIVIDUAIS × REGRAS DA IMPORTAÇÃO
+// Funcionário: CPF obrigatório para CLT também na importação, CPF repetido bloqueado, empresa própria já escolhida;
+// Equipamento: Ano de fabricação; República: proprietário opcional; Frota: modelo do veículo sempre ligado ao cadastro de Modelos
+// ═══════════════════════════════════════════════════════════════
+function _cpfDig(v) { return String(v || '').replace(/\D/g, ''); }
+function _cpfDono(cpf, exceto) { const d = _cpfDig(cpf); if (d.length !== 11) return null; return (dados.funcionarios || []).find(f => f.id !== exceto && _cpfDig(f.cpf) === d && !(f.demissao && f.demissao <= _hojeLocal())) || null; }
+// modelo do veículo: acha no cadastro pelo nome; se não houver, cria na obra (família Veículo leve) — fica para o Master aprovar
+function _frModeloGarantir(v) {
+  if (!v || !v.modelo) return null; if (v.modeloId && (dados.modelos || []).some(m => m.id === v.modeloId)) return null;
+  const N = _mmNorm, nm = N(v.modelo);
+  let m = (dados.modelos || []).find(x => (!x.obra || x.obra === v.obra) && N(x.nome) === nm);
+  const salvar = [];
+  if (!m) {
+    let f = (dados.familias || []).find(x => (!x.obra || x.obra === v.obra) && (/VE[IÍ]CULO LEVE/i.test(N(x.desc)) || N(x.cod) === 'VL'));
+    if (!f) { f = { id: 'fa' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), cod: 'VL', desc: 'Veículo leve', obra: v.obra, criadoEm: new Date().toISOString(), origem: 'frota' }; (dados.familias = dados.familias || []).push(f); salvar.push(['familias', f]); }
+    m = { id: 'mo' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), cod: _mmCodModelo(f.cod), nome: String(v.modelo).trim(), familia: f.cod, obra: v.obra, criadoEm: new Date().toISOString(), origem: 'frota' };
+    (dados.modelos = dados.modelos || []).push(m); salvar.push(['modelos', m]);
+  }
+  v.modeloId = m.id; v.codModelo = m.cod || ''; v.familia = m.familia || ''; salvar.push(['frota', v]);
+  if (db && _firebaseReady) salvar.forEach(([c, x]) => fbSave(c, x.id, x).catch(() => {}));
+  return m;
+}
+(function () {
+  const $ = id => document.getElementById(id);
+  // ── Funcionário (tela)
+  const oS = window.salvarFuncionario; window.salvarFuncionario = salvarFuncionario = function () {
+    const cpf = $('func-cpf')?.value, dono = cpf && _cpfDono(cpf, $('func-edit-id')?.value);
+    if (dono) { toast('Este CPF já é de ' + dono.nome + ' (Mat. ' + dono.mat + '). O crachá lê o CPF, então não pode repetir.', 'error'); $('func-cpf')?.focus(); return; }
+    if (cpf && _cpfDig(cpf).length !== 11) { toast('CPF incompleto: precisa ter 11 números.', 'error'); $('func-cpf')?.focus(); return; }
+    return oS.apply(this, arguments); };
+  const oO = window.openModal; window.openModal = openModal = function (id) { const r = oO.apply(this, arguments);
+    if (id === 'modal-novo-func') setTimeout(() => { const e = $('func-empresa'); if (e && !$('func-edit-id')?.value && !e.value) { const ob = $('func-obra')?.value, p = (dados.empresas || []).find(x => /pr[oó]pria/i.test(x.tipo || '') && (!ob || !x.obra || x.obra === ob)); if (p) e.value = p.id; } }, 50);
+    return r; };
+  // ── Funcionário (importação): CLT sem CPF ou CPF repetido não entra
+  const oImp = _importarLinhas;
+  _importarLinhas = window._importarLinhas = function (tipo, rows, resumo) {
+    const novos = oImp.apply(this, arguments); if (tipo !== 'funcionarios' || !novos || !novos.length) return novos;
+    const r = resumo[tipo], lista = dados.funcionarios || [], ok = [], vistos = new Map();
+    const erro = (it, msg) => { r.ok--; r.erro++; r.avisos.push(msg); (r.__log = r.__log || []).push({ msg, nivel: 'erro', linha: it.__ln || null }); const i = lista.indexOf(it); if (i >= 0) lista.splice(i, 1); };
+    novos.forEach(it => { const d = _cpfDig(it.cpf);
+      if (it.vinculo !== 'PJ' && d.length !== 11) return erro(it, 'matrícula ' + it.mat + ' (' + it.nome + '): CLT sem CPF — o crachá lê o CPF');
+      if (d.length === 11) { const dono = _cpfDono(d, it.id) && lista.find(f => f !== it && !novos.includes(f) && _cpfDig(f.cpf) === d), outro = vistos.get(d);
+        if (dono || outro) return erro(it, 'matrícula ' + it.mat + ' (' + it.nome + '): CPF já é de ' + (dono || outro).nome); vistos.set(d, it); }
+      ok.push(it); });
+    return ok;
+  };
+  // ── Equipamento: ano de fabricação
+  const gS = $('equip-serie')?.closest('.form-group');
+  if (gS && !$('equip-ano')) gS.insertAdjacentHTML('afterend', `<div class="form-group"><label class="form-label" for="equip-ano">Ano de fabricação</label><input class="form-control" id="equip-ano" inputmode="numeric" maxlength="9" placeholder="Ex.: 2022"/></div>`);
+  const oEE = window.editarEquipamento; window.editarEquipamento = function (id) { const r = oEE.apply(this, arguments); const e = (dados.equipamentos || []).find(x => x.id === id) || {}; if ($('equip-ano')) $('equip-ano').value = e.ano || ''; return r; };
+  const oSE = window.salvarEquipamento; window.salvarEquipamento = function () {
+    const ano = ($('equip-ano')?.value || '').trim(), tag = ($('equip-tag')?.value || '').trim(), idEd = ($('equip-edit-id')?.value || '').trim();
+    const r = oSE.apply(this, arguments); if ($('modal-novo-equip')?.classList.contains('open')) return r;
+    const e = idEd ? (dados.equipamentos || []).find(x => x.id === idEd) : [...(dados.equipamentos || [])].reverse().find(x => String(x.tag || '').toLowerCase() === tag.toLowerCase());
+    if (e && (e.ano || '') !== ano) { e.ano = ano; if (db && _firebaseReady) fbSave('equipamentos', e.id, e).catch(() => {}); }
+    if ($('equip-ano')) $('equip-ano').value = ''; return r; };
+  // ── República: proprietário não é mais obrigatório
+  const lp = document.querySelector('label[for="rep-responsavel"]'); if (lp) lp.innerHTML = 'Proprietário <span style="font-weight:400;color:var(--text-3)">(nome completo, como no contrato)</span>';
+  // ── Frota: modelo ligado ao cadastro (planilha e veículos antigos)
+  const oFE = window.frEditar; window.frEditar = frEditar = function (id) { const v = id && (dados.frota || []).find(x => x.id === id); if (v) _frModeloGarantir(v); return oFE.apply(this, arguments); };
+  const oAI = window.abImportarPlanilha; window.abImportarPlanilha = abImportarPlanilha = async function () { const ant = new Set((dados.frota || []).map(v => v.id)); const r = await oAI.apply(this, arguments);
+    (dados.frota || []).filter(v => !ant.has(v.id)).forEach(_frModeloGarantir); try { renderFrota(); } catch (e) {} return r; };
+})();
+
 // Apply configs on load
 setTimeout(applyConfigs, 200);
 setTimeout(function() {
