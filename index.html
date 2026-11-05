@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.28 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.29 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -1309,7 +1309,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
       <div class="search-wrap" style="flex:1;min-width:240px;margin:0"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="search-rep" placeholder="Buscar código, nome, endereço ou morador…" oninput="renderRepublicas()"/></div>
       <div class="form-group" style="min-width:190px;margin:0"><label class="form-label" for="filtro-rep-tipo">Tipo</label><select class="form-control" id="filtro-rep-tipo" onchange="renderRepublicas()"><option value="">Todos</option><option>República</option><option>Alojamento</option><option>Hotel / pousada</option><option>Outro</option></select></div>
     </div>
-    <div class="table-wrap"><table><thead><tr><th>Código</th><th>Nome</th><th>Tipo</th><th>Endereço</th><th>Proprietário</th><th>Obra</th><th>Ocupação</th><th style="text-align:right">Custo mensal</th><th style="text-align:right">Por pessoa</th><th style="text-align:right">Por vaga</th><th>Situação</th><th></th></tr></thead>
+    <div class="table-wrap"><table><thead><tr><th style="width:36px"><input type="checkbox" class="cb-row-check" id="cb-master-republicas" onchange="toggleSelectAll('republicas',this)" title="Selecionar todos"></th><th>Código</th><th>Nome</th><th>Tipo</th><th>Endereço</th><th>Proprietário</th><th>Obra</th><th>Ocupação</th><th style="text-align:right">Custo mensal</th><th style="text-align:right">Por pessoa</th><th style="text-align:right">Por vaga</th><th>Situação</th><th></th></tr></thead>
       <tbody id="tbody-republicas"></tbody></table></div>
   </div></div>
 </div>
@@ -12006,9 +12006,12 @@ function renderRepublicas() {
   const lista = todas.filter(r => !busca || [r.nome, r.cod, r.endereco, ...(repMoradores(r).map(m => m.nome))].some(x => String(x || '').toLowerCase().includes(busca)))
     .sort((a, b) => (a.status === 'Encerrada') - (b.status === 'Encerrada') || _repTipoOrd(a) - _repTipoOrd(b) || String(a.cod).localeCompare(String(b.cod), 'pt-BR', { numeric: true }));
   const tb = document.getElementById('tbody-republicas'); if (!tb) return;
+  if (!document.getElementById('bulk-bar-republicas')) tb.closest('.table-wrap')?.insertAdjacentHTML('beforebegin', bulkBar('republicas'));
+  setTimeout(() => { const sel = _selected.republicas || new Set(), vis = new Set(lista.map(r => r.id)); [...sel].forEach(id => { if (!vis.has(id)) sel.delete(id); });
+    document.querySelectorAll('.cb-item-republicas').forEach(c => c.checked = sel.has(c.dataset.id)); const m = document.getElementById('cb-master-republicas'); if (m) { m.checked = sel.size > 0 && sel.size === lista.length; m.indeterminate = sel.size > 0 && sel.size < lista.length; } atualizarBulkBar('republicas'); }, 0);
   tb.innerHTML = lista.length ? lista.map(r => {
     const c = repCusto(r), m = repMoradores(r).length, v = +r.vagas || 0, pc = v ? Math.min(100, m / v * 100) : 0;
-    return `<tr>
+    return `<tr>${cbTD('republicas', r.id)}
       <td class="td-mono" style="font-weight:700;white-space:nowrap">${_e(r.cod || '—')}</td>
       <td style="font-weight:700;min-width:140px">${_e(r.nome)}</td>
       <td style="white-space:nowrap">${tag(_e(r.tipo || 'República'), /aloj/i.test(r.tipo || '') ? 'amber' : /hot|pous/i.test(r.tipo || '') ? 'blue' : /outro/i.test(r.tipo || '') ? 'gray' : 'green')}</td>
@@ -12022,7 +12025,7 @@ function renderRepublicas() {
       <td class="td-mono" style="text-align:right;color:var(--text-2)">${v ? _repMoeda(c / v) : '—'}</td>
       <td>${tag(r.status || 'Ativa', r.status === 'Encerrada' ? 'gray' : 'green')}</td>
       <td style="white-space:nowrap;text-align:right"><button class="btn btn-outline btn-sm" onclick="repMoradoresAbrir('${r.id}')">👥 Moradores</button> <button class="btn btn-outline btn-sm" onclick="repEditar('${r.id}')">✎ Editar</button></td></tr>`; }).join('')
-    : '<tr><td colspan="12" style="text-align:center;color:var(--text-3);padding:2rem">Nada cadastrado' + (ftipo ? ' do tipo ' + _e(ftipo) : '') + (_okObraAtual() !== 'todas' ? ' nesta obra' : '') + '. Clique em <b>+ Novo cadastro</b> ou em <b>↑ Importar</b>.</td></tr>';
+    : '<tr><td colspan="13" style="text-align:center;color:var(--text-3);padding:2rem">Nada cadastrado' + (ftipo ? ' do tipo ' + _e(ftipo) : '') + (_okObraAtual() !== 'todas' ? ' nesta obra' : '') + '. Clique em <b>+ Novo cadastro</b> ou em <b>↑ Importar</b>.</td></tr>';
 }
 function _repTipoOrd(r) { const t = r.tipo || 'República'; return /rep/i.test(t) ? 0 : /aloj/i.test(t) ? 1 : /hot|pous/i.test(t) ? 2 : 3; }
 function _repProxCod() { let mx = 0; (dados.republicas || []).forEach(r => { const m = /^REP-(\d+)$/i.exec(r.cod || ''); if (m) mx = Math.max(mx, +m[1]); }); return 'REP-' + String(mx + 1).padStart(3, '0'); }
@@ -15198,6 +15201,8 @@ document.addEventListener('click', () => document.getElementById('fn-af-pop')?.r
   };
 })();
 
+// v3.29: Repúblicas — selecionar e excluir vários; a tela e os alojados se atualizam
+(function () { const o = window.excluirSelecionados; window.excluirSelecionados = excluirSelecionados = async function (col) { const r = await o.apply(this, arguments); if (col === 'republicas') { try { renderRepublicas(); renderAlojados(); } catch (e) {} } return r; }; })();
 // Apply configs on load
 setTimeout(applyConfigs, 200);
 setTimeout(function() {
