@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.37 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.38 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -15599,6 +15599,39 @@ function abvVincular(aid) {
   };
   const css = document.createElement('style'); css.textContent = `#tbody-abv tr.abv-fora>td{background:rgba(245,158,11,.10)}#tbody-abv tr.abv-fora>td:first-child{box-shadow:inset 3px 0 0 #F59E0B}`; document.head.appendChild(css);
 })();
+
+// ═══════════════════════════════════════════════════════════════
+// v3.38: CADASTRO DO FUNCIONÁRIO — Vínculo antes da matrícula; PJ ganha matrícula PJ-NN automática;
+// CPF obrigatório para CLT (o crachá lê o CPF); sem "Matrícula líder" e "Cód. Equipe"; sem rolagem para o lado
+// ═══════════════════════════════════════════════════════════════
+function _fnProxPJ(obra) { let mx = 0; (dados.funcionarios || []).filter(f => !obra || !f.obra || f.obra === obra).forEach(f => { const m = /^PJ-(\d+)$/i.exec(String(f.mat || '')); if (m) mx = Math.max(mx, +m[1]); }); return 'PJ-' + String(mx + 1).padStart(2, '0'); }
+function _fnVincMudou() {
+  const $ = id => document.getElementById(id), pj = $('func-vinculo')?.value === 'PJ', novo = !$('func-edit-id')?.value, mat = $('func-mat'), cpfL = $('func-cpf')?.closest('.form-group')?.querySelector('.form-label');
+  if (cpfL) cpfL.innerHTML = pj ? 'CPF <span style="font-weight:400;color:var(--text-3)">(opcional para PJ)</span>' : 'CPF * <span style="font-weight:400;color:var(--text-3)">(o crachá lê o CPF)</span>';
+  if (!mat || !novo) return;
+  if (pj) { mat.value = _fnProxPJ($('func-obra')?.value); mat.readOnly = true; mat.title = 'Gerada automaticamente para PJ'; mat.style.background = 'var(--bg)'; }
+  else { if (/^PJ-\d+$/i.test(mat.value)) mat.value = ''; mat.readOnly = false; mat.title = ''; mat.style.background = ''; }
+}
+(function () {
+  const $ = id => document.getElementById(id);
+  const css = document.createElement('style'); css.textContent = '#modal-novo-func .modal{overflow-x:hidden}#modal-novo-func .form-grid>*{min-width:0}#modal-novo-func .form-grid .form-control{max-width:100%}'; document.head.appendChild(css);
+  // Vínculo logo antes da matrícula
+  const gV = $('func-vinculo')?.closest('.form-group'), gM = $('func-mat')?.closest('.form-group');
+  if (gV && gM) { gM.before(gV); $('func-vinculo').addEventListener('change', _fnVincMudou); }
+  { const gN = $('func-nome')?.closest('.form-group'), gF = $('func-funcao')?.closest('.form-group'); if (gN && gF) gF.before(gN); }
+  $('func-obra')?.addEventListener('change', () => { if ($('func-vinculo')?.value === 'PJ') _fnVincMudou(); });
+  // sai "Matrícula líder" e "Cód. Equipe"
+  ['func-lider', 'func-equipe'].forEach(id => { const g = $(id)?.closest('.form-group'); if (g) g.style.display = 'none'; });
+  const gD = $('func-demissao')?.closest('.form-group'); if (gD) gD.classList.remove('form-full');
+  // abrir (novo ou editar): ajusta matrícula/CPF conforme o vínculo
+  const oO = window.openModal; window.openModal = openModal = function (id) { const r = oO.apply(this, arguments); if (id === 'modal-novo-func') setTimeout(() => { const m = $('func-mat'); if (m && $('func-edit-id')?.value) { m.readOnly = false; m.style.background = ''; } _fnVincMudou(); }, 0); return r; };
+  // salvar: CPF obrigatório para CLT
+  const oS = window.salvarFuncionario; window.salvarFuncionario = salvarFuncionario = function () {
+    if ($('func-vinculo')?.value !== 'PJ' && !String($('func-cpf')?.value || '').replace(/\D/g, '')) { toast('Para CLT o CPF é obrigatório — o crachá lê o CPF.', 'error'); $('func-cpf')?.focus(); return; }
+    if ($('func-vinculo')?.value === 'PJ' && !$('func-edit-id')?.value && !$('func-mat').value) $('func-mat').value = _fnProxPJ($('func-obra')?.value);
+    return oS.apply(this, arguments); };
+})();
+
 // Apply configs on load
 setTimeout(applyConfigs, 200);
 setTimeout(function() {
