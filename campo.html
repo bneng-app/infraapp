@@ -883,7 +883,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.77</div>
+  <div class="login-versao">ObraKontrol Campo · v2.78</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -2598,9 +2598,9 @@ async function apRenderHorimetros() {
   el.innerHTML = eqs.map(e => { const v = ap.eq.get(e.id), id = _esc(e.id);
     return `<div class="hor-item" id="hor-${id}">
       <div style="font-weight:700;font-size:14px">${_esc(e.tag || e.placa)}</div>
-      <div class="hor-ult" id="hor-ult-${id}">Buscando último horímetro…</div>
+      <div class="hor-ult" id="hor-ult-${id}">Buscando última leitura do ${_medNomeC(e)}…</div>
       <div class="hor-linha">
-        <input type="number" inputmode="decimal" step="0.1" class="form-control" placeholder="Horímetro / km final" value="${_esc(v.hor || '')}" oninput="apEQCampo('${id}','hor',this.value);apHorChecar('${id}')" style="flex:1;min-width:0"/>
+        <input type="number" inputmode="decimal" step="0.1" class="form-control" placeholder="${_medKmC(e) ? 'Hodômetro final (km)' : 'Horímetro final (horas)'}" value="${_esc(v.hor || '')}" oninput="apEQCampo('${id}','hor',this.value);apHorChecar('${id}')" style="flex:1;min-width:0"/>
         ${v.foto ? `<img class="hor-thumb" src="${v.foto}" onclick="apHorVer('${id}')"/>` : ''}
         <label class="hor-foto-btn ${v.foto ? 'ok' : ''}" style="display:flex;align-items:center">📷 ${v.foto ? 'Trocar' : 'Foto'}
           <input type="file" accept="image/*" capture="environment" style="display:none" onchange="apHorFoto('${id}', this)"/></label>
@@ -2611,7 +2611,7 @@ async function apRenderHorimetros() {
     const u = await ultimoHorimetro(e.id); const v = ap.eq.get(e.id); if (!v) continue;
     v._ult = u ? u.hor : null;
     const t = document.getElementById('hor-ult-' + e.id);
-    if (t) t.innerHTML = u ? 'Último fechamento: <strong>' + _fmtHor(u.hor) + '</strong>' + (u.data ? ' em ' + _esc(String(u.data).split('-').reverse().join('/')) : '') : 'Sem horímetro anterior registrado';
+    if (t) t.innerHTML = u ? 'Último fechamento: <strong>' + _fmtHor(u.hor) + (_medKmC(e) ? ' km' : ' h') + '</strong>' + (u.data ? ' em ' + _esc(String(u.data).split('-').reverse().join('/')) : '') : 'Sem ' + _medNomeC(e) + ' anterior registrado';
     apHorChecar(e.id);
   }
 }
@@ -2652,10 +2652,10 @@ function apHorVer(id) {
 async function apHorValidar() {
   for (const e of dadosCampo.equipamentos.filter(x => ap.eq.has(x.id))) {
     const v = ap.eq.get(e.id), nome = e.tag || e.placa;
-    if (v.hor === '' || v.hor === undefined || isNaN(parseFloat(String(v.hor).replace(',', '.')))) return 'Informe o horímetro de ' + nome + '.';
-    if (!v.foto) return 'Tire a foto do horímetro de ' + nome + '.';
+    if (v.hor === '' || v.hor === undefined || isNaN(parseFloat(String(v.hor).replace(',', '.')))) return 'Informe o ' + _medNomeC(e) + ' de ' + nome + '.';
+    if (!v.foto) return 'Tire a foto do ' + _medNomeC(e) + ' de ' + nome + '.';
     if (v._ult === undefined) { const u = await ultimoHorimetro(e.id); v._ult = u ? u.hor : null; }
-    if (v._ult !== null && parseFloat(String(v.hor).replace(',', '.')) < v._ult) return 'Horímetro de ' + nome + ' (' + _fmtHor(v.hor) + ') menor que o último fechamento (' + _fmtHor(v._ult) + ').';
+    if (v._ult !== null && parseFloat(String(v.hor).replace(',', '.')) < v._ult) return (_medKmC(e) ? 'Hodômetro' : 'Horímetro') + ' de ' + nome + ' (' + _fmtHor(v.hor) + ') menor que o último fechamento (' + _fmtHor(v._ult) + ').';
   }
   return '';
 }
@@ -3689,7 +3689,7 @@ async function fuelFoto(k, input) {
 function _fuelFotosRender() {
   ['hor', 'total'].forEach(k => { const v = _fuelFotos[k], th = document.getElementById('fuel-thumb-' + k), b = document.getElementById('fuel-btn-' + k); if (!th || !b) return;
     th.style.display = v ? '' : 'none'; if (v) th.src = v.img; b.classList.toggle('ok', !!v);
-    b.firstChild.textContent = v ? '📷 Trocar foto' : (k === 'hor' ? '📷 Foto do horímetro (obrigatória)' : '📷 Foto do total abastecido (obrigatória)'); });
+    b.firstChild.textContent = v ? '📷 Trocar foto' : (k === 'hor' ? '📷 Foto do ' + _fuelMedNome() + ' (obrigatória)' : '📷 Foto do total abastecido (obrigatória)'); });
 }
 function fuelFotoVer(k) {
   const v = _fuelFotos[k]; if (!v) return;
@@ -3702,9 +3702,9 @@ function fuelFotoVer(k) {
     const equipId = document.getElementById('fuel-equip').value, litros = parseFloat(document.getElementById('fuel-litros').value) || 0, horim = String(document.getElementById('fuel-horimetro').value || '').trim();
     if (equipId && litros) {
       const falta = [];
-      if (!horim) falta.push('o horímetro / km');
+      if (!horim) falta.push('o ' + _fuelMedNome());
       if (!_fuelFotos.total) falta.push('a foto do total abastecido');
-      if (!_fuelFotos.hor) falta.push('a foto do horímetro');
+      if (!_fuelFotos.hor) falta.push('a foto do ' + _fuelMedNome());
       if (falta.length) { toast('Falta ' + falta.join(', ') + '.', 'err'); if (navigator.vibrate) { try { navigator.vibrate([60, 60, 60]); } catch (e) {} } return; }
     }
     const suf = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -3782,8 +3782,8 @@ function _tkDadosForm() {
     const g = id => document.getElementById(id);
     const litros = parseFloat(g('fuel-litros').value) || 0;
     if (!g('fuel-equip').value || !g('fuel-data').value || !litros) return oS.apply(this, arguments);   // o original mostra o que falta
-    const falta = []; if (!String(g('fuel-horimetro').value || '').trim()) falta.push('o horímetro / km');
-    if (!_fuelFotos.total) falta.push('a foto do total abastecido'); if (!_fuelFotos.hor) falta.push('a foto do horímetro');
+    const falta = []; if (!String(g('fuel-horimetro').value || '').trim()) falta.push('o ' + _fuelMedNome());
+    if (!_fuelFotos.total) falta.push('a foto do total abastecido'); if (!_fuelFotos.hor) falta.push('a foto do ' + _fuelMedNome());
     if (falta.length) { toast('Falta ' + falta.join(', ') + '.', 'err'); return; }
     const d = _tkDadosForm(); d.ticket = 'AB-' + d.dt.replace(/\D/g, '').slice(2, 8) + '-' + Math.random().toString(36).slice(2, 6).toUpperCase(); d.status = 'pendente-confirmar';
     window._tkAtual = d;
@@ -3934,6 +3934,7 @@ function mobRender() {
     h = `<div class="card"><div class="card-body">
       ${!usuarioCampo.obra ? `<div class="form-group"><label class="form-label">Obra</label>${sel('mob-obra', obras.map(o => [o.id, (o.cod ? o.cod + ' · ' : '') + o.nome]), mob.obra, 'Escolha a obra…', "mobCampo('obra',this.value)")}</div>` : ''}
       <div class="form-group"><label class="form-label">Família *</label>${sel('mob-fam', fams.map(f => [f.cod, f.desc || f.cod]), mob.familia, 'Escolha a família…', "mobCampo('familia',this.value)")}</div>
+      <div class="form-group"><label class="form-label">O equipamento marca *</label><div class="mob-seg">${[['horimetro', 'Horímetro (horas)'], ['hodometro', 'Hodômetro (km)']].map(([k, t]) => `<button type="button" class="${_mobMed() === k ? 'on' : ''}" onclick="mob.medidor='${k}';mobRender()">${t}</button>`).join('')}</div><div style="font-size:11.5px;color:var(--text3);margin-top:4px">Máquina (escavadeira, retro, rolo…) normalmente é horímetro; caminhão e veículo, hodômetro.</div></div>
       <div class="mob-tag ${tag ? '' : 'vazia'}"><span>TAG gerada</span><b>${tag || '—'}</b><small>${tag ? 'Escreva esta TAG no equipamento' : (!mob.obra && !usuarioCampo.obra ? 'Escolha a obra' + (mob.familia ? '' : ' e a família') + ' para gerar' : 'Escolha a família para gerar')}</small></div>
       <div class="form-group"><label class="form-label">Modelo *</label>${sel('mob-mod', mods.map(m => [m.cod, m.nome || m.cod]).concat([['__novo', '+ Modelo novo (não está na lista)']]), mob.modelo, 'Escolha o modelo…', "mobCampo('modelo',this.value);mobRender()")}
         ${mob.modelo === '__novo' ? `<input class="form-control" style="margin-top:8px" placeholder="Nome do modelo, ex.: Volvo EC220" value="${_mobEsc(mob.modeloNovo)}" oninput="mob.modeloNovo=this.value"/>` : ''}</div>
@@ -3949,8 +3950,8 @@ function mobRender() {
   }
   if (p === 1) {
     h = `<div class="card"><div class="card-body">
-      <div class="form-group"><label class="form-label">Horímetro / km de mobilização *</label><input class="form-control" type="number" inputmode="decimal" step="0.1" value="${_mobEsc(mob.hor)}" oninput="mob.hor=this.value" placeholder="Ex.: 1245,5" style="font-size:24px;font-weight:800;text-align:center"/>
-        ${_mobFotoBtn('hor', 'Foto do horímetro', mob.fotoHor, true)}</div>
+      <div class="form-group"><label class="form-label">${_mobMed() === 'hodometro' ? 'Hodômetro (km)' : 'Horímetro (horas)'} na mobilização *</label><input class="form-control" type="number" inputmode="decimal" step="0.1" value="${_mobEsc(mob.hor)}" oninput="mob.hor=this.value" placeholder="Ex.: 1245,5" style="font-size:24px;font-weight:800;text-align:center"/>
+        ${_mobFotoBtn('hor', _mobMed() === 'hodometro' ? 'Foto do hodômetro' : 'Foto do horímetro', mob.fotoHor, true)}</div>
       <div class="form-group"><label class="form-label">Combustível na chegada *</label><div class="mob-seg">${['Vazio', '1/4', '1/2', '3/4', 'Cheio'].map(c => `<button type="button" class="${mob.comb === c ? 'on' : ''}" onclick="mob.comb='${c}';mobRender()">${c}</button>`).join('')}</div></div>
       <div style="display:flex;gap:10px"><div class="form-group" style="flex:1"><label class="form-label">Data</label><input class="form-control" type="date" value="${mob.data}" oninput="mob.data=this.value"/></div>
         <div class="form-group" style="flex:1"><label class="form-label">Hora</label><input class="form-control" type="time" value="${mob.hora}" oninput="mob.hora=this.value"/></div></div>
@@ -4012,7 +4013,7 @@ function mobSigLimpar(k) { mob[k === 'rec' ? 'sigRecTipo' : 'sigEntTipo'] = null
 function _mobFalta(p) {
   const f = [];
   if (p === 0) { if (!usuarioCampo.obra && !mob.obra) f.push('a obra'); if (!mob.familia) f.push('a família'); if (!mob.modelo || (mob.modelo === '__novo' && !mob.modeloNovo.trim())) f.push('o modelo'); if (!mob.prop) f.push('a empresa proprietária'); if (!mob.placa.trim() && !String(mob.chassi || '').trim() && !String(mob.serie || '').trim()) f.push('a placa, o chassi ou o nº de série'); }
-  if (p === 1) { if (!String(mob.hor).trim()) f.push('o horímetro'); if (!mob.fotoHor) f.push('a foto do horímetro'); if (!mob.comb) f.push('o combustível na chegada'); }
+  if (p === 1) { const _mn = _mobMed() === 'hodometro' ? 'hodômetro' : 'horímetro'; if (!String(mob.hor).trim()) f.push('o ' + _mn); if (!mob.fotoHor) f.push('a foto do ' + _mn); if (!mob.comb) f.push('o combustível na chegada'); }
   if (p === 2) { const sem = mob.check.filter(c => !c.st).length; if (sem) f.push(sem + ' item(ns) do checklist'); mob.check.forEach((c, i) => { if (c.st === 'nok' && (!c.obs.trim() || !c.foto)) f.push('observação e foto do item ' + (i + 1)); }); }
   if (p === 3) { MOB_FOTOS.forEach(([k, t]) => { if (!mob.fotos[k]) f.push('foto ' + t.toLowerCase()); }); mob.avarias.forEach((a, i) => { if (!a.desc.trim() || !a.foto) f.push('descrição e foto da avaria ' + (i + 1)); }); }
   if (p === 4) { if (!mob.nomeRec.trim()) f.push('o nome de quem recebeu'); if (!mob.sigRec) f.push('a assinatura de quem recebeu'); }
@@ -4082,7 +4083,7 @@ async function mobValidar() {
     const fEq = {}; for (const [k, r] of MOB_FOTOS) fEq[k] = await foto(mob.fotos[k], k, r);
     const ck = []; for (const [i, c] of mob.check.entries()) ck.push({ t: c.t, st: c.st, obs: c.obs, foto: await foto(c.foto, 'check', c.t) });
     const av = []; for (const a of mob.avarias) av.push({ desc: a.desc, foto: await foto(a.foto, 'avaria', 'Avaria: ' + a.desc) });
-    const eq = { id: idEq, obra: t.obra, tag: t.tag, codModelo, placa: t.placa, chassi: t.chassi, serie: t.serie, docValidade: t.docVal, familia: mob.familia, prop: mob.prop, ano: t.ano, status: 'Mobilizado', dataMob: t.data, horMob: parseFloat(String(t.hor).replace(',', '.')) || t.hor,
+    const eq = { id: idEq, obra: t.obra, tag: t.tag, codModelo, placa: t.placa, chassi: t.chassi, serie: t.serie, docValidade: t.docVal, familia: mob.familia, prop: mob.prop, ano: t.ano, status: 'Mobilizado', dataMob: t.data, medidor: _mobMed(), horMob: parseFloat(String(t.hor).replace(',', '.')) || t.hor,
       custoHora: 0, cadastroPendente: true, mobilizacaoId: idMob, origem: 'campo', criadoPor: usuarioCampo.nome, criadoEm: ag };
     await fbSalvar('equipamentos', eq); (dadosCampo.equipamentos = dadosCampo.equipamentos || []).push(eq);
     await fbSalvar('mobilizacoes', { id: idMob, tipo: 'mobilizacao', equipId: idEq, tag: t.tag, obra: t.obra, data: t.data, hora: t.hora, familia: mob.familia, familiaNome: t.familiaNome, codModelo, modeloNome: t.modeloNome,
@@ -5464,6 +5465,17 @@ async function _okSalvarSenha() {
   }
 }
 (function () { const oE = entrarNoCampo; entrarNoCampo = function () { const r = oE.apply(this, arguments); setTimeout(() => _okChecarSenha().catch(() => {}), 300); return r; }; })();
+
+// v2.78: medidor do equipamento — horímetro (horas) ou hodômetro (km)
+function _medKmC(e) { return !!(e && e.medidor === 'hodometro'); }
+function _medNomeC(e) { return _medKmC(e) ? 'hodômetro' : 'horímetro'; }
+function _mobMed() { if (mob && mob.medidor) return mob.medidor; const f = (dadosCampo.familias || []).find(x => x.cod === (mob && mob.familia)), t = ((f && (f.desc || f.nome)) || '') + ' ' + ((mob && mob.familia) || '');
+  return /caminh|ve[ií]culo|carro|picape|[ôo]nibus|van\b|utilit/i.test(t) ? 'hodometro' : 'horimetro'; }
+function _fuelMedNome() { const id = document.getElementById('fuel-equip')?.value, e = (dadosCampo.equipamentos || []).find(x => x.id === id); return _medNomeC(e); }
+function _fuelMedAjusta() { const km = _fuelMedNome() === 'hodômetro', i = document.getElementById('fuel-horimetro'); if (!i) return;
+  const lb = i.closest('.form-group')?.querySelector('.form-label'); if (lb) lb.textContent = km ? 'Hodômetro atual (km)' : 'Horímetro atual (horas)';
+  i.placeholder = km ? 'Ex.: 45230' : 'Ex.: 1245'; try { _fuelFotosRender(); } catch (e) {} }
+document.addEventListener('change', ev => { if (ev.target && ev.target.id === 'fuel-equip') _fuelMedAjusta(); });
 
 // Salvar sessão ao entrar
 const _origEntrar = entrarNoCampo;

@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.67 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.68 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -3112,6 +3112,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
             <option value="Desmobilizado">Desmobilizado</option>
           </select>
         </div>
+        <div class="form-group"><label class="form-label">Medidor</label><select class="form-control" id="equip-medidor"><option value="horimetro">Horímetro (horas)</option><option value="hodometro">Hodômetro (km)</option></select></div>
         <div class="form-group"><label class="form-label">Chassi</label><input class="form-control" id="equip-chassi" style="text-transform:uppercase"/></div>
         <div class="form-group"><label class="form-label">Nº de série</label><input class="form-control" id="equip-serie"/></div>
         <div class="form-group"><label class="form-label">Validade do documento (CRLV)</label><input type="date" class="form-control" id="equip-docval"/></div>
@@ -12222,16 +12223,16 @@ function _docSit(e) { if (!e.docValidade) return null; const d = Math.round((new
   const $ = id => document.getElementById(id);
   const oEd = window.editarEquipamento;
   window.editarEquipamento = function (id) { const r = oEd.apply(this, arguments); const e = (dados.equipamentos || []).find(x => x.id === id) || {};
-    if ($('equip-chassi')) $('equip-chassi').value = e.chassi || ''; if ($('equip-serie')) $('equip-serie').value = e.serie || ''; if ($('equip-docval')) $('equip-docval').value = e.docValidade || ''; return r; };
+    if ($('equip-medidor')) $('equip-medidor').value = e.medidor === 'hodometro' ? 'hodometro' : 'horimetro'; if ($('equip-chassi')) $('equip-chassi').value = e.chassi || ''; if ($('equip-serie')) $('equip-serie').value = e.serie || ''; if ($('equip-docval')) $('equip-docval').value = e.docValidade || ''; return r; };
   const oSv = window.salvarEquipamento;
   window.salvarEquipamento = function () {
-    const ex = { chassi: ($('equip-chassi')?.value || '').trim().toUpperCase(), serie: ($('equip-serie')?.value || '').trim(), docValidade: $('equip-docval')?.value || '' };
+    const ex = { medidor: $('equip-medidor')?.value === 'hodometro' ? 'hodometro' : 'horimetro', chassi: ($('equip-chassi')?.value || '').trim().toUpperCase(), serie: ($('equip-serie')?.value || '').trim(), docValidade: $('equip-docval')?.value || '' };
     const tag = ($('equip-tag')?.value || '').trim(), idEd = ($('equip-edit-id')?.value || '').trim();
     const r = oSv.apply(this, arguments);
     if ($('modal-novo-equip')?.classList.contains('open')) return r;
     const e = idEd ? (dados.equipamentos || []).find(x => x.id === idEd) : [...(dados.equipamentos || [])].reverse().find(x => String(x.tag || '').toLowerCase() === tag.toLowerCase());
     if (e) { Object.assign(e, ex); if (db && _firebaseReady) fbSave('equipamentos', e.id, e).catch(() => {}); try { renderEquipamentos(); } catch (x) {} }
-    ['equip-chassi', 'equip-serie', 'equip-docval'].forEach(k => { if ($(k)) $(k).value = ''; });
+    ['equip-chassi', 'equip-serie', 'equip-docval'].forEach(k => { if ($(k)) $(k).value = ''; }); if ($('equip-medidor')) $('equip-medidor').value = 'horimetro';
     return r;
   };
   const oR = window.renderEquipamentos;
@@ -14377,9 +14378,11 @@ function dxRenderAbs2() {
         ${_pn(_ic.box, 'Estoque dos tanques', tanquesObra.length ? `<div class="dx-grid" style="gap:10px">${tanquesObra.map(t => { const pc = t.cap ? Math.max(0, Math.min(100, t.saldo / t.cap * 100)) : 0; const cor = pc < 25 ? '#E30613' : pc < 50 ? '#F59E0B' : '#22C55E';
             return `<div><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><b>${_e(t.cod)} — ${_e(t.nome)}</b><span style="font-family:var(--mono)">${_n1(t.saldo)} / ${_n1(t.cap)} L · <b style="color:${cor}">${Math.round(pc)}%</b></span></div><div style="height:12px;border-radius:6px;background:rgba(127,127,127,.18);overflow:hidden"><div style="width:${pc}%;height:12px;background:${cor}"></div></div></div>`; }).join('')}</div>` : '<div class="dx-vazio">Nenhum tanque cadastrado nesta obra</div>')}</div>
       <div style="margin-bottom:12px">${_absPainelAlertas(lista)}</div>
-      ${_pn(_ic.cal, 'Abastecimento por equipamento', `<div class="dx-scroll">${_tb(['Equipamento', 'Família', 'Abastecimentos', 'Litros', 'Horas trabalhadas', 'Consumo (L/h)', 'Previsto (L/h)', 'Horímetro/Km inicial → final'],
-          ord.map(([k, x]) => { const h = horasEq[k] || 0; return `<tr>${_td('<b>' + _e(k) + '</b>')}${_td(_e(nomeFam(_famDe(k))), 'mu')}${_td(x.n, 'n')}${_td(_n1(x.l) + ' L', 'n')}${_td(h ? _h(h) : '—', 'n')}${_td(h ? '<b>' + _n1(x.l / h) + '</b>' : '—', 'n')}${_td(_absPrevTxt(k, h ? x.l / h : 0), 'n')}${_td(x.hor.length ? _n1(Math.min(...x.hor)) + ' → ' + _n1(Math.max(...x.hor)) : '—', 'n')}</tr>`; })
-          .concat(ord.length ? [`<tr class="sub">${_td('Total')}${_td('')}${_td(lista.length, 'n')}${_td(_n1(L) + ' L', 'n')}${_td(_h(horasTot), 'n')}${_td(lph ? _n1(lph) : '—', 'n')}${_td('')}${_td('')}</tr>`] : []), ['', '', 'n', 'n', 'n', 'n', 'n', 'n'])}</div>`)}`;
+      ${_pn(_ic.cal, 'Abastecimento por equipamento', `<div class="dx-scroll">${_tb(['Equipamento', 'Família', 'Medidor', 'Abastecimentos', 'Litros', 'Horas trabalhadas', 'Consumo', 'Previsto (L/h)', 'Leitura inicial → final'],
+          ord.map(([k, x]) => { const h = horasEq[k] || 0, km = _medKm(k), un = km ? ' km' : ' h';
+            const cons = km ? (() => { const r = lista.filter(d => d.equip === k).map(d => ({ v: parseFloat(String(d.hor || '').replace(',', '.')), l: +d.litros || 0 })).filter(z => !isNaN(z.v)).sort((a, b) => a.v - b.v); const rod = r.length > 1 ? r[r.length - 1].v - r[0].v : 0, lt = r.slice(1).reduce((s, z) => s + z.l, 0); return rod > 0 && lt ? '<b>' + _n1(rod / lt) + '</b> km/L' : '—'; })() : (h ? '<b>' + _n1(x.l / h) + '</b> L/h' : '—');
+            return `<tr>${_td('<b>' + _e(k) + '</b>')}${_td(_e(nomeFam(_famDe(k))), 'mu')}${_td(km ? 'Hodômetro' : 'Horímetro', 'mu')}${_td(x.n, 'n')}${_td(_n1(x.l) + ' L', 'n')}${_td(h ? _h(h) : '—', 'n')}${_td(cons, 'n')}${_td(km ? '—' : _absPrevTxt(k, h ? x.l / h : 0), 'n')}${_td(x.hor.length ? _n1(Math.min(...x.hor)) + ' → ' + _n1(Math.max(...x.hor)) + un : '—', 'n')}</tr>`; })
+          .concat(ord.length ? [`<tr class="sub">${_td('Total')}${_td('')}${_td('')}${_td(lista.length, 'n')}${_td(_n1(L) + ' L', 'n')}${_td(_h(horasTot), 'n')}${_td(lph ? _n1(lph) + ' L/h' : '—', 'n')}${_td('')}${_td('')}</tr>`] : []), ['', '', '', 'n', 'n', 'n', 'n', 'n', 'n'])}</div>`)}`;
   } else {
     const serie = _dxSerieTempo(lista, d => d.dt, d => ({ v: (+d.litros || 0) * precoDiesel(d) }));
     corpo = `<div class="dx-kpis">
@@ -14516,6 +14519,7 @@ function dxRenderAloj() {
         ${_kpi(_ic.users, ocup, 'Pessoas alojadas', 'moradores hoje')}
         ${_kpi(_ic.target, pct(ocup, vagas), 'Ocupação', ocup + ' de ' + vagas + ' vagas', vagas && ocup > vagas ? '#E30613' : vagas && ocup / vagas >= .85 ? '#22C55E' : '#F59E0B')}
         ${_kpi(_ic.box, livres, 'Vagas livres', livres ? 'disponíveis para alojar' : 'tudo ocupado', livres ? '#F59E0B' : '')}</div>
+      ${_alojEfetivo(at)}
       <div class="dx-grid" style="grid-template-columns:1.3fr 1fr;margin-bottom:12px">
         ${_pn(_ic_casa, 'Ocupação por república', `<div class="dx-leg" style="margin-bottom:8px"><span><i style="background:#16A34A"></i>até metade</span><span><i style="background:#F59E0B"></i>mais da metade</span><span><i style="background:#DC2626"></i>lotada</span><span style="opacity:.7">cada barra = 100% das vagas daquela casa</span></div>`
           + (() => { const rs = at.map(r => { const o = repMoradores(r).length, v = +r.vagas || 0; return { l: r.nome, o, v, p: v ? o / v : 0 }; }).sort((a, b) => b.p - a.p || b.v - a.v); if (!rs.length) return '<div class="dx-vazio">Sem dados</div>';
@@ -16214,6 +16218,23 @@ async function _sincApropriadores() {
   if (n) toast(n + ' apropriador(es) com acesso ao app pelo CPF / crachá (senha provisória ' + _SENHA_APROP + ', troca no 1º acesso).');
   if (sem) toast(sem + ' apropriador(es) sem CPF no cadastro: sem CPF não dá para entrar no app.', 'error');
   return n;
+}
+// v3.68: medidor do equipamento — horímetro (horas) ou hodômetro (km)
+function _medKm(tagOuEq) { const e = typeof tagOuEq === 'object' ? tagOuEq : (dados.equipamentos || []).find(x => x.tag === tagOuEq || x.placa === tagOuEq || x.id === tagOuEq); return !!(e && e.medidor === 'hodometro'); }
+(function () {
+  try { const D = IMPORT_DEF.equipamentos; if (D && !D.col.some(c => /medidor/i.test(c))) { D.col = D.col.concat(['Medidor (Horímetro/Hodômetro)']); const m = D.map; D.map = g => { const x = m(g), v = String(g(['medidor']) || ''); if (v) x.medidor = /hod|km/i.test(v) ? 'hodometro' : 'horimetro'; return x; }; } } catch (e) {}
+})();
+// v3.68: % do efetivo mobilizado que está alojado (rosca) + por tipo de custo e vínculo
+function _alojEfetivo(at) {
+  const hj = _hojeLocal(), ef = (dados.funcionarios || []).filter(f => (!_dx.obra || f.obra === _dx.obra) && f.status !== 'Desligado' && (!f.demissao || f.demissao > hj));
+  const ids = new Set(); at.forEach(r => repMoradores(r).forEach(m => { if (m.func) ids.add(m.func); }));
+  const al = ef.filter(f => ids.has(f.id)), n = ef.length, a = al.length, p = n ? Math.round(a / n * 100) : 0;
+  if (!n) return '';
+  const grupo = (nome, fn) => { const t = ef.filter(fn), x = t.filter(f => ids.has(f.id)).length; return t.length ? { l: nome, v: t.length ? x / t.length * 100 : 0, t: `${x} de ${t.length} · ${Math.round(x / t.length * 100)}%` } : null; };
+  const barras = [grupo('Diretos', f => f.direto !== 'Não'), grupo('Indiretos', f => f.direto === 'Não'), grupo('CLT', f => f.vinculo !== 'PJ'), grupo('PJ', f => f.vinculo === 'PJ')].filter(Boolean);
+  return `<div class="dx-grid" style="grid-template-columns:1fr 1.3fr;margin-bottom:12px">
+    ${_pn(_ic.pie || _ic.users, 'Efetivo alojado', _donut([{ l: 'Alojados', v: a }, { l: 'Não alojados', v: n - a }], p + '%', 'do efetivo', v => v + ' pessoa(s)'), a + ' de ' + n + ' mobilizados')}
+    ${_pn(_ic.users, 'Quanto de cada grupo está alojado', `<div class="dx-hb">${barras.map(r => `<div class="l">${_e(r.l)}</div><div class="t"><i style="width:${Math.min(100, r.v)}%;background:var(--rd)"></i></div><div class="v">${r.t}</div>`).join('')}</div>` + '<div style="font-size:11.5px;color:var(--mu);margin-top:8px">Efetivo mobilizado = funcionários ativos da obra (sem demissão). Quem mora numa república mas não está no efetivo não entra nesta conta.</div>', '% sobre o efetivo de cada grupo')}</div>`;
 }
 // Apply configs on load
 setTimeout(applyConfigs, 200);
