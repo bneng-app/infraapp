@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.44 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.45 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -5150,7 +5150,7 @@ function renderCargos() {
         <td>${tag(c.direto,   c.direto==='Sim'?'green':'gray')}</td>
         <td>${tag(c.operador, c.operador==='Sim'?'blue':'gray')}</td>
         <td class="td-mono">${c.recurso||'—'}</td>
-        <td class="td-mono">${c.custoHora ? _moeda(c.custoHora) : '<span style="color:var(--amber)">—</span>'}</td>
+        <td class="td-mono" style="white-space:nowrap">${(() => { const h = _cgHora(c); return h.v ? _moeda(h.v) + (h.auto ? ' <span style="font-size:10px;color:var(--text-3)" title="Média dos salários da função ÷ 220">÷220</span>' : '') : '<span style="color:var(--amber)">—</span>'; })()}</td>
         <td>${acoesCell(`editarCargo('${c.id}')`,`deletar('cargos','${c.id}')`)}</td>
       </tr>`).join('')
     : '<tr><td colspan="6" style="text-align:center;color:var(--text-3);padding:2rem">Nenhum cargo cadastrado</td></tr>';
@@ -15793,6 +15793,22 @@ custoMO = function (a) {
   // importação de obras: colunas dos adicionais
   const D = IMPORT_DEF.obras; if (D) { D.col = D.col.concat(['Adicional hora extra (%)', 'Adicional domingo/feriado (%)']); const m = D.map;
     D.map = g => { const x = m(g), h = g(['adicional hora', 'hora extra']), d = g(['domingo', 'feriado']); x.adicHE = h === '' || h == null ? 50 : _numImport(h); x.adicDF = d === '' || d == null ? 100 : _numImport(d); return x; }; }
+})();
+// v3.45: CUSTO/HORA DA FUNÇÃO = média dos salários da função ÷ 220 (automático); digitado na função, vale o digitado
+function _cgSalMedio(c) { const hj = _hojeLocal(), l = (dados.funcionarios || []).filter(f => String(f.codFuncao) === String(c.cod) && (!c.obra || !f.obra || f.obra === c.obra) && +f.salario && !(f.demissao && f.demissao <= hj)); return l.length ? l.reduce((s, f) => s + (+f.salario), 0) / l.length : 0; }
+function _cgHora(c) { if (!c) return { v: 0, auto: false }; if (+c.custoHora) return { v: +c.custoHora, auto: false }; const s = _cgSalMedio(c); return { v: s ? s / _HORAS_MES : 0, auto: !!s }; }
+(function () {
+  const $ = id => document.getElementById(id);
+  // sem salário no funcionário, a hora vem da função (digitada ou média ÷ 220)
+  const oH = _horaBaseMO; _horaBaseMO = function (a) { const r = oH.apply(this, arguments); if (r.base) return r; const h = _cgHora(_cargoDe(a)); return { base: h.v, estimado: true }; };
+  // janela da função: mostra a hora automática; deixar em branco = automático
+  const gC = $('cargo-custo')?.closest('.form-group');
+  if (gC) { gC.querySelector('.form-label').innerHTML = 'Custo por hora (R$) <span style="font-weight:400;color:var(--text-3)">— em branco = salário ÷ 220</span>'; gC.insertAdjacentHTML('beforeend', '<div id="cargo-custo-auto" style="font-size:11px;color:var(--text-3);margin-top:3px"></div>'); }
+  const mostra = () => { const eid = $('cargo-edit-id')?.value, c = eid ? (dados.cargos || []).find(x => x.id === eid) : { cod: $('cargo-cod')?.value, obra: $('cargo-obra')?.value }, s = c ? _cgSalMedio(c) : 0, el = $('cargo-custo-auto');
+    if ($('cargo-custo')) $('cargo-custo').placeholder = s ? (s / _HORAS_MES).toFixed(2).replace('.', ',') : 'Ex.: 35,00';
+    if (el) el.innerHTML = s ? `Automático: média dos salários <b>${_moeda(s)}</b> ÷ 220 = <b>${_moeda(s / _HORAS_MES)}</b>/h. Digite só se quiser substituir.` : 'Sem salário cadastrado nos funcionários desta função — digite o custo por hora.'; };
+  const oO = window.openModal; window.openModal = openModal = function (id) { const r = oO.apply(this, arguments); if (id === 'modal-novo-cargo') setTimeout(() => { const eid = $('cargo-edit-id')?.value, c = eid && (dados.cargos || []).find(x => x.id === eid); if (c && $('cargo-custo')) $('cargo-custo').value = +c.custoHora ? c.custoHora : ''; mostra(); }, 30); return r; };
+  $('cargo-cod')?.addEventListener('input', mostra);
 })();
 // Apply configs on load
 setTimeout(applyConfigs, 200);
