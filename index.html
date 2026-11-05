@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.49 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.50 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -14489,7 +14489,9 @@ function dxRenderAloj() {
   const pct = (a, b) => b ? Math.round(a / b * 100) + '%' : '—';
   let corpo;
   if (!custo) {
-    const porFn = {}; at.forEach(r => repMoradores(r).forEach(m => { const f = (dados.funcionarios || []).find(x => x.id === m.func) || {}; const fn = f.funcao || m.funcao || 'Sem função'; porFn[fn] = (porFn[fn] || 0) + 1; }));
+    const porFn = {}, porTc = { Direto: 0, Indireto: 0, 'Fora do efetivo': 0 }; at.forEach(r => repMoradores(r).forEach(m => { const f = (dados.funcionarios || []).find(x => x.id === m.func); const fn = (f && _fnFuncaoNome(f)) || m.funcao || 'Sem função'; porFn[fn] = (porFn[fn] || 0) + 1;
+      porTc[!f ? 'Fora do efetivo' : f.direto === 'Não' ? 'Indireto' : 'Direto']++; }));
+    const fnOrd = Object.entries(porFn).sort((a, b) => b[1] - a[1]), fnTop = fnOrd.slice(0, 10), fnResto = fnOrd.slice(10);
     const mov = {}; todas.forEach(r => (r.moradores || []).forEach(m => { if (m.entrada) { const k = m.entrada.slice(0, 7); mov[k] = mov[k] || { e: 0, s: 0 }; mov[k].e++; } if (m.saida) { const k = m.saida.slice(0, 7); mov[k] = mov[k] || { e: 0, s: 0 }; mov[k].s++; } }));
     const meses = Object.keys(mov).sort().slice(-12);
     const venc = at.map(r => ({ data: r.fim, t: r.nome + ' · fim do contrato', sub: (r.responsavel ? 'Proprietário: ' + r.responsavel : r.cod) }));
@@ -14500,7 +14502,9 @@ function dxRenderAloj() {
         ${_kpi(_ic.box, livres, 'Vagas livres', livres ? 'disponíveis para alojar' : 'tudo ocupado', livres ? '#F59E0B' : '')}</div>
       <div class="dx-grid" style="grid-template-columns:1.3fr 1fr;margin-bottom:12px">
         ${_pn(_ic_casa, 'Ocupação por república', `<div class="dx-leg" style="margin-bottom:8px"><span><i style="background:#22C55E"></i>Ocupadas</span><span><i style="background:rgba(127,127,127,.35)"></i>Livres</span></div>` + _hstack(at.map(r => { const o = repMoradores(r).length, v = +r.vagas || 0; return { l: r.nome, a: o, b: Math.max(0, v - o) }; }).sort((a, b) => (b.a + b.b) - (a.a + a.b)), ['#22C55E', 'rgba(127,127,127,.35)'], x => x.a + ' de ' + (x.a + x.b)))}
-        ${_pn(_ic.users, 'Alojados por função', _hbars(Object.entries(porFn).sort((a, b) => b[1] - a[1]).map(([l, v]) => ({ l, v, t: v + '' }))))}</div>
+        <div style="display:grid;gap:12px;align-content:start">
+          ${_pn(_ic.pie || _ic.users, 'Alojados · custo direto × indireto', _donut(Object.entries(porTc).filter(([, v]) => v).map(([l, v]) => ({ l, v })), String(ocup), 'alojados', v => v + ' pessoa(s)'), 'pelo cadastro do funcionário')}
+          ${_pn(_ic.users, 'Top 10 funções alojadas', _hbars(fnTop.map(([l, v]) => ({ l, v, t: v + '' }))) + (fnResto.length ? `<div style="font-size:11.5px;color:var(--mu);margin-top:8px">+ ${fnResto.length} outra(s) função(ões) com ${fnResto.reduce((s, x) => s + x[1], 0)} pessoa(s)</div>` : ''))}</div></div>
       <div class="dx-grid" style="grid-template-columns:1.3fr 1fr;margin-bottom:12px">
         ${_pn(_ic.trend, 'Entradas e saídas por mês', `<div class="dx-leg" style="margin-bottom:8px"><span><i style="background:#22C55E"></i>Entradas</span><span><i style="background:#7A7A82"></i>Saídas</span></div>` + _vbars(meses.map(m => ({ l: _mesTxt(m).slice(0, 3) + '/' + m.slice(2, 4), e: mov[m].e, s: mov[m].s })), '', [{ k: 'e', cor: '#22C55E' }, { k: 's', cor: '#7A7A82' }]))}
         ${_pn(_ic.cal, 'Contratos vencendo (60 dias)', _dxVenc(venc))}</div>
