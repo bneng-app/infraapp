@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.57 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.58 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -15011,11 +15011,11 @@ function muExcluir(id) { const m = (dados.multas || []).find(x => x.id === id); 
 (function () {
   const oF = _dxFiltrosSimples;
   _dxFiltrosSimples = function (tipo) { const h = oF.apply(this, arguments); if (tipo !== 'frota') return h;
-    const ms = [...new Set((dados.abastVeic || []).map(a => String(a.data).slice(0, 7)).filter(Boolean))].sort().reverse().map(m => [m, _mesTxt(m)]);
+    const ms = [...new Set((dados.abastVeic || []).map(a => String(a.data).slice(0, 7)).filter(m => /^\d{4}-\d{2}$/.test(m)).concat(_dx.mesF ? [_dx.mesF] : []))].sort().reverse().map(m => [m, _mesTxt(m)]);
     return h.replace('<button class="dx-btn" onclick="exportarDashPDF', _dxSel('Combustível', 'mesF', ms, 'Todo o período') + '<button class="dx-btn" onclick="exportarDashPDF'); };
   const oR = dxRenderFrota;
   dxRenderFrota = window.dxRenderFrota = function () {
-    if (_dx.mesF === undefined) _dx.mesF = _hojeLocal().slice(0, 7);
+    if (_dx.mesF === undefined) { const ult = (dados.abastVeic || []).map(a => String(a.data).slice(0, 7)).filter(m => /^\d{4}-\d{2}$/.test(m)).sort().pop(); _dx.mesF = ult || ''; }
     const r = oR.apply(this, arguments);
     const main = document.querySelector('#page-dash-frota .dx-main'); if (!main) return r;
     const custo = _dx.modo === 'custo', calc = _abCalc(), per = _dx.mesF ? _mesTxt(_dx.mesF) : 'todo o período';
