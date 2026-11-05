@@ -883,7 +883,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.79</div>
+  <div class="login-versao">ObraKontrol Campo · v2.80</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -3938,7 +3938,7 @@ function mobRender() {
       <div class="mob-tag ${tag ? '' : 'vazia'}"><span>TAG gerada</span><b>${tag || '—'}</b><small>${tag ? 'Escreva esta TAG no equipamento' : (!mob.obra && !usuarioCampo.obra ? 'Escolha a obra' + (mob.familia ? '' : ' e a família') + ' para gerar' : 'Escolha a família para gerar')}</small></div>
       <div class="form-group"><label class="form-label">Modelo *</label>${sel('mob-mod', mods.map(m => [m.cod, m.nome || m.cod]).concat([['__novo', '+ Modelo novo (não está na lista)']]), mob.modelo, 'Escolha o modelo…', "mobCampo('modelo',this.value);mobRender()")}
         ${mob.modelo === '__novo' ? `<input class="form-control" style="margin-top:8px" placeholder="Nome do modelo, ex.: Volvo EC220" value="${_mobEsc(mob.modeloNovo)}" oninput="mob.modeloNovo=this.value"/>` : ''}</div>
-      <div class="form-group"><label class="form-label">Empresa proprietária *</label>${sel('mob-prop', emps.map(e => [e.cod, (e.cod ? e.cod + ' · ' : '') + (e.nome || e.razao || '')]), mob.prop, 'Própria ou locadora…', "mob.prop=this.value")}</div>
+      <div class="form-group"><label class="form-label">Empresa proprietária *</label>${sel('mob-prop', emps.map(e => [e.cod, (e.cod ? e.cod + ' · ' : '') + (e.fantasia ? e.fantasia + ' — ' : '') + (e.nome || e.razao || '')]), mob.prop, 'Própria ou locadora…', "mob.prop=this.value")}</div>
       <div class="form-group"><label class="form-label">Placa</label><input class="form-control" value="${_mobEsc(mob.placa)}" oninput="mob.placa=this.value.toUpperCase()" placeholder="Ex.: ABC1D23 (se tiver)" style="text-transform:uppercase"/></div>
       <div style="font-size:11.5px;color:var(--text3);margin:-6px 0 8px">Preencha <b>placa, chassi ou nº de série</b> — pelo menos um. Máquina sem placa (retro, escavadeira…) vai pelo chassi ou série.</div>
       <div style="display:flex;gap:10px"><div class="form-group" style="flex:1"><label class="form-label">Chassi</label><input class="form-control" value="${_mobEsc(mob.chassi)}" oninput="mob.chassi=this.value.toUpperCase()" style="text-transform:uppercase"/></div>
@@ -5520,7 +5520,7 @@ function pdRender() {
     <div style="display:flex;gap:10px"><div class="form-group" style="flex:1"><label class="form-label">Dia *</label><input class="form-control" type="date" value="${E(pd.data)}" max="${_hojeISO()}" onchange="pd.data=this.value;if(pd.equipId)pdEscolher(pd.equipId);else pdRender()"/></div></div>
     <div class="form-group"><label class="form-label">Equipamento *</label><div style="display:flex;gap:8px"><select class="form-control" style="flex:1" onchange="pdEscolher(this.value)"><option value="">Escolha o equipamento…</option>${eqs.map(x => `<option value="${E(x.id)}" ${x.id === pd.equipId ? 'selected' : ''}>${E((x.tag || x.placa) + (x.placa && x.tag ? ' · ' + x.placa : ''))}</option>`).join('')}</select>
       <button type="button" class="btn btn-outline" style="width:auto;padding:0 14px" onclick="abrirQR('pdtag')">QR</button></div></div>
-    ${e ? `<div style="font-size:12.5px;color:var(--text2);margin:-4px 0 4px">${E([mod.nome || e.codModelo, emp.nome || emp.razao || e.prop, e.placa ? 'Placa ' + e.placa : ''].filter(Boolean).join(' · '))}${pd._existe ? ' · <b style="color:var(--green,#16A34A)">já lançada hoje — editando</b>' : ''}</div>` : ''}
+    ${e ? `<div style="font-size:12.5px;color:var(--text2);margin:-4px 0 4px">${E([mod.nome || e.codModelo, emp.fantasia || emp.nome || emp.razao || e.prop, e.placa ? 'Placa ' + e.placa : ''].filter(Boolean).join(' · '))}${pd._existe ? ' · <b style="color:var(--green,#16A34A)">já lançada hoje — editando</b>' : ''}</div>` : ''}
   </div></div>`;
   if (e) {
     h += `<div class="card"><div class="card-body">

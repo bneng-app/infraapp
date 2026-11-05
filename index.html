@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.70 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.71 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -1016,7 +1016,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
   </div>
   <div class="card"><div class="card-body">
-    <div class="search-wrap"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="search-empresas" placeholder="Buscar por código, razão social ou CNPJ…" oninput="filtrarTabela('tabela-empresas','search-empresas',0)"/></div>
+    <div class="search-wrap"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="search-empresas" placeholder="Buscar por código, razão social, nome fantasia ou CNPJ…" oninput="filtrarTabela('tabela-empresas','search-empresas',0)"/></div>
     <div class="table-wrap">
       <table id="tabela-empresas">
         <thead><tr><th style="width:36px"><input type="checkbox" class="cb-row-check" id="cb-master-empresas" onchange="toggleSelectAll('empresas',this)" title="Selecionar todos"></th><th>Obra</th><th>Código</th><th>Razão Social</th><th>CNPJ</th><th>Tipo</th><th>Responsável</th><th></th></tr></thead>
@@ -13059,7 +13059,7 @@ function fsEnviar() {
     buscaSelect('emp-banco', 'Digite razão social, fantasia ou CNPJ…');
   }
   window._empDoBanco = function () { const b = (dados.fornBanco || []).find(x => x.id === $('emp-banco').value); $('emp-nome').value = b ? b.razao : ''; $('emp-cnpj').value = b ? b.doc : ''; };
-  const opts = sel => { const s = $('emp-banco'); if (!s) return; s.innerHTML = '<option value="">Escolha…</option>' + (dados.fornBanco || []).slice().sort((a, b) => _fbNome(a).localeCompare(_fbNome(b), 'pt-BR')).map(b => `<option value="${_e(b.id)}">${_e(b.razao)} · ${_e(b.doc)}${b.fantasia ? ' · ' + _e(b.fantasia) : ''}</option>`).join(''); s.value = sel || ''; buscaSelectSync('emp-banco'); };
+  const opts = sel => { const s = $('emp-banco'); if (!s) return; s.innerHTML = '<option value="">Escolha…</option>' + (dados.fornBanco || []).slice().sort((a, b) => _fbNome(a).localeCompare(_fbNome(b), 'pt-BR')).map(b => `<option value="${_e(b.id)}">${b.cod ? _e(b.cod) + ' · ' : ''}${b.fantasia ? _e(b.fantasia) + ' — ' : ''}${_e(b.razao)} · ${_e(b.doc)}</option>`).join(''); s.value = sel || ''; buscaSelectSync('emp-banco'); };
   // botão "+ Nova empresa" abre limpo com o banco
   const btn = document.querySelector(`#page-empresas [onclick="openModal('modal-nova-empresa')"]`); if (btn) { btn.textContent = '+ Novo fornecedor'; btn.setAttribute('onclick', 'empNovo()'); }
   window.empNovo = function () { ['emp-edit-id', 'emp-cod', 'emp-nome', 'emp-cnpj', 'emp-resp'].forEach(k => { if ($(k)) $(k).value = ''; }); popularSelectObra('emp-obra', _okObraAtual() !== 'todas' ? _okObraAtual() : ''); const t = $('modal-emp-titulo'); if (t) t.textContent = 'Novo fornecedor da obra'; opts(''); openModal('modal-nova-empresa'); };
@@ -16297,6 +16297,125 @@ function exportarPartesDiarias() {
   try { _COLS_AO_VIVO.push('partesDiarias'); } catch (e) {}
   const oInit = window.pageInit; window.pageInit = function (id) { const r = oInit.apply(this, arguments); if (id === 'partes-diarias') { renderPartesDiarias(); if (db && _firebaseReady) fbLoadAll('partesDiarias').then(l => { if (l) { dados.partesDiarias = l; const m = $('pd-mes'); if (m) m.dataset.ok = ''; renderPartesDiarias(); } }).catch(() => {}); } return r; };
   const oSel = window.selecionarObra; window.selecionarObra = function () { const r = oSel.apply(this, arguments); try { if ($('page-partes-diarias')?.classList.contains('active')) { const m = $('pd-mes'); if (m) m.dataset.ok = ''; renderPartesDiarias(); } } catch (e) {} return r; };
+})();
+// v3.71: CÓDIGO PADRÃO DO FORNECEDOR — 3 letras, guardado no banco de fornecedores e igual em todas as obras
+const _FC_STOP = new Set(['LTDA', 'LTD', 'SA', 'S', 'A', 'ME', 'EPP', 'EIRELI', 'DE', 'DA', 'DO', 'DOS', 'DAS', 'E', 'EM', 'COMERCIO', 'COM', 'SERVICOS', 'SERVICO', 'SERV', 'IND', 'INDUSTRIA', 'CIA', 'GRUPO', 'BRASIL', 'MEI']);
+function _fcPalavras(n) { return String(n || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[^A-Z ]/g, ' ').split(/\s+/).filter(w => w && !_FC_STOP.has(w)); }
+function _fcUsados(excetoId) { return new Set((dados.fornBanco || []).filter(b => b.id !== excetoId && b.cod).map(b => b.cod)); }
+function _fcGerar(nome, excetoId) {
+  const u = _fcUsados(excetoId), w = _fcPalavras(nome), cand = [];
+  if (w[0]) { cand.push(w[0].slice(0, 3)); if (w[1]) { cand.push(w[0][0] + w[1].slice(0, 2), w[0].slice(0, 2) + w[1][0]); if (w[2]) cand.push(w[0][0] + w[1][0] + w[2][0]); }
+    const c = w[0].replace(/[AEIOU]/g, ''); if (c.length >= 3) cand.push(c.slice(0, 3)); cand.push(w[0][0] + c.slice(1, 3)); }
+  for (const c of cand) if (/^[A-Z]{3}$/.test(c) && !u.has(c)) return c;
+  const b = (w[0] || 'FOR').slice(0, 2).padEnd(2, 'X'); for (const l of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ') if (!u.has(b + l)) return b + l;
+  for (const l1 of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ') for (const l2 of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ') if (!u.has(b[0] + l1 + l2)) return b[0] + l1 + l2;
+  return 'XXX';
+}
+// garante código em cada fornecedor do banco (usa o código que a obra já tinha, se tiver 3 letras e não repetir)
+function _fcGarantirBanco() {
+  let n = 0; (dados.fornBanco || []).forEach(b => { if (b.cod) return; const u = _fcUsados(b.id);
+    const ex = (dados.empresas || []).filter(e => e.bancoId === b.id || (e.cnpj && _fbDig(e.cnpj) === _fbDig(b.doc))).map(e => String(e.cod || '').toUpperCase()).find(c => /^[A-Z]{3}$/.test(c) && !u.has(c));
+    b.cod = ex || _fcGerar(b.razao || b.fantasia, b.id); _fbGravar('fornBanco', b); n++; });
+  return n;
+}
+function _fcDoBanco(e) { const b = (dados.fornBanco || []).find(x => x.id === e.bancoId) || (e.cnpj ? (dados.fornBanco || []).find(x => _fbDig(x.doc) === _fbDig(e.cnpj)) : null); return b || null; }
+// troca o código da empresa na obra e em tudo que aponta para ele
+function _fcTrocar(e, novo) { const ant = e.cod; if (!novo || ant === novo) return 0; let n = 0;
+  [['equipamentos', 'prop'], ['partesDiarias', 'prop'], ['mobilizacoes', 'prop'], ['tanques', 'empresa']].forEach(([col, k]) => (dados[col] || []).filter(x => x[k] === ant && (!x.obra || x.obra === e.obra)).forEach(x => { x[k] = novo; n++; if (db && _firebaseReady) fbSave(col, x.id, x).catch(() => {}); }));
+  e.cod = novo; if (db && _firebaseReady) fbSave('empresas', e.id, e).catch(() => {}); return n; }
+function fcPadronizar() {
+  _fcGarantirBanco();
+  const dif = (dados.empresas || []).map(e => ({ e, b: _fcDoBanco(e) })).filter(x => x.b && x.b.cod && x.e.cod !== x.b.cod);
+  if (!dif.length) { toast('Todos os fornecedores das obras já estão com o código padrão.'); return; }
+  if (!confirm('Padronizar ' + dif.length + ' código(s)?\n\n' + dif.slice(0, 15).map(x => getNomeObra(x.e.obra) + ': ' + x.e.cod + ' → ' + x.b.cod + ' (' + (x.b.razao || '') + ')').join('\n') + (dif.length > 15 ? '\n…' : '') + '\n\nOs equipamentos e lançamentos ligados ao código antigo passam para o novo.')) return;
+  let n = 0; dif.forEach(x => { n += _fcTrocar(x.e, x.b.cod); });
+  try { renderEmpresas(); } catch (er) {} toast(dif.length + ' código(s) padronizado(s)' + (n ? ' · ' + n + ' registro(s) ligados atualizados' : '') + '.');
+}
+(function () {
+  const $ = id => document.getElementById(id);
+  // ── banco de fornecedores: campo Código (3 letras) e coluna na lista
+  const oNovo = window.fbNovo;
+  window.fbNovo = fbNovo = function (pre) { const r = oNovo.apply(this, arguments);
+    if (!$('fb-cod')) $('fb-razao')?.closest('.form-group')?.insertAdjacentHTML('beforebegin', `<div class="form-group form-full"><label class="form-label" for="fb-cod">Código (3 letras, igual em todas as obras) *</label><div style="display:flex;gap:8px"><input class="form-control td-mono" id="fb-cod" maxlength="3" style="text-transform:uppercase;max-width:110px;font-weight:800" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z]/g,'')"/><button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('fb-cod').value=_fcGerar(document.getElementById('fb-razao').value,document.getElementById('fb-id').value)">Gerar</button></div></div>`);
+    if ($('fb-cod')) $('fb-cod').value = ''; return r; };
+  const oEd = window.fbEditar;
+  window.fbEditar = fbEditar = function (id) { const r = oEd.apply(this, arguments); const b = (dados.fornBanco || []).find(x => x.id === id); if ($('fb-cod') && b) $('fb-cod').value = b.cod || ''; return r; };
+  const oCons = window.fbConsultar;
+  window.fbConsultar = fbConsultar = async function () { const r = await oCons.apply(this, arguments); if ($('fb-cod') && !$('fb-cod').value && $('fb-razao').value) $('fb-cod').value = _fcGerar($('fb-razao').value, $('fb-id').value); return r; };
+  const oSv = window.fbSalvar;
+  window.fbSalvar = fbSalvar = function () {
+    const id = $('fb-id').value, cod = ($('fb-cod')?.value || '').toUpperCase() || _fcGerar($('fb-razao').value, id);
+    if (!/^[A-Z]{3}$/.test(cod)) { toast('O código do fornecedor tem que ter 3 letras.', 'error'); return; }
+    const dup = (dados.fornBanco || []).find(b => b.id !== id && b.cod === cod); if (dup) { toast('O código ' + cod + ' já é de ' + (dup.razao || '') + '. Escolha outro.', 'error'); return; }
+    const doc = _fbDig($('fb-doc').value), ant = id ? (dados.fornBanco || []).find(b => b.id === id) : null, codAnt = ant && ant.cod;
+    const r = oSv.apply(this, arguments);
+    const b = (dados.fornBanco || []).find(x => x.id === id) || (dados.fornBanco || []).find(x => _fbDig(x.doc) === doc);
+    if (b && b.cod !== cod) { b.cod = cod; _fbGravar('fornBanco', b); }
+    if (b && codAnt && codAnt !== cod) { const es = (dados.empresas || []).filter(e => e.bancoId === b.id && e.cod === codAnt); let n = 0; es.forEach(e => n += _fcTrocar(e, cod)); if (es.length) toast('Código trocado em ' + es.length + ' obra(s)' + (n ? ' e ' + n + ' registro(s) ligados' : '') + '.'); }
+    try { renderFornBanco(); } catch (er) {} return r; };
+  const oRB = window.renderFornBanco;
+  window.renderFornBanco = renderFornBanco = function () { _fcGarantirBanco(); const r = oRB.apply(this, arguments);
+    const th = document.querySelector('#tbody-forn-banco')?.closest('table')?.querySelector('thead tr'); if (th && !th.querySelector('.fc-th')) th.insertAdjacentHTML('afterbegin', '<th class="fc-th">Código</th>');
+    const ids = (dados.fornBanco || []).slice(); document.querySelectorAll('#tbody-forn-banco tr').forEach(tr => { if (tr.querySelector('.fc-td') || tr.children.length < 3) return; const bt = tr.querySelector('[onclick^="fbEditar"]'), id = bt && (bt.getAttribute('onclick').match(/'([^']+)'/) || [])[1], b = ids.find(x => x.id === id);
+      tr.insertAdjacentHTML('afterbegin', `<td class="td-mono fc-td"><b>${_e((b && b.cod) || '—')}</b></td>`); });
+    return r; };
+  // ── fornecedor na obra: código vem do banco (não digita); CNPJ repetido avisa
+  const fixo = () => { const c = $('emp-cod'); if (c) { c.readOnly = true; c.style.background = 'var(--bg)'; c.placeholder = 'vem do banco'; const l = c.closest('.form-group')?.querySelector('.form-label'); if (l) l.textContent = 'Código (padrão do banco)'; } };
+  const oDB = window._empDoBanco;
+  window._empDoBanco = function () { const r = oDB.apply(this, arguments); fixo(); const b = (dados.fornBanco || []).find(x => x.id === $('emp-banco')?.value);
+    if (b) { _fcGarantirBanco(); $('emp-cod').value = b.cod || '';
+      const ob = $('emp-obra')?.value, idEd = $('emp-edit-id')?.value, outras = (dados.empresas || []).filter(e => e.id !== idEd && (e.bancoId === b.id || _fbDig(e.cnpj) === _fbDig(b.doc)));
+      const aqui = outras.find(e => e.obra === ob), lst = [...new Set(outras.filter(e => e.obra !== ob).map(e => getNomeObra(e.obra)))];
+      if (aqui) toast('Esse fornecedor já está cadastrado nesta obra (código ' + aqui.cod + ').', 'error');
+      else if (lst.length) { const ex = outras.find(e => e.obra !== ob); if (ex) { if ($('emp-tipo') && ex.tipo) $('emp-tipo').value = ex.tipo; } toast('Já existe em ' + lst.join(', ') + ' — código ' + b.cod + ' e tipo puxados do cadastro.'); } }
+    else if ($('emp-cod')) $('emp-cod').value = ''; return r; };
+  const oN = window.empNovo; if (oN) window.empNovo = function () { const r = oN.apply(this, arguments); fixo(); return r; };
+  const oE = window.editarEmpresa; window.editarEmpresa = function (id) { const r = oE.apply(this, arguments); fixo(); const e = (dados.empresas || []).find(x => x.id === id), b = e && _fcDoBanco(e); if (b && b.cod && $('emp-cod')) $('emp-cod').value = b.cod; return r; };
+  const oS = window.salvarEmpresa;
+  window.salvarEmpresa = function () { const b = (dados.fornBanco || []).find(x => x.id === $('emp-banco')?.value), ob = $('emp-obra')?.value, idEd = $('emp-edit-id')?.value;
+    if (b) { _fcGarantirBanco(); if ((dados.empresas || []).some(e => e.id !== idEd && e.obra === ob && (e.bancoId === b.id || _fbDig(e.cnpj) === _fbDig(b.doc)))) { toast('Esse fornecedor já está cadastrado nesta obra.', 'error'); return; } if ($('emp-cod')) $('emp-cod').value = b.cod; }
+    const ant = idEd ? ((dados.empresas || []).find(e => e.id === idEd) || {}).cod : null;
+    const r = oS.apply(this, arguments);
+    if (idEd && b && ant && ant !== b.cod) { const e = (dados.empresas || []).find(x => x.id === idEd); if (e) { e.cod = ant; _fcTrocar(e, b.cod); } }
+    return r; };
+  // ── botão "Padronizar códigos" e aviso na lista
+  const pg = $('page-empresas'), gb = pg && pg.querySelector('.page-header .btn-group');
+  if (gb && !$('btn-fc-pad')) gb.insertAdjacentHTML('afterbegin', '<button class="btn btn-outline btn-sm" id="btn-fc-pad" onclick="fcPadronizar()" title="Deixa o código de cada fornecedor igual ao do banco, em todas as obras">⇄ Padronizar códigos</button>');
+  const oR = window.renderEmpresas || renderEmpresas;
+  renderEmpresas = window.renderEmpresas = function () { const r = oR.apply(this, arguments); const ids = new Map((dados.empresas || []).map(e => [e.id, e]));
+    document.querySelectorAll('#tbody-empresas tr').forEach(tr => { const cb = tr.querySelector('[data-id]'), e = cb && ids.get(cb.dataset.id), b = e && _fcDoBanco(e); if (!e || !b || !b.cod || b.cod === e.cod) return;
+      const td = [...tr.children].find(t => t.textContent.trim() === e.cod); if (td && !td.querySelector('.fc-dif')) td.insertAdjacentHTML('beforeend', ` <span class="tag tag-amber fc-dif" style="font-size:10px" title="Use ⇄ Padronizar códigos">padrão: ${_e(b.cod)}</span>`); });
+    return r; };
+  // ── importação: o código vem do banco
+  const oImp = _importarLinhas;
+  _importarLinhas = window._importarLinhas = function (tipo, rows, resumo) { const novos = oImp.apply(this, arguments); if (tipo !== 'empresas' || !novos || !novos.length) return novos;
+    _fcGarantirBanco(); const r = resumo && resumo[tipo], ok = [];
+    novos.forEach(it => { const b = (dados.fornBanco || []).find(x => x.id === it.bancoId) || (dados.fornBanco || []).find(x => _fbDig(x.doc) === _fbDig(it.cnpj)); if (!b) { ok.push(it); return; }
+      const dup = (dados.empresas || []).find(e => e !== it && e.obra === it.obra && (e.bancoId === b.id || _fbDig(e.cnpj) === _fbDig(b.doc)));
+      if (dup) { const i = (dados.empresas || []).indexOf(it); if (i >= 0) dados.empresas.splice(i, 1); if (r) { r.ok--; r.ign = (r.ign || 0) + 1; if (r.avisos && r.avisos.length < 6) r.avisos.push((b.razao || it.cnpj) + ' já estava nesta obra (' + dup.cod + ') — ignorado'); } return; }
+      if (it.cod && it.cod !== b.cod && r && r.avisos && r.avisos.length < 6) r.avisos.push((b.razao || '') + ': código ' + it.cod + ' trocado pelo padrão ' + b.cod);
+      it.cod = b.cod; it.bancoId = b.id; ok.push(it); });
+    return ok; };
+})();
+// v3.71: NOME FANTASIA do fornecedor (do banco) aparece junto da razão social e entra na busca
+function _fcFant(e) { const b = e && _fcDoBanco(e); return (b && b.fantasia) || (e && e.fantasia) || ''; }
+function _fcSyncFant() { (dados.empresas || []).forEach(e => { const b = _fcDoBanco(e); if (b && (b.fantasia || '') !== (e.fantasia || '')) { e.fantasia = b.fantasia || ''; if (db && _firebaseReady) fbSave('empresas', e.id, e).catch(() => {}); } }); }
+(function () {
+  const $ = id => document.getElementById(id);
+  const oR = window.renderEmpresas || renderEmpresas;
+  renderEmpresas = window.renderEmpresas = function () { try { _fcSyncFant(); } catch (er) {} const r = oR.apply(this, arguments); const ids = new Map((dados.empresas || []).map(e => [e.id, e]));
+    document.querySelectorAll('#tbody-empresas tr').forEach(tr => { const cb = tr.querySelector('[data-id]'), e = cb && ids.get(cb.dataset.id), f = e && _fcFant(e); if (!f) return;
+      const st = [...tr.querySelectorAll('td strong')].find(x => x.textContent.trim() === String(e.nome || '').trim()); if (st && !tr.querySelector('.fc-fant')) st.insertAdjacentHTML('afterend', `<div class="fc-fant" style="font-size:12px;color:var(--text-2);margin-top:2px">${_e(f)}</div>`); });
+    return r; };
+  // quando o fornecedor é escolhido do banco, mostra o fantasia embaixo
+  const oDB = window._empDoBanco;
+  window._empDoBanco = function () { const r = oDB.apply(this, arguments); const b = (dados.fornBanco || []).find(x => x.id === $('emp-banco')?.value), n = $('emp-nome'); if (!n) return r;
+    let i = $('emp-fant-info'); if (!i) { n.insertAdjacentHTML('afterend', '<div id="emp-fant-info" style="font-size:12px;color:var(--text-2);margin-top:4px"></div>'); i = $('emp-fant-info'); }
+    i.innerHTML = b && b.fantasia ? 'Nome fantasia: <b>' + _e(b.fantasia) + '</b>' : ''; return r; };
+  // empresa proprietária do equipamento: código · fantasia (razão)
+  const oPS = window.popularSelects || popularSelects;
+  popularSelects = window.popularSelects = function () { const r = oPS.apply(this, arguments); const el = $('equip-prop'); if (el) { const m = new Map((dados.empresas || []).map(e => [e.nome, e]));
+      [...el.options].forEach(o => { const e = m.get(o.value), f = e && _fcFant(e); if (e && f && !o.dataset.fc) { o.textContent = (e.cod ? e.cod + ' — ' : '') + f + ' (' + e.nome + ')'; o.dataset.fc = '1'; } }); } return r; };
 })();
 // Apply configs on load
 setTimeout(applyConfigs, 200);
