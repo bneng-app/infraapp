@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.43 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.44 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -1061,7 +1061,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <div class="search-wrap"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="search-cargos" placeholder="Buscar código ou função…" oninput="filtrarTabela('tabela-cargos','search-cargos',0)"/></div>
     <div class="table-wrap">
       <table id="tabela-cargos">
-        <thead><tr><th style="width:36px"><input type="checkbox" class="cb-row-check" id="cb-master-cargos" onchange="toggleSelectAll('cargos',this)" title="Selecionar todos"></th><th>Obra</th><th>Cód. Função</th><th>Função (Cargo)</th><th>Vínculo</th><th>Direto</th><th>Operador</th><th>Cód. Recurso</th><th>Custo/h</th><th>Adic. HE</th><th></th></tr></thead>
+        <thead><tr><th style="width:36px"><input type="checkbox" class="cb-row-check" id="cb-master-cargos" onchange="toggleSelectAll('cargos',this)" title="Selecionar todos"></th><th>Obra</th><th>Cód. Função</th><th>Função (Cargo)</th><th>Vínculo</th><th>Direto</th><th>Operador</th><th>Cód. Recurso</th><th>Custo/h</th><th></th></tr></thead>
         <tbody id="tbody-cargos"><tr><td colspan="6" class="empty-row">Carregando…</td></tr></tbody>
       </table>
     </div>
@@ -5151,7 +5151,6 @@ function renderCargos() {
         <td>${tag(c.operador, c.operador==='Sim'?'blue':'gray')}</td>
         <td class="td-mono">${c.recurso||'—'}</td>
         <td class="td-mono">${c.custoHora ? _moeda(c.custoHora) : '<span style="color:var(--amber)">—</span>'}</td>
-        <td class="td-mono">${_cgVinc(c) === 'PJ' ? '—' : (c.adicHE ?? 50) + '%'}</td>
         <td>${acoesCell(`editarCargo('${c.id}')`,`deletar('cargos','${c.id}')`)}</td>
       </tr>`).join('')
     : '<tr><td colspan="6" style="text-align:center;color:var(--text-3);padding:2rem">Nenhum cargo cadastrado</td></tr>';
@@ -13498,7 +13497,7 @@ async function uaExcluirManuais() {
       inicio: dt(g(['início', 'inicio'])), fim: dt(g(['fim do contrato'])), aluguel: num(g(['aluguel'])), agua: num(g(['água', 'agua'])), luz: num(g(['luz'])), internet: num(g(['internet'])), _mor: String(g(['moradores']) || ''), _ent: dt(g(['entrada'])) }),
     ok: x => x.nome && (x.vagas || /\d/.test(x._qts || '')) };
   POS.republicas = (it, feitos) => {
-    if (!it.responsavel) it.__aviso = it.nome + ': sem proprietário — complete depois em Editar';
+    if (!it.responsavel) return it.nome + ': falta o proprietário (obrigatório)';
     if (it.propDoc) { const d = dig(it.propDoc); if (!(d.length === 11 ? _cpfValido(d) : d.length === 14 ? _cnpjValido(d) : false)) { it.__aviso = 'república ' + it.nome + ': CPF/CNPJ do proprietário inválido — importada sem ele'; it.propDoc = ''; } else it.propDoc = _docFmt(d); }
     const t = String(it.tipo || ''); it.tipo = /aloj/i.test(t) ? 'Alojamento' : /hot|pous/i.test(t) ? 'Hotel / pousada' : /rep/i.test(t) || !t ? 'República' : 'Outro';
     const jaCod = c => (dados.republicas || []).concat(feitos).some(r => r !== it && r.obra === it.obra && String(r.cod || '').toUpperCase() === c.toUpperCase());
@@ -15375,7 +15374,7 @@ function repMudaQuarto(mid, cod) {
     const qs = (window._repQuartosEd || []).filter(q => q.cod).map(q => ({ cod: q.cod, vagas: +q.vagas || 0 }));
     const cods = qs.map(q => q.cod.toUpperCase()); if (new Set(cods).size !== cods.length) { toast('Tem quarto com o código repetido.', 'error'); return; }
     if (qs.length) $('rep-vagas').value = qs.reduce((s, q) => s + q.vagas, 0) || '';
-    const resp = $('rep-responsavel'), semProp = resp && !resp.value.trim(); if (semProp) resp.value = '—';
+    const resp = $('rep-responsavel'), semProp = false;
     const idEd = $('rep-id')?.value || '', antes = new Set((dados.republicas || []).map(x => x.id));
     let r; try { r = oSv.apply(this, arguments); } finally { if (semProp) resp.value = ''; }
     const x = idEd ? (dados.republicas || []).find(y => y.id === idEd) : (dados.republicas || []).find(y => !antes.has(y.id));
@@ -15680,7 +15679,7 @@ function _cgVincMudou(gerar) {
     return r; };
   const oS = window.salvarCargo; window.salvarCargo = salvarCargo = function () {
     const vinc = $('cargo-vinculo')?.value === 'PJ' ? 'PJ' : 'CLT', cod = ($('cargo-cod')?.value || '').trim(), obra = $('cargo-obra')?.value || '', eid = $('cargo-edit-id')?.value;
-    if (vinc === 'PJ') { $('cargo-adhe').value = '0'; $('cargo-addf').value = '0'; }
+    if (vinc === 'PJ') { if ($('cargo-adhe')) $('cargo-adhe').value = '0'; if ($('cargo-addf')) $('cargo-addf').value = '0'; }
     const r = oS.apply(this, arguments);
     const c = (eid && (dados.cargos || []).find(x => x.id === eid)) || (dados.cargos || []).slice().reverse().find(x => String(x.cod) === cod && (x.obra || '') === obra);
     if (c && c.vinculo !== vinc) { c.vinculo = vinc; if (vinc === 'PJ') { c.adicHE = 0; c.adicDF = 0; } if (db && _firebaseReady) fbSave('cargos', c.id, c).catch(() => {}); try { renderCargos(); } catch (e) {} }
@@ -15709,6 +15708,8 @@ function _frModeloGarantir(v) {
   if (!v || !v.modelo) return null; if (v.modeloId && (dados.modelos || []).some(m => m.id === v.modeloId)) return null;
   const N = _mmNorm, nm = N(v.modelo);
   let m = (dados.modelos || []).find(x => (!x.obra || x.obra === v.obra) && N(x.nome) === nm);
+  // nome do cadastro mais completo (ex.: "Chevrolet Onix 1.0 12V Flex" para "Onix 12V Flex 1.0"): todas as palavras da planilha estão no nome do modelo
+  if (!m) { const tk = nm.split(' ').filter(Boolean), cand = (dados.modelos || []).filter(x => (!x.obra || x.obra === v.obra) && tk.every(t => N(x.nome).split(' ').includes(t))); if (cand.length) m = cand.sort((a, b) => N(a.nome).length - N(b.nome).length)[0]; }
   const salvar = [];
   if (!m) {
     let f = (dados.familias || []).find(x => (!x.obra || x.obra === v.obra) && (/VE[IÍ]CULO LEVE/i.test(N(x.desc)) || N(x.cod) === 'VL'));
@@ -15755,13 +15756,44 @@ function _frModeloGarantir(v) {
     if (e && (e.ano || '') !== ano) { e.ano = ano; if (db && _firebaseReady) fbSave('equipamentos', e.id, e).catch(() => {}); }
     if ($('equip-ano')) $('equip-ano').value = ''; return r; };
   // ── República: proprietário não é mais obrigatório
-  const lp = document.querySelector('label[for="rep-responsavel"]'); if (lp) lp.innerHTML = 'Proprietário <span style="font-weight:400;color:var(--text-3)">(nome completo, como no contrato)</span>';
+
   // ── Frota: modelo ligado ao cadastro (planilha e veículos antigos)
   const oFE = window.frEditar; window.frEditar = frEditar = function (id) { const v = id && (dados.frota || []).find(x => x.id === id); if (v) _frModeloGarantir(v); return oFE.apply(this, arguments); };
   const oAI = window.abImportarPlanilha; window.abImportarPlanilha = abImportarPlanilha = async function () { const ant = new Set((dados.frota || []).map(v => v.id)); const r = await oAI.apply(this, arguments);
     (dados.frota || []).filter(v => !ant.has(v.id)).forEach(_frModeloGarantir); try { renderFrota(); } catch (e) {} return r; };
 })();
 
+// ═══════════════════════════════════════════════════════════════
+// v3.44: ADICIONAL DE HORA EXTRA E DE DOMINGO/FERIADO POR OBRA (vale para todo CLT da obra; PJ não tem)
+// ═══════════════════════════════════════════════════════════════
+function _adObra(obraId) { const o = (dados.obras || []).find(x => x.id === obraId) || {}; const n = (v, d) => v === undefined || v === '' || v === null ? d : (parseFloat(v) || 0); return { he: n(o.adicHE, 50), df: n(o.adicDF, 100) }; }
+custoMO = function (a) {
+  const c = _cargoDe(a), hb = _horaBaseMO(a), ob = _obraDoApont(a), f = _funcDe(a);
+  const ch = hb.base * (1 + _encObra(ob) / 100), pj = (f && f.vinculo === 'PJ') || _cgVinc(c) === 'PJ', A = _adObra(ob), ad = pj ? 0 : A.he, adf = pj ? 0 : A.df;
+  const hn = parseFloat(a.hn) || 0, he = parseFloat(a.he) || 0, td = tipoDia(a.data, ob);
+  if (td) return { normal: 0, extra: 0, domFer: ch * (1 + adf / 100) * (hn + he), tipoDia: td, semCusto: !ch, estimado: hb.estimado && !!ch };
+  return { normal: ch * hn, extra: ch * (1 + ad / 100) * he, domFer: 0, tipoDia: '', semCusto: !ch, estimado: hb.estimado && !!ch };
+};
+(function () {
+  const $ = id => document.getElementById(id);
+  // obra: os dois adicionais ao lado dos encargos
+  const gE = $('obra-encargos')?.closest('.form-group');
+  if (gE && !$('obra-adhe')) gE.insertAdjacentHTML('afterend', `<div class="form-group"><label class="form-label" for="obra-adhe">Adicional de hora extra (%) <span style="font-weight:400;color:var(--text-3)">— CLT</span></label><input class="form-control" id="obra-adhe" type="number" step="1" min="0" placeholder="50"/><div style="font-size:11px;color:var(--text-3);margin-top:3px">Em branco = 50%. Vale para todos os CLT da obra (PJ não tem hora extra).</div></div>
+    <div class="form-group"><label class="form-label" for="obra-addf">Adicional domingo/feriado (%) <span style="font-weight:400;color:var(--text-3)">— CLT</span></label><input class="form-control" id="obra-addf" type="number" step="1" min="0" placeholder="100"/><div style="font-size:11px;color:var(--text-3);margin-top:3px">Em branco = 100%. Vale para todas as horas do dia.</div></div>`);
+  const oEd = window.editarObra; window.editarObra = function (id) { const r = oEd.apply(this, arguments); const o = (dados.obras || []).find(x => x.id === id) || {};
+    if ($('obra-adhe')) $('obra-adhe').value = o.adicHE ?? ''; if ($('obra-addf')) $('obra-addf').value = o.adicDF ?? ''; return r; };
+  const oSv = window.salvarObra; window.salvarObra = function () {
+    const he = $('obra-adhe')?.value ?? '', df = $('obra-addf')?.value ?? '', cod = ($('obra-cod')?.value || '').trim(), idEd = $('obra-edit-id')?.value || '';
+    const r = oSv.apply(this, arguments); if ($('modal-nova-obra')?.classList.contains('open')) return r;
+    const o = idEd ? (dados.obras || []).find(x => x.id === idEd) : [...(dados.obras || [])].reverse().find(x => (x.cod || '') === cod);
+    if (o) { o.adicHE = he === '' ? 50 : (parseFloat(he) || 0); o.adicDF = df === '' ? 100 : (parseFloat(df) || 0); if (db && _firebaseReady) fbSave('obras', o.id, o).catch(() => {}); }
+    if ($('obra-adhe')) $('obra-adhe').value = ''; if ($('obra-addf')) $('obra-addf').value = ''; return r; };
+  // função: os adicionais saem do cadastro da função
+  ['cargo-adhe', 'cargo-addf'].forEach(id => { const g = $(id)?.closest('.form-group'); if (g) g.remove(); });
+  // importação de obras: colunas dos adicionais
+  const D = IMPORT_DEF.obras; if (D) { D.col = D.col.concat(['Adicional hora extra (%)', 'Adicional domingo/feriado (%)']); const m = D.map;
+    D.map = g => { const x = m(g), h = g(['adicional hora', 'hora extra']), d = g(['domingo', 'feriado']); x.adicHE = h === '' || h == null ? 50 : _numImport(h); x.adicDF = d === '' || d == null ? 100 : _numImport(d); return x; }; }
+})();
 // Apply configs on load
 setTimeout(applyConfigs, 200);
 setTimeout(function() {
