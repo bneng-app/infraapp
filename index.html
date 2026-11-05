@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.80 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.81 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -16637,6 +16637,36 @@ function _pfCadastrar(nome) { novoUsuario(); const s = document.getElementById('
     closeModal('modal-novo-usuario'); renderUsuarios();
     toast((ed ? 'Usuário atualizado: ' : 'Acesso criado: ') + f.nome + ' entra no app lendo o crachá, ou com o CPF ' + cpfFmt(f.cpf) + (u.senhaDefinida ? ' e a senha dele.' : ' e a senha provisória ' + _SENHA_APROP + ' (troca no 1º acesso).'));
   };
+})();
+
+// ═══════════════════════════════════════════════════════════════
+// v3.81: RESUMO DA OBRA PARA O "FRENTE HOJE" DO CAMPO — avanço acumulado e custo real x previsto
+// por serviço (só aprovados, orçamento vigente). Gravado em resumoObra/<obra> quando muda.
+// ═══════════════════════════════════════════════════════════════
+const _roHash = {};
+function _resumoObra(obra) {
+  const vig = typeof orcVigente === 'function' ? orcVigente(obra) : null; if (!vig) return null;
+  const ok = a => _ehAprovado(a) && a.obra === obra, ch = a => a.tipoServico || a.servico || '';
+  const mo = (dados.aponMO || []).filter(ok), eq = (dados.aponEQ || []).filter(ok);
+  const servicos = (vig.itens || []).map(i => {
+    const m = mo.filter(a => ch(a) === i.servico), e = eq.filter(a => ch(a) === i.servico);
+    const exec = m.reduce((t, a) => t + (parseFloat(a.qtd) || 0), 0), dias = new Set(m.map(a => a.data)).size;
+    let custo = 0; try { custo = m.reduce((t, a) => { const c = custoMO(a); return t + c.normal + c.extra + c.domFer; }, 0) + e.reduce((t, a) => { const c = custoEQ(a); return t + c.prod + c.parado; }, 0); } catch (x) {}
+    return { servico: i.servico, unid: i.unid || '', qtd: +i.qtd || 0, prodDia: +i.prodDia || 0, custoUnitPrev: +i.custoUnit || 0,
+      exec: +exec.toFixed(2), dias, prodReal: dias ? +(exec / dias).toFixed(2) : 0, custoUnitReal: exec ? +(custo / exec).toFixed(2) : 0 };
+  });
+  return { obra, versao: vig.nome || '', servicos };
+}
+function _publicarResumoObras() {
+  if (!db || !_firebaseReady || typeof fbSave !== 'function') return;
+  (dados.obras || []).forEach(o => { const r = _resumoObra(o.id); if (!r) return; const h = JSON.stringify(r); if (_roHash[o.id] === h) return;
+    _roHash[o.id] = h; fbSave('resumoObra', o.id, { ...r, atualizadoEm: new Date().toISOString() }).catch(() => { delete _roHash[o.id]; }); });
+}
+let _roT = null; function _agendarResumoObras() { clearTimeout(_roT); _roT = setTimeout(() => { try { _publicarResumoObras(); } catch (e) {} }, 4000); }
+(function () {
+  const oS = window.sincronizarTudo; if (oS) window.sincronizarTudo = sincronizarTudo = async function () { const r = await oS.apply(this, arguments); _agendarResumoObras(); return r; };
+  ['salvarAprovacao', 'aprovarApontamento', 'aprovarSelecionados', 'aprovarTodos', 'aprovarCard'].forEach(n => { const f = window[n]; if (typeof f === 'function') window[n] = function () { const r = f.apply(this, arguments); _agendarResumoObras(); return r; }; });
+  setTimeout(_agendarResumoObras, 8000);
 })();
 
 // Apply configs on load
