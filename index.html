@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.27 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.28 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -5221,13 +5221,14 @@ function renderFuncionarios(pagina) {
         <td class="td-mono" style="text-align:right;white-space:nowrap">${f.salario ? 'R$ ' + Number(f.salario).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + (() => { const p = _salPrev(f.obra, f.codFuncao); if (!p) return ''; const d = (f.salario / p - 1) * 100; return `<div style="font-size:10.5px;color:${Math.abs(d) < 0.5 ? 'var(--green-dark)' : d > 0 ? 'var(--red)' : 'var(--green-dark)'}" title="Previsto no orçamento: R$ ${Number(p).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}">${_pctTxt(d)} vs previsto</div>`; })() : '<span style="color:var(--text-3)">—</span>'}</td>
         <td class="td-mono" style="white-space:nowrap" title="CPF completo no Editar">${f.cpf ? _cpfMask(f.cpf) : '<span style="color:var(--text-3)">—</span>'}</td>
         <td class="td-mono" style="white-space:nowrap">${f.admissao ? fmtData(f.admissao) : '—'}</td>
-        <td style="white-space:nowrap">${f.demissao && f.demissao <= _hojeLocal() ? tag('Desligado ' + fmtData(f.demissao), 'red') : f.demissao ? tag('Sai em ' + fmtData(f.demissao), 'amber') : tag('Ativo', 'green')}</td>
+        <td style="white-space:nowrap">${f.demissao && f.demissao <= _hojeLocal() ? tag('Desligado', 'red') : f.demissao ? tag('Sai em breve', 'amber') : tag('Ativo', 'green')}</td>
+        <td class="td-mono" style="white-space:nowrap">${f.demissao ? fmtData(f.demissao) : '—'}</td>
         <td>${tag(_geraApont(f), _geraApont(f)==='Sim'?'blue':'gray')}</td>
         <td>${f.apropriador==='Sim' ? tag('Apropriador','red') : '<span style="color:var(--text-3)">—</span>'}</td>
         <td style="white-space:nowrap">${f.tel ? _e(f.tel) + ' ' + _waBotao(f.tel, '', 'mini') : '<span style="color:var(--text-3)">—</span>'}</td>
         <td>${acoesCell(`editarFuncionario('${f.id}')`,`deletar('funcionarios','${f.id}')`)}</td>
       </tr>`;}).join('')
-    : '<tr><td colspan="15" style="text-align:center;color:var(--text-3);padding:2rem">Nenhum funcionário cadastrado</td></tr>';
+    : '<tr><td colspan="16" style="text-align:center;color:var(--text-3);padding:2rem">Nenhum funcionário' + (Object.keys(_fnAF.flt).length ? ' com esse filtro' : ' cadastrado') + '</td></tr>';
 
   // Paginação
   const pgBar = document.getElementById('pag-func');
@@ -15113,6 +15114,88 @@ function _lancObraMapa() {
   const oSel = window.selecionarObra; if (typeof oSel === 'function') window.selecionarObra = selecionarObra = function () { const r = oSel.apply(this, arguments);
     const pg = document.querySelector('.page.active')?.id?.replace('page-', ''); const mapa = { 'apon-mo': 'renderMO', 'apon-eq': 'renderAponEQ', perdas: 'renderPerdas', 'apon-diesel': 'renderDiesel', aprovacao: 'renderAprovacao', cargos: 'renderCargos', familias: 'renderFamilias', modelos: 'renderModelos', 'tipos-servico': 'renderTiposServico', equipes: 'renderEquipes', 'mm-aprov': 'renderMmAprov' };
     try { if (mapa[pg] && typeof window[mapa[pg]] === 'function') window[mapa[pg]](); } catch (e) {} return r; };
+})();
+
+
+// ═══════════════════════════════════════════════════════════════
+// v3.28: FUNCIONÁRIOS — coluna Demissão separada + AUTOFILTRO no cabeçalho
+// clique no nome da coluna = classifica (A→Z / Z→A) · ▾ = filtro com a lista de valores (como no Excel)
+// ═══════════════════════════════════════════════════════════════
+const _fnSit = f => f.demissao && f.demissao <= _hojeLocal() ? 'Desligado' : f.demissao ? 'Sai em ' + fmtData(f.demissao) : 'Ativo';
+const _FN_COLS = {
+  'Obra':          f => getNomeObra(f.obra) || '—',
+  'Matrícula':     f => String(f.mat || ''),
+  'Nome':          f => f.nome || '',
+  'Vínculo':       f => f.vinculo === 'PJ' ? 'PJ' : 'CLT',
+  'Cód. Função':   f => String(f.codFuncao || ''),
+  'Função':        f => { const c = (dados.cargos || []).find(x => x.cod === f.codFuncao && (!x.obra || !f.obra || x.obra === f.obra)) || (dados.cargos || []).find(x => x.cod === f.codFuncao); return c ? c.nome : '—'; },
+  'Tipo de custo': f => f.direto === 'Não' ? 'Indireto' : 'Direto',
+  'Salário':       f => +f.salario || 0,
+  'CPF':           f => f.cpf ? 'Com CPF' : 'Sem CPF',
+  'Admissão':      f => f.admissao || '',
+  'Situação':      f => _fnSit(f).startsWith('Sai') ? 'Sai em breve' : _fnSit(f),
+  'Demissão':      f => f.demissao || '',
+  'Gera apont.':   f => _geraApont(f),
+  'Apropriador':   f => f.apropriador === 'Sim' ? 'Sim' : 'Não',
+  'Telefone':      f => f.tel ? 'Com telefone' : 'Sem telefone',
+};
+const _fnAF = { ord: null, dir: 1, flt: {} };
+function _fnTxt(k, v) { if (v === '' || v === null || v === undefined) return '(vazio)'; if ((k === 'Admissão' || k === 'Demissão') && /^\d{4}-/.test(v)) return fmtData(v); if (k === 'Salário') return v ? 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '(vazio)'; return String(v); }
+function _fnCmp(k, a, b) { const x = _FN_COLS[k](a), y = _FN_COLS[k](b);
+  if (typeof x === 'number') return x - y;
+  if (k === 'Matrícula' || k === 'Cód. Função') { const nx = +x, ny = +y; if (!isNaN(nx) && !isNaN(ny) && x !== '' && y !== '') return nx - ny; }
+  if (x === '' && y !== '') return 1; if (y === '' && x !== '') return -1;
+  return String(x).localeCompare(String(y), 'pt-BR', { numeric: true }); }
+function fnOrdenar(k) { if (_fnAF.ord === k) _fnAF.dir = -_fnAF.dir; else { _fnAF.ord = k; _fnAF.dir = 1; } renderFuncionarios(0); }
+function fnFiltroAbrir(k, ev) {
+  ev.stopPropagation(); document.getElementById('fn-af-pop')?.remove();
+  const ob = obraAtiva && obraAtiva.id && obraAtiva.id !== 'todas' ? obraAtiva.id : '';
+  const base = (dados.funcionarios || []).filter(f => !ob || !f.obra || f.obra === ob);
+  const vals = [...new Set(base.map(f => _fnTxt(k, _FN_COLS[k](f))))].sort((a, b) => a === '(vazio)' ? 1 : b === '(vazio)' ? -1 : a.localeCompare(b, 'pt-BR', { numeric: true }));
+  const sel = _fnAF.flt[k];
+  const pop = document.createElement('div'); pop.id = 'fn-af-pop'; pop.className = 'fn-af-pop';
+  pop.innerHTML = `<button type="button" onclick="_fnAF.ord='${k}';_fnAF.dir=1;renderFuncionarios(0);document.getElementById('fn-af-pop').remove()">↑ Classificar de A a Z</button>
+    <button type="button" onclick="_fnAF.ord='${k}';_fnAF.dir=-1;renderFuncionarios(0);document.getElementById('fn-af-pop').remove()">↓ Classificar de Z a A</button>
+    <input class="form-control" placeholder="Pesquisar…" oninput="document.querySelectorAll('#fn-af-pop .fn-af-it').forEach(l=>l.style.display=l.dataset.t.toLowerCase().includes(this.value.toLowerCase())?'':'none')"/>
+    <label class="fn-af-all"><input type="checkbox" ${!sel ? 'checked' : ''} onchange="document.querySelectorAll('#fn-af-pop .fn-af-it input').forEach(c=>{if(c.closest('label').style.display!=='none')c.checked=this.checked})"/> (Selecionar tudo)</label>
+    <div class="fn-af-lst">${vals.map(v => `<label class="fn-af-it" data-t="${_e(v)}"><input type="checkbox" value="${_e(v)}" ${!sel || sel.has(v) ? 'checked' : ''}/> ${_e(v)}</label>`).join('')}</div>
+    <div class="fn-af-ac"><button type="button" class="btn btn-outline btn-sm" onclick="delete _fnAF.flt['${k}'];renderFuncionarios(0);document.getElementById('fn-af-pop').remove()">Limpar</button>
+      <button type="button" class="btn btn-primary btn-sm" onclick="fnFiltroAplicar('${k}')">OK</button></div>`;
+  document.body.appendChild(pop);
+  const r = ev.currentTarget.getBoundingClientRect(); pop.style.top = (r.bottom + window.scrollY + 4) + 'px'; pop.style.left = Math.min(r.left + window.scrollX, window.innerWidth - 270) + 'px';
+  pop.addEventListener('click', e => e.stopPropagation());
+}
+function fnFiltroAplicar(k) {
+  const cs = [...document.querySelectorAll('#fn-af-pop .fn-af-it input')], m = cs.filter(c => c.checked).map(c => c.value);
+  if (m.length === cs.length) delete _fnAF.flt[k]; else _fnAF.flt[k] = new Set(m);
+  document.getElementById('fn-af-pop')?.remove(); renderFuncionarios(0);
+}
+document.addEventListener('click', () => document.getElementById('fn-af-pop')?.remove());
+(function () {
+  const css = document.createElement('style');
+  css.textContent = `#tabela-func th.fn-af{white-space:nowrap;cursor:pointer;user-select:none}#tabela-func th.fn-af:hover{color:var(--text)}
+    #tabela-func th .fn-af-b{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;margin-left:4px;border:1px solid var(--border);border-radius:4px;font-size:9px;color:var(--text-3);background:var(--bg-2,transparent);vertical-align:middle;cursor:pointer}
+    #tabela-func th .fn-af-b.on{background:#E30613;border-color:#E30613;color:#fff}#tabela-func th .fn-af-o{color:#E30613;margin-left:3px}
+    .fn-af-pop{position:absolute;z-index:9999;width:260px;background:var(--bg,#fff);color:var(--text);border:1px solid var(--border);border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.22);padding:8px;font-size:12.5px;text-transform:none;letter-spacing:0;font-weight:400}
+    .fn-af-pop>button{display:block;width:100%;text-align:left;padding:6px 8px;border:0;background:none;color:inherit;border-radius:6px;cursor:pointer;font-size:12.5px}.fn-af-pop>button:hover{background:var(--bg-2,#f3f4f6)}
+    .fn-af-pop input.form-control{margin:6px 0;padding:6px 8px;font-size:12.5px}.fn-af-pop label{display:flex;gap:7px;align-items:center;padding:3px 4px;cursor:pointer}
+    .fn-af-lst{max-height:220px;overflow:auto;border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin:4px 0;padding:4px 0}.fn-af-ac{display:flex;gap:6px;justify-content:flex-end;margin-top:6px}`;
+  document.head.appendChild(css);
+  // cabeçalho: coluna Demissão + botões
+  const head = document.querySelector('#tabela-func thead tr');
+  if (head) { const sit = [...head.children].find(th => th.textContent.trim() === 'Situação'); if (sit && !head.querySelector('.fn-th-dem')) sit.insertAdjacentHTML('afterend', '<th class="fn-th-dem">Demissão</th>');
+    [...head.children].forEach(th => { const k = th.textContent.trim(); if (!_FN_COLS[k]) return; th.dataset.k = k; th.classList.add('fn-af'); th.innerHTML = `<span>${k}</span><span class="fn-af-o"></span><span class="fn-af-b" title="Filtrar" onclick="fnFiltroAbrir('${k}',event)">▼</span>`; th.addEventListener('click', () => fnOrdenar(k)); }); }
+  const _marcaHead = () => document.querySelectorAll('#tabela-func th.fn-af').forEach(th => { const k = th.dataset.k; th.querySelector('.fn-af-o').textContent = _fnAF.ord === k ? (_fnAF.dir > 0 ? '↑' : '↓') : ''; th.querySelector('.fn-af-b').classList.toggle('on', !!_fnAF.flt[k]); });
+  // render: aplica filtros e ordem antes da paginação; separa Situação e Demissão
+  const oR = window.renderFuncionarios;
+  window.renderFuncionarios = renderFuncionarios = function () {
+    const all = dados.funcionarios || []; let l = all;
+    Object.entries(_fnAF.flt).forEach(([k, set]) => { l = l.filter(f => set.has(_fnTxt(k, _FN_COLS[k](f)))); });
+    if (_fnAF.ord) { const k = _fnAF.ord, d = _fnAF.dir; l = [...l].sort((a, b) => d * _fnCmp(k, a, b)); }
+    dados.funcionarios = l; let r;
+    try { r = oR.apply(this, arguments); } finally { dados.funcionarios = all; }
+    _marcaHead(); return r;
+  };
 })();
 
 // Apply configs on load
