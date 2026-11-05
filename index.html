@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.56 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.57 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -9956,7 +9956,9 @@ function _vbars(rows, unid, series) {
   let g = '';
   for (let v = 0; v <= topo + 1e-9; v += passo) g += `<line x1="${pl}" x2="${W - 6}" y1="${y(v)}" y2="${y(v)}" style="stroke:var(--ln)"/><text x="${pl - 6}" y="${y(v) + 3}" style="fill:var(--mu)" font-size="9" text-anchor="end">${_fmtCompacto(v)}</text>`;
   rows.forEach((r, i) => { const x = pl + gap * i + (gap - bw) / 2; let base = 0;
-    series.forEach(sr => { const v = r[sr.k]||0; if (!v) return; g += `<rect x="${x}" y="${y(base + v)}" width="${bw}" height="${y(base) - y(base + v)}" rx="3" style="fill:${sr.cor}"/>`; base += v; });
+    const dica = _e(r.l) + ' — ' + series.map(sr => (sr.nome || '') + (sr.nome ? ': ' : '') + _fmtCompacto(r[sr.k] || 0) + (unid ? ' ' + unid : '')).join(' · ');
+    series.forEach(sr => { const v = r[sr.k]||0; if (!v) return; const hh = y(base) - y(base + v); g += `<rect x="${x}" y="${y(base + v)}" width="${bw}" height="${hh}" rx="3" style="fill:${sr.cor}"><title>${dica}</title></rect>`;
+      if (series.length > 1 && hh >= 15 && n <= 12) g += `<text x="${x + bw / 2}" y="${y(base + v) + hh / 2 + 4}" style="fill:#fff;pointer-events:none" font-size="10" font-weight="700" text-anchor="middle">${_fmtCompacto(v)}</text>`; base += v; });
     const muitas = n > 12;
     if (!muitas) g += `<text x="${x + bw / 2}" y="${y(base) - 6}" style="fill:var(--tx)" font-size="10.5" font-weight="700" text-anchor="middle">${_fmtCompacto(base)}${unid ? ' ' + unid : ''}</text>`;
     else g += `<title>${_e(r.l)}: ${_fmtCompacto(base)}${unid ? ' ' + unid : ''}</title>`;
@@ -14455,11 +14457,12 @@ function dxRenderFrota() {
         ${_kpi(_ic.user, semResp.length, 'Em uso sem responsável', semResp.length ? 'vincule um condutor' : 'todos com condutor', semResp.length ? '#E30613' : '#22C55E', semResp.length > 0)}
         ${_kpi(_ic.alert || _ic.timer, comAl.length, 'Com aviso', 'CNH, contrato ou CRLV', comAl.length ? '#F59E0B' : '')}
         ${_kpi(_ic.check, pend.length, 'Completar cadastro', 'chegaram pelo app de campo', pend.length ? '#F59E0B' : '')}</div>
-      <div class="dx-grid" style="grid-template-columns:1fr 1fr 1.2fr;margin-bottom:12px">
+      ${_vencFaixa(venc, 'Vencimentos', 'contrato da locadora, licenciamento (CRLV) e CNH do responsável')}
+      <div class="dx-grid" style="grid-template-columns:1fr 1.2fr;margin-bottom:12px">
         ${_pn(_ic.pie, 'Veículos por locadora', _donut(grp(na, 'locadora', () => 1), na.length, 'veículos', v => v + ' veículo(s)'))}
-        ${_pn(_ic.chart, 'Veículos por tipo', _hbars(grp(na, 'tipo', () => 1).map(x => ({ ...x, t: x.v + '' }))))}
-        ${_pn(_ic.cal, 'Vencimentos (próximos 60 dias)', _dxVenc(venc))}</div>
-      ${_pn(_ic.trend, 'Chegadas e devoluções por mês', `<div class="dx-leg" style="margin-bottom:8px"><span><i style="background:#22C55E"></i>Chegadas</span><span><i style="background:#7A7A82"></i>Devoluções</span></div>` + _vbars(meses.map(m => ({ l: _mesTxt(m).slice(0, 3) + '/' + m.slice(2, 4), e: porMes[m].e, s: porMes[m].s })), '', [{ k: 'e', cor: '#22C55E' }, { k: 's', cor: '#7A7A82' }]), '', 'margin-bottom:12px')}
+        ${(() => { const g = {}; na.forEach(v => { const m = (dados.modelos || []).find(x => x.id === v.modeloId); const k = (m && m.nome) || v.modelo || 'Sem modelo'; g[k] = (g[k] || 0) + 1; }); const o = Object.entries(g).sort((a, b) => b[1] - a[1]), top = o.slice(0, 10), resto = o.slice(10);
+            return _pn(_ic.chart, 'Veículos por modelo', _hbars(top.map(([l, v]) => ({ l, v, t: v + '' }))) + (resto.length ? `<div style="font-size:11.5px;color:var(--mu);margin-top:8px">+ ${resto.length} outro(s) modelo(s) com ${resto.reduce((s, x) => s + x[1], 0)} veículo(s)</div>` : ''), o.length > 10 ? 'top 10' : ''); })()}</div>
+      ${_pn(_ic.trend, 'Chegadas e devoluções por mês', `<div class="dx-leg" style="margin-bottom:8px"><span><i style="background:#22C55E"></i>Chegadas</span><span><i style="background:#7A7A82"></i>Devoluções</span><span style="opacity:.7">passe o mouse na barra para ver os números</span></div>` + _vbars(meses.map(m => ({ l: _mesTxt(m).slice(0, 3) + '/' + m.slice(2, 4), e: porMes[m].e, s: porMes[m].s })), '', [{ k: 'e', cor: '#22C55E', nome: 'Chegadas' }, { k: 's', cor: '#7A7A82', nome: 'Devoluções' }]), '', 'margin-bottom:12px')}
       ${_pn(_ic_carro, 'Veículos na obra', `<div class="dx-scroll">${_tb(['TAG · placa', 'Modelo', 'Tipo', 'Locadora', 'Responsável', 'CNH', 'Desde', 'Km chegada', 'Situação'],
           na.sort((a, b) => String(a.placa).localeCompare(String(b.placa))).map(v => { const r = frRespAtual(v), al = frAlertas(v);
             return `<tr>${_td((v.tag ? '<b>' + _e(v.tag) + '</b> · ' : '') + '<b>' + _e(v.placa) + '</b>')}${_td(_e(v.modelo || '—'))}${_td(_e(v.tipo || '—'), 'mu')}${_td(_e(v.locadora || '—'))}${_td(r ? _e(r.nome) : '<span style="color:#FF5A60">sem responsável</span>')}${_td(r ? _e(r.cnhCat || '—') + (r.cnhVal ? ' · ' + _e(String(r.cnhVal).split('-').reverse().join('/')) : '') : '—', 'mu')}${_td(v.mobData ? _e(String(v.mobData).split('-').reverse().join('/')) : '—', 'n')}${_td(v.kmMob ? (+v.kmMob).toLocaleString('pt-BR') : '—', 'n')}
@@ -14520,7 +14523,7 @@ function dxRenderAloj() {
         ${_pn(_ic.alert || _ic.users, 'Desligados ainda alojados', _alojDeslig(at), 'demitidos sem "Dar saída"')}
         ${_pn(_ic_casa, 'Vagas livres por casa', _alojVagasLivres(at), 'onde dá para alojar')}</div>
       <div class="dx-grid" style="grid-template-columns:1fr;margin-bottom:12px">
-        ${_pn(_ic.trend, 'Entradas e saídas por mês', `<div class="dx-leg" style="margin-bottom:8px"><span><i style="background:#22C55E"></i>Entradas</span><span><i style="background:#7A7A82"></i>Saídas</span></div>` + _vbars(meses.map(m => ({ l: _mesTxt(m).slice(0, 3) + '/' + m.slice(2, 4), e: mov[m].e, s: mov[m].s })), '', [{ k: 'e', cor: '#22C55E' }, { k: 's', cor: '#7A7A82' }]))}</div>
+        ${_pn(_ic.trend, 'Entradas e saídas por mês', `<div class="dx-leg" style="margin-bottom:8px"><span><i style="background:#22C55E"></i>Entradas</span><span><i style="background:#7A7A82"></i>Saídas</span></div>` + _vbars(meses.map(m => ({ l: _mesTxt(m).slice(0, 3) + '/' + m.slice(2, 4), e: mov[m].e, s: mov[m].s })), '', [{ k: 'e', cor: '#22C55E', nome: 'Entradas' }, { k: 's', cor: '#7A7A82', nome: 'Saídas' }]))}</div>
       ${_pn(_ic_casa, 'Repúblicas e alojamentos', `<div class="dx-scroll">${_tb(['República', 'Tipo', 'Endereço', 'Proprietário', 'Vagas', 'Ocupadas', 'Livres', 'Ocupação', 'Fim do contrato'],
           at.sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR')).map(r => { const o = repMoradores(r).length, v = +r.vagas || 0, p = v ? o / v : 0;
             return `<tr>${_td('<b>' + _e(r.nome) + '</b><div class="mu" style="font-size:10.5px">' + _e(r.cod || '') + '</div>')}${_td(_e(r.tipo || '—'), 'mu')}${_td(_e(r.endereco || '—'), 'mu')}${_td(_e(r.responsavel || '—'))}${_td(v, 'n')}${_td(o, 'n')}${_td(Math.max(0, v - o), 'n')}
@@ -15981,6 +15984,14 @@ function _afBotaoLimpar(tb, n, onclick) {
   const oA = window._afAplicar; window._afAplicar = _afAplicar = function (tb) { const r = oA.apply(this, arguments); try { const id = tb.dataset.afid, n = Object.keys((_AFT[id] || {}).flt || {}).length; _afBotaoLimpar(tb, n, `_afLimparTudo('${id}')`); } catch (e) {} return r; };
   const oF = window.renderFuncionarios; window.renderFuncionarios = renderFuncionarios = function () { const r = oF.apply(this, arguments); const tb = document.getElementById('tabela-func'); if (tb) _afBotaoLimpar(tb, Object.keys(_fnAF.flt).length, `_fnAF.flt={};renderFuncionarios(0)`); return r; };
 })();
+// v3.57: faixa de vencimentos genérica (frota)
+function _vencFaixa(itens, titulo, oque) {
+  const l = itens.filter(x => x && x.data).map(x => ({ ...x, d: _dxDias(x.data) })).sort((a, b) => a.d - b.d), em60 = l.filter(x => x.d <= 60), p = l.find(x => x.d >= 0);
+  const cor = em60.some(x => x.d < 0) ? '#FF5A60' : em60.length ? '#F59E0B' : 'var(--mu)';
+  return `<div class="dx-pn" style="margin-bottom:12px;padding:10px 14px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;${em60.length ? 'border-color:' + cor : ''}"><span style="display:flex;gap:8px;align-items:center;font-weight:700">${_ic.cal}${titulo}</span><span style="color:var(--mu);font-size:12px">(${oque})</span>
+    ${em60.length ? `<span style="color:${cor};font-weight:700">${em60.length} nos próximos 60 dias:</span> ${em60.slice(0, 5).map(x => `<span>${_e(x.t)} <b style="color:${x.d < 0 ? '#FF5A60' : '#F59E0B'}">${x.d < 0 ? 'vencido' : 'em ' + x.d + ' dia(s)'}</b></span>`).join(' · ')}${em60.length > 5 ? ' …' : ''}`
+      : `<span style="color:var(--mu)">Nada vencendo nos próximos 60 dias ✓</span>${p ? `<span>· Próximo: <b>${_e(p.t)}</b> em ${_frData(p.data)} <span style="color:var(--mu)">(${p.d} dias)</span></span>` : '<span style="color:var(--mu)">· nenhuma data de vencimento cadastrada</span>'}`}</div>`;
+}
 // Apply configs on load
 setTimeout(applyConfigs, 200);
 setTimeout(function() {
