@@ -38,7 +38,7 @@ self.addEventListener('fetch', e => {
   const ehApp = url.origin === self.location.origin && /\/campo\.html$/.test(url.pathname);
   if (req.mode === 'navigate' && ehApp || ehApp) {
     // rede primeiro (versão nova), cache se estiver sem sinal
-    e.respondWith(fetch(req).then(r => {
+    e.respondWith(fetch(req.url, { cache: 'no-store' }).then(r => {   // v2.79: ignora o cache do navegador (versão nova na hora)
       const copia = r.clone(); caches.open(VERSAO).then(c => c.put('./campo.html', copia)); return r;
     }).catch(() => caches.match('./campo.html')));
     return;
