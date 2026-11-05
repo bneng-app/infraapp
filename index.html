@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.40 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.42 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -1061,7 +1061,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <div class="search-wrap"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="search-cargos" placeholder="Buscar código ou função…" oninput="filtrarTabela('tabela-cargos','search-cargos',0)"/></div>
     <div class="table-wrap">
       <table id="tabela-cargos">
-        <thead><tr><th style="width:36px"><input type="checkbox" class="cb-row-check" id="cb-master-cargos" onchange="toggleSelectAll('cargos',this)" title="Selecionar todos"></th><th>Obra</th><th>Cód. Função</th><th>Função (Cargo)</th><th>Direto</th><th>Operador</th><th>Cód. Recurso</th><th>Custo/h</th><th>Adic. HE</th><th></th></tr></thead>
+        <thead><tr><th style="width:36px"><input type="checkbox" class="cb-row-check" id="cb-master-cargos" onchange="toggleSelectAll('cargos',this)" title="Selecionar todos"></th><th>Obra</th><th>Cód. Função</th><th>Função (Cargo)</th><th>Vínculo</th><th>Direto</th><th>Operador</th><th>Cód. Recurso</th><th>Custo/h</th><th>Adic. HE</th><th></th></tr></thead>
         <tbody id="tbody-cargos"><tr><td colspan="6" class="empty-row">Carregando…</td></tr></tbody>
       </table>
     </div>
@@ -5146,11 +5146,12 @@ function renderCargos() {
   document.getElementById('tbody-cargos').innerHTML = dados.cargos.length
     ? dados.cargos.map(c=>`<tr>${cbTD('cargos',c.id)}<td style='font-size:11px;color:var(--text-3)'>${getNomeObra(c.obra)}</td><td class="td-mono">${c.cod}</td>
         <td><strong>${c.nome}</strong></td>
+        <td>${tag(_cgVinc(c), _cgVinc(c) === 'PJ' ? 'amber' : 'gray')}</td>
         <td>${tag(c.direto,   c.direto==='Sim'?'green':'gray')}</td>
         <td>${tag(c.operador, c.operador==='Sim'?'blue':'gray')}</td>
         <td class="td-mono">${c.recurso||'—'}</td>
         <td class="td-mono">${c.custoHora ? _moeda(c.custoHora) : '<span style="color:var(--amber)">—</span>'}</td>
-        <td class="td-mono">${(c.adicHE ?? 50)}%</td>
+        <td class="td-mono">${_cgVinc(c) === 'PJ' ? '—' : (c.adicHE ?? 50) + '%'}</td>
         <td>${acoesCell(`editarCargo('${c.id}')`,`deletar('cargos','${c.id}')`)}</td>
       </tr>`).join('')
     : '<tr><td colspan="6" style="text-align:center;color:var(--text-3);padding:2rem">Nenhum cargo cadastrado</td></tr>';
@@ -14713,13 +14714,14 @@ function renderAbastVeic() {
   opt(fv[2], [...new Set(todos.map(a => a.posto).filter(Boolean))].sort().map(x => [x, x]), 'Todos os postos');
   opt(fv[3], [...new Set(todos.map(a => _abQuinz(a.data)))].sort((a, b) => { const k = s => s.slice(-4) + _mesN(s) + s[0]; return k(b).localeCompare(k(a)); }).map(x => [x, x]), 'Todas as quinzenas');
   const ini = $('abv-ini').value, fim = $('abv-fim').value;
-  const l = todos.filter(a => (!fv[0].value || a.veicId === fv[0].value) && (!fv[1].value || a.motorista === fv[1].value) && (!fv[2].value || a.posto === fv[2].value) && (!fv[3].value || _abQuinz(a.data) === fv[3].value) && (!ini || a.data >= ini) && (!fim || a.data <= fim))
+  const l = todos.filter(a => (!window._abvSoFora || (a.motorista && !a.motoristaId)) && (!fv[0].value || a.veicId === fv[0].value) && (!fv[1].value || a.motorista === fv[1].value) && (!fv[2].value || a.posto === fv[2].value) && (!fv[3].value || _abQuinz(a.data) === fv[3].value) && (!ini || a.data >= ini) && (!fim || a.data <= fim))
     .sort((a, b) => String(b.data + (b.hora || '')).localeCompare(String(a.data + (a.hora || ''))));
   const L = l.reduce((s, a) => s + (+a.litros || 0), 0), R = l.reduce((s, a) => s + (+a.valor || 0), 0), KM = l.reduce((s, a) => s + Math.max(0, (calc[a.id] || {}).rod || 0), 0), Lk = l.filter(a => (calc[a.id] || {}).rod > 0).reduce((s, a) => s + (+a.litros || 0), 0);
   const kpi = (lb, v, sub, cor) => `<div class="stat-card"><div class="stat-label">${lb}</div><div class="stat-value" style="${cor ? 'color:' + cor : ''}">${v}</div><div class="stat-sub">${sub}</div></div>`;
   $('abv-kpis').innerHTML = kpi('Abastecimentos', l.length, new Set(l.map(a => a.veicId)).size + ' veículo(s)') + kpi('Litros', _fmtN(L) + ' L', R && L ? 'preço médio ' + _repMoeda(R / L) + '/L' : '')
     + kpi('Total gasto', _repMoeda(R), 'no filtro') + kpi('Km rodados', KM.toLocaleString('pt-BR'), Lk ? 'média ' + _fmtN(KM / Lk) + ' km/L' : '') + kpi('Custo por km', KM ? _repMoeda(R / KM) : '—', 'combustível ÷ km')
-    + (() => { const nf = new Set(todos.filter(a => a.motorista && !a.motoristaId).map(a => a.motorista)); return nf.size ? kpi('Motoristas fora do efetivo', nf.size, `<a href="#" onclick="frLigarPeloNome();return false" style="color:#B45309;font-weight:700">🔗 ligar pelo nome</a> ou vincule na linha`, 'var(--amber)') : ''; })();
+    + (() => { const nf = new Set(todos.filter(a => a.motorista && !a.motoristaId).map(a => a.motorista)); if (!nf.size) { window._abvSoFora = false; return ''; } const on = !!window._abvSoFora;
+      return `<div class="stat-card" style="cursor:pointer;${on ? 'border:2px solid #F59E0B;background:rgba(245,158,11,.08)' : ''}" onclick="if(event.target.closest('a'))return;window._abvSoFora=!window._abvSoFora;renderAbastVeic()" title="Clique para ${on ? 'mostrar todos' : 'ver só os abastecimentos destes motoristas'}"><div class="stat-label">Motoristas fora do efetivo ${on ? '· filtrando' : ''}</div><div class="stat-value" style="color:var(--amber)">${nf.size}</div><div class="stat-sub">${on ? '<b>clique para mostrar todos</b>' : 'clique para filtrar'} · <a href="#" onclick="frLigarPeloNome();return false" style="color:#B45309;font-weight:700">🔗 ligar pelo nome</a></div></div>`; })();
   tb.innerHTML = l.length ? l.map(a => { const v = _abVeic(a.veicId) || {}, c = calc[a.id] || {}, al = [];
       if (!+a.km) al.push(['KM não informado', 'amber']); if (c.recuo) al.push(['KM menor que o anterior', 'red']); if (c.kml != null && (c.kml < 3 || c.kml > 25)) al.push(['Média fora do normal', 'amber']);
       const fm = a.motoristaId ? (dados.funcionarios || []).find(f => f.id === a.motoristaId) : null, fora = a.motorista && !a.motoristaId;
@@ -14735,7 +14737,7 @@ function renderAbastVeic() {
         <td class="td-mono" style="text-align:right;${c.kml != null && c.kml < 3 ? 'color:var(--red)' : ''}">${c.kml != null ? _fmtN(c.kml) : '—'}</td><td class="td-mono" style="text-align:right">${c.rpk != null ? _repMoeda(c.rpk) : '—'}</td>
         <td style="font-size:12px">${_e(a.posto || '—')}</td>
         <td>${al.map(([t, cor]) => tag(t, cor)).join(' ')}${a.origem === 'campo' ? ' <span title="Lançado no app" style="font-size:11px">📱</span>' : ''}</td>
-        <td style="white-space:nowrap;text-align:right">${fora ? `<button class="btn btn-sm" style="background:#F59E0B;color:#fff;border-color:#F59E0B" onclick="abvVincular('${a.id}')" title="Liga este nome a um funcionário do efetivo (vale para todos os abastecimentos com este nome)">🔗 Vincular</button> ` : ''}${a.fotoKm || a.fotoCupom ? `<button class="btn btn-outline btn-sm" onclick="abFotos('${a.id}')" title="Fotos">📷</button> ` : ''}<button class="btn btn-outline btn-sm" onclick="abEditar('${a.id}')">✎</button> <button class="btn btn-outline btn-sm" onclick="abExcluir('${a.id}')" title="Excluir">🗑</button></td></tr>`; }).join('')
+        <td style="white-space:nowrap;text-align:right">${a.fotoKm || a.fotoCupom ? `<button class="btn btn-outline btn-sm" onclick="abFotos('${a.id}')" title="Fotos">📷</button> ` : ''}<button class="btn btn-outline btn-sm" onclick="abEditar('${a.id}')">✎</button> <button class="btn btn-outline btn-sm" onclick="abExcluir('${a.id}')" title="Excluir">🗑</button></td></tr>`; }).join('')
     : '<tr><td colspan="19" style="text-align:center;color:var(--text-3);padding:2rem">Nenhum abastecimento' + (todos.length ? ' com esse filtro' : '') + '. Lance pelo app (Abastecimento → Veículo leve) ou em <b>+ Novo abastecimento</b>.</td></tr>';
   window._abvFiltrados = l;
 }
@@ -15458,7 +15460,7 @@ function alojVincularSalvar() {
     rows.forEach((tr, i) => { const x = vis[i]; if (!x || x.m.func || tr.children.length < 5) return; tr.classList.add('aloj-fora');
       const tdMat = [...tr.children].find(td => td.classList.contains('td-mono') && td.textContent.trim() === '—' && td.previousElementSibling && td.previousElementSibling.querySelector('b'));
       if (tdMat) tdMat.innerHTML = `<button class="btn btn-sm" style="background:#F59E0B;color:#fff;border-color:#F59E0B;white-space:nowrap;padding:3px 8px;font-size:11.5px" onclick="alojVincular('${x.r.id}','${x.m.id}')" title="Fora do efetivo — clique para ligar ao funcionário">⚠ 🔗 Vincular</button>`;
-      const bt = tr.querySelector('button[onclick^="repMoradoresAbrir"]'); if (bt) bt.parentElement.style.whiteSpace = 'nowrap'; if (bt) bt.insertAdjacentHTML('beforebegin', `<button class="btn btn-sm" style="background:#F59E0B;color:#fff;border-color:#F59E0B;margin-right:4px" onclick="alojVincular('${x.r.id}','${x.m.id}')">🔗 Vincular</button>`); });
+      });
     const rs = document.getElementById('aloj-resumo');
     if (rs && fora.length) rs.insertAdjacentHTML('beforeend', ` · <a href="#" style="color:#B45309;font-weight:700" onclick="_alojSoFora=!_alojSoFora;renderAlojados();return false">⚠ ${fora.length} fora do efetivo${_alojSoFora ? ' — mostrar todos' : ' — ver só eles'}</a>`);
     return r;
@@ -15562,15 +15564,16 @@ async function frLigarPeloNome() {
     closeModal('modal-vinc'); try { renderFrotaResp(); renderFrota(); renderAbastVeic(); } catch (e) {}
     toast(antes + ' → ' + f.nome + ' (Mat. ' + f.mat + ')' + (na ? ' · ' + na + ' abastecimento(s) também' : ''));
   };
-  const css = document.createElement('style'); css.textContent = `#tbody-frota-resp tr.fr-fora>td{background:rgba(245,158,11,.10)}#tbody-frota-resp tr.fr-fora>td:first-child{box-shadow:inset 3px 0 0 #F59E0B}`; document.head.appendChild(css);
+  const css = document.createElement('style'); css.textContent = `#tbody-frota-resp tr.frr-esc{display:none!important}#tbody-frota-resp tr.fr-fora>td{background:rgba(245,158,11,.10)}#tbody-frota-resp tr.fr-fora>td:first-child{box-shadow:inset 3px 0 0 #F59E0B}`; document.head.appendChild(css);
   const oR = window.renderFrotaResp;
   window.renderFrotaResp = renderFrotaResp = function () {
     const res = oR.apply(this, arguments); let n = 0;
     document.querySelectorAll('#tbody-frota-resp tr').forEach(tr => { const b = tr.querySelector('[onclick*="frRespAbrir("]'); const m = b && /frRespAbrir\('([^']+)'\)/.exec(b.getAttribute('onclick')); const v = m && (dados.frota || []).find(x => x.id === m[1]); const r = v && frRespAtual(v);
-      if (!r || r.func) return; n++; tr.classList.add('fr-fora');
+      if (!r || r.func) { if (window._frrSoFora) tr.classList.add('frr-esc'); return; } n++; tr.classList.add('fr-fora');
       const tdMat = tr.children[5]; if (tdMat) tdMat.innerHTML = `<button class="btn btn-sm" style="background:#F59E0B;color:#fff;border-color:#F59E0B;white-space:nowrap;padding:3px 8px;font-size:11.5px" onclick="frVincular('${v.id}')" title="Fora do efetivo — clique para ligar ao funcionário">⚠ 🔗 Vincular</button>`;
-      b.parentElement.style.whiteSpace = 'nowrap'; b.insertAdjacentHTML('beforebegin', `<button class="btn btn-sm" style="background:#F59E0B;color:#fff;border-color:#F59E0B" onclick="frVincular('${v.id}')">🔗 Vincular</button> `); });
-    const kp = document.getElementById('frr-kpis'); if (kp && n) kp.insertAdjacentHTML('beforeend', `<div class="stat-card"><div class="stat-label">Fora do efetivo</div><div class="stat-value" style="color:var(--amber)">${n}</div><div class="stat-sub"><a href="#" onclick="frLigarPeloNome();return false" style="color:#B45309;font-weight:700">🔗 ligar pelo nome</a> ou vincule um a um</div></div>`);
+      });
+    if (!n) window._frrSoFora = false; const on = !!window._frrSoFora;
+    const kp = document.getElementById('frr-kpis'); if (kp && n) kp.insertAdjacentHTML('beforeend', `<div class="stat-card" style="cursor:pointer;${on ? 'border:2px solid #F59E0B;background:rgba(245,158,11,.08)' : ''}" onclick="if(event.target.closest('a'))return;window._frrSoFora=!window._frrSoFora;renderFrotaResp()"><div class="stat-label">Fora do efetivo ${on ? '· filtrando' : ''}</div><div class="stat-value" style="color:var(--amber)">${n}</div><div class="stat-sub">${on ? '<b>clique para mostrar todos</b>' : 'clique para filtrar'} · <a href="#" onclick="frLigarPeloNome();return false" style="color:#B45309;font-weight:700">🔗 ligar pelo nome</a></div></div>`);
     return res; };
 })();
 
@@ -15649,6 +15652,49 @@ function _fnVincMudou() {
   const varre = () => document.querySelectorAll('.page:not([id^="page-dash"]) .card .table-wrap').forEach(liga);
   const oS = window.showPage; window.showPage = showPage = function () { const r = oS.apply(this, arguments); setTimeout(varre, 80); return r; };
   setTimeout(varre, 1500);
+})();
+// ═══════════════════════════════════════════════════════════════
+// v3.41: FUNÇÕES COM VÍNCULO (CLT / PJ) — código automático (CLT: próximo número; PJ: PJ01, PJ02…);
+// PJ não tem hora extra nem adicional de domingo/feriado; no cadastro do funcionário só aparecem as funções do vínculo escolhido
+// ═══════════════════════════════════════════════════════════════
+function _cgVinc(c) { return c && (c.vinculo === 'PJ' || (!c.vinculo && /^PJ/i.test(String(c.cod || '')))) ? 'PJ' : 'CLT'; }
+function _cgProxCod(obra, vinc) { const l = (dados.cargos || []).filter(c => !obra || !c.obra || c.obra === obra);
+  if (vinc === 'PJ') { let mx = 0; l.forEach(c => { const m = /^PJ-?(\d+)$/i.exec(String(c.cod || '')); if (m) mx = Math.max(mx, +m[1]); }); return 'PJ' + String(mx + 1).padStart(2, '0'); }
+  let mx = 0; l.forEach(c => { if (/^\d+$/.test(String(c.cod || ''))) mx = Math.max(mx, +c.cod); }); return String(mx + 1); }
+function _cgVincMudou(gerar) {
+  const $ = id => document.getElementById(id), pj = $('cargo-vinculo')?.value === 'PJ';
+  ['cargo-adhe', 'cargo-addf'].forEach(id => { const g = $(id)?.closest('.form-group'); if (g) g.style.display = pj ? 'none' : ''; });
+  const novo = !$('cargo-edit-id')?.value, cod = $('cargo-cod');
+  if (cod && novo && (gerar || !cod.value || cod.dataset.auto === cod.value)) { cod.value = _cgProxCod($('cargo-obra')?.value, pj ? 'PJ' : 'CLT'); cod.dataset.auto = cod.value; }
+}
+(function () {
+  const $ = id => document.getElementById(id);
+  const gC = $('cargo-cod')?.closest('.form-group');
+  if (gC) gC.insertAdjacentHTML('beforebegin', `<div class="form-group"><label class="form-label" for="cargo-vinculo">Vínculo</label><select class="form-control" id="cargo-vinculo" onchange="_cgVincMudou(true)"><option value="CLT">CLT</option><option value="PJ">PJ</option></select></div>`);
+  if (gC) { gC.querySelector('.form-label').innerHTML = 'Cód. Função * <span style="font-weight:400;color:var(--text-3)">(gerado — pode trocar)</span>'; $('cargo-cod').placeholder = ''; }
+  const gR = $('cargo-recurso')?.closest('.form-group'); if (gR && gC) gC.after(gR);
+  $('cargo-obra')?.addEventListener('change', () => _cgVincMudou(false));
+  const oO = window.openModal; window.openModal = openModal = function (id) { const r = oO.apply(this, arguments);
+    if (id === 'modal-novo-cargo') setTimeout(() => { const eid = $('cargo-edit-id')?.value, c = eid && (dados.cargos || []).find(x => x.id === eid);
+      $('cargo-vinculo').value = c ? _cgVinc(c) : ($('cargo-vinculo').value || 'CLT'); if (!c) $('cargo-cod').dataset.auto = $('cargo-cod').value; _cgVincMudou(false); }, 0);
+    return r; };
+  const oS = window.salvarCargo; window.salvarCargo = salvarCargo = function () {
+    const vinc = $('cargo-vinculo')?.value === 'PJ' ? 'PJ' : 'CLT', cod = ($('cargo-cod')?.value || '').trim(), obra = $('cargo-obra')?.value || '', eid = $('cargo-edit-id')?.value;
+    if (vinc === 'PJ') { $('cargo-adhe').value = '0'; $('cargo-addf').value = '0'; }
+    const r = oS.apply(this, arguments);
+    const c = (eid && (dados.cargos || []).find(x => x.id === eid)) || (dados.cargos || []).slice().reverse().find(x => String(x.cod) === cod && (x.obra || '') === obra);
+    if (c && c.vinculo !== vinc) { c.vinculo = vinc; if (vinc === 'PJ') { c.adicHE = 0; c.adicDF = 0; } if (db && _firebaseReady) fbSave('cargos', c.id, c).catch(() => {}); try { renderCargos(); } catch (e) {} }
+    return r; };
+  // importação de funções: coluna Vínculo (ou código começando com PJ)
+  const D = IMPORT_DEF.cargos; if (D) { D.col = D.col.concat(['Vínculo (CLT/PJ)']); const m = D.map;
+    D.map = g => { const x = m(g), v = String(g(['vínculo', 'vinculo']) || ''); x.vinculo = /pj/i.test(v) || (!v && /^PJ/i.test(String(x.cod || ''))) ? 'PJ' : 'CLT'; if (x.vinculo === 'PJ') { x.adicHE = 0; x.adicDF = 0; } return x; }; }
+  // cadastro do funcionário: só as funções do vínculo escolhido
+  const oV = window._fnVincMudou; window._fnVincMudou = _fnVincMudou = function () { const r = oV.apply(this, arguments);
+    const sel = $('func-funcao'), pj = $('func-vinculo')?.value === 'PJ', ob = $('func-obra')?.value; if (!sel) return r;
+    [...sel.options].forEach(o => { if (!o.value) return; const c = (dados.cargos || []).find(x => String(x.cod) === o.value && (!ob || !x.obra || x.obra === ob)) || (dados.cargos || []).find(x => String(x.cod) === o.value);
+      o.hidden = !!c && (_cgVinc(c) === 'PJ') !== pj; });
+    if (sel.selectedOptions[0] && sel.selectedOptions[0].hidden) sel.value = ''; return r; };
+  const fv = $('func-vinculo'); if (fv) fv.addEventListener('change', () => _fnVincMudou());
 })();
 // Apply configs on load
 setTimeout(applyConfigs, 200);
