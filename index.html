@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.26 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.27 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -5063,7 +5063,7 @@ function salvarObra() {
     // Save to Firebase
   if (db && _firebaseReady) {
     const _last = (dados.obras||[]).slice(-1)[0];
-    if (_last?.id) fbSave('obras', _last.id, _last).catch(()=>{});
+    if (_last?.id) fbSave('obras', _last.id, _last).catch(()=>toast('A obra ficou só neste computador — não foi gravada no servidor. Tente salvar de novo.','error'));
   }
   closeModal('modal-nova-obra');
   renderObras();

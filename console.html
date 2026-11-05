@@ -100,7 +100,7 @@ input:disabled{opacity:.7}
     <input id="lg-senha" type="password" autocomplete="current-password">
     <div class="err" id="lg-err"></div>
     <button class="btn btn-p" style="width:100%" id="lg-btn">Entrar</button>
-    <div class="ver">ObraKontrol Console · v1.5</div>
+    <div class="ver">ObraKontrol Console · v1.6</div>
   </form>
 </div>
 
@@ -226,7 +226,7 @@ input:disabled{opacity:.7}
 </div>
 
 <script>
-const VERSAO = 'v1.5';
+const VERSAO = 'v1.6';
 const firebaseConfig = {
   apiKey: "AIzaSyBShR-XvPrUiFtnndFXJV7IYrrTG90BS5o",
   authDomain: "obrakontrol-205c4.firebaseapp.com",
@@ -458,7 +458,7 @@ const EXO_COLS = ['aponMO','aponEQ','diesel','perdas','mobilizacoes','fotos','tu
 let EXO = null;
 async function exoObras() {
   const sel = $('exo-obra'); if (!sel || !editando) return; sel.innerHTML = '<option value="">Escolha a obra…</option>'; $('exo-res').innerHTML = ''; EXO = null;
-  try { const ob = (await db.collection('clientes').doc(editando).collection('obras').get()).docs.map(d => ({ id: d.id, ...d.data() }));
+  try { const ob = (await db.collection('clientes').doc(editando).collection('obras').get()).docs.map(d => ({ ...d.data(), id: d.id }));
     sel.innerHTML += ob.map(o => `<option value="${esc(o.id)}">${esc((o.cod || '') + ' · ' + (o.nome || ''))}</option>`).join(''); } catch (e) {}
 }
 async function exoContar() {
