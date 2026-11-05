@@ -869,11 +869,11 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
   </div>
   <div class="login-card">
     <h2>Entrar</h2>
-    <p>Use sua matrícula e senha cadastradas</p>
+    <p>Leia seu crachá, ou entre com CPF (ou matrícula) e senha</p>
     <div id="login-error" class="login-error"></div>
     <div class="form-group">
       <label class="form-label">Matrícula</label>
-      <div class="fld"><svg class="fld-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><input class="form-control" id="login-mat" type="text" inputmode="numeric" placeholder="0001" autocomplete="off"/></div>
+      <div class="fld"><svg class="fld-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><input class="form-control" id="login-mat" type="text" inputmode="numeric" placeholder="CPF ou matrícula" autocomplete="off"/></div>
     </div>
     <div class="form-group">
       <label class="form-label">Senha</label>
@@ -883,7 +883,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.75</div>
+  <div class="login-versao">ObraKontrol Campo · v2.76</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -1594,7 +1594,7 @@ async function fazerLoginCampo() {
   const errEl = document.getElementById('login-error');
   const btn   = document.getElementById('btn-entrar');
   const erro  = (msg) => { errEl.textContent = msg; errEl.style.display = 'block'; btn.textContent = 'Entrar'; btn.disabled = false; };
-  if (!digitado || !senha) { erro('Informe matrícula e senha.'); return; }
+  if (!digitado || !senha) { erro('Informe CPF (ou matrícula) e senha, ou leia seu crachá.'); return; }
   if (!db || !auth || !_fbReady || !navigator.onLine) { erro('Sem internet. O primeiro login precisa de conexão; depois o app abre sem sinal.'); return; }
   btn.textContent = 'Entrando...'; btn.disabled = true;
   errEl.style.display = 'none';
@@ -1617,7 +1617,7 @@ async function fazerLoginCampo() {
     const c = ultimo && ultimo.code;
     if (c === 'auth/too-many-requests') erro('Muitas tentativas. Aguarde alguns minutos.');
     else if (c === 'auth/network-request-failed') erro('Sem internet. Tente de novo.');
-    else erro('Matrícula ou senha incorretos.' + (c ? ' (' + c.replace('auth/','') + ')' : ''));
+    else erro('CPF / matrícula ou senha incorretos.' + (c ? ' (' + c.replace('auth/','') + ')' : ''));
     return;
   }
 
@@ -1631,6 +1631,7 @@ async function fazerLoginCampo() {
   let usr = null;
   try {
     let snap = await db.collection('usuarios').where('email', '==', emailAuth).limit(1).get();
+    if (snap.empty) snap = await db.collection('usuarios').where('emailQR', '==', emailAuth).limit(1).get();   // v2.76: entrou pelo crachá
     if (snap.empty && !digitado.includes('@')) snap = await db.collection('usuarios').where('mat', '==', digitado).limit(1).get();
     if (!snap.empty) usr = { ...snap.docs[0].data(), id: snap.docs[0].id };
   } catch (e) { try { await auth.signOut(); } catch (_) {} erro('Não consegui ler o cadastro (' + (e.code || 'erro') + '). Tente de novo.'); return; }
@@ -1812,19 +1813,19 @@ function processarQR(texto, contexto) {
 
   if (contexto === 'ap') {
     if (ap.aba === 'mo') {
-      const f = dadosCampo.funcionarios.find(x => String(x.mat) === String(mat||'') || x.id === (mat||''));
+      const f = _daObraCampo(dadosCampo.funcionarios).find(x => String(x.mat) === String(mat||'') || x.id === (mat||''));
       if (!f) return { ok:false, msg:'✗ Funcionário não encontrado: ' + (mat||texto), add:{ tipo:'mo', valor: String(mat||texto).trim() } };
       const ja = ap.mo.has(f.id); ap.mo.add(f.id); apRenderMO(); apGuardar(); if (!ja) qrLidosSessao++;
       return { ok:true, msg:(ja ? '• ' + f.nome + ' já estava marcado' : '✓ ' + f.nome) + ' — ' + ap.mo.size + ' na equipe' };
     } else {
-      const e = dadosCampo.equipamentos.find(x => x.tag === (tag||'') || x.placa === (tag||'') || x.id === (tag||'')) || dadosCampo.equipamentos.find(x => _normId(tag) && (_normId(x.tag) === _normId(tag) || _normId(x.placa) === _normId(tag)));
+      const e = _daObraCampo(dadosCampo.equipamentos).find(x => x.tag === (tag||'') || x.placa === (tag||'') || x.id === (tag||'')) || _daObraCampo(dadosCampo.equipamentos).find(x => _normId(tag) && (_normId(x.tag) === _normId(tag) || _normId(x.placa) === _normId(tag)));
       if (!e) return { ok:false, msg:'✗ Equipamento não encontrado: ' + (tag||texto), add:{ tipo:'eq', valor: String(tag||texto).trim() } };
       const ja = ap.eq.has(e.id); if (!ja) apToggleEQ(e.id); else apRenderEQ(); if (!ja) qrLidosSessao++;
       return { ok:true, msg:(ja ? '• ' + (e.tag||e.placa) + ' já estava marcado' : '✓ ' + (e.tag||e.placa)) + ' — ' + ap.eq.size + ' equipamento(s)' };
     }
   }
   if (contexto === 'mo' && mat) {
-    const func = dadosCampo.funcionarios.find(f => f.mat === mat || f.id === mat);
+    const func = _daObraCampo(dadosCampo.funcionarios).find(f => f.mat === mat || f.id === mat);
     if (func) {
       moEquipeSelecionada.add(func.id);
       renderFuncionariosList();
@@ -4265,9 +4266,11 @@ async function atualizarCadastrosCampo(avisar) {
 // v2.56: CRACHÁS ANTIGOS DAS OBRAS — QR com "matrícula/CPF" (ex.: 939801/40438436822) ou só o CPF
 // acha o funcionário pela matrícula ou pelo CPF (com ou sem pontos e traços)
 // ══════════════════════════════════════════════════════════════
+// v2.76: obras independentes — só a obra do apropriador (a mesma matrícula ou TAG pode existir em outra obra)
+function _daObraCampo(l) { const o = (usuarioCampo && usuarioCampo.obra) || ''; return !o ? (l || []) : (l || []).filter(x => !x.obra || x.obra === o); }
 function _soDig(v) { return String(v || '').replace(/\D/g, ''); }
 function _funcPorCracha(texto) {
-  const t = String(texto || '').trim(), fs = dadosCampo.funcionarios || [];
+  const t = String(texto || '').trim(), fs = _daObraCampo(dadosCampo.funcionarios || []);
   const pMat = m => m && fs.find(f => String(f.mat || '').trim() === String(m).trim()) || (_soDig(m) && fs.find(f => _soDig(f.mat) === _soDig(m)));
   const pCpf = c => { const d = _soDig(c); return d.length === 11 && fs.find(f => _soDig(f.cpf) === d); };
   const m = /^([^/|;]+)[/|;]\s*([\d.\-\s]{11,14})$/.exec(t);
@@ -5375,6 +5378,91 @@ function _csAplicar(raiz) { (typeof raiz === 'string' ? document.querySelectorAl
     if (fn === 'mobRender') mobRender = nv; if (fn === 'vlRender') vlRender = nv; if (fn === 'vleRender') vleRender = nv; if (fn === 'abvRender') abvRender = nv;
   });
 })();
+
+// ══════════════════════════════════════════════════════════════
+// v2.76: ENTRAR PELO CRACHÁ (lê o CPF do crachá da obra) ou CPF + senha · senha pessoal obrigatória no 1º acesso
+// ══════════════════════════════════════════════════════════════
+const _SENHA_PROV = 'Tenco@2026';
+async function _senhaCracha(cpf) { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('okq|' + cpf + '|obrakontrol'));
+  return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('').slice(0, 24) + 'Aa1!'; }
+function _preCampo() { const cl = _okClienteLink(); return cl && cl !== 'tenco' ? cl + '-' : ''; }
+function _cpfDoCracha(t) { t = String(t || '').trim(); const m = /^[^/|;]+[/|;]\s*([\d.\-\s]{11,14})$/.exec(t); const d = (m ? m[1] : t).replace(/\D/g, '');
+  return d.length === 11 && (m || /^[\d.\-\s]{11,14}$/.test(t)) ? d : ''; }
+(function () {
+  // botão "Ler crachá" na tela de login
+  const card = document.querySelector('#screen-login .login-card'), err = document.getElementById('login-error');
+  if (card && err && !document.getElementById('btn-cracha')) err.insertAdjacentHTML('afterend', `<button type="button" class="btn btn-primary" id="btn-cracha" onclick="abrirQR('login')" style="margin-bottom:14px;display:flex;gap:8px;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/></svg>Ler meu crachá para entrar</button><div style="text-align:center;font-size:12px;color:var(--text2,#9A9CA5);margin:-4px 0 12px">ou digite</div>`);
+  const lb = document.getElementById('login-mat')?.closest('.form-group')?.querySelector('.form-label'); if (lb && lb.textContent === 'Matrícula') lb.textContent = 'CPF ou matrícula';
+  // CPF digitado com pontos e traço vira só números; guarda a senha digitada para saber se é a provisória
+  const oL = fazerLoginCampo;
+  fazerLoginCampo = async function () { const i = document.getElementById('login-mat'), v = (i.value || '').trim();
+    if (!v.includes('@')) { const d = v.replace(/[.\-\s/]/g, ''); if (/^\d{11}$/.test(d)) i.value = d; }
+    return oL.apply(this, arguments); };
+  // leitura do crachá na tela de login
+  const oP = processarQR;
+  processarQR = function (texto, contexto) { if (contexto === 'login') { _loginCracha(texto); return { ok: true }; } return oP.apply(this, arguments); };
+})();
+async function _loginCracha(texto) {
+  const errEl = document.getElementById('login-error'), erro = m => { errEl.textContent = m; errEl.style.display = 'block'; };
+  errEl.style.display = 'none';
+  const cpf = _cpfDoCracha(texto);
+  if (!cpf) { erro('Não achei CPF nesse QR. Use o crachá da obra, ou digite seu CPF e senha.'); return; }
+  if (!db || !auth || !_fbReady || !navigator.onLine) { erro('Sem internet. O primeiro login precisa de conexão.'); return; }
+  const em = _preCampo() + cpf + '.q@campo.obracontrol.app', se = await _senhaCracha(cpf), b = document.getElementById('btn-cracha');
+  if (b) { b.disabled = true; b.lastChild.textContent = 'Entrando...'; }
+  try { await auth.signInWithEmailAndPassword(em, se); }
+  catch (e) { if (b) { b.disabled = false; b.lastChild.textContent = 'Ler meu crachá para entrar'; }
+    erro(['auth/network-request-failed'].includes(e.code) ? 'Sem internet. Tente de novo.' : e.code === 'auth/too-many-requests' ? 'Muitas tentativas. Aguarde alguns minutos.'
+      : 'Esse crachá (CPF ' + cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') + ') não está liberado como apropriador. Fale com o escritório.'); return; }
+  const i = document.getElementById('login-mat'), s = document.getElementById('login-senha');
+  i.value = em; s.value = se;
+  try { await fazerLoginCampo(); } finally { i.value = ''; s.value = ''; if (b) { b.disabled = false; b.lastChild.textContent = 'Ler meu crachá para entrar'; } }
+}
+// senha pessoal obrigatória no 1º acesso (pelo crachá ou digitando)
+async function _okChecarSenha() {
+  if (!usuarioCampo || !usuarioCampo.id || usuarioCampo.id === 'dev' || !db || !navigator.onLine) return;
+  let u = null; for (let i = 0; i < 30 && !(auth && auth.currentUser); i++) await new Promise(r => setTimeout(r, 100));
+  if (!auth || !auth.currentUser) return;
+  try { const d = await db.collection('usuarios').doc(usuarioCampo.id).get(); u = d.exists ? d.data() : null; } catch (e) { return; }
+  if (!u || !u.emailQR || u.senhaDefinida) return;
+  _okTelaSenha(u);
+}
+function _okTelaSenha(u) {
+  document.getElementById('ok-senha-ov')?.remove();
+  document.body.insertAdjacentHTML('beforeend', `<div id="ok-senha-ov" style="position:fixed;inset:0;z-index:9000;background:rgba(10,10,12,.92);display:flex;align-items:center;justify-content:center;padding:18px">
+    <div style="background:#1A1A1E;color:#F4F4F5;border-radius:16px;padding:22px;max-width:380px;width:100%;border:1px solid #2A2A30">
+      <div style="font-size:18px;font-weight:800;margin-bottom:6px;color:#fff">Crie sua senha</div>
+      <div style="font-size:13px;color:var(--text2,#9A9CA5);margin-bottom:14px">É o seu primeiro acesso. A senha é só sua: você usa quando esquecer o crachá (entra com o CPF e essa senha). Não conte para ninguém.</div>
+      <input class="form-control" id="oks-1" type="password" placeholder="Nova senha (mínimo 6)" style="margin-bottom:10px"/>
+      <input class="form-control" id="oks-2" type="password" placeholder="Repita a senha" style="margin-bottom:10px"/>
+      <div id="oks-err" style="color:#FF5A60;font-size:13px;min-height:18px;margin-bottom:8px"></div>
+      <button class="btn btn-primary" id="oks-ok" onclick="_okSalvarSenha()" style="width:100%">Salvar e continuar</button>
+      <button class="btn" onclick="document.getElementById('ok-senha-ov').remove();showLogoutMenu()" style="width:100%;margin-top:8px;background:none;color:var(--text2,#9A9CA5)">Sair</button></div></div>`);
+  window._okSenhaU = u;
+}
+async function _okSalvarSenha() {
+  const $ = k => document.getElementById(k), a = $('oks-1').value, b = $('oks-2').value, e = m => { $('oks-err').textContent = m; }, u = window._okSenhaU || {};
+  if (a.length < 6) return e('A senha precisa ter pelo menos 6 caracteres.');
+  if (a !== b) return e('As duas senhas não estão iguais.');
+  if (a === _SENHA_PROV) return e('Escolha uma senha diferente da provisória.');
+  if (!navigator.onLine) return e('Sem internet. Conecte e tente de novo.');
+  const bt = $('oks-ok'); bt.disabled = true; bt.textContent = 'Salvando...';
+  try {
+    const atual = String(auth.currentUser && auth.currentUser.email || '').toLowerCase();
+    if (atual !== String(u.email || '').toLowerCase()) {   // entrou pelo crachá: entra no acesso do CPF com a senha provisória para trocar
+      try { await auth.signInWithEmailAndPassword(u.email, _SENHA_PROV); }
+      catch (x) { if (['auth/wrong-password', 'auth/invalid-credential', 'auth/invalid-login-credentials'].includes(x.code)) { await db.collection('usuarios').doc(usuarioCampo.id).set({ senhaDefinida: true }, { merge: true }).catch(() => {}); $('ok-senha-ov').remove(); toast('Sua senha já tinha sido criada antes. Se esqueceu, fale com o escritório.', 'ok'); return; } throw x; }
+    }
+    await auth.currentUser.updatePassword(a);
+    await db.collection('usuarios').doc(usuarioCampo.id).set({ senhaDefinida: true, senhaDefinidaEm: new Date().toISOString() }, { merge: true });
+    $('ok-senha-ov').remove(); toast('Senha criada. Da próxima vez, é só ler o crachá.', 'ok');
+  } catch (x) {
+    bt.disabled = false; bt.textContent = 'Salvar e continuar';
+    if (x.code === 'auth/requires-recent-login') { e('Por segurança, saia e entre de novo para criar a senha.'); return; }
+    e('Não consegui salvar (' + (x.code || x.message || 'erro') + '). Tente de novo.');
+  }
+}
+(function () { const oE = entrarNoCampo; entrarNoCampo = function () { const r = oE.apply(this, arguments); setTimeout(() => _okChecarSenha().catch(() => {}), 300); return r; }; })();
 
 // Salvar sessão ao entrar
 const _origEntrar = entrarNoCampo;
