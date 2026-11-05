@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.75 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.76 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -16494,6 +16494,10 @@ function _catAplicar() { try { if (document.getElementById('page-familias')?.cla
     return r; };
   try { const D = IMPORT_DEF.familias; if (!D.col.includes('Categoria')) { D.col = D.col.concat(['Categoria']); const m0 = D.map; D.map = gg => { const x = m0(gg), c = String(gg(['categoria']) || '').toLowerCase(); const k = CAT_EQ.find(z => c && z.toLowerCase().startsWith(c.slice(0, 8))); if (k) x.categoria = k; return x; }; } } catch (e) {}
 })();
+// v3.76: Funcionários — colunas sem quebra de linha (nome e função numa linha só; rolagem lateral)
+(function () { const css = document.createElement('style');
+  css.textContent = '#tabela-func th,#tabela-func td{white-space:nowrap}#tabela-func td{padding-top:9px;padding-bottom:9px}#tabela-func td strong{font-weight:700}';
+  document.head.appendChild(css); })();
 // Apply configs on load
 setTimeout(applyConfigs, 200);
 setTimeout(function() {
