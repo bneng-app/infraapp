@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.34 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.35 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -15459,6 +15459,48 @@ function alojVincularSalvar() {
     arr.m.style.transform = `translate(${x}px,${y}px)`; arr.m.dataset.dragTmp = x + ',' + y; });
   document.addEventListener('pointerup', () => { if (!arr) return; if (arr.m.dataset.dragTmp) arr.m.dataset.drag = arr.m.dataset.dragTmp; arr = null; });
   const oO = window.openModal; window.openModal = openModal = function (id) { const m = document.querySelector('#' + id + ' .modal'); if (m) { m.style.transform = ''; m.dataset.drag = '0,0'; delete m.dataset.dragTmp; } return oO.apply(this, arguments); };
+})();
+
+
+// ═══════════════════════════════════════════════════════════════
+// v3.35: PLANILHA DE CONTROLE DA FROTA — botão também na tela de Veículos; responsável e motorista
+// ligados ao funcionário do efetivo pelo nome; resumo no fim com quem não foi encontrado
+// ═══════════════════════════════════════════════════════════════
+function _frAchaFunc(nome, obra) {
+  const N = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z ]/g, ' ').split(/\s+/).filter(t => t && !['de', 'da', 'do', 'dos', 'das', 'e'].includes(t));
+  const t = N(nome); if (!t.length) return null; const fs = (dados.funcionarios || []).filter(f => !obra || !f.obra || f.obra === obra);
+  const ex = fs.filter(f => N(f.nome).join(' ') === t.join(' ')); if (ex.length === 1) return ex[0];
+  const pc = fs.filter(f => { const ft = N(f.nome); if (ft[0] !== t[0]) return false; let i = 0; ft.forEach(x => { if (i < t.length && x === t[i]) i++; }); return i === t.length; });
+  return pc.length === 1 ? pc[0] : null;
+}
+(function () {
+  const oI = window.abImportarPlanilha;
+  window.abImportarPlanilha = abImportarPlanilha = async function (input) {
+    const obra = _okObraAtual(), antV = new Set((dados.frota || []).map(v => v.id)), antA = new Set((dados.abastVeic || []).map(a => a.id));
+    const r = await oI.apply(this, arguments);
+    const nV = (dados.frota || []).filter(v => !antV.has(v.id)), nA = (dados.abastVeic || []).filter(a => !antA.has(a.id)); if (!nV.length && !nA.length) return r;
+    const semResp = new Set(), semMot = new Set(), alt = [];
+    nV.forEach(v => (v.resp || []).forEach(x => { if (x.func || !x.nome) return; const f = _frAchaFunc(x.nome, obra);
+      if (f) { Object.assign(x, { func: f.id, nomePlanilha: x.nome, nome: f.nome, mat: f.mat || '', funcao: f.funcao || '' }); if (!alt.includes(v)) alt.push(v); } else semResp.add(x.nome); }));
+    const cache = {}; nA.forEach(a => { if (!a.motorista || a.motoristaId) return; const f = cache[a.motorista] !== undefined ? cache[a.motorista] : (cache[a.motorista] = _frAchaFunc(a.motorista, obra));
+      if (f) { a.motoristaPlanilha = a.motorista; a.motorista = f.nome; a.motoristaId = f.id; a.motoristaMat = f.mat || ''; } else semMot.add(a.motorista); });
+    if (db && _firebaseReady) { for (const v of alt) await fbSave('frota', v.id, v).catch(() => {}); for (const a of nA.filter(a => a.motoristaId)) await fbSave('abastVeic', a.id, a).catch(() => {}); }
+    try { renderAbastVeic(); renderFrota(); renderFrotaResp(); } catch (e) {}
+    const lst = s => [...s].sort().map(n => `<span class="tag tag-amber" style="margin:2px">${_e(n)}</span>`).join(' ');
+    document.getElementById('modal-frimp')?.remove();
+    document.body.insertAdjacentHTML('beforeend', `<div class="modal-overlay open" id="modal-frimp"><div class="modal" style="max-width:600px">
+      <div class="modal-header"><span class="modal-title">Planilha da frota importada</span><button class="modal-close" onclick="document.getElementById('modal-frimp').remove()">×</button></div>
+      <div class="modal-body" style="font-size:13px">
+        <div style="margin-bottom:10px"><b>${nV.length}</b> veículo(s) e <b>${nA.length}</b> abastecimento(s) entraram.</div>
+        <div style="margin-bottom:10px">✓ Responsáveis ligados ao efetivo: <b>${nV.reduce((s, v) => s + (v.resp || []).filter(x => x.func).length, 0)}</b> · motoristas ligados: <b>${nA.filter(a => a.motoristaId).length}</b> de ${nA.length} abastecimentos.</div>
+        ${semResp.size ? `<div style="margin-bottom:10px"><b>Responsáveis que não achei no efetivo</b> (ficaram só com o nome — confira a grafia e ajuste em Frota → Responsáveis):<div style="margin-top:6px">${lst(semResp)}</div></div>` : ''}
+        ${semMot.size ? `<div><b>Motoristas que não achei no efetivo</b> (os abastecimentos entraram com o nome escrito na planilha):<div style="margin-top:6px">${lst(semMot)}</div></div>` : ''}
+      </div><div class="modal-footer"><button class="btn btn-primary" onclick="document.getElementById('modal-frimp').remove()">OK</button></div></div></div>`);
+    return r;
+  };
+  // botão também na tela de Veículos
+  const g = document.querySelector('#page-frota .page-header .btn-group');
+  if (g && !g.querySelector('.fr-imp-pl')) g.insertAdjacentHTML('afterbegin', `<label class="btn btn-outline btn-sm fr-imp-pl" style="cursor:pointer" title="Planilha 'Controle de Frota e Abastecimento': abas Controle de Frota e Abastecimentos">↑ Importar planilha de controle<input type="file" accept=".xlsx,.xls" style="display:none" onchange="abImportarPlanilha(this)"/></label>`);
 })();
 
 // Apply configs on load
