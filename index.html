@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.76 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.77 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -16498,6 +16498,27 @@ function _catAplicar() { try { if (document.getElementById('page-familias')?.cla
 (function () { const css = document.createElement('style');
   css.textContent = '#tabela-func th,#tabela-func td{white-space:nowrap}#tabela-func td{padding-top:9px;padding-bottom:9px}#tabela-func td strong{font-weight:700}';
   document.head.appendChild(css); })();
+// v3.77: Usuários — blocos por perfil (quantas pessoas; clicar filtra; "+ Cadastrar" já abre com o perfil)
+const _PF_COR = { red: '#E30613', blue: '#2563EB', green: '#16A34A', amber: '#D97706', gray: '#6B7280', purple: '#7C3AED', teal: '#0D9488' };
+function _pfBlocos() {
+  const leg = document.getElementById('legenda-perfis'); if (!leg || typeof listaPerfis !== 'function') return;
+  const box = leg.closest('.alert'); if (box && !box.dataset.pf) { box.dataset.pf = 1; box.className = ''; box.style.cssText = 'margin-bottom:1.25rem'; const ic = box.querySelector('svg'); if (ic) ic.remove(); }
+  const obraF = document.getElementById('filtro-usr-obra')?.value || '', sel = document.getElementById('filtro-usr-perfil')?.value || '';
+  let us = [...(USUARIOS || [])]; if (obraF) us = us.filter(u => u.obra === obraF || (!u.obra && u.perfil === 'Admin'));
+  const ps = listaPerfis(), n = nome => us.filter(u => u.perfil === nome && u.status !== 'Inativo').length;
+  leg.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px">${ps.map(p => { const c = _PF_COR[p.cor] || _PF_COR.gray, on = sel === p.nome;
+    return `<div onclick="_pfFiltrar('${_escP(p.nome)}')" style="cursor:pointer;background:var(--surface,#fff);border:1px solid ${on ? c : 'var(--border)'};${on ? 'box-shadow:0 0 0 2px ' + c + '33;' : ''}border-left:4px solid ${c};border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:4px;min-height:96px" title="Clique para ver só este perfil">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:6px"><b style="font-size:13.5px">${_escP(p.nome)}</b><span style="font-size:22px;font-weight:800;color:${c};line-height:1">${n(p.nome)}</span></div>
+      <div style="font-size:11.5px;color:var(--text-3);flex:1">${_escP(p.desc || '')}${p.tipo === 'campo' ? ' · app de campo' : ''}</div>
+      <button type="button" class="btn btn-outline btn-sm" style="align-self:flex-start;padding:3px 10px;font-size:12px" onclick="event.stopPropagation();_pfCadastrar('${_escP(p.nome)}')">+ Cadastrar</button></div>`; }).join('')}</div>
+    ${sel ? `<div style="margin-top:8px;font-size:12.5px">Mostrando só <b>${_escP(sel)}</b> · <a href="#" onclick="_pfFiltrar('');return false">ver todos</a></div>` : ''}`;
+}
+function _pfFiltrar(nome) { const f = document.getElementById('filtro-usr-perfil'); if (!f) return; f.value = f.value === nome ? '' : nome; renderUsuarios(); }
+function _pfCadastrar(nome) { novoUsuario(); const s = document.getElementById('usr-perfil'); if (s) { s.value = nome; try { usrPerfilMudou(); } catch (e) {} } }
+(function () {
+  const oP = window.popularPerfis || popularPerfis; popularPerfis = window.popularPerfis = function () { const r = oP.apply(this, arguments); try { _pfBlocos(); } catch (e) {} return r; };
+  const oR = window.renderUsuarios; window.renderUsuarios = renderUsuarios = function () { const r = oR.apply(this, arguments); try { _pfBlocos(); } catch (e) {} return r; };
+})();
 // Apply configs on load
 setTimeout(applyConfigs, 200);
 setTimeout(function() {
