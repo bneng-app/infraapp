@@ -1342,7 +1342,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
       <div class="search-wrap" style="flex:1;min-width:240px;margin:0"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="search-fr" placeholder="Buscar placa, modelo, locadora ou responsável…" oninput="renderFrota()"/></div>
       <div class="form-group" style="min-width:170px;margin:0"><label class="form-label" for="filtro-fr-sit">Situação</label><select class="form-control" id="filtro-fr-sit" onchange="renderFrota()"><option value="">Na obra (sem devolvidos)</option><option value="alerta">⚠ Com alerta</option><option>Em uso</option><option>Reserva</option><option>Em manutenção</option><option>Devolvido</option><option value="todos">Todos</option></select></div>
     </div>
-    <div class="table-wrap"><table><thead><tr><th>Obra</th><th>TAG</th><th>Placa</th><th>Modelo</th><th>Tipo</th><th>Locadora</th><th>Contrato</th><th>Fim do contrato</th><th>Responsável</th><th>Matrícula</th><th>CNH</th><th>Validade CNH</th><th>Chegada</th><th style="text-align:right">Km chegada</th><th style="text-align:right">R$/mês</th><th>Situação</th><th>Devolução</th><th>Avisos</th><th></th></tr></thead>
+    <div class="table-wrap"><table><thead><tr><th>Obra</th><th>TAG</th><th>Placa</th><th>Modelo</th><th>Tipo</th><th>Locadora</th><th>Contrato</th><th>Fim do contrato</th><th>Responsável</th><th>Matrícula</th><th>Função</th><th>CNH</th><th>Validade CNH</th><th>Chegada</th><th style="text-align:right">Km chegada</th><th style="text-align:right">R$/mês</th><th>Situação</th><th>Devolução</th><th>Avisos</th><th></th></tr></thead>
       <tbody id="tbody-frota"></tbody></table></div>
   </div></div>
 </div>
@@ -12303,6 +12303,7 @@ function renderFrota() {
       <td class="td-mono" style="font-size:12px;white-space:nowrap">${D(v.fimContrato)}</td>
       <td style="font-size:12.5px;font-weight:600">${r ? _e(r.nome) : '<span style="color:var(--text-3);font-weight:400">—</span>'}</td>
       <td class="td-mono" style="font-size:12px">${r && r.mat ? _e(r.mat) : '—'}</td>
+      <td style="font-size:12px">${r && r.funcao ? _e(r.funcao) : '—'}</td>
       <td class="td-mono" style="font-size:12px">${r && r.cnhCat ? _e(r.cnhCat) : '—'}</td>
       <td class="td-mono" style="font-size:12px;white-space:nowrap">${r ? D(r.cnhVal) : '—'}</td>
       <td class="td-mono" style="font-size:12px;white-space:nowrap">${D(v.mobData)}</td>
@@ -12312,7 +12313,7 @@ function renderFrota() {
       <td class="td-mono" style="font-size:12px;white-space:nowrap">${v.status === 'Devolvido' ? D(v.devData) : '—'}</td>
       <td style="min-width:150px">${al.length ? al.map(x => `<span class="tag tag-${x.nivel}" style="font-size:10.5px;margin:2px 3px 2px 0;display:inline-block">⚠ ${_e(x.t)}</span>`).join('') : '<span style="color:var(--text-3)">—</span>'}</td>
       <td style="white-space:nowrap;text-align:right"><button class="btn btn-outline btn-sm" onclick="frEditar('${v.id}')">✎ Editar</button></td></tr>`; }).join('')
-    : '<tr><td colspan="19" style="text-align:center;color:var(--text-3);padding:2rem">Nenhum veículo' + (sit || busca ? ' com esse filtro' : _okObraAtual() !== 'todas' ? ' nesta obra' : '') + '. Clique em <b>+ Novo veículo</b>.</td></tr>';
+    : '<tr><td colspan="20" style="text-align:center;color:var(--text-3);padding:2rem">Nenhum veículo' + (sit || busca ? ' com esse filtro' : _okObraAtual() !== 'todas' ? ' nesta obra' : '') + '. Clique em <b>+ Novo veículo</b>.</td></tr>';
   // consulta "quem estava com o veículo"
   const q = document.getElementById('fr-q-veic');
   if (q) { const val = q.value; q.innerHTML = '<option value="">Escolha…</option>' + todos.slice().sort((a, b) => String(a.placa).localeCompare(String(b.placa))).map(v => `<option value="${v.id}">${_e(v.placa)} · ${_e(v.modelo)}</option>`).join(''); q.value = val; frQuem(); }
