@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.47 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.48 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -15839,6 +15839,25 @@ function frCorrigirResp(vid) { closeModal('modal-veiculo'); frVincular(vid); win
 })();
 // v3.47: termos usam a logo da obra (cadastrada em Obras → Editar); sem logo, vai a do ObraKontrol
 function _logoTermo(obraId) { const o = (dados.obras || []).find(x => x.id === obraId); return (o && o.logo) || (typeof _TK_LOGO !== 'undefined' ? _TK_LOGO : ''); }
+// v3.48: GRÁFICO DE ROSCA ocupa o espaço do painel — maior, centralizado na altura e legenda maior
+_donut = function (rows, centro, sub, fmt) {
+  const tot = rows.reduce((s, r) => s + r.v, 0);
+  if (!tot) return '<div class="dx-vazio">Sem dados no período</div>';
+  const R = 52, C = 2 * Math.PI * R; let off = 0;
+  const arcos = rows.map((r, i) => { const d = r.v / tot * C; const a = `<circle cx="70" cy="70" r="${R}" fill="none" stroke="${_DX_CORES[i % _DX_CORES.length]}" stroke-width="18" stroke-dasharray="${d} ${C - d}" stroke-dashoffset="${-off}" transform="rotate(-90 70 70)"/>`; off += d; return a; }).join('');
+  const fs = String(centro).length > 12 ? 11.5 : String(centro).length > 8 ? 13 : 16;
+  return `<div class="dx-dn"><svg viewBox="0 0 140 140">${arcos}<text x="70" y="68" style="fill:var(--tx)" font-size="${fs}" font-weight="800" text-anchor="middle">${centro}</text><text x="70" y="84" style="fill:var(--mu)" font-size="9.5" text-anchor="middle">${sub}</text></svg>
+    <div class="dx-dn-lg">${rows.map((r, i) => `<div class="it"><i style="background:${_DX_CORES[i % _DX_CORES.length]}"></i><span class="nm">${_e(r.l)}<span class="vl">${fmt(r.v)} · ${_n1(r.v / tot * 100)}%</span></span></div>`).join('')}</div></div>`;
+};
+(function () { const css = document.createElement('style');
+  css.textContent = `.dx-pn:has(>.dx-dn),.dx-pn:has(.dx-dn){display:flex;flex-direction:column}
+    .dx-dn{flex:1;display:flex;align-items:center;justify-content:center;gap:26px;flex-wrap:wrap;min-height:210px;padding:6px 4px}
+    .dx-dn>svg{width:clamp(170px,40%,290px);height:auto;flex:0 0 auto}
+    .dx-dn-lg{flex:1 1 200px;max-width:380px;display:grid;gap:12px;align-content:center}
+    .dx-dn-lg .it{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;font-weight:600}
+    .dx-dn-lg .it i{width:13px;height:13px;border-radius:3px;flex:0 0 13px;margin-top:3px}
+    .dx-dn-lg .nm{flex:1;min-width:0}.dx-dn-lg .vl{display:block;font-family:var(--mono);font-size:12px;font-weight:400;color:var(--mu);white-space:nowrap;margin-top:2px}`;
+  document.head.appendChild(css); })();
 // Apply configs on load
 setTimeout(applyConfigs, 200);
 setTimeout(function() {
