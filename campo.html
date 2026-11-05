@@ -883,7 +883,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.81</div>
+  <div class="login-versao">ObraKontrol Campo · v2.82</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -2092,7 +2092,7 @@ function renderEquipamentosList() {
       </div>
       <div>
         <div class="list-name">${e.tag}</div>
-        <div class="list-sub">${e.placa||'—'} · ${e.familia||'—'} · ${e.status||'—'}</div>
+        <div class="list-sub">${_esc(_eqRotulo(e).split(' · ').slice(1).join(' · ') || '—')} · ${e.status||'—'}</div>
       </div>
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
     </div>
@@ -2742,7 +2742,8 @@ function preencherSelectsFuel() {
     ? dadosCampo.equipamentos.filter(e => !e.obra || e.obra === obraId)
     : dadosCampo.equipamentos;
   selEq.innerHTML = '<option value="">Selecione o equipamento…</option>';
-  lista.forEach(e => selEq.innerHTML += `<option value="${e.id}">${e.tag} — ${e.placa||'—'}</option>`);
+  // v2.82: em ordem de TAG, com modelo e placa (ou final do chassi/série); sem os desmobilizados
+  selEq.innerHTML += lista.filter(e => !/desmob/i.test(e.status || '')).sort((a, b) => String(a.tag || a.placa).localeCompare(String(b.tag || b.placa), 'pt-BR', { numeric: true })).map(e => `<option value="${e.id}">${_esc(_eqRotulo(e))}</option>`).join('');
 
   const selTanq = document.getElementById('fuel-tanque');
   selTanq.innerHTML = '<option value="">Selecione o tanque…</option>';
@@ -4271,6 +4272,8 @@ async function atualizarCadastrosCampo(avisar) {
 // ══════════════════════════════════════════════════════════════
 // v2.76: obras independentes — só a obra do apropriador (a mesma matrícula ou TAG pode existir em outra obra)
 function _daObraCampo(l) { const o = (usuarioCampo && usuarioCampo.obra) || ''; return !o ? (l || []) : (l || []).filter(x => !x.obra || x.obra === o); }
+function _eqRotulo(e) { const m = (dadosCampo.modelos || []).find(x => x.cod === e.codModelo), id = e.placa || (e.chassi ? 'chassi …' + String(e.chassi).slice(-6) : e.serie ? 'série ' + e.serie : '');
+  return [e.tag || e.placa, (m && m.nome) || e.codModelo || '', id].filter(Boolean).join(' · '); }
 function _soDig(v) { return String(v || '').replace(/\D/g, ''); }
 function _funcPorCracha(texto) {
   const t = String(texto || '').trim(), fs = _daObraCampo(dadosCampo.funcionarios || []);
@@ -5519,7 +5522,7 @@ function pdRender() {
   const emp = e ? ((dadosCampo.empresas || []).find(x => x.cod === e.prop) || {}) : {}, mod = e ? ((dadosCampo.modelos || []).find(m => m.cod === e.codModelo) || {}) : {};
   let h = `<div class="card"><div class="card-body">
     <div style="display:flex;gap:10px"><div class="form-group" style="flex:1"><label class="form-label">Dia *</label><input class="form-control" type="date" value="${E(pd.data)}" max="${_hojeISO()}" onchange="pd.data=this.value;if(pd.equipId)pdEscolher(pd.equipId);else pdRender()"/></div></div>
-    <div class="form-group"><label class="form-label">Equipamento *</label><div style="display:flex;gap:8px"><select class="form-control" style="flex:1" onchange="pdEscolher(this.value)"><option value="">Escolha o equipamento…</option>${eqs.map(x => `<option value="${E(x.id)}" ${x.id === pd.equipId ? 'selected' : ''}>${E((x.tag || x.placa) + (x.placa && x.tag ? ' · ' + x.placa : ''))}</option>`).join('')}</select>
+    <div class="form-group"><label class="form-label">Equipamento *</label><div style="display:flex;gap:8px"><select class="form-control" style="flex:1" onchange="pdEscolher(this.value)"><option value="">Escolha o equipamento…</option>${eqs.map(x => `<option value="${E(x.id)}" ${x.id === pd.equipId ? 'selected' : ''}>${E(_eqRotulo(x))}</option>`).join('')}</select>
       <button type="button" class="btn btn-outline" style="width:auto;padding:0 14px" onclick="abrirQR('pdtag')">QR</button></div></div>
     ${e ? `<div style="font-size:12.5px;color:var(--text2);margin:-4px 0 4px">${E([mod.nome || e.codModelo, emp.fantasia || emp.nome || emp.razao || e.prop, e.placa ? 'Placa ' + e.placa : ''].filter(Boolean).join(' · '))}${pd._existe ? ' · <b style="color:var(--green,#16A34A)">já lançada hoje — editando</b>' : ''}</div>` : ''}
   </div></div>`;

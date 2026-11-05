@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.72 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.73 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -8685,7 +8685,7 @@ function _importarLinhas(tipo, rows, resumo) {
       // v2.77: modelo que já existe ganha capacidade do tanque / consumo previsto
       if (document.getElementById('import-atualizar-custo')?.checked && tipo === 'modelos') {
         const x = lista.find(y => String(y.cod||'').toLowerCase() === chave && (y.obra||'') === obraId);
-        const mud = {}; if (item.capTanque) mud.capTanque = item.capTanque; if (item.consumoPrev) mud.consumoPrev = item.consumoPrev; if (item.familia && !x?.familia) mud.familia = item.familia;
+        const mud = {}; if (item.capTanque) mud.capTanque = item.capTanque; if (item.consumoPrev) mud.consumoPrev = item.consumoPrev; if (item.consumoKmL) mud.consumoKmL = item.consumoKmL; if (item.familia && !x?.familia) mud.familia = item.familia;
         if (x && Object.keys(mud).some(k => String(x[k] || '') !== String(mud[k]))) { Object.assign(x, mud); (window.__impAtualizados = window.__impAtualizados || []).push([tipo, x]); r.atual = (r.atual||0) + 1; return; }
       }
       if (document.getElementById('import-atualizar-custo')?.checked && tipo === 'tanques') {
@@ -14382,10 +14382,10 @@ function dxRenderAbs2() {
         ${_pn(_ic.box, 'Estoque dos tanques', tanquesObra.length ? `<div class="dx-grid" style="gap:10px">${tanquesObra.map(t => { const pc = t.cap ? Math.max(0, Math.min(100, t.saldo / t.cap * 100)) : 0; const cor = pc < 25 ? '#E30613' : pc < 50 ? '#F59E0B' : '#22C55E';
             return `<div><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><b>${_e(t.cod)} — ${_e(t.nome)}</b><span style="font-family:var(--mono)">${_n1(t.saldo)} / ${_n1(t.cap)} L · <b style="color:${cor}">${Math.round(pc)}%</b></span></div><div style="height:12px;border-radius:6px;background:rgba(127,127,127,.18);overflow:hidden"><div style="width:${pc}%;height:12px;background:${cor}"></div></div></div>`; }).join('')}</div>` : '<div class="dx-vazio">Nenhum tanque cadastrado nesta obra</div>')}</div>
       <div style="margin-bottom:12px">${_absPainelAlertas(lista)}</div>
-      ${_pn(_ic.cal, 'Abastecimento por equipamento', `<div class="dx-scroll">${_tb(['Equipamento', 'Família', 'Medidor', 'Abastecimentos', 'Litros', 'Horas trabalhadas', 'Consumo', 'Previsto (L/h)', 'Leitura inicial → final'],
+      ${_pn(_ic.cal, 'Abastecimento por equipamento', `<div class="dx-scroll">${_tb(['Equipamento', 'Família', 'Medidor', 'Abastecimentos', 'Litros', 'Horas trabalhadas', 'Consumo', 'Previsto', 'Leitura inicial → final'],
           ord.map(([k, x]) => { const h = horasEq[k] || 0, km = _medKm(k), un = km ? ' km' : ' h';
             const cons = km ? (() => { const r = lista.filter(d => d.equip === k).map(d => ({ v: parseFloat(String(d.hor || '').replace(',', '.')), l: +d.litros || 0 })).filter(z => !isNaN(z.v)).sort((a, b) => a.v - b.v); const rod = r.length > 1 ? r[r.length - 1].v - r[0].v : 0, lt = r.slice(1).reduce((s, z) => s + z.l, 0); return rod > 0 && lt ? '<b>' + _n1(rod / lt) + '</b> km/L' : '—'; })() : (h ? '<b>' + _n1(x.l / h) + '</b> L/h' : '—');
-            return `<tr>${_td('<b>' + _e(k) + '</b>')}${_td(_e(nomeFam(_famDe(k))), 'mu')}${_td(km ? 'Hodômetro' : 'Horímetro', 'mu')}${_td(x.n, 'n')}${_td(_n1(x.l) + ' L', 'n')}${_td(h ? _h(h) : '—', 'n')}${_td(cons, 'n')}${_td(km ? '—' : _absPrevTxt(k, h ? x.l / h : 0), 'n')}${_td(x.hor.length ? _n1(Math.min(...x.hor)) + ' → ' + _n1(Math.max(...x.hor)) + un : '—', 'n')}</tr>`; })
+            return `<tr>${_td('<b>' + _e(k) + '</b>')}${_td(_e(nomeFam(_famDe(k))), 'mu')}${_td(km ? 'Hodômetro' : 'Horímetro', 'mu')}${_td(x.n, 'n')}${_td(_n1(x.l) + ' L', 'n')}${_td(h ? _h(h) : '—', 'n')}${_td(cons, 'n')}${_td(km ? _absPrevKmTxt(k, cons) : _absPrevTxt(k, h ? x.l / h : 0), 'n')}${_td(x.hor.length ? _n1(Math.min(...x.hor)) + ' → ' + _n1(Math.max(...x.hor)) + un : '—', 'n')}</tr>`; })
           .concat(ord.length ? [`<tr class="sub">${_td('Total')}${_td('')}${_td('')}${_td(lista.length, 'n')}${_td(_n1(L) + ' L', 'n')}${_td(_h(horasTot), 'n')}${_td(lph ? _n1(lph) + ' L/h' : '—', 'n')}${_td('')}${_td('')}</tr>`] : []), ['', '', '', 'n', 'n', 'n', 'n', 'n', 'n'])}</div>`)}`;
   } else {
     const serie = _dxSerieTempo(lista, d => d.dt, d => ({ v: (+d.litros || 0) * precoDiesel(d) }));
@@ -16418,6 +16418,23 @@ function _fcSyncFant() { (dados.empresas || []).forEach(e => { const b = _fcDoBa
   const oPS = window.popularSelects || popularSelects;
   popularSelects = window.popularSelects = function () { const r = oPS.apply(this, arguments); const el = $('equip-prop'); if (el) { const m = new Map((dados.empresas || []).map(e => [e.nome, e]));
       [...el.options].forEach(o => { const e = m.get(o.value), f = e && _fcFant(e); if (e && f && !o.dataset.fc) { o.textContent = (e.cod ? e.cod + ' — ' : '') + f + ' (' + e.nome + ')'; o.dataset.fc = '1'; } }); } return r; };
+})();
+// v3.73: consumo previsto em km/L no modelo (caminhões e veículos com hodômetro)
+function _absPrevKmTxt(tag, consTxt) { const mod = _modeloDe(tag), p = +(mod && mod.consumoKmL) || 0; if (!p) return '<span style="color:var(--mu)">—</span>';
+  const v = parseFloat(String(consTxt || '').replace(/<[^>]+>/g, '').replace(/\./g, '').replace(',', '.')); if (isNaN(v)) return _n1(p) + ' km/L';
+  const ruim = v < p * (1 - _ABS_TOL); return _n1(p) + ' km/L <b style="color:' + (ruim ? '#E30613' : '#22C55E') + '">' + (v >= p ? '+' : '') + Math.round((v / p - 1) * 100) + '%</b>'; }
+(function () {
+  const $ = id => document.getElementById(id);
+  const g = $('mod-consumo')?.closest('.form-group');
+  if (g && !$('mod-kml')) { g.insertAdjacentHTML('afterend', '<div class="form-group"><label class="form-label">Consumo previsto (km/L)</label><input class="form-control" type="number" min="0" step="0.1" id="mod-kml" placeholder="Caminhões e veículos (hodômetro)"/></div>'); const l = g.querySelector('.form-label'); if (l) l.textContent = 'Consumo previsto (L/h) — máquinas'; }
+  const oN = window.mmNovoModelo; if (oN) window.mmNovoModelo = mmNovoModelo = function () { const r = oN.apply(this, arguments); if ($('mod-kml')) $('mod-kml').value = ''; return r; };
+  const oE = window.editarModelo; window.editarModelo = editarModelo = function (id) { const r = oE.apply(this, arguments); const m = (dados.modelos || []).find(x => x.id === id); if ($('mod-kml')) $('mod-kml').value = m && m.consumoKmL ? m.consumoKmL : ''; return r; };
+  const oS = window.salvarModelo; window.salvarModelo = salvarModelo = function () { const v = parseFloat(String($('mod-kml')?.value || '').replace(',', '.')) || 0, id = $('mod-edit-id')?.value, cod = ($('mod-cod')?.value || '').trim(), nome = ($('mod-nome')?.value || '').trim(), antes = new Set((dados.modelos || []).map(m => m.id));
+    const r = oS.apply(this, arguments);
+    const m = id ? (dados.modelos || []).find(x => x.id === id) : (dados.modelos || []).find(x => !antes.has(x.id)) || (dados.modelos || []).find(x => (cod && x.cod === cod) || (nome && x.nome === nome));
+    if (m && (+m.consumoKmL || 0) !== v) { m.consumoKmL = v; if (db && _firebaseReady) fbSave('modelos', m.id, m).catch(() => {}); }
+    return r; };
+  try { const D = IMPORT_DEF.modelos; if (!D.col.some(c => /km\/l/i.test(c))) { D.col = D.col.concat(['Consumo previsto (km/L)']); const m0 = D.map; D.map = gg => { const x = m0(gg), k = _numImport(gg(['km/l'])); if (k) x.consumoKmL = k; return x; }; } } catch (e) {}
 })();
 // Apply configs on load
 setTimeout(applyConfigs, 200);
