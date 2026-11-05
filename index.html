@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.79 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.80 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -16537,6 +16537,108 @@ function _pfCadastrar(nome) { novoUsuario(); const s = document.getElementById('
 (function () { const css = document.createElement('style');
   css.textContent = '.modal-body{overflow-x:hidden}.modal .form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.modal .form-grid>*{min-width:0}.modal .form-control,.modal select,.modal input,.modal textarea{max-width:100%;box-sizing:border-box}.modal .form-label{overflow-wrap:anywhere}#modal-novo-modelo .modal,#modal-nova-familia .modal{max-width:560px;width:calc(100vw - 32px)}@media(max-width:560px){.modal .form-grid{grid-template-columns:minmax(0,1fr)}}';
   document.head.appendChild(css); })();
+// ═══════════════════════════════════════════════════════════════
+// v3.80: USUÁRIO DE CAMPO = FUNCIONÁRIO CADASTRADO. Busca só no efetivo da obra;
+// o acesso é pelo CPF (crachá ou CPF + senha provisória, troca no 1º acesso). Matrícula não é login.
+// ═══════════════════════════════════════════════════════════════
+(function () {
+  const $ = k => document.getElementById(k);
+  const soDig = s => String(s || '').replace(/\D/g, '');
+  const cpfFmt = c => { c = soDig(c); return c.length === 11 ? c.slice(0, 3) + '.' + c.slice(3, 6) + '.' + c.slice(6, 9) + '-' + c.slice(9) : (c || ''); };
+  const ativoF = f => { const hj = _hojeLocal(); return f.status !== 'Desligado' && (!f.demissao || f.demissao > hj); };
+  const funcaoF = f => { const c = _cargoCod(f.codFuncao || f.funcao, f.obra); return (c && (c.nome || c.descricao)) || f.funcao || ''; };
+  // bloco novo no formulário
+  const nomeG = $('usr-nome') && $('usr-nome').closest('.form-group');
+  if (nomeG && !$('usr-func-bloco')) nomeG.insertAdjacentHTML('beforebegin', `
+    <div class="form-group form-full" id="usr-func-bloco" style="display:none"><label class="form-label">Funcionário *</label>
+      <input type="hidden" id="usr-func-id"/>
+      <div id="usr-func-sel" style="display:none;align-items:center;gap:10px;border:1px solid var(--border);border-radius:8px;padding:8px 10px;background:var(--bg-2,transparent)"></div>
+      <div id="usr-func-busca-w"><input class="form-control" id="usr-func-busca" placeholder="Buscar por nome, CPF ou matrícula no efetivo da obra…" autocomplete="off" oninput="usrFuncBuscar()" onfocus="usrFuncBuscar()"/>
+        <div id="usr-func-res" style="max-height:240px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;margin-top:6px;display:none"></div></div>
+      <div class="form-hint">Só aparecem funcionários ativos cadastrados em <b>Funcionários</b>. Não achou? Cadastre (ou importe) o funcionário primeiro, com CPF.</div>
+    </div>`);
+  window.usrFuncBuscar = function () {
+    const box = $('usr-func-res'); if (!box) return;
+    const q = ($('usr-func-busca')?.value || '').trim().toLowerCase(), qd = soDig(q), obra = $('usr-obra')?.value || '';
+    const lista = (dados.funcionarios || []).filter(f => ativoF(f) && (!obra || f.obra === obra)
+      && (!q || (f.nome || '').toLowerCase().includes(q) || (qd && (soDig(f.cpf).includes(qd) || String(f.mat || '') === qd || soDig(f.mat).startsWith(qd)))))
+      .sort((a, b) => (a.nome || '').localeCompare(b.nome || '')).slice(0, 30);
+    const id = $('usr-edit-id')?.value || '';
+    box.style.display = '';
+    box.innerHTML = lista.map(f => {
+      const temCpf = soDig(f.cpf).length === 11, u = USUARIOS.find(x => x.funcId === f.id && x.id !== id);
+      const pode = temCpf && !u;
+      return `<div ${pode ? `onclick="usrFuncEscolher('${_e(f.id)}')"` : ''} style="padding:8px 10px;border-bottom:1px solid var(--border);cursor:${pode ? 'pointer' : 'not-allowed'};opacity:${pode ? 1 : .55}" ${pode ? 'onmouseover="this.style.background=\'var(--bg-hover,rgba(127,127,127,.08))\'" onmouseout="this.style.background=\'\'"' : ''}>
+        <div style="font-weight:600;font-size:13px">${_e(f.nome)}</div>
+        <div style="font-size:11.5px;color:var(--text-3)">${['Mat. ' + _e(f.mat || '—'), temCpf ? 'CPF ' + cpfFmt(f.cpf) : '<span style="color:var(--red)">sem CPF — complete o cadastro</span>', _e(funcaoF(f)), obra ? '' : _e(getNomeObra(f.obra))].filter(Boolean).join(' · ')}${u ? ` · <span style="color:var(--amber)">já tem acesso (${_e(u.perfil)})</span>` : ''}</div></div>`;
+    }).join('') || `<div style="padding:10px;font-size:12.5px;color:var(--text-3)">${obra ? 'Nenhum funcionário ativo encontrado nesta obra.' : 'Nenhum funcionário encontrado.'}</div>`;
+  };
+  window.usrFuncEscolher = function (fid) {
+    const f = (dados.funcionarios || []).find(x => x.id === fid); if (!f) return;
+    $('usr-func-id').value = f.id; $('usr-nome').value = f.nome;
+    if ($('usr-mat')) $('usr-mat').value = f.mat || '';
+    if (f.obra && $('usr-obra')) $('usr-obra').value = f.obra;
+    const s = $('usr-func-sel');
+    s.innerHTML = `<div style="flex:1;min-width:0"><div style="font-weight:600">${_e(f.nome)}</div><div style="font-size:11.5px;color:var(--text-3)">Mat. ${_e(f.mat || '—')} · CPF ${cpfFmt(f.cpf)}${funcaoF(f) ? ' · ' + _e(funcaoF(f)) : ''} · ${_e(getNomeObra(f.obra))}</div></div><button type="button" class="btn btn-outline btn-sm" onclick="usrFuncLimpar()">Trocar</button>`;
+    s.style.display = 'flex'; $('usr-func-busca-w').style.display = 'none'; $('usr-func-res').style.display = 'none';
+  };
+  window.usrFuncLimpar = function () {
+    if ($('usr-func-id')) $('usr-func-id').value = ''; const s = $('usr-func-sel'); if (s) { s.style.display = 'none'; s.innerHTML = ''; }
+    const w = $('usr-func-busca-w'); if (w) w.style.display = ''; const b = $('usr-func-busca'); if (b) b.value = '';
+    const r = $('usr-func-res'); if (r) r.style.display = 'none';
+  };
+  // layout: perfil de campo → escolhe o funcionário; some matrícula, senha e "testar acesso"
+  const oM = window.usrPerfilMudou;
+  window.usrPerfilMudou = function () {
+    const r = oM.apply(this, arguments);
+    const campo = _perfilEhCampo($('usr-perfil')?.value || '');
+    const fb = $('usr-func-bloco'); if (fb) fb.style.display = campo ? '' : 'none';
+    const nm = $('usr-nome'); if (nm) { nm.readOnly = campo; nm.placeholder = campo ? 'vem do funcionário escolhido' : 'José da Silva'; nm.closest('.form-group').style.display = campo ? 'none' : ''; }
+    const mg = $('usr-mat') && $('usr-mat').closest('.form-group'); if (mg) mg.style.display = campo ? 'none' : '';
+    const sg = $('usr-senha') && $('usr-senha').closest('.form-group'); if (sg) sg.style.display = campo ? 'none' : '';
+    const av = $('usr-aviso-campo');
+    if (av && campo) av.innerHTML = `📱 <strong>App de campo:</strong> a pessoa entra <strong>lendo o próprio crachá</strong>, ou com o <strong>CPF</strong> e a senha provisória <strong>${_SENHA_APROP}</strong> — no primeiro acesso ela cria a senha dela. Link do app: <strong>obrakontrol.github.io/campo.html</strong>`;
+    if (campo && !$('usr-edit-id')?.value && !$('usr-obra')?.value && _okObraAtual() !== 'todas') $('usr-obra').value = _okObraAtual();
+    return r;
+  };
+  const os = $('usr-obra'); if (os) os.addEventListener('change', () => { if (_perfilEhCampo($('usr-perfil')?.value || '')) { const f = (dados.funcionarios || []).find(x => x.id === $('usr-func-id')?.value); if (f && f.obra !== os.value) usrFuncLimpar(); if ($('usr-func-res')?.style.display !== 'none') usrFuncBuscar(); } });
+  const oN = window.novoUsuario;
+  window.novoUsuario = novoUsuario = function () { usrFuncLimpar(); const r = oN.apply(this, arguments); try { usrPerfilMudou(); } catch (e) {} return r; };
+  const oE = window.editarUsuario;
+  window.editarUsuario = function (id) {
+    usrFuncLimpar(); const r = oE.apply(this, arguments);
+    const u = USUARIOS.find(x => x.id === id);
+    const f = u && ((u.funcId && (dados.funcionarios || []).find(x => x.id === u.funcId)) || (u.cpf && (dados.funcionarios || []).find(x => soDig(x.cpf) === soDig(u.cpf))));
+    if (f) usrFuncEscolher(f.id);
+    try { usrPerfilMudou(); } catch (e) {}
+    return r;
+  };
+  // salvar perfil de campo: cria/atualiza o acesso pelo CPF do funcionário
+  const oS = window.salvarUsuario;
+  window.salvarUsuario = async function () {
+    const perfil = $('usr-perfil')?.value || '';
+    if (!_perfilEhCampo(perfil)) return oS.apply(this, arguments);
+    const f = (dados.funcionarios || []).find(x => x.id === $('usr-func-id')?.value);
+    if (!f) { toast('Escolha o funcionário (só funcionários cadastrados podem usar o app de campo).', 'error'); $('usr-func-busca')?.focus(); return; }
+    if (soDig(f.cpf).length !== 11) { toast(f.nome + ' está sem CPF no cadastro de Funcionários. Complete o CPF: o login do app é por ele.', 'error'); return; }
+    const id = $('usr-edit-id')?.value || '', ed = id ? USUARIOS.find(x => x.id === id) : null;
+    const outro = USUARIOS.find(x => x.funcId === f.id && x.id !== id);
+    if (outro) { toast(f.nome + ' já tem acesso (perfil ' + outro.perfil + '). Edite o usuário dele.', 'error'); return; }
+    if (ed) { ed.funcId = f.id; }   // faz o _garantirApropriador achar este usuário (e migrar o login antigo por matrícula)
+    const res = await _garantirApropriador(f, true);
+    if (res === 'erro' || res === 'offline' || res === 'sem-cpf') { await _garantirApropriador(f, false); return; }
+    const u = USUARIOS.find(x => x.funcId === f.id); if (!u) { toast('Não consegui salvar o usuário.', 'error'); return; }
+    const pf = perfilPorNome(perfil), perms = {};
+    MODULOS.forEach(([k]) => perms[k] = (k === 'apontamentos' || k === 'abastecimento') ? !!(pf && pf.perms && pf.perms[k]) : false);
+    Object.assign(u, { perfil, perms, obra: f.obra || u.obra || '', status: $('usr-status')?.value || 'Ativo', nome: f.nome });
+    saveUsuarios();
+    try { if (u.emailQR) await db.collection('acessos').doc(u.emailQR).set({ perfil, nome: f.nome, atualizadoEm: new Date().toISOString() }, { merge: true }); } catch (e) {}
+    if (perfil === 'Colaborador' && f.apropriador !== 'Sim') { f.apropriador = 'Sim'; if (db && _firebaseReady) fbSave('funcionarios', f.id, f).catch(() => {}); }
+    closeModal('modal-novo-usuario'); renderUsuarios();
+    toast((ed ? 'Usuário atualizado: ' : 'Acesso criado: ') + f.nome + ' entra no app lendo o crachá, ou com o CPF ' + cpfFmt(f.cpf) + (u.senhaDefinida ? ' e a senha dele.' : ' e a senha provisória ' + _SENHA_APROP + ' (troca no 1º acesso).'));
+  };
+})();
+
 // Apply configs on load
 setTimeout(applyConfigs, 200);
 setTimeout(function() {
