@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.86 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.87 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -16851,7 +16851,7 @@ setTimeout(function _corrigePermsCampo() {
   try {
     if (!db || !_firebaseReady || !usuarioLogado || usuarioLogado.perfil !== 'Admin') return;
     let n = 0;
-    USUARIOS.forEach(u => { if (!u.funcId || !_perfilEhCampo(u.perfil)) return; const pf = perfilPorNome(u.perfil); if (!pf || !pf.perms) return;
+    USUARIOS.forEach(u => { if (!_perfilEhCampo(u.perfil)) return; const pf = perfilPorNome(u.perfil); if (!pf || !pf.perms) return;
       MODULOS.forEach(([k]) => { const v = !!pf.perms[k]; if (!!(u.perms || {})[k] !== v) { u.perms = u.perms || {}; u.perms[k] = v; n++; } }); });
     if (n) saveUsuarios();
   } catch (e) {}
