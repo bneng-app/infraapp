@@ -883,7 +883,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.85</div>
+  <div class="login-versao">ObraKontrol Campo · v2.86</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -5764,6 +5764,195 @@ function _logoObraCarregar() { try { fbCarregar('obras').then(l => { if (l && l.
   const oE = window.entrarNoCampo; if (typeof oE === 'function') entrarNoCampo = function () { const r = oE.apply(this, arguments); setTimeout(_logoObraCarregar, 1500); return r; };
   setTimeout(() => { if (typeof usuarioCampo !== 'undefined' && usuarioCampo) _logoObraCarregar(); }, 3000);
 })();
+
+// ══════════════════════════════════════════════════════════════
+// v2.86: MATERIAL APLICADO no encerramento do turno (descrição · unidade · quantidade, opcional)
+// e RDO DO DIA — folha do dia do encarregado (frentes, efetivo por função, equipamentos,
+// paradas e materiais) para enviar no WhatsApp ou salvar em PDF.
+// ══════════════════════════════════════════════════════════════
+const MAT_UNID = ['M', 'M²', 'M³', 'UN', 'PÇ', 'KG', 'T', 'L', 'SC', 'CJ', 'VB'];
+_AP_CAMPOS.push('ap-mat-json');
+function _matLer() { try { return JSON.parse(document.getElementById('ap-mat-json')?.value || '[]') || []; } catch (e) { return []; } }
+function _matGravar(l) { const el = document.getElementById('ap-mat-json'); if (el) el.value = JSON.stringify(l); try { apGuardar(); } catch (e) {} }
+function _matHist() { try { return JSON.parse(localStorage.getItem('ok_mat_hist') || '[]'); } catch (e) { return []; } }
+function _matHistAdd(l) { const h = _matHist(); l.forEach(m => { const i = h.findIndex(x => x.d.toUpperCase() === m.desc.toUpperCase()); if (i >= 0) h.splice(i, 1); h.unshift({ d: m.desc, u: m.unid }); }); try { localStorage.setItem('ok_mat_hist', JSON.stringify(h.slice(0, 80))); } catch (e) {} }
+function _matValidos(l) { return (l || _matLer()).filter(m => (m.desc || '').trim() && (parseFloat(String(m.qtd).replace(',', '.')) || 0) > 0).map(m => ({ desc: m.desc.trim().toUpperCase(), unid: m.unid || 'UN', qtd: parseFloat(String(m.qtd).replace(',', '.')) || 0 })); }
+function matRender() {
+  const box = document.getElementById('ap-mat-lista'); if (!box) return;
+  const l = _matLer(); if (!l.length) l.push({ desc: '', unid: 'M', qtd: '' });
+  const dl = document.getElementById('ap-mat-dl'); if (dl) dl.innerHTML = _matHist().map(h => `<option value="${_esc(h.d)}">`).join('');
+  box.innerHTML = `<div class="mat-hd"><span>Descrição</span><span>Unid.</span><span>Qtd.</span><span></span></div>` + l.map((m, i) => `<div class="mat-row">
+    <input class="form-control" list="ap-mat-dl" placeholder="Ex.: Tubo PAD 200" value="${_esc(m.desc || '')}" oninput="matCampo(${i},'desc',this.value)" onchange="matAutoUnid(${i},this.value)"/>
+    <select class="form-control" onchange="matCampo(${i},'unid',this.value)">${MAT_UNID.map(u => `<option ${u === (m.unid || 'M') ? 'selected' : ''}>${u}</option>`).join('')}</select>
+    <input class="form-control" type="number" inputmode="decimal" placeholder="0" value="${_esc(m.qtd ?? '')}" oninput="matCampo(${i},'qtd',this.value)"/>
+    <button class="mat-x" onclick="matRemover(${i})" aria-label="Remover">×</button></div>`).join('')
+    + `<button class="btn btn-outline btn-sm" style="margin-top:8px" onclick="matAdd()">+ Adicionar material</button>`;
+}
+function matCampo(i, k, v) { const l = _matLer(); while (l.length <= i) l.push({ desc: '', unid: 'M', qtd: '' }); l[i][k] = v; _matGravar(l); try { apMontarResumo(); } catch (e) {} }
+function matAutoUnid(i, v) { const h = _matHist().find(x => x.d.toUpperCase() === String(v).trim().toUpperCase()); if (h) { const l = _matLer(); if (l[i]) { l[i].unid = h.u; _matGravar(l); matRender(); } } }
+function matAdd() { const l = _matLer(); if (!l.length) l.push({ desc: '', unid: 'M', qtd: '' }); l.push({ desc: '', unid: 'M', qtd: '' }); _matGravar(l); matRender(); const r = document.querySelectorAll('#ap-mat-lista .mat-row'); r[r.length - 1]?.querySelector('input')?.focus(); }
+function matRemover(i) { const l = _matLer(); l.splice(i, 1); _matGravar(l); matRender(); }
+
+// ── registro local do dia (base do RDO) ──
+function _rdoChave(d) { return 'ok_rdo_' + (usuarioCampo?.id || usuarioCampo?.mat || 'x') + '_' + d; }
+function _rdoLer(d) { try { return JSON.parse(localStorage.getItem(_rdoChave(d)) || '[]'); } catch (e) { return []; } }
+function _rdoAdd(d, reg) { const l = _rdoLer(d).filter(x => x.uid !== reg.uid); l.push(reg); try { localStorage.setItem(_rdoChave(d), JSON.stringify(l)); } catch (e) {} }
+function _apFotoRdo(mats) {
+  const g = id => document.getElementById(id)?.value || '';
+  const fr = (dadosCampo.frentes || []).find(f => f.cod === g('ap-frente'));
+  const mo = (dadosCampo.funcionarios || []).filter(f => ap.mo.has(f.id)).map(f => ({ nome: f.nome || '', funcao: f.funcao || f.codFuncao || 'Sem função' }));
+  const eq = (dadosCampo.equipamentos || []).filter(e => ap.eq.has(e.id)).map(e => { const v = ap.eq.get(e.id) || {}, m = (dadosCampo.modelos || []).find(y => y.cod === e.codModelo), f = (dadosCampo.familias || []).find(y => y.cod === (e.familia || e.codFamilia));
+    return { tag: e.tag || e.placa || '', desc: (m && (m.nome || m.cod)) || (f && f.desc) || e.familia || '', operador: v.operador || '', hp: parseFloat(v.hp) || 0, hpar: parseFloat(v.hpar) || 0, motivo: v.motivo || '' }; });
+  const par = (ap.paradas || []).map(p => ({ ini: p.ini || '', fim: p.fim || '', horas: _parH(p), motivo: _parMotivoTxt(p) || '', quem: _parQuemTxt(p) || '', obs: p.obs || '' }));
+  return { uid: ap.uid, data: g('ap-data'), frente: g('ap-frente'), frenteDesc: fr ? (fr.desc || fr.nome || '') : '', servico: g('ap-servico') || '—', horaIni: g('ap-hora-ini'), horaFim: g('ap-hora-fim') || _hhmm(new Date()),
+    qtd: parseFloat(g('ap-qtd')) || 0, unid: g('ap-unid'), prodStatus: g('ap-prod-status'), obs: g('ap-obs'), mo, eq, par, mat: mats, obra: _apObra(), em: new Date().toISOString(),
+    fotos: (ap.fotosFrente || []).map(f => ({ id: f.id, em: f.em, th: f.th })) };
+}
+let _apMatAtual = null, _apMatUsado = false;
+(function () {
+  // card no passo "Revisar", antes de Paradas
+  const parCard = document.getElementById('ap-par-lista')?.closest('.card');
+  if (parCard && !document.getElementById('ap-mat-card')) parCard.insertAdjacentHTML('beforebegin', `<div class="card" id="ap-mat-card"><div class="card-header"><span class="card-title">Material aplicado</span><span style="font-size:11px;color:var(--text3)">opcional</span></div>
+    <div class="card-body"><input type="hidden" id="ap-mat-json"/><datalist id="ap-mat-dl"></datalist><div id="ap-mat-lista"></div></div></div>`);
+  const css = document.createElement('style');
+  css.textContent = `.mat-hd,.mat-row{display:grid;grid-template-columns:minmax(0,1fr) 74px 74px 30px;gap:6px;align-items:center}.mat-hd{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:4px}
+    .mat-row{margin-bottom:6px}.mat-row .form-control{padding-left:8px;padding-right:6px;min-width:0}.mat-x{border:0;background:transparent;color:var(--text3);font-size:22px;line-height:1;cursor:pointer}`;
+  document.head.appendChild(css);
+  const oT = apTab; apTab = function (aba) { const r = oT.apply(this, arguments); if (aba === 'rev') matRender(); return r; };
+  const oS = salvarApropriacao;
+  salvarApropriacao = async function () {
+    const mats = _matValidos(), uid = ap.uid, snap = _apFotoRdo(mats);
+    _apMatAtual = mats.length ? mats : null; _apMatUsado = false;
+    try { const r = await oS.apply(this, arguments);
+      if (uid && ap.uid !== uid) { _rdoAdd(snap.data, snap); if (mats.length) _matHistAdd(mats); }
+      return r; } finally { _apMatAtual = null; }
+  };
+  const oF = fbSalvar;
+  fbSalvar = async function (col, item) { if (_apMatAtual && !_apMatUsado && (col === 'aponMO' || col === 'aponEQ') && item) { item.materiais = _apMatAtual; _apMatUsado = true; } return oF.apply(this, arguments); };
+  const oC = _turnoFechar;
+  _turnoFechar = function (status, extra) { if (status === 'encerrado' && _apMatAtual) extra = { ...(extra || {}), materiais: _apMatAtual }; return oC.call(this, status, extra); };
+  // card na tela inicial
+  const res = document.querySelector('.hcard[onclick="abrirMeuResumo()"]');
+  if (res && !document.getElementById('card-rdo')) res.insertAdjacentHTML('afterend', `<div class="hcard" onclick="rdoAbrir()" id="card-rdo"><svg class="hic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg><div class="hcard-t">RDO do dia</div><div class="hcard-s">Relatório para o grupo</div></div>`);
+})();
+
+// ── TELA DO RDO ──
+let rdo = null;
+const RDO_CLIMA = ['Bom', 'Nublado', 'Chuva fraca', 'Chuva forte', 'Impraticável'];
+function _rdoTela() {
+  if (document.getElementById('screen-rdo')) return;
+  const back = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>';
+  document.getElementById('screen-home').insertAdjacentHTML('afterend', `<div class="screen" id="screen-rdo"><div class="topbar"><div class="topbar-row"><div class="tb-left"><button class="tb-back" onclick="showScreen('home')" aria-label="Voltar">${back}</button><div><div class="topbar-title">RDO do dia</div><div class="topbar-sub" id="rdo-sub">Relatório diário de obra</div></div></div></div></div>
+    <div class="content" id="rdo-content"></div><div class="mob-bar"><button class="btn btn-outline" onclick="rdoPdf()">PDF / imprimir</button><button class="btn btn-green" onclick="rdoWhats()">Enviar no WhatsApp</button></div></div>`);
+  const css = document.createElement('style');
+  css.textContent = `.rdo-sec{font-size:11px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);margin:2px 0 8px}
+    .rdo-tb{width:100%;border-collapse:collapse;font-size:13px}.rdo-tb th{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);text-align:left;padding:5px 4px;border-bottom:1px solid var(--border)}
+    .rdo-tb td{padding:6px 4px;border-bottom:1px solid var(--border);vertical-align:top}.rdo-tb td.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+    .rdo-fr{border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:8px}.rdo-fr b{font-size:14px}.rdo-fr .s{font-size:12px;color:var(--text3);margin-top:2px}
+    .rdo-vz{font-size:12.5px;color:var(--text3)}.rdo-ft{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.rdo-ft div{position:relative}.rdo-ft img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;display:block}.rdo-ft span{position:absolute;left:4px;bottom:4px;font-size:9.5px;background:rgba(0,0,0,.6);color:#fff;border-radius:4px;padding:1px 4px}.rdo-cl{display:grid;grid-template-columns:1fr 1fr;gap:8px}`;
+  document.head.appendChild(css);
+}
+function rdoAbrir() { _rdoTela(); const d = _hojeISO(); rdo = { data: d, ...(_rdoExtraLer(d)) }; showScreen('rdo'); rdoRender(); }
+function _rdoExtraLer(d) { try { return JSON.parse(localStorage.getItem(_rdoChave(d) + '_x') || '{}'); } catch (e) { return {}; } }
+function rdoCampo(k, v) { rdo[k] = v; try { localStorage.setItem(_rdoChave(rdo.data) + '_x', JSON.stringify({ climaM: rdo.climaM || '', climaT: rdo.climaT || '', ocorr: rdo.ocorr || '' })); } catch (e) {} }
+function rdoData(v) { rdo = { data: v, ..._rdoExtraLer(v) }; rdoRender(); }
+function _rdoDados() {
+  const L = _rdoLer(rdo.data).sort((a, b) => String(a.horaIni).localeCompare(String(b.horaIni)));
+  const pessoas = new Map(); L.forEach(t => t.mo.forEach(p => { if (!pessoas.has(p.nome)) pessoas.set(p.nome, p.funcao); }));
+  const porFunc = {}; pessoas.forEach(f => { porFunc[f] = (porFunc[f] || 0) + 1; });
+  const eqs = new Map(); L.forEach(t => t.eq.forEach(e => { const x = eqs.get(e.tag) || { ...e, hp: 0, hpar: 0, motivos: new Set(), ops: new Set() }; x.hp += e.hp; x.hpar += e.hpar; if (e.motivo) x.motivos.add(e.motivo); if (e.operador) x.ops.add(e.operador); eqs.set(e.tag, x); }));
+  const par = L.flatMap(t => t.par.map(p => ({ ...p, frente: t.frente })));
+  const mats = {}; L.forEach(t => (t.mat || []).forEach(m => { const k = m.desc + '|' + m.unid; mats[k] = (mats[k] || 0) + m.qtd; }));
+  const fotos = L.flatMap(t => (t.fotos || []).map(f => ({ ...f, frente: t.frente, servico: t.servico })));
+  const obra = (window._mobObras || dadosCampo.obras || []).find(o => o.id === (L[0]?.obra || usuarioCampo?.obra)) || (dadosCampo.obras || [])[0] || {};
+  return { L, porFunc, nPessoas: pessoas.size, eqs: [...eqs.values()], par, mats, obra, fotos };
+}
+function _rdoHora(t) { const d = new Date(t); return isNaN(d) ? '' : String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
+async function _rdoFotosFull(fotos) {
+  const busca = async f => { try { if (isOnline && db && _fbReady) { const x = await Promise.race([db.collection('fotos').doc(f.id).get(), new Promise(r => setTimeout(() => r(null), 6000))]); if (x && x.exists && x.data().img) return { ...f, img: x.data().img }; } } catch (e) {} return { ...f, img: f.th }; };
+  return Promise.all(fotos.map(busca));
+}
+const _rdoN = v => (+v || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+function _rdoDataBR(d) { const [a, m, dd] = String(d).split('-'); return dd + '/' + m + '/' + a; }
+function rdoRender() {
+  const el = document.getElementById('rdo-content'); if (!el) return;
+  const D = _rdoDados(), E = _esc;
+  document.getElementById('rdo-sub').textContent = _rdoDataBR(rdo.data) + ' · ' + (usuarioCampo?.nome || '');
+  const op = (k, v) => `<select class="form-control" onchange="rdoCampo('${k}',this.value)"><option value="">—</option>${RDO_CLIMA.map(c => `<option ${c === v ? 'selected' : ''}>${c}</option>`).join('')}</select>`;
+  el.innerHTML = `
+    <div class="card"><div class="card-body">
+      <div class="form-group"><label class="form-label">Data</label><input type="date" class="form-control" value="${rdo.data}" max="${_hojeISO()}" onchange="rdoData(this.value)"/></div>
+      <div class="rdo-cl"><div class="form-group"><label class="form-label">Tempo · manhã</label>${op('climaM', rdo.climaM)}</div><div class="form-group"><label class="form-label">Tempo · tarde</label>${op('climaT', rdo.climaT)}</div></div>
+      <div class="form-group" style="margin-bottom:0"><label class="form-label">Ocorrências e observações do dia</label><textarea class="form-control" rows="3" placeholder="Ex.: visita da fiscalização, falta de material, interferência na rede…" oninput="rdoCampo('ocorr',this.value)">${E(rdo.ocorr || '')}</textarea></div>
+    </div></div>
+    ${!D.L.length ? `<div class="card"><div class="card-body rdo-vz">Nenhum turno encerrado neste celular em ${_rdoDataBR(rdo.data)}. O RDO é montado com os turnos que você encerra na Apropriação.</div></div>` : `
+    <div class="card"><div class="card-body"><div class="rdo-sec">Frentes e serviços · ${D.L.length}</div>${D.L.map(t => `<div class="rdo-fr"><b>${E(t.frente)}${t.frenteDesc ? ' · ' + E(t.frenteDesc) : ''}</b><div class="s">${E(t.servico)} · ${E(t.horaIni)}–${E(t.horaFim)} · ${t.mo.length} pessoa(s)${t.eq.length ? ' · ' + t.eq.length + ' equip.' : ''}</div>
+      <div class="s"><b style="font-size:12.5px;color:var(--text)">Produção: ${t.qtd ? _rdoN(t.qtd) + ' ' + E(t.unid) : t.prodStatus === 'andamento' ? 'em andamento' : '—'}</b>${t.obs ? ' · ' + E(t.obs) : ''}</div></div>`).join('')}</div></div>
+    <div class="card"><div class="card-body"><div class="rdo-sec">Efetivo por função · ${D.nPessoas} pessoa(s)</div><table class="rdo-tb"><thead><tr><th>Função</th><th style="text-align:right">Qtd.</th></tr></thead><tbody>${Object.entries(D.porFunc).sort((a, b) => b[1] - a[1]).map(([f, n]) => `<tr><td>${E(f)}</td><td class="n">${n}</td></tr>`).join('')}</tbody></table></div></div>
+    <div class="card"><div class="card-body"><div class="rdo-sec">Equipamentos · ${D.eqs.length}</div>${D.eqs.length ? `<table class="rdo-tb"><thead><tr><th>Equipamento</th><th style="text-align:right">Trab.</th><th style="text-align:right">Parado</th></tr></thead><tbody>${D.eqs.map(e => `<tr><td><b>${E(e.tag)}</b>${e.desc ? ' · ' + E(e.desc) : ''}${e.ops.size ? `<div class="rdo-vz">${E([...e.ops].join(', '))}</div>` : ''}${e.motivos.size ? `<div class="rdo-vz">Parado: ${E([...e.motivos].join(', '))}</div>` : ''}</td><td class="n">${_rdoN(e.hp)} h</td><td class="n">${_rdoN(e.hpar)} h</td></tr>`).join('')}</tbody></table>` : '<div class="rdo-vz">Nenhum equipamento no dia.</div>'}</div></div>
+    <div class="card"><div class="card-body"><div class="rdo-sec">Paradas · ${D.par.length}</div>${D.par.length ? `<table class="rdo-tb"><thead><tr><th>Horário</th><th>Motivo · quem</th><th style="text-align:right">Horas</th></tr></thead><tbody>${D.par.map(p => `<tr><td style="white-space:nowrap">${E(p.ini)}–${E(p.fim || '…')}</td><td>${E(p.motivo)}<div class="rdo-vz">${E(p.quem)} · ${E(p.frente)}</div></td><td class="n">${_rdoN(p.horas)}</td></tr>`).join('')}</tbody></table>` : '<div class="rdo-vz">Sem paradas registradas.</div>'}</div></div>
+    <div class="card"><div class="card-body"><div class="rdo-sec">Material aplicado</div>${Object.keys(D.mats).length ? `<table class="rdo-tb"><thead><tr><th>Descrição</th><th>Unid.</th><th style="text-align:right">Qtd.</th></tr></thead><tbody>${Object.entries(D.mats).map(([k, q]) => { const [d, u] = k.split('|'); return `<tr><td>${E(d)}</td><td>${E(u)}</td><td class="n">${_rdoN(q)}</td></tr>`; }).join('')}</tbody></table>` : '<div class="rdo-vz">Nenhum material informado.</div>'}</div></div>
+    <div class="card"><div class="card-body"><div class="rdo-sec">Fotos do dia · ${D.fotos.length}</div>${D.fotos.length ? `<div class="rdo-ft">${D.fotos.map(f => `<div><img src="${f.th}" alt=""><span>${E(f.frente)} · ${_rdoHora(f.em)}</span></div>`).join('')}</div>` : '<div class="rdo-vz">Nenhuma foto nos turnos do dia.</div>'}</div></div>`}
+    <div class="bottom-safe"></div>`;
+}
+function _rdoTexto() {
+  const D = _rdoDados(), o = D.obra, proj = (o.nomeProjeto || o.nome || '').trim();
+  const s = [];
+  s.push('*RDO · ' + _rdoDataBR(rdo.data) + '*'); if (proj) s.push(proj); s.push('Encarregado: ' + (usuarioCampo?.nome || ''));
+  if (rdo.climaM || rdo.climaT) s.push('Tempo: manhã ' + (rdo.climaM || '—') + ' · tarde ' + (rdo.climaT || '—'));
+  s.push('', '*Frentes e serviços*');
+  D.L.forEach(t => s.push('• ' + t.frente + (t.frenteDesc ? ' – ' + t.frenteDesc : '') + '\n   ' + t.servico + ' · ' + t.horaIni + '–' + t.horaFim + ' · ' + (t.qtd ? _rdoN(t.qtd) + ' ' + t.unid : t.prodStatus === 'andamento' ? 'em andamento' : 'sem produção') + (t.obs ? '\n   Obs.: ' + t.obs : '')));
+  s.push('', '*Efetivo por função* (' + D.nPessoas + ')'); Object.entries(D.porFunc).sort((a, b) => b[1] - a[1]).forEach(([f, n]) => s.push('• ' + f + ': ' + n));
+  if (D.eqs.length) { s.push('', '*Equipamentos* (' + D.eqs.length + ')'); D.eqs.forEach(e => s.push('• ' + e.tag + (e.desc ? ' ' + e.desc : '') + ': ' + _rdoN(e.hp) + ' h trab.' + (e.hpar ? ' · ' + _rdoN(e.hpar) + ' h parado' + (e.motivos.size ? ' (' + [...e.motivos].join(', ') + ')' : '') : ''))); }
+  s.push('', '*Paradas*'); if (D.par.length) D.par.forEach(p => s.push('• ' + p.ini + '–' + (p.fim || '…') + ' ' + p.motivo + ' · ' + p.quem + ' (' + _rdoN(p.horas) + ' h)')); else s.push('• Sem paradas');
+  const mk = Object.entries(D.mats); if (mk.length) { s.push('', '*Material aplicado*'); mk.forEach(([k, q]) => { const [d, u] = k.split('|'); s.push('• ' + d + ' – ' + u + ' – ' + _rdoN(q)); }); }
+  if (rdo.ocorr) s.push('', '*Ocorrências*', rdo.ocorr);
+  s.push('', '_ObraKontrol_');
+  return s.join('\n');
+}
+async function rdoWhats() {
+  if (!_rdoLer(rdo.data).length) { toast('Nenhum turno encerrado nesse dia para o RDO.', 'err'); return; }
+  const t = _rdoTexto(), D = _rdoDados();
+  if (navigator.share) {
+    let files = [];
+    try { if (D.fotos.length && navigator.canShare) { toast('Preparando as fotos…', 'ok'); const F = await _rdoFotosFull(D.fotos.slice(0, 10));
+      files = await Promise.all(F.map(async (f, i) => { const b = await (await fetch(f.img)).blob(); return new File([b], 'RDO_' + rdo.data + '_' + (i + 1) + '.jpg', { type: b.type || 'image/jpeg' }); }));
+      if (!navigator.canShare({ files, text: t })) files = []; } } catch (e) { files = []; }
+    try { await navigator.share(files.length ? { text: t, files } : { text: t }); return; } catch (e) { if (e && e.name === 'AbortError') return; } }
+  window.open('https://wa.me/?text=' + encodeURIComponent(t), '_blank');
+}
+async function rdoPdf() {
+  const D = _rdoDados(), o = D.obra, E = _esc; if (!D.L.length) { toast('Nenhum turno encerrado nesse dia para o RDO.', 'err'); return; }
+  const w = window.open('', '_blank'); if (!w) { toast('Libere as janelas pop-up para gerar o PDF.', 'err'); return; }
+  w.document.write('<p style="font-family:Arial;padding:20px">Montando o RDO…</p>');
+  const FT = await _rdoFotosFull(D.fotos);
+  const lg = typeof _logoObraC === 'function' ? _logoObraC(o.id) : '';
+  const tb = (cab, linhas) => `<table><thead><tr>${cab.map(c => `<th${/^(Qtd|Horas|Trab|Parado)/.test(c) ? ' class="n"' : ''}>${c}</th>`).join('')}</tr></thead><tbody>${linhas.join('') || `<tr><td colspan="${cab.length}" class="vz">—</td></tr>`}</tbody></table>`;
+  const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RDO ${_rdoDataBR(rdo.data)}</title><style>
+    @page{size:A4;margin:12mm}*{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:0;padding:14px;font-size:12px}
+    .hd{display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:2px solid #111;padding-bottom:8px}.hd img{height:46px;max-width:200px;object-fit:contain}
+    .tt{text-align:right}.tt b{font-size:18px;display:block}.meta{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:10px 0}.meta div{border:1px solid #ccc;border-radius:6px;padding:6px 8px}.meta span{display:block;font-size:9.5px;color:#666;text-transform:uppercase;letter-spacing:.05em}
+    h3{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;background:#111;color:#fff;padding:5px 8px;margin:14px 0 0;border-radius:4px 4px 0 0}
+    table{width:100%;border-collapse:collapse}th{font-size:10px;text-transform:uppercase;color:#555;text-align:left;border-bottom:1px solid #999;padding:5px 6px;background:#f3f3f3}td{border-bottom:1px solid #ddd;padding:5px 6px;vertical-align:top}.n{text-align:right;white-space:nowrap}.vz{color:#888;text-align:center}
+    .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}.oc{border:1px solid #ccc;border-top:0;padding:8px;min-height:40px;white-space:pre-wrap}
+    .ass{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:40px}.ass div{border-top:1px solid #111;text-align:center;padding-top:4px;font-size:11px}
+    .fts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;border:1px solid #ccc;border-top:0;padding:8px}.fts figure{margin:0;break-inside:avoid}.fts img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:4px;display:block}.fts figcaption{font-size:9.5px;color:#444;margin-top:3px}
+    .ft{margin-top:14px;font-size:9.5px;color:#888;text-align:right}@media print{.np{display:none}body{padding:0}}
+    .np{position:sticky;top:0;background:#111;color:#fff;padding:8px;text-align:center;margin:-14px -14px 12px}.np button{background:#E30613;color:#fff;border:0;border-radius:8px;padding:8px 14px;font-weight:700}</style></head><body>
+    <div class="np"><button onclick="window.print()">Imprimir / salvar PDF</button></div>
+    <div class="hd">${lg ? `<img src="${lg}" alt="">` : '<span></span>'}<div class="tt"><b>RELATÓRIO DIÁRIO DE OBRA</b>${E((o.nomeProjeto || o.nome || '').trim())}</div></div>
+    <div class="meta"><div><span>Data</span>${_rdoDataBR(rdo.data)}</div><div><span>Encarregado</span>${E(usuarioCampo?.nome || '')}</div><div><span>Tempo · manhã</span>${E(rdo.climaM || '—')}</div><div><span>Tempo · tarde</span>${E(rdo.climaT || '—')}</div></div>
+    <h3>Frentes e serviços</h3>${tb(['Frente', 'Serviço', 'Horário', 'Pessoas', 'Produção'], D.L.map(t => `<tr><td><b>${E(t.frente)}</b>${t.frenteDesc ? '<br>' + E(t.frenteDesc) : ''}</td><td>${E(t.servico)}${t.obs ? '<br><i>' + E(t.obs) + '</i>' : ''}</td><td>${E(t.horaIni)}–${E(t.horaFim)}</td><td class="n">${t.mo.length}</td><td class="n">${t.qtd ? _rdoN(t.qtd) + ' ' + E(t.unid) : t.prodStatus === 'andamento' ? 'em andamento' : '—'}</td></tr>`))}
+    <div class="two"><div><h3>Efetivo por função · ${D.nPessoas}</h3>${tb(['Função', 'Qtd.'], Object.entries(D.porFunc).sort((a, b) => b[1] - a[1]).map(([f, n]) => `<tr><td>${E(f)}</td><td class="n">${n}</td></tr>`))}</div>
+    <div><h3>Material aplicado</h3>${tb(['Descrição', 'Unid.', 'Qtd.'], Object.entries(D.mats).map(([k, q]) => { const [d, u] = k.split('|'); return `<tr><td>${E(d)}</td><td>${E(u)}</td><td class="n">${_rdoN(q)}</td></tr>`; }))}</div></div>
+    <h3>Equipamentos</h3>${tb(['Equipamento', 'Operador', 'Trab. (h)', 'Parado (h)', 'Motivo'], D.eqs.map(e => `<tr><td><b>${E(e.tag)}</b>${e.desc ? ' · ' + E(e.desc) : ''}</td><td>${E([...e.ops].join(', '))}</td><td class="n">${_rdoN(e.hp)}</td><td class="n">${_rdoN(e.hpar)}</td><td>${E([...e.motivos].join(', '))}</td></tr>`))}
+    <h3>Paradas</h3>${tb(['Início', 'Fim', 'Motivo', 'Quem', 'Frente', 'Horas'], D.par.map(p => `<tr><td>${E(p.ini)}</td><td>${E(p.fim || '…')}</td><td>${E(p.motivo)}</td><td>${E(p.quem)}</td><td>${E(p.frente)}</td><td class="n">${_rdoN(p.horas)}</td></tr>`))}
+    ${FT.length ? `<h3>Relatório fotográfico · ${FT.length}</h3><div class="fts">${FT.map(f => `<figure><img src="${f.img}" alt=""><figcaption>${E(f.frente)} · ${E(f.servico)} · ${_rdoHora(f.em)}</figcaption></figure>`).join('')}</div>` : ''}
+    <h3>Ocorrências e observações</h3><div class="oc">${E(rdo.ocorr || '—')}</div>
+    <div class="ass"><div>${E(usuarioCampo?.nome || '')}<br>Encarregado</div><div>Engenharia / fiscalização</div></div>
+    <div class="ft">Gerado pelo ObraKontrol Campo em ${new Date().toLocaleString('pt-BR')}</div></body></html>`;
+  w.document.open(); w.document.write(html); w.document.close();
+}
 
 </script>
 </body>
