@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.87 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.88 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -16856,6 +16856,24 @@ setTimeout(function _corrigePermsCampo() {
     if (n) saveUsuarios();
   } catch (e) {}
 }, 9000);
+
+// ═══════════════════════════════════════════════════════════════
+// v3.88: recusados que o apontador já corrigiu e reenviou (ou marcou ciente) no app de campo
+// ═══════════════════════════════════════════════════════════════
+(function () {
+  const oDet = _aprDetalheHTML;
+  _aprDetalheHTML = function (g, pend) {
+    const h = oDet.apply(this, arguments), it = [...(g.mo || []), ...(g.eq || [])];
+    const rv = it.find(x => x.reenviado), ci = it.find(x => x.rejeicaoCiente), nv = it.find(x => x.reenvioDe);
+    const dt = t => t ? new Date(t).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+    let t = '';
+    if (rv) t = `✅ O apontador corrigiu e <b>reenviou</b> este turno em ${dt(rv.reenviadoEm)} — o novo está nos pendentes.`;
+    else if (ci) t = `👁️ O apontador marcou <b>ciente</b> da recusa em ${dt(ci.rejeicaoCienteEm)}.`;
+    else if (it.some(x => x.status === 'rejeitado')) t = '⏳ Aguardando o apontador corrigir no app de campo.';
+    if (nv) t += (t ? '<br>' : '') + '🔁 Este é um <b>reenvio</b> de um apontamento que tinha sido recusado.';
+    return t ? h + `<div style="margin-top:10px;padding:10px 12px;border-radius:10px;background:var(--bg);font-size:12.5px">${t}</div>` : h;
+  };
+})();
 
 // Apply configs on load
 setTimeout(applyConfigs, 200);

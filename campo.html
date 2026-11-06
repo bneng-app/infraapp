@@ -883,7 +883,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.87</div>
+  <div class="login-versao">ObraKontrol Campo · v2.88</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -5954,6 +5954,101 @@ async function rdoPdf() {
     <div class="ft">Gerado pelo ObraKontrol Campo em ${new Date().toLocaleString('pt-BR')}</div></body></html>`;
   w.document.open(); w.document.write(html); w.document.close();
 }
+
+// ══════════════════════════════════════════════════════════════
+// v2.88: APONTAMENTO RECUSADO no app de campo — aviso na tela inicial com data, frente e motivo,
+// botões "Corrigir e reenviar" (abre o turno já preenchido) e "Ciente". Ao reenviar, o recusado
+// fica marcado como reenviado e o novo volta como pendente na Aprovação do painel.
+// ══════════════════════════════════════════════════════════════
+let _recusados = [], _apReenvio = null;
+async function _recBuscar() {
+  if (!isOnline || !db || !_fbReady || !usuarioCampo) return;
+  const nome = usuarioCampo.nome, grupos = new Map();
+  for (const col of ['aponMO', 'aponEQ']) {
+    try {
+      const s = await db.collection(col).where('lancadoPor', '==', nome).where('status', '==', 'rejeitado').get();
+      s.docs.forEach(d => { const x = { id: d.id, col, ...d.data() }; if (x.reenviado || x.rejeicaoCiente) return;
+        if (usuarioCampo.id && x.lancadoPorId && x.lancadoPorId !== usuarioCampo.id) return;
+        const k = x.apropriacao || (x.data + '|' + x.frente + '|' + x.horaIni);
+        if (!grupos.has(k)) grupos.set(k, { k, data: x.data, frente: x.frente, servico: x.servico, horaIni: x.horaIni, horaFim: x.horaFim, motivo: x.motivoRejeicao || '', por: x.rejeitadoPor || '', em: x.rejeitadoEm || '', mo: [], eq: [] });
+        grupos.get(k)[col === 'aponMO' ? 'mo' : 'eq'].push(x); });
+    } catch (e) {}
+  }
+  _recusados = [...grupos.values()].sort((a, b) => String(b.data).localeCompare(String(a.data)));
+  _recCard();
+}
+function _recCard() {
+  let c = document.getElementById('rec-aviso');
+  const grid = document.querySelector('#screen-home .hgrid'); if (!grid) return;
+  if (!_recusados.length) { if (c) c.remove(); return; }
+  if (!c) { c = document.createElement('div'); c.id = 'rec-aviso'; grid.parentNode.insertBefore(c, grid); }
+  const D = d => { const [a, m, x] = String(d).split('-'); return x + '/' + m; };
+  c.innerHTML = `<div class="rec-box"><div class="rec-hd">⚠️ ${_recusados.length} apontamento(s) recusado(s)</div>${_recusados.map((r, i) => `<div class="rec-it">
+    <div class="rec-t"><b>${D(r.data)} · ${_esc(r.frente || '')}</b> · ${_esc(r.servico || '')}<br><span>${_esc(r.horaIni || '')}–${_esc(r.horaFim || '')} · ${r.mo.length} pessoa(s)${r.eq.length ? ' · ' + r.eq.length + ' equip.' : ''}</span></div>
+    <div class="rec-m">Motivo: <b>${_esc(r.motivo || '—')}</b>${r.por ? ` <span>(${_esc(r.por)})</span>` : ''}</div>
+    <div class="rec-b"><button class="btn btn-outline btn-sm" onclick="recCiente(${i})">Ciente</button><button class="btn btn-primary btn-sm" onclick="recCorrigir(${i})">Corrigir e reenviar</button></div></div>`).join('')}</div>`;
+}
+async function _recMarcar(r, campos) {
+  for (const x of [...r.mo, ...r.eq]) { try { await db.collection(x.col).doc(x.id).set(campos, { merge: true }); } catch (e) {} }
+}
+async function recCiente(i) {
+  const r = _recusados[i]; if (!r) return;
+  if (!confirm('Marcar como ciente? O apontamento continua recusado e não volta para a aprovação.')) return;
+  await _recMarcar(r, { rejeicaoCiente: true, rejeicaoCienteEm: new Date().toISOString(), rejeicaoCientePor: usuarioCampo.nome });
+  _recusados.splice(i, 1); _recCard(); toast('Ok, ciente.', 'ok');
+}
+async function recCorrigir(i) {
+  const r = _recusados[i]; if (!r) return;
+  abrirModulo('ap'); apNovo();
+  const set = (id, v) => { const el = document.getElementById(id); if (el && v != null) { el.value = v; el.dispatchEvent(new Event('change')); } };
+  set('ap-data', r.data); set('ap-frente', r.frente);
+  if (r.servico && r.servico !== '—') set('ap-servico', r.servico);
+  set('ap-hora-ini', r.horaIni); set('ap-hora-fim', r.horaFim);
+  _apReenvio = r;
+  apConfirmarFrente();
+  let n = 0; while (ap.aba !== 'mo' && n++ < 40) await new Promise(ok => setTimeout(ok, 150));
+  r.mo.forEach(x => { const f = (dadosCampo.funcionarios || []).find(y => String(y.mat) === String(x.mat) || y.nome === x.func); if (f && !ap.mo.has(f.id)) ap.mo.add(f.id); });
+  r.eq.forEach(x => { const e = (dadosCampo.equipamentos || []).find(y => y.id === x.equipId || y.tag === x.equip); if (!e) return;
+    ap.eq.set(e.id, { hp: x.hp ?? '', hpAuto: false, hpar: x.hpar || 0, motivo: x.motivo || '', hor: x.hor ?? '', operador: x.operador || '' }); });
+  try { apRenderMO(); apRenderEQ(); } catch (e) {}
+  const prod = r.mo.find(x => +x.qtd > 0) || r.mo[0] || r.eq[0] || {};
+  set('ap-qtd', prod.qtd || ''); if (prod.unid) set('ap-unid', prod.unid); set('ap-obs', prod.obs || '');
+  if (prod.prodStatus === 'andamento') set('ap-prod-status', 'andamento');
+  // fotos da frente do recusado
+  const ref = [...r.mo, ...r.eq].find(x => x.fotosFrente && x.fotosFrente.length);
+  if (ref) { ap.fotosFrente = []; for (const fid of ref.fotosFrente.slice(0, 5)) { try { const d = await db.collection('fotos').doc(fid).get(); if (d.exists && d.data().img) ap.fotosFrente.push({ id: fid, em: d.data().tiradaEm || d.data().em || new Date().toISOString(), th: d.data().img, ok: true }); } catch (e) {} } if (ref.fotosJust) ap.fotosJust = ref.fotosJust; }
+  apGuardar(); apTab('rev'); _recFaixa();
+  toast('Turno recusado aberto. Corrija o que for preciso e encerre de novo.', 'ok');
+}
+function _recFaixa() {
+  const p = document.getElementById('ap-panel-rev'); if (!p) return;
+  let f = document.getElementById('rec-faixa');
+  if (!_apReenvio) { if (f) f.remove(); return; }
+  if (!f) { f = document.createElement('div'); f.id = 'rec-faixa'; p.insertBefore(f, p.firstChild); }
+  f.innerHTML = `<div class="rec-box" style="margin-bottom:12px"><div class="rec-hd">Corrigindo apontamento recusado</div><div class="rec-m">Motivo: <b>${_esc(_apReenvio.motivo || '—')}</b></div><div class="rec-m" style="opacity:.8">Confira equipe, equipamentos, horários e produção. Ao encerrar, ele volta para a aprovação.</div></div>`;
+}
+(function () {
+  const css = document.createElement('style');
+  css.textContent = `#rec-aviso{padding:6px 16px 0;position:relative;z-index:1}.rec-box{position:relative;z-index:1;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:14px;padding:12px 14px;margin:0 0 14px;color:#7F1D1D}
+    .rec-hd{font-weight:800;font-size:14px;margin-bottom:6px}.rec-it{border-top:1px solid #FECACA;padding:10px 0 2px}.rec-it:first-of-type{border-top:0;padding-top:2px}
+    .rec-t{font-size:13px}.rec-t span,.rec-m span{opacity:.75;font-size:12px}.rec-m{font-size:12.5px;margin-top:4px}.rec-b{display:flex;gap:8px;justify-content:flex-end;margin-top:8px}`;
+  document.head.appendChild(css);
+  // quem lançou (id) vai junto em cada registro novo
+  const oF = fbSalvar;
+  fbSalvar = async function (col, item) { if ((col === 'aponMO' || col === 'aponEQ') && item && usuarioCampo && !item.lancadoPorId) item.lancadoPorId = usuarioCampo.id || ''; if (_apReenvio && (col === 'aponMO' || col === 'aponEQ') && item && !item.reenvioDe) item.reenvioDe = _apReenvio.k; return oF.apply(this, arguments); };
+  const oS = salvarApropriacao;
+  salvarApropriacao = async function () {
+    const uid = ap.uid, rr = _apReenvio;
+    const r = await oS.apply(this, arguments);
+    if (rr && uid && ap.uid !== uid) { await _recMarcar(rr, { reenviado: true, reenviadoEm: new Date().toISOString() }); _recusados = _recusados.filter(x => x.k !== rr.k); _apReenvio = null; _recFaixa(); _recCard(); toast('Apontamento corrigido e reenviado para aprovação.', 'ok'); }
+    return r;
+  };
+  const oT = apTab; apTab = function (aba) { const r = oT.apply(this, arguments); if (aba === 'rev') _recFaixa(); return r; };
+  const oShow = showScreen; showScreen = function (id) { const r = oShow.apply(this, arguments); if (id === 'home') { if (_apReenvio && !(ap && ap.uid)) _apReenvio = null; setTimeout(_recBuscar, 300); } return r; };
+  const oE = window.entrarNoCampo; if (typeof oE === 'function') entrarNoCampo = function () { const r = oE.apply(this, arguments); setTimeout(_recBuscar, 2500); return r; };
+  setTimeout(() => { if (typeof usuarioCampo !== 'undefined' && usuarioCampo) _recBuscar(); }, 4000);
+  window.addEventListener('online', () => setTimeout(_recBuscar, 1500));
+})();
 
 </script>
 </body>
