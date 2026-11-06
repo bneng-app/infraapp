@@ -883,7 +883,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.86</div>
+  <div class="login-versao">ObraKontrol Campo · v2.87</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -4108,6 +4108,7 @@ function _mobCard() {
   const oPM = podeModulo;
   podeModulo = function (k) { if (k === 'mobilizacao') { const u = usuarioCampo; if (!u) return false; if (u.perfil === 'Admin') return true;
       const pf = (dadosCampo.perfis || []).find(p => p.nome === u.perfil); if (pf && pf.perms && pf.perms.mobilizacao !== undefined) return !!pf.perms.mobilizacao;
+      if (u.perfil === 'Manutenção (campo)') return true;
       if (u.perms && u.perms.mobilizacao !== undefined) return !!u.perms.mobilizacao; return u.perfil === 'Manutenção (campo)'; }
     return oPM.apply(this, arguments); };
 })();

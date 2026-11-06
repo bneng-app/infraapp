@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.85 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.86 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -16629,7 +16629,7 @@ function _pfCadastrar(nome) { novoUsuario(); const s = document.getElementById('
     if (res === 'erro' || res === 'offline' || res === 'sem-cpf') { await _garantirApropriador(f, false); return; }
     const u = USUARIOS.find(x => x.funcId === f.id); if (!u) { toast('Não consegui salvar o usuário.', 'error'); return; }
     const pf = perfilPorNome(perfil), perms = {};
-    MODULOS.forEach(([k]) => perms[k] = (k === 'apontamentos' || k === 'abastecimento') ? !!(pf && pf.perms && pf.perms[k]) : false);
+    MODULOS.forEach(([k]) => perms[k] = !!(pf && pf.perms && pf.perms[k]));
     Object.assign(u, { perfil, perms, obra: f.obra || u.obra || '', status: $('usr-status')?.value || 'Ativo', nome: f.nome });
     saveUsuarios();
     try { if (u.emailQR) await db.collection('acessos').doc(u.emailQR).set({ perfil, nome: f.nome, atualizadoEm: new Date().toISOString() }, { merge: true }); } catch (e) {}
@@ -16842,6 +16842,20 @@ function imprimirEtiquetasEq(tam) {
       <table class="dx-tb" style="width:auto;min-width:320px"><thead><tr><th>Descrição</th><th>Unid.</th><th style="text-align:right">Qtd.</th></tr></thead><tbody>${ref.materiais.map(m => `<tr><td>${_e(m.desc)}</td><td>${_e(m.unid)}</td><td class="td-mono" style="text-align:right">${_fmtN(m.qtd)}</td></tr>`).join('')}</tbody></table></div>`;
   };
 })();
+
+// ═══════════════════════════════════════════════════════════════
+// v3.86: usuário de campo herda TODAS as permissões do perfil (a v3.80 só copiava apontamentos e
+// abastecimento e deixava a movimentação desligada). Corrige quem já foi salvo assim.
+// ═══════════════════════════════════════════════════════════════
+setTimeout(function _corrigePermsCampo() {
+  try {
+    if (!db || !_firebaseReady || !usuarioLogado || usuarioLogado.perfil !== 'Admin') return;
+    let n = 0;
+    USUARIOS.forEach(u => { if (!u.funcId || !_perfilEhCampo(u.perfil)) return; const pf = perfilPorNome(u.perfil); if (!pf || !pf.perms) return;
+      MODULOS.forEach(([k]) => { const v = !!pf.perms[k]; if (!!(u.perms || {})[k] !== v) { u.perms = u.perms || {}; u.perms[k] = v; n++; } }); });
+    if (n) saveUsuarios();
+  } catch (e) {}
+}, 9000);
 
 // Apply configs on load
 setTimeout(applyConfigs, 200);
