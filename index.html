@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.90 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.91 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -16970,6 +16970,28 @@ function propRecusar(sid) {
 
 // v3.90: medidor da mobilização (para mostrar 1.090,7 h ou km)
 function _mobMedP(m) { return m.medidor || ((dados.equipamentos || []).find(e => e.id === m.equipId) || {}).medidor || 'horimetro'; }
+// ═══════════════════════════════════════════════════════════════
+// v3.91: APROVAÇÕES de cadastros — corrigir o nome do modelo / família pendente antes de aprovar
+// ═══════════════════════════════════════════════════════════════
+(function () {
+  const oR = renderMmAprov;
+  renderMmAprov = window.renderMmAprov = function () { const r = oR.apply(this, arguments);
+    try { ['familias', 'modelos'].forEach(col => { const fam = col === 'familias', G = (window._mmG || {})[col] || [];
+      document.querySelectorAll(`#mm-aprov-corpo button[onclick^="mmAprovar('${col}',"]`).forEach(bt => { const i = +(bt.getAttribute('onclick').match(/,(\d+)\)/) || [])[1], g = G[i]; if (!g) return;
+        const a = bt.closest('.mm-a'); if (!a || a.querySelector('.mm-nome')) return; const x = g.itens[0];
+        a.insertAdjacentHTML('beforebegin', `<div class="mm-nome" style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:12px"><label style="white-space:nowrap;font-weight:700;color:var(--text-2)">✎ ${fam ? 'Descrição' : 'Nome do modelo'}</label>
+          <input class="form-control" id="${fam ? 'mmf' : 'mmm'}-nome-${i}" value="${_e(fam ? x.desc : x.nome)}" style="flex:1;min-width:180px;max-width:420px" placeholder="${fam ? 'Ex.: Mini escavadeira' : 'Ex.: Wacker Neuson ET75'}"/>
+          <span class="mm-s">corrija antes de aprovar como novo</span></div>`); }); }); } catch (e) {}
+    return r; };
+  const nomeDe = (col, i) => { const el = document.getElementById((col === 'familias' ? 'mmf' : 'mmm') + '-nome-' + i); return el ? el.value.replace(/\s+/g, ' ').trim() : ''; };
+  const oA = mmAprovar;
+  mmAprovar = window.mmAprovar = function (col, i) { const g = (window._mmG || {})[col] && window._mmG[col][i], n = nomeDe(col, i);
+    if (g && document.getElementById((col === 'familias' ? 'mmf' : 'mmm') + '-nome-' + i)) { if (!n) { toast('Informe o nome.', 'error'); return; }
+      const ex = (dados[col] || []).find(x => _mmBanco(x) && _mmNorm(col === 'familias' ? x.desc : x.nome) === _mmNorm(n));
+      if (ex && !confirm('Já existe no banco: ' + ex.cod + ' · ' + (ex.desc || ex.nome) + '.\nAprovar mesmo assim como novo? (Cancelar para escolher "Unificar com…")')) return;
+      g.itens.forEach(x => { if (col === 'familias') x.desc = n; else x.nome = n; }); }
+    return oA.apply(this, arguments); };
+})();
 // Apply configs on load
 setTimeout(applyConfigs, 200);
 setTimeout(function() {
