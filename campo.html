@@ -883,7 +883,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.88</div>
+  <div class="login-versao">ObraKontrol Campo · v2.89</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -5648,7 +5648,7 @@ function pdRender() {
   const el = document.getElementById('pd-content'); if (!el || !pd) return; const e = _pdEq(), E = _pdE, km = _medKmC(e), un = km ? 'km' : 'h', med = km ? 'Hodômetro' : 'Horímetro';
   document.getElementById('pd-sub').textContent = e ? (e.tag || e.placa) + ' · ' + String(pd.data).split('-').reverse().join('/') : 'Equipamento';
   const eqs = _pdEquips(), frs = _daObraCampo(dadosCampo.frentes || []).filter(f => f.cod), fs = _daObraCampo(dadosCampo.funcionarios || []).filter(f => f.status !== 'Desligado' && !f.demissao);
-  const emp = e ? ((dadosCampo.empresas || []).find(x => x.cod === e.prop) || {}) : {}, mod = e ? ((dadosCampo.modelos || []).find(m => m.cod === e.codModelo) || {}) : {};
+  const emp = e ? ((dadosCampo.empresas || []).find(x => x.cod === e.prop || x.nome === e.prop || (e.propId && x.id === e.propId)) || {}) : {}, mod = e ? ((dadosCampo.modelos || []).find(m => m.cod === e.codModelo) || {}) : {};
   let h = `<div class="card"><div class="card-body">
     <div style="display:flex;gap:10px"><div class="form-group" style="flex:1"><label class="form-label">Dia *</label><input class="form-control" type="date" value="${E(pd.data)}" max="${_hojeISO()}" onchange="pd.data=this.value;if(pd.equipId)pdEscolher(pd.equipId);else pdRender()"/></div></div>
     <div class="form-group"><label class="form-label">Equipamento *</label><div style="display:flex;gap:8px"><select class="form-control" style="flex:1" onchange="pdEscolher(this.value)"><option value="">Escolha o equipamento…</option>${eqs.map(x => `<option value="${E(x.id)}" ${x.id === pd.equipId ? 'selected' : ''}>${E(_eqRotulo(x))}</option>`).join('')}</select>
@@ -6048,6 +6048,131 @@ function _recFaixa() {
   const oE = window.entrarNoCampo; if (typeof oE === 'function') entrarNoCampo = function () { const r = oE.apply(this, arguments); setTimeout(_recBuscar, 2500); return r; };
   setTimeout(() => { if (typeof usuarioCampo !== 'undefined' && usuarioCampo) _recBuscar(); }, 4000);
   window.addEventListener('online', () => setTimeout(_recBuscar, 1500));
+})();
+
+// ══════════════════════════════════════════════════════════════
+// v2.89: EMPRESA PROPRIETÁRIA NA MOBILIZAÇÃO — busca digitando, nos fornecedores da obra e no banco
+// de fornecedores. O equipamento guarda a razão social (antes guardava só o código, ex.: "ALM").
+// Fornecedor que não é da obra (ou nem está no banco) vai como pedido para o painel aprovar.
+// ══════════════════════════════════════════════════════════════
+let _propBancoCarregado = false;
+async function _propCarregarBanco() {
+  if (_propBancoCarregado) return;
+  let l = await fbCarregar('fornBanco');
+  if (l) { try { localStorage.setItem('campo_cache_fornBanco', JSON.stringify(l)); } catch (e) {} _propBancoCarregado = true; }
+  else { try { l = JSON.parse(localStorage.getItem('campo_cache_fornBanco') || '[]'); } catch (e) { l = []; } }
+  dadosCampo.fornBanco = l || [];
+}
+const _propDig = t => String(t || '').replace(/\D/g, '');
+function _propEmpsObra() { const o = mob && (mob.obra || usuarioCampo.obra); return (dadosCampo.empresas || []).filter(e => !o || !e.obra || e.obra === o); }
+function _propNomeEmp(e) { return e.nome || e.razao || ''; }
+function _propBuscar(q) {
+  const n = _mobNorm(q), d = _propDig(q); if (!n) return { obra: [], banco: [] };
+  const casa = arr => arr.some(t => t && _mobNorm(t).includes(n)) || (d.length >= 4 && arr.some(t => _propDig(t).includes(d)));
+  const emps = _propEmpsObra();
+  const obra = emps.filter(e => casa([e.cod, e.fantasia, e.nome, e.razao, e.cnpj])).slice(0, 6);
+  const naObra = b => emps.some(e => (e.bancoId && e.bancoId === b.id) || (_propDig(e.cnpj) && _propDig(e.cnpj) === _propDig(b.doc)));
+  const banco = (dadosCampo.fornBanco || []).filter(b => !naObra(b) && casa([b.cod, b.fantasia, b.razao, b.doc])).slice(0, 6);
+  return { obra, banco };
+}
+function _propTexto() {
+  if (!mob) return '';
+  if (mob.prop === '__ext' && mob.propExt) return mob.propExt.nome;
+  const e = (dadosCampo.empresas || []).find(x => x.cod === mob.prop); return e ? (e.cod ? e.cod + ' · ' : '') + (e.fantasia ? e.fantasia + ' — ' : '') + _propNomeEmp(e) : '';
+}
+function _propWidget() {
+  const sel = document.getElementById('mob-prop'); if (!sel || document.getElementById('mob-prop-w')) return;
+  sel.dataset.cs = 1; sel.style.display = 'none'; const cw = sel.parentNode.querySelector('.cs-w'); if (cw) cw.remove();
+  const ext = mob.prop === '__ext' && mob.propExt;
+  sel.insertAdjacentHTML('afterend', `<div id="mob-prop-w">
+    <input class="form-control" id="mob-prop-q" autocomplete="off" placeholder="Digite o nome, código ou CNPJ…" value="${_mobEsc(_propTexto())}" oninput="propDigitou(this.value)" onfocus="this.select()"/>
+    <div id="mob-prop-res"></div>
+    <div id="mob-prop-st">${ext ? _propAviso() : ''}</div></div>`);
+  _propCarregarBanco();
+}
+function _propAviso() {
+  const x = mob.propExt; if (!x) return '';
+  return `<div class="prop-av">⏳ <b>${_mobEsc(x.nome)}</b> ${x.tipo === 'banco' ? 'está no banco de fornecedores, mas ainda não é desta obra.' : 'não está cadastrado.'} Pode seguir com a mobilização: o pedido vai para o escritório aprovar e incluir na obra.</div>`;
+}
+function propDigitou(q) {
+  const r = document.getElementById('mob-prop-res'); if (!r) return;
+  if (mob.prop) { mob.prop = ''; mob.propExt = null; const st = document.getElementById('mob-prop-st'); if (st) st.innerHTML = ''; }
+  if (!String(q || '').trim()) { r.innerHTML = ''; return; }
+  const { obra, banco } = _propBuscar(q);
+  const it = (on, t, s) => `<button type="button" class="prop-it" onclick="${on}"><b>${_mobEsc(t)}</b>${s ? `<span>${_mobEsc(s)}</span>` : ''}</button>`;
+  r.innerHTML = `<div class="prop-lista">
+    ${obra.length ? '<div class="prop-gr">Fornecedores da obra</div>' + obra.map(e => it(`propEscolher('obra','${_mobEsc(e.cod)}')`, (e.cod ? e.cod + ' · ' : '') + (e.fantasia || _propNomeEmp(e)), e.fantasia ? _propNomeEmp(e) : (e.cnpj || ''))).join('') : ''}
+    ${banco.length ? '<div class="prop-gr">Banco de fornecedores <small>· entra na obra após aprovação</small></div>' + banco.map(b => it(`propEscolher('banco','${_mobEsc(b.id)}')`, (b.cod ? b.cod + ' · ' : '') + (b.fantasia || b.razao || ''), [b.fantasia ? b.razao : '', b.doc].filter(Boolean).join(' · '))).join('') : ''}
+    ${!obra.length && !banco.length ? `<div class="prop-vazio">Não achei "${_mobEsc(q)}" nos fornecedores${_propBancoCarregado ? '' : ' (sem internet, procurei só nos da obra)'}.</div>` : ''}
+    <button type="button" class="prop-novo" onclick="propNovo()">+ Não está na lista — pedir cadastro</button></div>`;
+}
+function propEscolher(tipo, v) {
+  if (tipo === 'obra') { mob.prop = v; mob.propExt = null; }
+  else { const b = (dadosCampo.fornBanco || []).find(x => x.id === v); if (!b) return;
+    mob.prop = '__ext'; mob.propExt = { tipo: 'banco', bancoId: b.id, nome: b.razao || b.fantasia || '', fantasia: b.fantasia || '', doc: b.doc || '', cod: b.cod || '' }; }
+  _propAtualizar();
+}
+function _propAtualizar() {
+  const q = document.getElementById('mob-prop-q'); if (q) q.value = _propTexto();
+  const r = document.getElementById('mob-prop-res'); if (r) r.innerHTML = '';
+  const st = document.getElementById('mob-prop-st'); if (st) st.innerHTML = mob.prop === '__ext' ? _propAviso() : '';
+}
+function propNovo() {
+  const q = (document.getElementById('mob-prop-q') || {}).value || '';
+  const r = document.getElementById('mob-prop-res'); if (!r) return;
+  r.innerHTML = `<div class="prop-lista" style="padding:10px">
+    <div class="prop-gr" style="padding:0 0 6px">Pedir cadastro do fornecedor</div>
+    <input class="form-control" id="prop-n-nome" placeholder="Razão social ou nome da empresa *" value="${_mobEsc(_propDig(q).length >= 11 ? '' : q)}" style="margin-bottom:8px"/>
+    <input class="form-control" id="prop-n-doc" inputmode="numeric" placeholder="CNPJ ou CPF (se souber)" value="${_mobEsc(_propDig(q).length >= 11 ? q : '')}" style="margin-bottom:8px"/>
+    <div style="display:flex;gap:8px;justify-content:flex-end"><button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('mob-prop-res').innerHTML=''">Cancelar</button><button type="button" class="btn btn-primary btn-sm" onclick="propNovoOk()">Usar este</button></div></div>`;
+  setTimeout(() => { const n = document.getElementById('prop-n-nome'); if (n) n.focus(); }, 50);
+}
+function propNovoOk() {
+  const nome = (document.getElementById('prop-n-nome').value || '').trim().toUpperCase(), doc = (document.getElementById('prop-n-doc').value || '').trim();
+  if (nome.length < 3) { toast('Escreva o nome da empresa.', 'err'); return; }
+  const d = _propDig(doc); if (d && d.length !== 11 && d.length !== 14) { toast('CNPJ tem 14 números e CPF 11. Confira ou deixe em branco.', 'err'); return; }
+  const b = d && (dadosCampo.fornBanco || []).find(x => _propDig(x.doc) === d);
+  if (b) { propEscolher('banco', b.id); toast('Esse CNPJ já está no banco: ' + (b.razao || '') + '.', 'ok'); return; }
+  mob.prop = '__ext'; mob.propExt = { tipo: 'novo', nome, doc, fantasia: '', cod: '' };
+  _propAtualizar();
+}
+(function () {
+  const css = document.createElement('style');
+  css.textContent = `#mob-prop-w{position:relative}.prop-lista{border:1px solid var(--border,#E5E7EB);border-radius:12px;background:var(--surface,#fff);margin-top:6px;overflow:hidden;box-shadow:0 6px 18px rgba(0,0,0,.08)}
+    .prop-gr{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--text3,#6B7280);padding:8px 12px 4px}.prop-gr small{text-transform:none;font-weight:600;letter-spacing:0}
+    .prop-it{display:block;width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--border,#F3F4F6);padding:9px 12px;font-size:13.5px;color:var(--text,#111);cursor:pointer}.prop-it span{display:block;font-size:11.5px;color:var(--text3,#6B7280);margin-top:1px}
+    .prop-it:active{background:rgba(227,6,19,.06)}.prop-vazio{padding:10px 12px;font-size:13px;color:var(--text2,#374151)}
+    .prop-novo{display:block;width:100%;background:rgba(227,6,19,.06);border:0;border-top:1px solid var(--border,#F3F4F6);padding:10px 12px;font-weight:700;color:#E30613;font-size:13px;text-align:left;cursor:pointer}
+    .prop-av{margin-top:8px;font-size:12.5px;line-height:1.4;background:#FFFBEB;border:1px solid #FCD34D;color:#92400E;border-radius:10px;padding:8px 10px}`;
+  document.head.appendChild(css);
+  // tela: troca o select pela busca
+  const oR = mobRender; mobRender = function () { const r = oR.apply(this, arguments); try { if (mob && mob.passo === 0) _propWidget(); } catch (e) {} return r; };
+  // quem precisa da empresa (termo, assinatura do fornecedor) enxerga o fornecedor pedido
+  const oE = _mobEmp; _mobEmp = function () { if (mob && mob.prop === '__ext' && mob.propExt) return { cod: '', nome: mob.propExt.nome, razao: mob.propExt.nome, fantasia: mob.propExt.fantasia, tipo: 'Locadora' }; return oE.apply(this, arguments); };
+  const oD = _mobDados; _mobDados = function () { const r = oD.apply(this, arguments); if (mob && mob.prop === '__ext' && mob.propExt) r.empresaNome = mob.propExt.nome; return r; };
+  // ao salvar: equipamento e mobilização guardam a razão social (e o pedido, quando houver)
+  let _propRes = null;
+  const oF = fbSalvar;
+  fbSalvar = async function (col, item) {
+    try {
+      if (col === 'equipamentos' && item && item.origem === 'campo' && item.mobilizacaoId && mob && item.prop === mob.prop) {
+        _propRes = null;
+        if (mob.prop === '__ext' && mob.propExt) {
+          const x = mob.propExt, sid = 'sp' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+          await oF.call(this, 'solicitacoes', { id: sid, tipo: 'fornecedorObra', status: 'pendente', origem: 'mobilização', obra: item.obra || '', bancoId: x.bancoId || '', nome: x.nome, fantasia: x.fantasia || '', doc: x.doc || '', cod: x.cod || '',
+            equipId: item.id, tag: item.tag || '', mobilizacaoId: item.mobilizacaoId, por: usuarioCampo.nome, porId: usuarioCampo.id || '', em: new Date().toISOString() });
+          _propRes = { prop: x.nome, propPendente: true, propSol: sid, propId: '', propCod: '' };
+        } else {
+          const e = (dadosCampo.empresas || []).find(z => z.cod === mob.prop);
+          if (e) _propRes = { prop: _propNomeEmp(e), propId: e.id, propCod: e.cod || '' };
+        }
+        if (_propRes) Object.assign(item, _propRes);
+      } else if (col === 'mobilizacoes' && item && _propRes && mob && item.prop === mob.prop) {
+        Object.assign(item, _propRes, { empresaNome: _propRes.prop }); _propRes = null;
+      }
+    } catch (e) {}
+    return oF.apply(this, arguments);
+  };
 })();
 
 </script>

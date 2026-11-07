@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.88 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.89 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -16873,6 +16873,99 @@ setTimeout(function _corrigePermsCampo() {
     if (nv) t += (t ? '<br>' : '') + '🔁 Este é um <b>reenvio</b> de um apontamento que tinha sido recusado.';
     return t ? h + `<div style="margin-top:10px;padding:10px 12px;border-radius:10px;background:var(--bg);font-size:12.5px">${t}</div>` : h;
   };
+})();
+
+// ═══════════════════════════════════════════════════════════════
+// v3.89: EMPRESA PROPRIETÁRIA vinda do app de campo
+//  • o app gravava só o código ("ALM") — agora grava a razão social; os antigos são corrigidos sozinhos
+//  • fornecedor pedido no campo (do banco ou novo) aparece em Empresas para aprovar e incluir na obra
+// ═══════════════════════════════════════════════════════════════
+function _propEmpDe(eq) {
+  const emps = dados.empresas || [], p = String(eq.prop || '').trim(); if (!p) return null;
+  const daObra = x => !x.obra || !eq.obra || x.obra === eq.obra;
+  return emps.find(x => eq.propId && x.id === eq.propId) || emps.find(x => daObra(x) && x.nome === p)
+    || emps.find(x => daObra(x) && String(x.cod || '').toLowerCase() === p.toLowerCase()) || null;
+}
+function _propCorrigirCodigos() {
+  try {
+    if (!db || !_firebaseReady || !usuarioLogado) return;
+    let n = 0;
+    (dados.equipamentos || []).forEach(eq => { if (!eq.prop || eq.propPendente) return; const e = _propEmpDe(eq);
+      if (e && (eq.prop !== e.nome || eq.propId !== e.id)) { eq.prop = e.nome; eq.propId = e.id; eq.propCod = e.cod || ''; _fbGravar('equipamentos', eq); n++; } });
+    if (n && typeof renderEquipamentos === 'function') try { renderEquipamentos(); } catch (e) {}
+  } catch (e) {}
+}
+setTimeout(_propCorrigirCodigos, 10000);
+
+function _propSols() { const o = obraAtiva && obraAtiva.id; return (dados.solicitacoes || []).filter(s => s.tipo === 'fornecedorObra' && s.status === 'pendente' && (!o || o === 'todas' || s.obra === o)); }
+function _propBancoDe(s) {
+  const B = dados.fornBanco || [], d = _fbDig(s.doc);
+  return (s.bancoId && B.find(b => b.id === s.bancoId)) || (d && B.find(b => _fbDig(b.doc) === d)) || B.find(b => _bsNorm(b.razao) === _bsNorm(s.nome)) || null;
+}
+function _propCard() {
+  const l = _propSols(); const dt = t => String(t || '').slice(0, 10).split('-').reverse().join('/');
+  if (!l.length) return '';
+  return `<div class="card" id="prop-sols-card" style="margin-bottom:14px;border:1.5px solid #FCD34D;background:#FFFBEB"><div class="card-body">
+    <div style="font-weight:800;color:#92400E;margin-bottom:4px">📨 ${l.length} fornecedor(es) pedido(s) pelo campo</div>
+    <div style="font-size:12px;color:#92400E;margin-bottom:8px">O apontador mobilizou um equipamento de um fornecedor que ainda não é desta obra. Aprove para incluir no cadastro da obra — o equipamento é atualizado junto.</div>
+    ${l.map(s => { const b = _propBancoDe(s); return `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--surface,#fff);border:1px solid #FDE68A;border-radius:10px;padding:8px 12px;margin-bottom:6px">
+      <div style="flex:1;min-width:240px"><b>${_e(b ? b.razao : s.nome)}</b> ${b && b.doc ? `<span class="td-mono" style="font-size:12px">${_e(b.doc)}</span>` : s.doc ? `<span class="td-mono" style="font-size:12px">${_e(s.doc)}</span>` : ''}
+        ${b ? '<span class="tag tag-green" style="font-size:10.5px">no banco</span>' : '<span class="tag tag-amber" style="font-size:10.5px">fora do banco</span>'}
+        <div style="font-size:11.5px;color:var(--text-3)">${_e(getNomeObra(s.obra) || '')} · equipamento <b>${_e(s.tag || '')}</b> · pedido por ${_e(s.por || '')} em ${_e(dt(s.em))}</div></div>
+      <button class="btn btn-primary btn-sm" onclick="propAprovar('${s.id}')">${b ? 'Aprovar e incluir na obra' : 'Conferir e incluir'}</button><button class="btn btn-outline btn-sm" onclick="propRecusar('${s.id}')">Recusar</button></div>`; }).join('')}</div></div>`;
+}
+function _propCodLivre(cod, obra, nome, bid) {
+  const usados = new Set((dados.empresas || []).filter(x => x.obra === obra).map(x => String(x.cod || '').toUpperCase()));
+  let c = String(cod || '').toUpperCase(); if (!c) c = typeof _fcGerar === 'function' ? _fcGerar(nome, bid) : _bsNorm(nome).replace(/[^A-Z]/gi, '').slice(0, 3).toUpperCase();
+  if (!usados.has(c)) return c; for (let i = 2; i < 99; i++) if (!usados.has(c + i)) return c + i; return c + Date.now().toString(36).slice(-2);
+}
+function propAprovar(sid) {
+  const s = (dados.solicitacoes || []).find(x => x.id === sid); if (!s) return;
+  const b = _propBancoDe(s);
+  if (!b) {
+    if (_ehMaster()) { fbNovo({ doc: s.doc, nome: s.nome }); toast('Inclua no banco de fornecedores e depois clique em “Conferir e incluir” de novo.'); return; }
+    if (!(dados.solicitacoes || []).some(x => x.tipo === 'fornecedor' && x.status === 'pendente' && x.origemSol === sid))
+      _fbGravar('solicitacoes', { id: 'sl' + Date.now().toString(36), tipo: 'fornecedor', status: 'pendente', doc: s.doc || '', nome: s.nome, obs: 'Pedido do campo (mobilização ' + (s.tag || '') + ')', obra: s.obra, por: usuarioLogado?.nome || '', em: new Date().toISOString(), origemSol: sid });
+    toast('Esse fornecedor ainda não está no banco. Mandei o pedido para o Master; quando ele incluir, é só aprovar aqui.', 'error'); return;
+  }
+  let e = (dados.empresas || []).find(x => x.obra === s.obra && (x.bancoId === b.id || (_fbDig(b.doc) && _fbDig(x.cnpj) === _fbDig(b.doc))));
+  if (!e) {
+    const tipo = prompt('Incluir ' + b.razao + ' na obra como (Locadora, Empreiteira, Fornecedora, Prestadora ou Própria):', 'Locadora'); if (tipo === null) return;
+    const T = ['Empreiteira', 'Locadora', 'Fornecedora', 'Prestadora', 'Própria'].find(t => _bsNorm(t) === _bsNorm(tipo)) || 'Locadora';
+    e = { id: 'e' + Date.now(), obra: s.obra, cod: _propCodLivre(b.cod || s.cod, s.obra, b.razao, b.id), nome: b.razao, cnpj: b.doc || '', tipo: T, resp: '', bancoId: b.id, criadoPor: usuarioLogado?.nome || '', origem: 'pedido do campo' };
+    _fbGravar('empresas', e);
+  }
+  let n = 0;
+  (dados.equipamentos || []).forEach(q => { if (q.propSol === sid || (s.equipId && q.id === s.equipId)) { q.prop = e.nome; q.propId = e.id; q.propCod = e.cod || ''; q.propPendente = false; _fbGravar('equipamentos', q); n++; } });
+  (dados.mobilizacoes || []).forEach(m => { if (m.propSol === sid) { m.prop = e.nome; m.empresaNome = e.nome; m.propPendente = false; _fbGravar('mobilizacoes', m); } });
+  _fbGravar('solicitacoes', { ...s, status: 'aprovada', bancoId: b.id, empresaId: e.id, resolvidoPor: usuarioLogado?.nome || '', resolvidoEm: new Date().toISOString() });
+  try { renderEmpresas(); popularSelects(); if (typeof renderEquipamentos === 'function') renderEquipamentos(); } catch (x) {}
+  toast('✓ ' + e.nome + ' incluída na obra' + (n ? ' e ' + n + ' equipamento(s) atualizado(s)' : '') + '.');
+}
+function propRecusar(sid) {
+  const s = (dados.solicitacoes || []).find(x => x.id === sid); if (!s) return;
+  const m = prompt('Motivo da recusa (o equipamento continua com “' + s.nome + '” até alguém corrigir a empresa no cadastro):', ''); if (m === null) return;
+  _fbGravar('solicitacoes', { ...s, status: 'recusada', motivo: m, resolvidoPor: usuarioLogado?.nome || '', resolvidoEm: new Date().toISOString() });
+  try { renderEmpresas(); } catch (x) {}
+}
+(function () {
+  // card de pedidos em Empresas e aviso em Equipamentos
+  const oR = window.renderEmpresas || renderEmpresas;
+  renderEmpresas = window.renderEmpresas = function () { const r = oR.apply(this, arguments);
+    try { const pg = document.getElementById('page-empresas'), hd = pg && pg.querySelector('.page-header'); if (hd) { let c = document.getElementById('prop-sols'); if (!c) { hd.insertAdjacentHTML('afterend', '<div id="prop-sols"></div>'); c = document.getElementById('prop-sols'); } c.innerHTML = _propCard(); } } catch (e) {}
+    return r; };
+  if (typeof renderEquipamentos === 'function') { const oQ = renderEquipamentos;
+    renderEquipamentos = window.renderEquipamentos = function () { const r = oQ.apply(this, arguments);
+      try { const pg = document.getElementById('page-equipamentos'), hd = pg && pg.querySelector('.page-header'); if (hd) { let c = document.getElementById('prop-sols-eq'); if (!c) { hd.insertAdjacentHTML('afterend', '<div id="prop-sols-eq"></div>'); c = document.getElementById('prop-sols-eq'); }
+        const n = _propSols().length; c.innerHTML = n ? `<div style="margin-bottom:12px;padding:9px 14px;border:1px solid #FCD34D;background:#FFFBEB;color:#92400E;border-radius:10px;font-size:13px">📨 <b>${n}</b> fornecedor(es) pedido(s) pelo campo aguardando aprovação. <a href="#" onclick="showPage('empresas');return false" style="color:#B45309;font-weight:700">Ver em Empresas →</a></div>` : ''; } } catch (e) {}
+      return r; }; }
+  // modal do equipamento: mostra a empresa certa mesmo se o registro tiver só o código
+  const oEd = window.editarEquipamento || editarEquipamento;
+  editarEquipamento = window.editarEquipamento = function (id) { const q = (dados.equipamentos || []).find(x => x.id === id);
+    if (q && q.prop && !q.propPendente) { const e = _propEmpDe(q); if (e && q.prop !== e.nome) { q.prop = e.nome; q.propId = e.id; q.propCod = e.cod || ''; } }
+    const r = oEd.apply(this, arguments);
+    try { const sp = document.getElementById('equip-prop'); if (q && q.propPendente && sp) { const o = [...sp.options].find(x => x.value === q.prop); if (o) o.textContent = q.prop + ' (aguardando aprovação em Empresas)'; } } catch (e) {}
+    return r; };
 })();
 
 // Apply configs on load
