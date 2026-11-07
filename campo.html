@@ -883,7 +883,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     <button class="btn btn-primary" id="btn-entrar" onclick="fazerLoginCampo()">Entrar</button>
   </div>
   <div class="instalar-box" id="instalar-login"></div>
-  <div class="login-versao">ObraKontrol Campo · v2.89</div>
+  <div class="login-versao">ObraKontrol Campo · v2.90</div>
 </div>
 
 <!-- ══════════════ SCREEN: HOME ══════════════ -->
@@ -4042,7 +4042,7 @@ function termoMobHtml(t) {
     <div class="tk-t">TERMO DE MOBILIZAÇÃO</div>
     <div class="tk-big" style="font-size:30px">${_mobEsc(t.tag)}</div><hr>
     ${L('Data', String(t.data || '').split('-').reverse().join('/') + ' ' + (t.hora || ''))}${L('Família', t.familiaNome)}${L('Modelo', t.modeloNome)}${L('Placa', t.placa)}${L('Chassi', t.chassi)}${L('Nº de série', t.serie)}${L('Validade do documento', t.docVal ? String(t.docVal).split('-').reverse().join('/') : '')}${L('Ano de fabricação', t.ano)}${L('Proprietária', t.empresaNome)}
-    <hr>${L('Horímetro/Km', t.hor)}${L('Combustível', t.comb)}
+    <hr>${L(_mobMed() === 'hodometro' ? 'Hodômetro' : 'Horímetro', (isNaN(parseFloat(t.hor)) ? t.hor : _fmtHor(parseFloat(t.hor)) + (_mobMed() === 'hodometro' ? ' km' : ' h')))}${L('Combustível', t.comb)}
     <hr><div class="tk-c" style="color:#555">CHECKLIST</div>
     ${L('Itens OK', (t.checklist || []).filter(c => c.st === 'ok').length + ' de ' + (t.checklist || []).length)}
     ${nok.length ? nok.map(c => `<div style="color:#B91C1C;font-weight:700">✕ ${_mobEsc(c.t)}</div><div style="color:#555;margin-bottom:4px">${_mobEsc(c.obs)}</div>`).join('') : '<div class="tk-c" style="color:#15803D;font-weight:700">Nenhum item com problema</div>'}
@@ -4089,7 +4089,7 @@ async function mobValidar() {
       custoHora: 0, cadastroPendente: true, mobilizacaoId: idMob, origem: 'campo', criadoPor: usuarioCampo.nome, criadoEm: ag };
     await fbSalvar('equipamentos', eq); (dadosCampo.equipamentos = dadosCampo.equipamentos || []).push(eq);
     await fbSalvar('mobilizacoes', { id: idMob, tipo: 'mobilizacao', equipId: idEq, tag: t.tag, obra: t.obra, data: t.data, hora: t.hora, familia: mob.familia, familiaNome: t.familiaNome, codModelo, modeloNome: t.modeloNome,
-      prop: mob.prop, empresaNome: t.empresaNome, placa: t.placa, chassi: t.chassi, serie: t.serie, docValidade: t.docVal, ano: t.ano, hor: t.hor, comb: t.comb, fotoHor: fHor, fotoPlaca: fPlaca, fotos: fEq, checklist: ck, avarias: av, acess: t.acess,
+      medidor: _mobMed(), prop: mob.prop, empresaNome: t.empresaNome, placa: t.placa, chassi: t.chassi, serie: t.serie, docValidade: t.docVal, ano: t.ano, hor: t.hor, comb: t.comb, fotoHor: fHor, fotoPlaca: fPlaca, fotos: fEq, checklist: ck, avarias: av, acess: t.acess,
       nomeRec: t.nomeRec, sigRec: t.sigRec, sigRecTipo: mob.sigRecTipo || null, nomeEnt: t.nomeEnt, sigEnt: t.sigEnt, sigEntTipo: mob.sigEntTipo || null, lancadoPor: usuarioCampo.nome, validadoEm: ag, obraNome: t.obraNome });
     t.validadoEm = ag; t.tag = eq.tag;
     _tkModal(termoMobHtml(t), `<button class="btn btn-green" style="flex:1" onclick="document.getElementById('tk-ov').remove();showScreen('home')">Concluir</button>`);

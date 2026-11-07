@@ -596,7 +596,7 @@ function okAbertura(mostrar) { const el = document.getElementById('ok-abertura')
     </div>
     <button class="lg-btn" onclick="fazerLogin()" type="button">Entrar no ObraKontrol</button>
     <a href="#" class="lg-esqueci" onclick="esqueciSenha();return false">Esqueci minha senha</a>
-    <div class="lg-ver">ObraKontrol v3.89 · Controle de Mão de Obra e Equipamentos</div>
+    <div class="lg-ver">ObraKontrol v3.90 · Controle de Mão de Obra e Equipamentos</div>
   </div>
   <div class="lg-dir">
     <div class="lg-dir-in">
@@ -12195,7 +12195,7 @@ async function verTermoMob(id) {
     <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap"><div><img src="${_logoTermo(m.obra)}" style="max-width:220px;max-height:72px;object-fit:contain" alt="ObraKontrol"><div style="font-size:12px;color:#555;margin-top:4px">${_e(getNomeObra(m.obra) || m.obraNome || '')}</div></div>
       <div style="text-align:right"><div style="font-size:12px;letter-spacing:.1em;color:#555">TERMO DE MOBILIZAÇÃO</div><div style="font-size:34px;font-weight:900;color:#E30613;font-family:monospace">${_e(m.tag)}</div><div style="font-size:12px;color:#555">${_e(String(m.data || '').split('-').reverse().join('/'))} ${_e(m.hora || '')}</div></div></div>
     <hr style="border:0;border-top:1px solid #ddd;margin:16px 0">
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">${L('Família', m.familiaNome)}${L('Modelo', m.modeloNome)}${L('Placa', m.placa)}${L('Chassi', m.chassi)}${L('Nº de série', m.serie)}${L('Validade do documento', m.docValidade ? String(m.docValidade).split('-').reverse().join('/') : '')}${L('Ano de fabricação', m.ano)}${L('Proprietária', m.empresaNome)}${L('Horímetro / km', m.hor)}${L('Combustível na chegada', m.comb)}${L('Registrado por', m.lancadoPor)}</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">${L('Família', m.familiaNome)}${L('Modelo', m.modeloNome)}${L('Placa', m.placa)}${L('Chassi', m.chassi)}${L('Nº de série', m.serie)}${L('Validade do documento', m.docValidade ? String(m.docValidade).split('-').reverse().join('/') : '')}${L('Ano de fabricação', m.ano)}${L('Proprietária', m.empresaNome)}${L(_mobMedP(m) === 'hodometro' ? 'Hodômetro' : 'Horímetro', (m.hor === '' || m.hor == null || isNaN(parseFloat(m.hor))) ? m.hor : Number(parseFloat(m.hor)).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + (_mobMedP(m) === 'hodometro' ? ' km' : ' h'))}${L('Combustível na chegada', m.comb)}${L('Registrado por', m.lancadoPor)}</div>
     <h3 style="font-size:14px;margin:20px 0 8px">Checklist de recebimento · ${ck.filter(c => c.st === 'ok').length} OK${nok.length ? ' · <span style="color:#B91C1C">' + nok.length + ' com problema</span>' : ''}</h3>
     <table style="width:100%;border-collapse:collapse;font-size:12.5px">${ck.map(c => `<tr style="border-bottom:1px solid #eee"><td style="padding:5px 4px">${_e(c.t)}${c.obs ? '<div style="color:#B91C1C;font-size:11.5px">' + _e(c.obs) + '</div>' : ''}</td>
       <td style="padding:5px 4px;text-align:right;font-weight:700;color:${c.st === 'nok' ? '#B91C1C' : c.st === 'ok' ? '#15803D' : '#64748B'}">${c.st === 'nok' ? 'NÃO OK' : c.st === 'ok' ? 'OK' : 'N/A'}</td></tr>`).join('')}</table>
@@ -16968,6 +16968,8 @@ function propRecusar(sid) {
     return r; };
 })();
 
+// v3.90: medidor da mobilização (para mostrar 1.090,7 h ou km)
+function _mobMedP(m) { return m.medidor || ((dados.equipamentos || []).find(e => e.id === m.equipId) || {}).medidor || 'horimetro'; }
 // Apply configs on load
 setTimeout(applyConfigs, 200);
 setTimeout(function() {
